@@ -1,0 +1,32 @@
+{
+  "name": "haruhifanclub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "凉宫春日应援团 — 统一 monorepo（前端 pnpm workspace + Rust 后端）",
+  "type": "module",
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:backend": "cargo run -p haruhi-server",
+    "build:backend": "cargo build --release -p haruhi-server",
+    "dev:news": "pnpm --filter @haruhi/news dev",
+    "dev:art": "pnpm --filter @haruhi/art dev",
+    "dev:exam": "pnpm --filter @haruhi/exam dev",
+    "dev:novel": "pnpm --filter @haruhi/novel dev",
+    "dev:shop": "pnpm --filter @haruhi/shop dev",
+    "dev:console": "pnpm --filter @haruhi/console dev",
+    "build:apps": "pnpm -r --filter \"./apps/*\" build",
+    "lint": "eslint . && cargo fmt --check && cargo clippy -- -D warnings",
+    "lint:js": "eslint .",
+    "format": "prettier --write \"**/*.{js,ts,vue,json,md}\" && cargo fmt"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "eslint-plugin-vue": "^9.32.0",
+    "prettier": "^3.4.2",
+    "vue-eslint-parser": "^9.4.3"
+  }
+}

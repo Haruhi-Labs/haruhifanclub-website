@@ -1,0 +1,9 @@
+[package]
+name = "haruhi-ai"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+haruhi-core.workspace = true
+# reqwest/serde 在 art（阶段4）接入 DashScope 审核时填充

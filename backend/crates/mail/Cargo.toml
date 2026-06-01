@@ -1,0 +1,9 @@
+[package]
+name = "haruhi-mail"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+haruhi-core.workspace = true
+# lettre/reqwest + 邮件队列 worker 在 shop（阶段7）接入时填充

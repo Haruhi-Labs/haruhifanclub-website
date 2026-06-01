@@ -1,0 +1,30 @@
+[package]
+name = "haruhi-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "haruhi-server"
+path = "src/main.rs"
+
+[dependencies]
+haruhi-core.workspace = true
+haruhi-db.workspace = true
+haruhi-auth.workspace = true
+haruhi-media.workspace = true
+haruhi-ai.workspace = true
+haruhi-mail.workspace = true
+
+axum.workspace = true
+tokio.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+sqlx.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+dotenvy.workspace = true
+anyhow.workspace = true

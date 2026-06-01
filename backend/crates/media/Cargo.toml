@@ -1,0 +1,9 @@
+[package]
+name = "haruhi-media"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+haruhi-core.workspace = true
+# 媒体处理依赖（image/webp/ffmpeg 调用）在 novel/exam 阶段接入

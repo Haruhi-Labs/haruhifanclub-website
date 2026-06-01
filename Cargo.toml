@@ -1,0 +1,79 @@
+[workspace]
+resolver = "2"
+members = [
+    "backend/crates/core",
+    "backend/crates/db",
+    "backend/crates/auth",
+    "backend/crates/media",
+    "backend/crates/ai",
+    "backend/crates/mail",
+    "backend/crates/server",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+license = "MIT"
+
+# 统一依赖版本：各 crate 用 `dep.workspace = true` 引用
+[workspace.dependencies]
+# --- 内部 crate ---
+haruhi-core = { path = "backend/crates/core" }
+haruhi-db = { path = "backend/crates/db" }
+haruhi-auth = { path = "backend/crates/auth" }
+haruhi-media = { path = "backend/crates/media" }
+haruhi-ai = { path = "backend/crates/ai" }
+haruhi-mail = { path = "backend/crates/mail" }
+
+# --- 异步运行时 / Web ---
+tokio = { version = "1", features = ["full"] }
+axum = { version = "0.8", features = ["multipart", "macros"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "fs", "trace", "limit"] }
+
+# --- 数据库（运行时校验，不用 query! 宏，免 DATABASE_URL）---
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio",
+    "sqlite",
+    "chrono",
+    "json",
+    "macros",
+    "migrate",
+] }
+
+# --- 序列化 ---
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# --- 鉴权 / 安全 ---
+jsonwebtoken = "9"
+argon2 = "0.5"
+hmac = "0.12"
+sha2 = "0.10"
+md-5 = "0.10"
+rand = "0.8"
+
+# --- HTTP 客户端 / 邮件 ---
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "multipart"] }
+lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport", "builder"] }
+
+# --- 媒体处理 ---
+image = "0.25"
+webp = "0.3"
+zip = "2"
+quick-xml = "0.37"
+
+# --- 工具 ---
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dotenvy = "0.15"
+async-trait = "0.1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
