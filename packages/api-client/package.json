@@ -1,0 +1,12 @@
+{
+  "name": "@haruhi/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "module": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": "./index.js"
+  }
+}

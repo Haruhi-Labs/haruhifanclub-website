@@ -1,5 +1,6 @@
 //! haruhifanclub 统一后端入口。
 
+mod admin_routes;
 mod auth_routes;
 mod modules;
 mod routes;

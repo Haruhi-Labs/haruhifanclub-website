@@ -8,7 +8,7 @@ use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 
 use crate::state::AppState;
-use crate::{auth_routes, modules};
+use crate::{admin_routes, auth_routes, modules};
 
 pub fn router(state: AppState) -> Router {
     let uploads_dir = state.cfg.uploads_dir.clone();
@@ -16,7 +16,8 @@ pub fn router(state: AppState) -> Router {
     // /api 下：health + 鉴权 + 各业务模块
     let api = Router::new()
         .route("/health", get(health))
-        .merge(auth_routes::router());
+        .merge(auth_routes::router())
+        .merge(admin_routes::router());
     let api = modules::mount(api).with_state(state);
 
     let cors = CorsLayer::new()
