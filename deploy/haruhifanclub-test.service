@@ -1,0 +1,16 @@
+# 临时测试后端 systemd 单元（test.haruyuki.cn 专用，独立于生产）。
+# 安装：cp 到 /etc/systemd/system/ ; systemctl daemon-reload ; systemctl enable --now haruhifanclub-test
+[Unit]
+Description=haruhifanclub TEST backend (axum) for test.haruyuki.cn
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/haruhifanclub-test
+EnvironmentFile=/var/www/haruhifanclub-test/.env
+ExecStart=/var/www/haruhifanclub-test/bin/haruhi-server
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -28,3 +28,6 @@ _legacy_dumps/
 
 # === sqlx 离线缓存保留（不要忽略）===
 !.sqlx/
+
+# Docker 交叉编译输出（linux 二进制）
+target-linux/
