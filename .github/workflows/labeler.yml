@@ -1,0 +1,26 @@
+name: 自动打标签
+
+# 按改动路径自动给 PR 打模块标签。
+# 使用 pull_request_target 以便对来自 fork 的 PR 也能写标签（仅读取标签配置，不执行 PR 代码，安全）。
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+jobs:
+  label:
+    name: 根据路径打标签
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          configuration-path: .github/labeler.yml
+          sync-labels: true

@@ -1,0 +1,67 @@
+# actions/labeler@v5 配置（v5 语法：changed-files + any-glob-to-any-file）
+# 文档：https://github.com/actions/labeler
+# 注意：这些标签需先在仓库 Labels 中存在；可配合 actions/labeler 的 dot 选项处理隐藏文件。
+
+"app:news":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/news/**"
+
+"app:art":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/art/**"
+
+"app:exam":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/exam/**"
+
+"app:novel":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/novel/**"
+
+"app:shop":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/shop/**"
+
+"app:console":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/console/**"
+
+"api-client":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/api-client/**"
+
+"backend":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "backend/**"
+          - "Cargo.toml"
+          - "Cargo.lock"
+          - "rust-toolchain.toml"
+
+"ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - ".github/labeler.yml"
+          - ".coderabbit.yaml"
+
+"docs":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "**/*.md"
+
+"deps":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pnpm-lock.yaml"
+          - "Cargo.lock"
+          - "**/package.json"
+          - ".github/dependabot.yml"

@@ -1,0 +1,49 @@
+# ============================================================================
+#  CODEOWNERS —— 代码所有者与默认评审人
+#
+#  ⚠️ 重要：下方所有 @OWNER 都是占位符！
+#     启用前必须把 @OWNER 全部替换为你的 GitHub 用户名（如 @your-name）
+#     或团队（如 @your-org/your-team）。
+#     在未替换之前，请不要在 branch protection 中开启「Require review from
+#     Code Owners」，否则因 @OWNER 不存在会导致无人能满足必需评审、PR 卡死。
+#
+#  语法：后出现的规则优先。每行 = 路径匹配 + 一个或多个 owner。
+# ============================================================================
+
+# 默认：仓库内所有文件
+*                       @OWNER
+
+# ---- 前端 app ----
+/apps/news/             @OWNER
+/apps/art/              @OWNER
+/apps/exam/             @OWNER
+/apps/novel/            @OWNER
+/apps/shop/             @OWNER
+/apps/console/          @OWNER
+
+# ---- 共享前端包 ----
+/packages/              @OWNER
+/packages/api-client/   @OWNER
+
+# ---- 后端 crate ----
+/backend/                       @OWNER
+/backend/crates/server/         @OWNER
+/backend/crates/core/           @OWNER
+/backend/crates/db/             @OWNER
+/backend/crates/auth/           @OWNER
+/backend/crates/media/          @OWNER
+/backend/crates/ai/             @OWNER
+/backend/crates/mail/           @OWNER
+/backend/migrations/            @OWNER
+
+# ---- 根级构建 / 工作区清单（改动牵一发动全身，需重点把关）----
+/Cargo.toml             @OWNER
+/Cargo.lock             @OWNER
+/package.json           @OWNER
+/pnpm-workspace.yaml    @OWNER
+/pnpm-lock.yaml         @OWNER
+
+# ---- 仓库治理 / CI / 部署 / 文档 ----
+/.github/               @OWNER
+/deploy/                @OWNER
+/docs/                  @OWNER

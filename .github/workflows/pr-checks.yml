@@ -1,0 +1,89 @@
+name: PR Checks
+
+# 提交规范与 PR 校验（靠 CI 把关，无本地 hooks）：
+#   - semantic-pr-title：校验 PR 标题符合 Conventional Commits（squash 合并时 PR 标题即最终提交信息）。
+#   - commitlint：逐条校验 PR 范围内每个提交。
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+# 取消同一 PR 的旧运行，仅保留最新一次
+concurrency:
+  group: pr-checks-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# 顶层最小权限，按需在 job 级提权
+permissions:
+  contents: read
+
+jobs:
+  # 校验 PR 标题（squash 合并的最终提交信息来源）
+  semantic-pr-title:
+    runs-on: ubuntu-latest
+    permissions:
+      # action 读取 PR 信息
+      pull-requests: read
+      # amannn/action-semantic-pull-request@v5 默认通过 Checks API 上报结果，需要 checks:write
+      checks: write
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # type 唯一合法集合（与 commitlint.config.mjs 保持一致）
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            docs
+            style
+            test
+            build
+            ci
+            chore
+            revert
+          # scope 可选；给出则必须在此集合内（与 commitlint.config.mjs 保持一致）
+          scopes: |
+            news
+            art
+            exam
+            novel
+            shop
+            console
+            api-client
+            server
+            core
+            db
+            auth
+            media
+            ai
+            mail
+            deploy
+            ci
+            docs
+            deps
+            release
+            repo
+          # scope 非必填
+          requireScope: false
+          # subject 允许中文（默认正则会拒绝非 ASCII 起始）；这里允许任意非空 subject
+          subjectPattern: ^.+$
+          subjectPatternError: |
+            PR 标题的 subject 部分（"type(scope): " 之后）不能为空。
+          # 允许 WIP 草稿 PR 跳过校验
+          wip: true
+
+  # 逐条校验 PR 范围内的每个提交
+  commitlint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 需要完整历史以便比对 PR 提交范围
+          fetch-depth: 0
+      - uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: commitlint.config.mjs

@@ -1,0 +1,110 @@
+name: Bug 报告
+description: 报告一个缺陷，帮助我们修复问题
+title: "fix: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢花时间提交 Bug 报告！请尽量填写完整信息，这能帮助我们更快定位问题。
+        提交前请先搜索现有 issue，避免重复。
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题描述
+      description: 简要描述遇到的缺陷。
+      placeholder: 清晰、简洁地说明发生了什么。
+    validations:
+      required: true
+  - type: dropdown
+    id: modules
+    attributes:
+      label: 受影响模块
+      description: 选择本问题涉及的模块（可多选）。
+      multiple: true
+      options:
+        - "app: news"
+        - "app: art"
+        - "app: exam"
+        - "app: novel"
+        - "app: shop"
+        - "app: console"
+        - "api-client"
+        - "backend: server"
+        - "backend: core"
+        - "backend: db"
+        - "backend: auth"
+        - "backend: media"
+        - "backend: ai"
+        - "backend: mail"
+        - "deploy"
+        - "ci"
+        - "docs"
+        - "不确定 / 其它"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 详细列出能稳定复现该问题的步骤。
+      placeholder: |
+        1. 打开 '...'
+        2. 点击 '...'
+        3. 滚动到 '...'
+        4. 出现错误
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+      description: 你期望发生什么？
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: 实际发生了什么？
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 运行环境
+      description: 请填写相关版本信息（前端问题填浏览器 / Node；后端问题填 Rust）。
+      value: |
+        - 操作系统：
+        - 浏览器及版本（前端）：
+        - Node 版本（`node -v`，要求 >=20）：
+        - pnpm 版本（`pnpm -v`，期望 10.11.0）：
+        - Rust 版本（`rustc --version`，后端）：
+        - 部署环境：本地 dev / 测试 / 生产
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志 / 报错
+      description: 粘贴控制台报错、服务端日志或截图链接。会自动按代码块格式化，无需反引号。
+      render: shell
+    validations:
+      required: false
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充信息
+      description: 其它有助于排查的上下文（如最近一次可正常工作的提交、是否偶发等）。
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索过现有 issue，确认未重复
+          required: true
+        - label: 我已提供可复现的步骤或最小复现
+          required: false

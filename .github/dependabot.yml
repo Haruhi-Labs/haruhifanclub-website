@@ -1,0 +1,54 @@
+# Dependabot 依赖更新配置
+# 文档：https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+version: 2
+updates:
+  # ---- npm / pnpm（前端 monorepo）----
+  # directories 同时覆盖根、各 app、各 package 的 manifest。
+  - package-ecosystem: "npm"
+    directories:
+      - "/"
+      - "/apps/*"
+      - "/packages/*"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ---- Cargo（Rust 后端）----
+  # 注意：Cargo workspace 的根清单（Cargo.toml / Cargo.lock）位于仓库根，
+  # Dependabot 需指向含清单的目录，故 directory 用 "/" 而非 "/backend"。
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      cargo-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ---- GitHub Actions ----
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"

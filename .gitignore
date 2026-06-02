@@ -26,6 +26,9 @@ _legacy_dumps/
 .vscode/*
 !.vscode/extensions.json
 
+# === Claude Code 本地工作目录（工作流脚本 / 会话缓存，按需自行版本化）===
+.claude/
+
 # === sqlx 离线缓存保留（不要忽略）===
 !.sqlx/
 

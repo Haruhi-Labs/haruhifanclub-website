@@ -1,0 +1,125 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# 春日应援团（haruhifanclub）CodeRabbit AI 评审配置
+# ----------------------------------------------------------------------------
+# 适用仓库：Rust（Cargo workspace）+ Vue3（pnpm workspace）混合 monorepo。
+# 评审语言：中文（zh-CN）。
+#
+# 重要：此配置仅在你完成以下步骤后才会生效——
+#   1. 把仓库推送到 GitHub（当前仓库尚无 GitHub remote）。
+#   2. 前往 https://coderabbit.ai 登录并授权安装 CodeRabbit GitHub App 到本仓。
+#      授权后 CodeRabbit 会在 PR 上自动评审，并读取本文件作为评审规则。
+# 在此之前本文件不产生任何效果（GitHub 侧自动化不会运行）。
+# ----------------------------------------------------------------------------
+
+language: "zh-CN"
+
+# 评审基调：务实，聚焦正确性 / 安全 / 性能；不纠结风格琐碎与个人偏好。
+# 注意：tone_instructions 有长度上限（schema 规定 maxLength=250），此处约 146 字，未超限。
+tone_instructions: >-
+  用中文评审，语气务实简洁。聚焦正确性、安全性与性能，特别关注 SQL 注入、XSS、
+  鉴权缺失、并发数据竞争、panic/unwrap 等真实风险。不要纠结纯风格、命名偏好、
+  格式化等可由 lint/formatter 自动处理的琐碎问题。发现问题时给出可落地的修改建议，
+  避免泛泛而谈与重复刷屏。
+
+# 关闭抢先体验特性，保持评审行为稳定可预期。
+early_access: false
+# 允许 CodeRabbit 学习仓库中累积的评审反馈，使后续评审更贴合本仓约定。
+knowledge_base:
+  learnings:
+    scope: "local"
+
+reviews:
+  # 更积极地指出潜在问题（相对 chill 更严格）。
+  profile: "assertive"
+  # 不强制“请求变更”阻断流程，把关交给 CI（lint/build/test + ci-ok gate）。
+  request_changes_workflow: false
+  # 输出高层变更摘要，便于快速了解 PR 全貌。
+  high_level_summary: true
+  high_level_summary_in_walkthrough: false
+  # 不写打油诗，保持专业。
+  poem: false
+  # 展示评审状态。
+  review_status: true
+  # 折叠逐文件 walkthrough 的细节，保持 PR 评论区整洁。
+  collapse_walkthrough: true
+
+  auto_review:
+    enabled: true
+    # 草稿 PR 不自动评审，等转为 ready 再评。
+    drafts: false
+    # 仅对合入 main 的 PR 自动评审。
+    base_branches:
+      - "main"
+
+  # 评审范围过滤：排除锁文件、构建产物、运行期数据、上传文件、旧站导出与压缩产物。
+  path_filters:
+    - "!pnpm-lock.yaml"
+    - "!Cargo.lock"
+    - "!**/dist/**"
+    - "!data/**"
+    - "!uploads/**"
+    - "!_legacy_dumps/**"
+    - "!**/*.min.*"
+
+  # 针对不同代码区域的定向评审指引。
+  path_instructions:
+    - path: "backend/crates/**/*.rs"
+      instructions: >-
+        Rust 后端（Cargo workspace，haruhi-* crate）。重点检查：
+        (1) sqlx 运行时查询（query/query_as 等非编译期校验路径）是否存在 SQL 注入——
+        所有外部输入必须走绑定参数（$1/?），禁止字符串拼接 SQL；
+        (2) sqlx 解码是否松类型/可空字段误用导致运行期 panic 或数据错配；
+        (3) 错误必须统一返回 AppError，不要裸 Result<_, sqlx::Error> 直接外泄；
+        (4) 鉴权统一通过 haruhi_auth::authorize / require_super，禁止手写或绕过权限校验，
+        敏感写操作必须有鉴权；
+        (5) 避免 unwrap/expect/panic/unreachable，错误用 ? 上抛；
+        (6) 并发安全：跨任务共享状态的锁粒度、Send/Sync、是否存在数据竞争或持锁 .await。
+        按 clippy 严格级别审视（对应 CI 的 clippy -D warnings）。
+    - path: "apps/**/*.{vue,ts,js}"
+      instructions: >-
+        Vue3 组合式 API 前端（pnpm app，包名 @haruhi/<app>）。重点检查：
+        (1) XSS——慎用 v-html，绑定不可信内容前必须转义/净化；
+        (2) 所有后端请求统一经 @haruhi/api-client，禁止在 app 内直接 fetch/axios 或硬编码后端 URL；
+        (3) 禁止硬编码 token / 密钥 / 凭据；
+        (4) 组件状态泄漏——避免模块级共享可变状态、未清理的定时器/监听器、跨实例串数据；
+        (5) 响应式陷阱：ref/reactive 误用、props 直接 mutate、watch/computed 副作用。
+    - path: "backend/migrations/**"
+      instructions: >-
+        数据库迁移（按 art/core/exam/news/novel/shop 库前缀分目录）。重点检查：
+        迁移是否幂等/可安全重放，是否会破坏现网已有数据（删列、改类型、加非空无默认值等需谨慎），
+        是否遵循各库的路径前缀约定，DDL 是否与对应 crate 的 sqlx 查询/解码假设一致。
+    - path: "deploy/**"
+      instructions: >-
+        部署相关（nginx、systemd unit/timer、脚本、env 样例）。重点检查：
+        禁止泄露真实密钥/口令/凭据（env.sample 等只放占位符）；
+        nginx 配置的安全性（反代头、路径暴露、上传体积/超时、TLS）；
+        systemd 单元的权限最小化与服务隔离；脚本避免危险操作与未加引号的变量展开。
+
+  # 启用的外部分析工具（取 CodeRabbit 实际支持的保守集合）。
+  tools:
+    # 把评审结论汇报为 GitHub Checks，便于与 CI 协同。
+    github-checks:
+      enabled: true
+    # Rust：clippy 静态检查（对应 CI 的 cargo clippy -D warnings）。
+    clippy:
+      enabled: true
+    # JS/TS/Vue：eslint（对应根 pnpm lint 的 eslint .）。
+    eslint:
+      enabled: true
+    # Markdown：文档 lint。
+    markdownlint:
+      enabled: true
+    # YAML：CI/配置文件 lint。
+    yamllint:
+      enabled: true
+    # GitHub Actions workflow 静态检查。
+    actionlint:
+      enabled: true
+    # Shell 脚本（deploy/*.sh）静态检查。
+    shellcheck:
+      enabled: true
+
+chat:
+  # 允许在 PR 评论里 @coderabbitai 对话并自动回复。
+  auto_reply: true

@@ -1,0 +1,61 @@
+# 统一换行：所有文本文件检出/提交一律用 LF，避免跨平台 CRLF 噪声
+* text=auto eol=lf
+
+# === 锁文件：标记为生成文件并按二进制合并，减少冲突 ===
+# linguist-generated：不计入语言统计、PR 默认折叠 diff
+# merge=binary：冲突时不做行级合并，交由重新生成（pnpm install / cargo build）
+pnpm-lock.yaml  linguist-generated=true  merge=binary
+Cargo.lock      linguist-generated=true  merge=binary
+
+# === 构建产物：标记为生成文件（正常不入 git，但若有人误提交也别计入统计/diff）===
+dist/           linguist-generated=true
+**/dist/**      linguist-generated=true
+
+# === 明确按 LF 处理的文本类型（保险起见显式声明）===
+*.rs      text eol=lf
+*.toml    text eol=lf
+*.ts      text eol=lf
+*.tsx     text eol=lf
+*.js      text eol=lf
+*.mjs     text eol=lf
+*.cjs     text eol=lf
+*.jsx     text eol=lf
+*.vue     text eol=lf
+*.json    text eol=lf
+*.jsonc   text eol=lf
+*.css     text eol=lf
+*.scss    text eol=lf
+*.html    text eol=lf
+*.md      text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.sql     text eol=lf
+*.sh      text eol=lf
+*.nginx   text eol=lf
+
+# === Shell 脚本强制 LF（CRLF 会让 #! 解释器失效）===
+*.sh      text eol=lf
+
+# === 二进制类型：不做换行转换、不做行级合并 ===
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.webp    binary
+*.ico     binary
+*.svg     text eol=lf
+*.woff    binary
+*.woff2   binary
+*.ttf     binary
+*.otf     binary
+*.eot     binary
+*.pdf     binary
+*.zip     binary
+*.gz      binary
+*.epub    binary
+*.mp4     binary
+*.webm    binary
+*.mp3     binary
+*.db      binary
+*.sqlite  binary
+*.sqlite3 binary
