@@ -58,7 +58,8 @@ impl Pools {
     /// 模块库的迁移在对应模块接入时再补充（此处先跑 core）。
     pub async fn migrate(&self) -> anyhow::Result<()> {
         sqlx::migrate!("../../migrations/core").run(&self.core).await?;
-        tracing::info!("core.db 迁移完成");
+        sqlx::migrate!("../../migrations/novel").run(&self.novel).await?;
+        tracing::info!("数据库迁移完成");
         Ok(())
     }
 }

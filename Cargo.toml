@@ -63,9 +63,11 @@ image = "0.25"
 webp = "0.3"
 zip = "2"
 quick-xml = "0.37"
+epub = "2"
 
 # --- 工具 ---
 uuid = { version = "1", features = ["v4"] }
+base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 anyhow = "1"
