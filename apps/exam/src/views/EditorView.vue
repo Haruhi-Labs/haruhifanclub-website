@@ -9,11 +9,10 @@ import ConfigPanel from '@/components/editor/ConfigPanel.vue';
 import LevelsPanel from '@/components/editor/LevelsPanel.vue';
 import QuestionsPanel from '@/components/editor/QuestionsPanel.vue';
 import { api } from '@/services/api';
-import { createAuth } from '@haruhi/api-client';
+import { useExamAdmin } from '@/composables/useExamAdmin';
 
-// 统一鉴权：导入试卷需要管理员权限，改为统一 JWT 单点登录（用户名+密码）。
-const auth = createAuth('/api');
-const hasExamPerm = (user: any): boolean => !!user && (user.isSuperAdmin || (user.apps && user.apps.exam));
+// 统一鉴权：导入试卷需要管理员权限，走共享 createAdminAuth('exam')。
+const { admin, adminModal, ensureAdmin, verifyAdmin, cancelAdmin } = useExamAdmin();
 
 const router = useRouter();
 const route = useRoute();
@@ -88,80 +87,6 @@ const importModal = reactive({
   token: '',
   editLink: ''
 });
-
-// 管理员登录弹窗状态（统一 JWT：用户名+密码）
-const adminModal = reactive<{
-  show: boolean;
-  user: string;
-  pw: string;
-  error: string;
-  loading: boolean;
-  resolve: ((v: boolean) => void) | null;
-}>({
-  show: false,
-  user: '',
-  pw: '',
-  error: '',
-  loading: false,
-  resolve: null,
-});
-
-// 确保已登录且具备考试平台管理权限：已满足则直接 true；否则弹出登录框。
-const ensureAdmin = async (): Promise<boolean> => {
-  if (auth.isLoggedIn()) {
-    try {
-      const user = await auth.me();
-      if (hasExamPerm(user)) return true;
-    } catch {
-      // 会话失效，落入登录流程
-    }
-    auth.logout();
-  }
-  return showAdminModal();
-};
-
-// 显示登录弹窗，返回是否登录成功
-const showAdminModal = (): Promise<boolean> => {
-  return new Promise((resolve) => {
-    adminModal.show = true;
-    adminModal.user = '';
-    adminModal.pw = '';
-    adminModal.error = '';
-    adminModal.loading = false;
-    adminModal.resolve = resolve;
-  });
-};
-
-// 登录校验
-const verifyAdmin = async () => {
-  if (!adminModal.user.trim() || !adminModal.pw) {
-    adminModal.error = '请输入用户名和密码';
-    return;
-  }
-  adminModal.loading = true;
-  adminModal.error = '';
-  try {
-    const user = await auth.login(adminModal.user.trim(), adminModal.pw);
-    if (!hasExamPerm(user)) {
-      auth.logout();
-      adminModal.error = '该账号无考试平台管理权限';
-      return;
-    }
-    adminModal.show = false;
-    adminModal.resolve?.(true);
-  } catch (e: any) {
-    auth.logout();
-    adminModal.error = e?.status === 401 ? '用户名或密码错误' : (e?.message || '登录失败');
-  } finally {
-    adminModal.loading = false;
-  }
-};
-
-// 取消登录
-const cancelAdmin = () => {
-  adminModal.show = false;
-  adminModal.resolve?.(false);
-};
 
 // 浏览器刷新或关闭时的原生弹窗处理
 const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -419,7 +344,7 @@ const handleFileImport = async (event: Event) => {
     
     // 如果是 401/403 错误，清除登录态
     if (error.status === 401 || error.status === 403) {
-      auth.logout();
+      admin.logout();
     }
 
     if (error.details && Array.isArray(error.details)) {

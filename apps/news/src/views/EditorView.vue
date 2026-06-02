@@ -456,11 +456,11 @@ const verifyAdmin = async () => {
     if (!user) return;
     const pwd = prompt("请输入管理员密码:");
     if (!pwd) return;
-    const ok = await store.loginAdmin(user.trim(), pwd);
-    if (ok) {
+    const r = await store.loginAdmin(user.trim(), pwd);
+    if (r.ok) {
         localAdminState.value = true;
     } else {
-        alert("用户名或密码错误，或该账号无新闻站管理权限");
+        alert(r.error || "用户名或密码错误，或该账号无新闻站管理权限");
     }
 };
 

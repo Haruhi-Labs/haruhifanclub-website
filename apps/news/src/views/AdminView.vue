@@ -931,15 +931,15 @@ const login = async () => {
     loginLoading.value = true;
     loginMsg.value = '';
     try {
-        const ok = await store.loginAdmin(username.value.trim(), password.value);
-        if (ok) {
+        const r = await store.loginAdmin(username.value.trim(), password.value);
+        if (r.ok) {
             password.value = '';
             store.fetchAdminArticles();
             store.fetchPrizes();
             store.fetchActivities();
             fetchAllPointsUsers();
         } else {
-            loginMsg.value = '用户名或密码错误，或该账号无新闻站管理权限';
+            loginMsg.value = r.error || '用户名或密码错误，或该账号无新闻站管理权限';
         }
     } catch (e) {
         loginMsg.value = e?.message || '登录失败';

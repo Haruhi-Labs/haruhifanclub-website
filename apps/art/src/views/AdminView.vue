@@ -446,13 +446,11 @@ import { onMounted, ref, computed, watch } from 'vue'
 import { useAdminStore } from '../stores/adminStore.js'
 import { api } from '../services/api.js'
 import ArtworkModal from '../components/ArtworkModal.vue'
-import { createAuth } from '@haruhi/api-client'
+import { createAdminAuth } from '@haruhi/api-client'
 
-// 统一鉴权：登录/会话恢复/登出走 /api/auth；其余后台请求由 services/api.js 自动带 JWT
-const auth = createAuth('/api')
-
-// 是否具备绘画部管理权限（超管或被授予 art 角色）
-const hasArtPerm = (user) => !!user && (user.isSuperAdmin || (user.apps && user.apps.art))
+// 统一鉴权：登录/会话恢复/登出/art 权限校验全部收敛到共享 createAdminAuth；
+// 其余后台请求由 services/api.js 自动带 JWT
+const admin = createAdminAuth('art')
 
 const adminStore = useAdminStore()
 const authed = ref(false)
@@ -544,25 +542,22 @@ async function checkPw() {
   msg.value = ''
 
   try {
-    const user = await auth.login(loginUser.value.trim(), inputPw.value)
-    if (!hasArtPerm(user)) {
-      auth.logout()
-      msg.value = '该账号无绘画部管理权限'
+    // 共享鉴权：login 内部已校验 art 权限，永不抛错，返回 { ok, user?, error? }
+    const r = await admin.login(loginUser.value.trim(), inputPw.value)
+    if (!r.ok) {
+      msg.value = r.error
       return
     }
     authed.value = true
     inputPw.value = ''
     init()
-  } catch (e) {
-    auth.logout()
-    msg.value = e?.status === 401 ? '用户名或密码错误' : (e?.message || '登录失败')
   } finally {
     loading.value = false
   }
 }
 
 function logout() {
-  auth.logout()
+  admin.logout()
   authed.value = false
   loginUser.value = ''
   inputPw.value = ''
@@ -798,22 +793,16 @@ watch(mainTab, (v) => {
 })
 
 onMounted(async () => {
-  // 统一 JWT 会话恢复：若本地已有 token，用 /api/auth/me 校验并确认 art 权限
-  if (auth.isLoggedIn()) {
-    loading.value = true
-    try {
-      const user = await auth.me()
-      if (hasArtPerm(user)) {
-        authed.value = true
-        init()
-      } else {
-        auth.logout()
-      }
-    } catch {
-      auth.logout()
-    } finally {
-      loading.value = false
+  // 共享鉴权：会话恢复（校验 token 有效性 + art 权限），失败返回 null 并已登出
+  loading.value = true
+  try {
+    const user = await admin.restore()
+    if (user) {
+      authed.value = true
+      init()
     }
+  } finally {
+    loading.value = false
   }
 })
 </script>

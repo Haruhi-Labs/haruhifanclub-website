@@ -42,8 +42,28 @@ export interface Auth {
   isLoggedIn(): boolean
 }
 
+export interface LoginResult {
+  ok: boolean
+  user?: CurrentUser
+  error?: string
+}
+
+export interface AdminAuth {
+  app: string
+  hasPerm(user: CurrentUser | null | undefined): boolean
+  hasValidToken(): boolean
+  buildHeaders(headers?: Record<string, string>): Record<string, string>
+  login(username: string, password: string): Promise<LoginResult>
+  restore(): Promise<CurrentUser | null>
+  me(): Promise<CurrentUser>
+  logout(): void
+  getToken(): string
+  isLoggedIn(): boolean
+}
+
 export function getToken(): string
 export function setToken(token: string): void
 export function clearToken(): void
 export function createApiClient(base?: string): ApiClient
 export function createAuth(apiBase?: string): Auth
+export function createAdminAuth(app: string, apiBase?: string): AdminAuth

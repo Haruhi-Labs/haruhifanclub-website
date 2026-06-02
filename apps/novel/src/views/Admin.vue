@@ -190,11 +190,11 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import { createApiClient, createAuth } from '@haruhi/api-client';
+import { createApiClient, createAdminAuth } from '@haruhi/api-client';
 
-// 统一后端：模块 API 走 /api/novel，鉴权走 /api/auth，静态文件走 /uploads
+// 统一后端：模块 API 走 /api/novel，鉴权走共享的 createAdminAuth（已内置 novel 权限校验），静态文件走 /uploads
 const api = createApiClient('/api/novel');
-const auth = createAuth('/api');
+const admin = createAdminAuth('novel');
 const ASSET_BASE = '/uploads';
 
 const isLoggedIn = ref(false);
@@ -219,23 +219,16 @@ const getCategoryLabel = (key) => {
   return found ? found.label : key;
 };
 
-// 是否具备书库管理权限（超管或被授予 novel 角色）
-const hasNovelPerm = (user) => !!user && (user.isSuperAdmin || (user.apps && user.apps.novel));
-
 const login = async () => {
   loginError.value = '';
-  try {
-    const user = await auth.login(loginForm.username.trim(), loginForm.password);
-    if (!hasNovelPerm(user)) {
-      auth.logout();
-      loginError.value = '该账号无书库管理权限';
-      return;
-    }
-    isLoggedIn.value = true;
-    await refreshBooks();
-  } catch (e) {
-    loginError.value = e.status === 401 ? '用户名或密码错误' : e.message || '登录失败';
+  // 共享鉴权：永不抛错，已内置 novel 权限校验，失败返回 { ok:false, error }
+  const r = await admin.login(loginForm.username.trim(), loginForm.password);
+  if (!r.ok) {
+    loginError.value = r.error;
+    return;
   }
+  isLoggedIn.value = true;
+  await refreshBooks();
 };
 
 const refreshBooks = async () => {
@@ -312,18 +305,11 @@ const saveBook = async (book) => {
 };
 
 onMounted(async () => {
-  if (auth.isLoggedIn()) {
-    try {
-      const user = await auth.me();
-      if (hasNovelPerm(user)) {
-        isLoggedIn.value = true;
-        await refreshBooks();
-      } else {
-        auth.logout();
-      }
-    } catch {
-      auth.logout();
-    }
+  // 共享鉴权：有有效会话且具备 novel 权限则返回 user，否则已内部登出并返回 null
+  const user = await admin.restore();
+  if (user) {
+    isLoggedIn.value = true;
+    await refreshBooks();
   }
 });
 </script>

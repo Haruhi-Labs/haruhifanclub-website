@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
-import { createApiClient, createAuth } from '@haruhi/api-client';
+import { createApiClient, createAdminAuth } from '@haruhi/api-client';
 
 // 统一后端约定：
 // - 模块 API 统一前缀 /api/news（旧的 ${API_BASE}/xxx → /api/news/xxx）
@@ -8,10 +8,8 @@ import { createApiClient, createAuth } from '@haruhi/api-client';
 // - 图片字段库里已是绝对路径 /uploads/news/<md5>.<ext>，前端直接使用，无需再拼前缀
 // - 删除旧的 X-Admin-Token / VITE_ADMIN_TOKEN / VITE_ADMIN_PASSWORD / VITE_API_BASE 逻辑
 const api = createApiClient('/api/news');
-const auth = createAuth('/api');
-
-// 是否具备新闻站管理权限（超管或被授予 news 角色）
-const hasNewsPerm = (user) => !!user && (user.isSuperAdmin || (user.apps && user.apps.news));
+// 管理员鉴权收敛到共享的 createAdminAuth（登录/会话恢复/登出/news 权限校验统一在此）
+const admin = createAdminAuth('news');
 
 export const useMainStore = defineStore('main', () => {
     // --- State ---
@@ -31,7 +29,7 @@ export const useMainStore = defineStore('main', () => {
     // --- Actions ---
 
     const logoutAdmin = () => {
-        auth.logout();
+        admin.logout();
         isAdmin.value = false;
         adminArticles.value = [];
     };
@@ -190,37 +188,19 @@ export const useMainStore = defineStore('main', () => {
         else adminArticles.value = [];
     });
 
-    // 统一 JWT 登录：用户名 + 密码 → /api/auth/login，校验 news 权限
+    // 统一 JWT 登录：用户名 + 密码 → /api/auth/login，由 createAdminAuth 校验 news 权限。
+    // 永不抛错，返回 { ok, user?, error? }；调用点把它当 truthy/falsy（ok）用即可。
     const loginAdmin = async (username, password) => {
-        try {
-            const user = await auth.login(username, password);
-            if (!hasNewsPerm(user)) {
-                auth.logout();
-                return false;
-            }
-            isAdmin.value = true;
-            return true;
-        } catch (error) {
-            auth.logout();
-            return false;
-        }
+        const r = await admin.login(username, password);
+        isAdmin.value = r.ok;
+        return r;
     };
 
-    // 会话恢复：页面加载时若本地已有 JWT，则校验是否仍具 news 权限
+    // 会话恢复：页面加载时若本地已有 JWT，则校验是否仍具 news 权限。
     const restoreAdmin = async () => {
-        if (!auth.isLoggedIn()) return false;
-        try {
-            const user = await auth.me();
-            if (hasNewsPerm(user)) {
-                isAdmin.value = true;
-                return true;
-            }
-            auth.logout();
-            return false;
-        } catch (error) {
-            auth.logout();
-            return false;
-        }
+        const user = await admin.restore();
+        isAdmin.value = !!user;
+        return isAdmin.value;
     };
 
     const fetchArticles = async () => {

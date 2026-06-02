@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { createApiClient, createAuth } from '@haruhi/api-client';
+import { createApiClient } from '@haruhi/api-client';
+import { useExamAdmin } from '@/composables/useExamAdmin';
 
-// 统一鉴权：登录/会话恢复/登出走 /api/auth；后台数据请求由 createApiClient 自动带 JWT。
-const auth = createAuth('/api');
+// 统一鉴权：登录/会话恢复/登出走共享 createAdminAuth('exam')；后台数据请求由 createApiClient 自动带 JWT。
+const { admin } = useExamAdmin();
 const examApi = createApiClient('/api/exam');
-
-// 是否具备考试平台管理权限（超管或被授予 exam 角色）
-const hasExamPerm = (user: any): boolean => !!user && (user.isSuperAdmin || (user.apps && user.apps.exam));
 
 const stats = ref({ siteVisits: 0, totalExams: 0, totalExamViews: 0 });
 const exams = ref<any[]>([]);
@@ -25,25 +23,21 @@ const login = async () => {
   loginLoading.value = true;
   loginMsg.value = '';
   try {
-    const user = await auth.login(loginUser.value.trim(), inputPw.value);
-    if (!hasExamPerm(user)) {
-      auth.logout();
-      loginMsg.value = '该账号无考试平台管理权限';
+    const r = await admin.login(loginUser.value.trim(), inputPw.value);
+    if (!r.ok) {
+      loginMsg.value = r.error || '登录失败';
       return;
     }
     isAuthenticated.value = true;
     inputPw.value = '';
     loadData();
-  } catch (e: any) {
-    auth.logout();
-    loginMsg.value = e?.status === 401 ? '用户名或密码错误' : (e?.message || '登录失败');
   } finally {
     loginLoading.value = false;
   }
 };
 
 const logout = () => {
-  auth.logout();
+  admin.logout();
   isAuthenticated.value = false;
   exams.value = [];
 };
@@ -94,19 +88,12 @@ const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleString();
 };
 
-// 会话恢复：若已有 JWT 且仍具备权限，直接进入后台
+// 会话恢复：若已有有效 JWT 且仍具备权限，直接进入后台
 onMounted(async () => {
-  if (!auth.isLoggedIn()) return;
-  try {
-    const user = await auth.me();
-    if (hasExamPerm(user)) {
-      isAuthenticated.value = true;
-      loadData();
-    } else {
-      auth.logout();
-    }
-  } catch {
-    auth.logout();
+  const user = await admin.restore();
+  if (user) {
+    isAuthenticated.value = true;
+    loadData();
   }
 });
 </script>
