@@ -61,6 +61,8 @@ impl Pools {
         sqlx::migrate!("../../migrations/novel").run(&self.novel).await?;
         sqlx::migrate!("../../migrations/art").run(&self.art).await?;
         sqlx::migrate!("../../migrations/news").run(&self.news).await?;
+        sqlx::migrate!("../../migrations/exam").run(&self.exam).await?;
+        sqlx::migrate!("../../migrations/shop").run(&self.shop).await?;
         tracing::info!("数据库迁移完成");
         Ok(())
     }

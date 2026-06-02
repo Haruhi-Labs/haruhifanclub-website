@@ -25,6 +25,9 @@ async fn main() -> anyhow::Result<()> {
     pools.migrate().await?;
     seed::seed_superadmin(&cfg, &pools.core).await?;
 
+    // 启动 shop 邮件队列后台 worker（Mailer 为 None 即邮件未启用时内部空转不启）。
+    modules::shop::spawn_email_worker(cfg.clone(), pools.shop.clone());
+
     let state = AppState {
         cfg: cfg.clone(),
         pools,

@@ -62,7 +62,15 @@ migrate_shop() {
   copy_db "$SHOP_SRC/server/shop.db" shop
   mkdir -p uploads/shop
   rsync -a "$SHOP_SRC/server/uploads/" uploads/shop/ 2>/dev/null || true
-  # TODO(shop): 重写 products.image/imageOriginal/imageMobile/detailImages 等前缀为 shop/...
+  # 图片前缀 /shop-api/uploads/ -> /uploads/shop/（商品多图、站点配置、订单内嵌商品快照）
+  sqlite3 data/shop.db "
+  UPDATE products SET image=replace(image,'/shop-api/uploads/','/uploads/shop/'),
+    imageOriginal=replace(imageOriginal,'/shop-api/uploads/','/uploads/shop/'),
+    imageMobile=replace(imageMobile,'/shop-api/uploads/','/uploads/shop/'),
+    detailImages=replace(detailImages,'/shop-api/uploads/','/uploads/shop/');
+  UPDATE site_settings SET value=replace(value,'/shop-api/uploads/','/uploads/shop/');
+  UPDATE orders SET items=replace(items,'/shop-api/uploads/','/uploads/shop/') WHERE items LIKE '%/shop-api/uploads/%';
+  UPDATE sub_orders SET items=replace(items,'/shop-api/uploads/','/uploads/shop/') WHERE items LIKE '%/shop-api/uploads/%';"
 }
 
 MODULES=("${@:-novel art news exam shop}")

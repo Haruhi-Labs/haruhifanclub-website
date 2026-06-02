@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
+pub mod audio;
 pub mod epub_ops;
 pub mod image_ops;
 pub mod upload;
