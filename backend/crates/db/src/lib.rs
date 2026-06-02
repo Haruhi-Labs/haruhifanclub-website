@@ -59,6 +59,7 @@ impl Pools {
     pub async fn migrate(&self) -> anyhow::Result<()> {
         sqlx::migrate!("../../migrations/core").run(&self.core).await?;
         sqlx::migrate!("../../migrations/novel").run(&self.novel).await?;
+        sqlx::migrate!("../../migrations/art").run(&self.art).await?;
         tracing::info!("数据库迁移完成");
         Ok(())
     }
