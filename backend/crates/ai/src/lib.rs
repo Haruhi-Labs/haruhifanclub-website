@@ -175,3 +175,18 @@ fn parse_verdict(raw: &str) -> Verdict {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_verdict_both_keys_and_fallback() {
+        assert!(parse_verdict(r#"{"safe":true,"reason":"Pass"}"#).ok);
+        assert!(!parse_verdict(r#"{"safe":false,"reason":"违规"}"#).ok);
+        assert!(parse_verdict(r#"{"pass":true,"reason":"通过"}"#).ok); // exam 用 pass 字段
+        assert!(parse_verdict("思考中...\n{\"pass\":true,\"reason\":\"ok\"}\n").ok); // 提取被包裹的 JSON
+        assert!(parse_verdict("this content looks safe and should pass").ok); // 非结构化含安全词→放行
+        assert!(!parse_verdict("含有违规描述但没有任何结构化输出").ok); // 非结构化无安全词→不放行
+    }
+}

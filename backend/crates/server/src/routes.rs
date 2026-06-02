@@ -23,6 +23,7 @@ pub fn router(state: AppState) -> Router {
     // /api 下：health + 鉴权 + 各业务模块
     let api = Router::new()
         .route("/health", get(health))
+        .route("/health/ready", get(ready))
         .merge(auth_routes::router())
         .merge(admin_routes::router());
     let api = modules::mount(api).with_state(state);
@@ -37,6 +38,16 @@ pub fn router(state: AppState) -> Router {
 
 async fn health() -> Json<Value> {
     Json(json!({ "status": "ok", "service": "haruhifanclub" }))
+}
+
+/// readiness：探测核心库连通（SELECT 1），供负载/巡检判断是否真正可服务。
+async fn ready(
+    axum::extract::State(state): axum::extract::State<AppState>,
+) -> Result<Json<Value>, axum::http::StatusCode> {
+    match sqlx::query("SELECT 1").execute(&state.pools.core).await {
+        Ok(_) => Ok(Json(json!({ "status": "ready" }))),
+        Err(_) => Err(axum::http::StatusCode::SERVICE_UNAVAILABLE),
+    }
 }
 
 /// CORS：调试构建放宽(Any，方便本地)；release 限定来源（HARUHI_CORS_ORIGINS，默认仅 public_site_url）。

@@ -29,7 +29,8 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
-      - run: cargo clippy --workspace -- -D warnings
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
       # 运行时校验查询，无需 DATABASE_URL/离线缓存
       - run: cargo build --workspace --release
 

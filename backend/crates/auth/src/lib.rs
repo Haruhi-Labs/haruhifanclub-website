@@ -234,3 +234,138 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    #[test]
+    fn token_roundtrip_and_rejects() {
+        let secret = "test-secret";
+        let t = issue_token(secret, 42, true, 3600).unwrap();
+        let c = decode_token(secret, &t).unwrap();
+        assert_eq!(c.sub, 42);
+        assert!(c.is_super);
+        assert!(decode_token("wrong-secret", &t).is_err()); // 错误密钥拒绝
+        // 过期 120 秒（超过 jsonwebtoken 默认 60s leeway）应被拒
+        let expired = issue_token(secret, 1, false, -120).unwrap();
+        assert!(decode_token(secret, &expired).is_err());
+    }
+
+    #[test]
+    fn password_hash_and_verify() {
+        let h = hash_password("hunter2").unwrap();
+        assert!(verify_password("hunter2", &h));
+        assert!(!verify_password("wrong", &h));
+        assert!(!verify_password("hunter2", "not-a-valid-hash"));
+    }
+
+    #[test]
+    fn scope_chain_walks_parents() {
+        assert_eq!(scope_chain("news.activity"), vec!["news.activity", "news"]);
+        assert_eq!(scope_chain("news"), vec!["news"]);
+        assert_eq!(scope_chain("a.b.c"), vec!["a.b.c", "a.b", "a"]);
+    }
+
+    #[test]
+    fn action_levels_ordered() {
+        assert!(Action::Read.level() < Action::Write.level());
+        assert!(Action::Write.level() < Action::Moderate.level());
+        assert!(Action::Moderate.level() < Action::Manage.level());
+    }
+
+    async fn mem_pool() -> SqlitePool {
+        // max_connections=1：保证 :memory: 所有查询共享同一连接(同一内存库)
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        for ddl in [
+            "CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT, password_hash TEXT, is_super_admin INTEGER DEFAULT 0, status TEXT DEFAULT 'active')",
+            "CREATE TABLE roles (id INTEGER PRIMARY KEY, key TEXT, name TEXT, level INTEGER)",
+            "CREATE TABLE user_app_roles (user_id INTEGER, app TEXT, role_id INTEGER, PRIMARY KEY(user_id,app))",
+            "INSERT INTO roles (id,key,name,level) VALUES (3,'moderator','审核',3),(4,'admin','管理',4)",
+        ] {
+            sqlx::query(ddl).execute(&pool).await.unwrap();
+        }
+        pool
+    }
+
+    async fn add_user(pool: &SqlitePool, id: i64, status: &str, app: &str, role_id: i64) {
+        sqlx::query("INSERT INTO users (id,username,password_hash,status) VALUES (?,?,?,?)")
+            .bind(id)
+            .bind(format!("u{id}"))
+            .bind("x")
+            .bind(status)
+            .execute(pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO user_app_roles (user_id,app,role_id) VALUES (?,?,?)")
+            .bind(id)
+            .bind(app)
+            .bind(role_id)
+            .execute(pool)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn rbac_subscope_isolation_inheritance_and_gating() {
+        let pool = mem_pool().await;
+
+        // 仅 news.activity:admin
+        add_user(&pool, 1, "active", "news.activity", 4).await;
+        let act = AuthUser {
+            id: 1,
+            is_super: false,
+        };
+        assert!(authorize(&pool, &act, "news.activity", Action::Manage)
+            .await
+            .is_ok());
+        assert!(authorize(&pool, &act, "news.blog", Action::Read)
+            .await
+            .is_err()); // 子作用域隔离
+        assert!(authorize(&pool, &act, "news", Action::Read).await.is_err()); // 子不授父
+
+        // 父级 news:admin → 继承所有 news.*
+        add_user(&pool, 2, "active", "news", 4).await;
+        let mgr = AuthUser {
+            id: 2,
+            is_super: false,
+        };
+        assert!(authorize(&pool, &mgr, "news.activity", Action::Manage)
+            .await
+            .is_ok());
+        assert!(authorize(&pool, &mgr, "news.points", Action::Manage)
+            .await
+            .is_ok());
+
+        // 超管全通过
+        let sup = AuthUser {
+            id: 999,
+            is_super: true,
+        };
+        assert!(authorize(&pool, &sup, "anything", Action::Manage)
+            .await
+            .is_ok());
+
+        // disabled 账号被拒
+        add_user(&pool, 3, "disabled", "news", 4).await;
+        let dis = AuthUser {
+            id: 3,
+            is_super: false,
+        };
+        assert!(authorize(&pool, &dis, "news", Action::Read).await.is_err());
+
+        // 等级门控：moderator(3) 可 Moderate 不可 Manage
+        add_user(&pool, 4, "active", "art", 3).await;
+        let m = AuthUser {
+            id: 4,
+            is_super: false,
+        };
+        assert!(authorize(&pool, &m, "art", Action::Moderate).await.is_ok());
+        assert!(authorize(&pool, &m, "art", Action::Manage).await.is_err());
+    }
+}

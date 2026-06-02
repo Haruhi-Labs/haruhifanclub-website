@@ -63,3 +63,31 @@ pub fn client_ip(headers: &HeaderMap) -> String {
         })
         .unwrap_or_else(|| "unknown".to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn blocks_after_max_per_ip_and_resets() {
+        let l = LoginLimiter::new(3, 600);
+        assert!(l.check_and_record("1.1.1.1").is_ok());
+        assert!(l.check_and_record("1.1.1.1").is_ok());
+        assert!(l.check_and_record("1.1.1.1").is_ok());
+        assert!(l.check_and_record("1.1.1.1").is_err()); // 第 4 次触顶
+        assert!(l.check_and_record("2.2.2.2").is_ok()); // 不同 IP 独立计数
+        l.reset("1.1.1.1");
+        assert!(l.check_and_record("1.1.1.1").is_ok()); // 成功登录后重置放行
+    }
+
+    #[test]
+    fn client_ip_prefers_xff_then_xreal() {
+        let mut h = HeaderMap::new();
+        h.insert("x-forwarded-for", "9.9.9.9, 10.0.0.1".parse().unwrap());
+        assert_eq!(client_ip(&h), "9.9.9.9");
+        let mut h2 = HeaderMap::new();
+        h2.insert("x-real-ip", "8.8.8.8".parse().unwrap());
+        assert_eq!(client_ip(&h2), "8.8.8.8");
+        assert_eq!(client_ip(&HeaderMap::new()), "unknown");
+    }
+}
