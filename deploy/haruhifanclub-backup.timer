@@ -1,0 +1,11 @@
+# 每日 04:00 触发备份（错过则开机后补跑）。
+# 安装：cp 到 /etc/systemd/system/；systemctl daemon-reload；systemctl enable --now haruhifanclub-backup.timer
+[Unit]
+Description=Daily haruhifanclub backup
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

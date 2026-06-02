@@ -7,10 +7,13 @@ use haruhi_auth::AuthSecret;
 use haruhi_core::Config;
 use haruhi_db::Pools;
 
+use crate::ratelimit::LoginLimiter;
+
 #[derive(Clone)]
 pub struct AppState {
     pub cfg: Arc<Config>,
     pub pools: Pools,
+    pub login_limiter: Arc<LoginLimiter>,
 }
 
 /// 让 auth 提取器能从 AppState 取到 JWT 密钥。

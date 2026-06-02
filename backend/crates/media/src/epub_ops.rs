@@ -11,8 +11,8 @@ pub struct EpubInfo {
 
 /// 解析 EPUB，提取标题/作者/封面。解析失败由调用方降级处理。
 pub fn read_epub(path: &Path) -> anyhow::Result<EpubInfo> {
-    let mut doc = epub::doc::EpubDoc::new(path)
-        .map_err(|e| anyhow::anyhow!("EPUB 打开失败: {e}"))?;
+    let mut doc =
+        epub::doc::EpubDoc::new(path).map_err(|e| anyhow::anyhow!("EPUB 打开失败: {e}"))?;
 
     let title = doc.mdata("title").map(|m| m.value.clone());
     let author = doc.mdata("creator").map(|m| m.value.clone());

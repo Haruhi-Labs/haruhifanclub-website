@@ -129,16 +129,31 @@ fn resolve_order_query_url(public_site_url: &str) -> String {
 }
 
 /// buildOrderEmail：返回 (subject, html, text)。`order` 为 mapOrderRow 后的 JSON。
-pub fn build_order_email(event_key: &str, order: &Value, order_query_url: &str) -> (String, String, String) {
+pub fn build_order_email(
+    event_key: &str,
+    order: &Value,
+    order_query_url: &str,
+) -> (String, String, String) {
     let status = order.get("status").and_then(|v| v.as_i64()).unwrap_or(0);
     let status_text = status_text_by_event(event_key, status);
     let title = title_text_by_event(event_key);
     let description = description_text_by_event(event_key);
-    let order_id = order.get("id").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let order_id = order
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     let created_at_text = format_datetime(order.get("created_at").and_then(|v| v.as_str()));
 
-    let tracking_company = order.get("trackingCompany").and_then(|v| v.as_str()).unwrap_or("");
-    let tracking_no = order.get("trackingNo").and_then(|v| v.as_str()).unwrap_or("");
+    let tracking_company = order
+        .get("trackingCompany")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let tracking_no = order
+        .get("trackingNo")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     let tracking_text = if !tracking_company.is_empty() && !tracking_no.is_empty() {
         format!("{tracking_company} / {tracking_no}")
     } else {
@@ -148,7 +163,13 @@ pub fn build_order_email(event_key: &str, order: &Value, order_query_url: &str) 
     let contact = order.get("contact").cloned().unwrap_or(Value::Null);
     let cget = |k: &str| contact.get(k).and_then(|v| v.as_str()).unwrap_or("");
     let address_text = {
-        let a = format!("{}{}{}{}", cget("province"), cget("city"), cget("district"), cget("addressDetail"));
+        let a = format!(
+            "{}{}{}{}",
+            cget("province"),
+            cget("city"),
+            cget("district"),
+            cget("addressDetail")
+        );
         if a.is_empty() {
             "-".to_string()
         } else {
@@ -157,7 +178,10 @@ pub fn build_order_email(event_key: &str, order: &Value, order_query_url: &str) 
     };
 
     let empty = vec![];
-    let items = order.get("items").and_then(|v| v.as_array()).unwrap_or(&empty);
+    let items = order
+        .get("items")
+        .and_then(|v| v.as_array())
+        .unwrap_or(&empty);
     let items_html: String = items
         .iter()
         .map(|it| {
@@ -235,8 +259,16 @@ pub fn build_order_email(event_key: &str, order: &Value, order_query_url: &str) 
         status_e = escape_html(&status_text),
         created_e = escape_html(&created_at_text),
         money_e = escape_html(&format_money(total)),
-        name_e = escape_html(if contact_name.is_empty() { "-" } else { contact_name }),
-        phone_e = escape_html(if contact_phone.is_empty() { "-" } else { contact_phone }),
+        name_e = escape_html(if contact_name.is_empty() {
+            "-"
+        } else {
+            contact_name
+        }),
+        phone_e = escape_html(if contact_phone.is_empty() {
+            "-"
+        } else {
+            contact_phone
+        }),
         addr_e = escape_html(&address_text),
         tracking_e = escape_html(&tracking_text),
         items_html = items_html_final,
@@ -250,11 +282,32 @@ pub fn build_order_email(event_key: &str, order: &Value, order_query_url: &str) 
         format!("当前状态：{status_text}"),
         format!("下单时间：{created_at_text}"),
         format!("订单金额：{}", format_money(total)),
-        format!("收货人：{}", if contact_name.is_empty() { "-" } else { contact_name }),
-        format!("联系方式：{}", if contact_phone.is_empty() { "-" } else { contact_phone }),
+        format!(
+            "收货人：{}",
+            if contact_name.is_empty() {
+                "-"
+            } else {
+                contact_name
+            }
+        ),
+        format!(
+            "联系方式：{}",
+            if contact_phone.is_empty() {
+                "-"
+            } else {
+                contact_phone
+            }
+        ),
         format!("收货地址：{address_text}"),
         format!("物流信息：{tracking_text}"),
-        format!("商品明细：{}", if items_text.is_empty() { "-".to_string() } else { items_text }),
+        format!(
+            "商品明细：{}",
+            if items_text.is_empty() {
+                "-".to_string()
+            } else {
+                items_text
+            }
+        ),
     ];
     let qh = query_hint_text.trim().to_string();
     if !qh.is_empty() {
@@ -262,7 +315,11 @@ pub fn build_order_email(event_key: &str, order: &Value, order_query_url: &str) 
     }
     text_lines.push("如有问题请通过“联系我们”页面留言。".to_string());
     text_lines.push("本邮件由系统自动发送，请勿直接回复。".to_string());
-    let text = text_lines.into_iter().filter(|l| !l.is_empty()).collect::<Vec<_>>().join("\n");
+    let text = text_lines
+        .into_iter()
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
 
     (subject.trim().to_string(), html.trim().to_string(), text)
 }
@@ -290,12 +347,7 @@ fn is_valid_email(value: &str) -> bool {
 
 /// 入队一条订单邮件 job（对齐 enqueueOrderEmail）。
 /// `pool` 可为事务外连接池（本实现统一在 commit 后调用）。
-pub async fn enqueue_order_email(
-    cfg: &Config,
-    pool: &SqlitePool,
-    event_key: &str,
-    order: &Value,
-) {
+pub async fn enqueue_order_email(cfg: &Config, pool: &SqlitePool, event_key: &str, order: &Value) {
     if let Err(e) = enqueue_order_email_inner(cfg, pool, event_key, order).await {
         tracing::error!("[Mail] enqueue 失败 event={event_key}: {e}");
     }
@@ -307,7 +359,12 @@ async fn enqueue_order_email_inner(
     event_key: &str,
     order: &Value,
 ) -> anyhow::Result<()> {
-    let order_id = order.get("id").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let order_id = order
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     let to_email = order
         .get("contact")
         .and_then(|c| c.get("email"))
@@ -357,12 +414,24 @@ async fn enqueue_order_email_inner(
             Some("invalid recipient email"),
         )
         .await?;
-        tracing::warn!("[Mail] invalid recipient email for order {order_id}: {}", if to_email.is_empty() { "-" } else { &to_email });
+        tracing::warn!(
+            "[Mail] invalid recipient email for order {order_id}: {}",
+            if to_email.is_empty() { "-" } else { &to_email }
+        );
         return Ok(());
     }
 
     insert_job(
-        pool, &order_id, &to_email, event_key, &subject, &html, &text, "pending", max_attempts, None,
+        pool,
+        &order_id,
+        &to_email,
+        event_key,
+        &subject,
+        &html,
+        &text,
+        "pending",
+        max_attempts,
+        None,
     )
     .await?;
     Ok(())
@@ -451,7 +520,10 @@ pub async fn enqueue_sub_order_email(
     let mut order = order_json.clone();
     if let Some(obj) = order.as_object_mut() {
         obj.insert("items".into(), sub_items);
-        obj.insert("trackingCompany".into(), Value::String(tracking_company.to_string()));
+        obj.insert(
+            "trackingCompany".into(),
+            Value::String(tracking_company.to_string()),
+        );
         obj.insert("trackingNo".into(), Value::String(tracking_no.to_string()));
     }
     enqueue_order_email(cfg, pool, "order_shipped", &order).await;
@@ -536,7 +608,12 @@ async fn process_email_jobs(
     Ok(())
 }
 
-async fn process_one_job(mailer: &haruhi_mail::Mailer, pool: &SqlitePool, job: &JobRow, backoffs: &[i64]) {
+async fn process_one_job(
+    mailer: &haruhi_mail::Mailer,
+    pool: &SqlitePool,
+    job: &JobRow,
+    backoffs: &[i64],
+) {
     let attempts = job.attempts.unwrap_or(0) + 1;
     let max = {
         let m = job.max_attempts.unwrap_or(5);
@@ -547,7 +624,10 @@ async fn process_one_job(mailer: &haruhi_mail::Mailer, pool: &SqlitePool, job: &
         }
     };
 
-    match mailer.send(&job.to_email, &job.subject, &job.html, &job.text).await {
+    match mailer
+        .send(&job.to_email, &job.subject, &job.html, &job.text)
+        .await
+    {
         Ok(()) => {
             let _ = sqlx::query(
                 "UPDATE email_jobs SET status='sent', attempts=attempts+1, sentAt=CURRENT_TIMESTAMP, \
@@ -556,7 +636,12 @@ async fn process_one_job(mailer: &haruhi_mail::Mailer, pool: &SqlitePool, job: &
             .bind(job.id)
             .execute(pool)
             .await;
-            tracing::info!("[Mail] sent job#{} event={} order={}", job.id, job.event_key, job.order_id);
+            tracing::info!(
+                "[Mail] sent job#{} event={} order={}",
+                job.id,
+                job.event_key,
+                job.order_id
+            );
         }
         Err(err) => {
             let message = err.to_string();
@@ -569,7 +654,12 @@ async fn process_one_job(mailer: &haruhi_mail::Mailer, pool: &SqlitePool, job: &
                 .bind(job.id)
                 .execute(pool)
                 .await;
-                tracing::error!("[Mail] failed job#{} event={} order={}: {message}", job.id, job.event_key, job.order_id);
+                tracing::error!(
+                    "[Mail] failed job#{} event={} order={}: {message}",
+                    job.id,
+                    job.event_key,
+                    job.order_id
+                );
             } else {
                 let idx = ((attempts - 1).max(0) as usize).min(backoffs.len().saturating_sub(1));
                 let minutes = backoffs.get(idx).copied().unwrap_or(1);
@@ -584,7 +674,10 @@ async fn process_one_job(mailer: &haruhi_mail::Mailer, pool: &SqlitePool, job: &
                 .bind(job.id)
                 .execute(pool)
                 .await;
-                tracing::warn!("[Mail] retry job#{} attempts={attempts}/{max} next={next_run_str}: {message}", job.id);
+                tracing::warn!(
+                    "[Mail] retry job#{} attempts={attempts}/{max} next={next_run_str}: {message}",
+                    job.id
+                );
             }
         }
     }
@@ -597,6 +690,10 @@ fn truncate(s: &str, max: usize) -> String {
 /// 取订单 JSON（mapOrderRow 形态）+ 子订单，给邮件用。返回 None 表示订单不存在。
 pub async fn load_order_for_email(pool: &SqlitePool, order_id: &str) -> Option<Value> {
     let row: Option<super::common::OrderRow> =
-        sqlx::query_as(&format!("{} WHERE id = ?", super::common::ORDER_SELECT)).bind(order_id).fetch_optional(pool).await.ok()?;
+        sqlx::query_as(&format!("{} WHERE id = ?", super::common::ORDER_SELECT))
+            .bind(order_id)
+            .fetch_optional(pool)
+            .await
+            .ok()?;
     row.map(|r| super::common::map_order_row(&r, None, None))
 }

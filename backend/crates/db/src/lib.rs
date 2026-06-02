@@ -57,12 +57,24 @@ impl Pools {
     /// 运行各库迁移。core 库的 RBAC 迁移始终执行；
     /// 模块库的迁移在对应模块接入时再补充（此处先跑 core）。
     pub async fn migrate(&self) -> anyhow::Result<()> {
-        sqlx::migrate!("../../migrations/core").run(&self.core).await?;
-        sqlx::migrate!("../../migrations/novel").run(&self.novel).await?;
-        sqlx::migrate!("../../migrations/art").run(&self.art).await?;
-        sqlx::migrate!("../../migrations/news").run(&self.news).await?;
-        sqlx::migrate!("../../migrations/exam").run(&self.exam).await?;
-        sqlx::migrate!("../../migrations/shop").run(&self.shop).await?;
+        sqlx::migrate!("../../migrations/core")
+            .run(&self.core)
+            .await?;
+        sqlx::migrate!("../../migrations/novel")
+            .run(&self.novel)
+            .await?;
+        sqlx::migrate!("../../migrations/art")
+            .run(&self.art)
+            .await?;
+        sqlx::migrate!("../../migrations/news")
+            .run(&self.news)
+            .await?;
+        sqlx::migrate!("../../migrations/exam")
+            .run(&self.exam)
+            .await?;
+        sqlx::migrate!("../../migrations/shop")
+            .run(&self.shop)
+            .await?;
         tracing::info!("数据库迁移完成");
         Ok(())
     }

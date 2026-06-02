@@ -32,3 +32,21 @@ jobs:
       - run: cargo clippy --workspace -- -D warnings
       # 运行时校验查询，无需 DATABASE_URL/离线缓存
       - run: cargo build --workspace --release
+
+  # 依赖漏洞审计（信息性：不阻断构建，但在 CI 里持续暴露 CVE）
+  audit:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: pnpm audit (prod deps)
+        run: pnpm install --frozen-lockfile && pnpm audit --prod || true
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo audit
+        run: cargo install cargo-audit --locked && cargo audit || true

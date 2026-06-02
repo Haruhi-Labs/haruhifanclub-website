@@ -208,7 +208,9 @@ async fn update_book(
         .bind(&id)
         .fetch_one(&state.pools.novel)
         .await?;
-    Ok(Json(json!({ "success": true, "book": book_to_json(updated) })))
+    Ok(Json(
+        json!({ "success": true, "book": book_to_json(updated) }),
+    ))
 }
 
 async fn delete_book(
@@ -261,14 +263,20 @@ async fn save_cover(covers_dir: &FsPath, id: &str, data: Vec<u8>, mime: &str) ->
         .and_then(|r| r.ok());
 
     if let Some(bytes) = webp {
-        if haruhi_media::save_file(covers_dir, &webp_name, &bytes).await.is_ok() {
+        if haruhi_media::save_file(covers_dir, &webp_name, &bytes)
+            .await
+            .is_ok()
+        {
             return Some(format!("novel/covers/{webp_name}"));
         }
     }
     // 降级：原始格式
     let ext = mime.split('/').nth(1).unwrap_or("jpg");
     let name = format!("cover-{id}.{ext}");
-    if haruhi_media::save_file(covers_dir, &name, &data).await.is_ok() {
+    if haruhi_media::save_file(covers_dir, &name, &data)
+        .await
+        .is_ok()
+    {
         Some(format!("novel/covers/{name}"))
     } else {
         None

@@ -1,0 +1,11 @@
+# 备份 oneshot 服务（由 .timer 调度）。
+# 安装：cp 到 /etc/systemd/system/，配合 haruhifanclub-backup.timer
+[Unit]
+Description=haruhifanclub backup (sqlite snapshots + uploads tarball)
+
+[Service]
+Type=oneshot
+Environment=HARUHI_ROOT=/var/www/haruhifanclub-test
+Environment=HARUHI_BACKUP_DIR=/var/backups/haruhifanclub
+Environment=HARUHI_BACKUP_KEEP=14
+ExecStart=/var/www/haruhifanclub-test/deploy/backup.sh

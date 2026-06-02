@@ -18,7 +18,11 @@ use crate::state::AppState;
 pub async fn build_paid_product_quantity_map(
     pool: &sqlx::SqlitePool,
 ) -> AppResult<HashMap<i64, i64>> {
-    let placeholders = SALES_VALID_STATUSES.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+    let placeholders = SALES_VALID_STATUSES
+        .iter()
+        .map(|_| "?")
+        .collect::<Vec<_>>()
+        .join(", ");
     let sql = format!("SELECT items FROM orders WHERE CAST(status AS INTEGER) IN ({placeholders})");
     let mut q = sqlx::query_scalar::<_, Option<String>>(&sql);
     for s in SALES_VALID_STATUSES {
@@ -85,11 +89,18 @@ struct ProductRow {
 }
 
 fn opt_f(s: &Option<String>) -> f64 {
-    s.as_deref().and_then(|x| x.trim().parse::<f64>().ok()).unwrap_or(0.0)
+    s.as_deref()
+        .and_then(|x| x.trim().parse::<f64>().ok())
+        .unwrap_or(0.0)
 }
 fn opt_i(s: &Option<String>) -> i64 {
     s.as_deref()
-        .and_then(|x| x.trim().parse::<i64>().ok().or_else(|| x.trim().parse::<f64>().ok().map(|f| f as i64)))
+        .and_then(|x| {
+            x.trim()
+                .parse::<i64>()
+                .ok()
+                .or_else(|| x.trim().parse::<f64>().ok().map(|f| f as i64))
+        })
         .unwrap_or(0)
 }
 
@@ -130,10 +141,11 @@ const PRODUCT_SELECT: &str = "SELECT id, name, CAST(price AS TEXT) AS price, CAS
 
 // GET /products（公开）
 pub async fn list_products(State(state): State<AppState>) -> AppResult<Json<Value>> {
-    let rows: Vec<ProductRow> =
-        sqlx::query_as(&format!("{PRODUCT_SELECT} ORDER BY CAST(sortOrder AS INTEGER) ASC, id ASC"))
-            .fetch_all(&state.pools.shop)
-            .await?;
+    let rows: Vec<ProductRow> = sqlx::query_as(&format!(
+        "{PRODUCT_SELECT} ORDER BY CAST(sortOrder AS INTEGER) ASC, id ASC"
+    ))
+    .fetch_all(&state.pools.shop)
+    .await?;
     let paid_map = build_paid_product_quantity_map(&state.pools.shop).await?;
 
     let products: Vec<Value> = rows
@@ -158,18 +170,34 @@ pub async fn list_products(State(state): State<AppState>) -> AppResult<Json<Valu
                     None => Value::Null,
                 },
             );
-            obj.insert("imageOriginal".into(), json!(p.image_original.clone().unwrap_or_default()));
+            obj.insert(
+                "imageOriginal".into(),
+                json!(p.image_original.clone().unwrap_or_default()),
+            );
             obj.insert("specs".into(), safe_parse(p.specs.as_deref(), json!([])));
-            obj.insert("detailImages".into(), safe_parse(p.detail_images.as_deref(), json!([])));
+            obj.insert(
+                "detailImages".into(),
+                safe_parse(p.detail_images.as_deref(), json!([])),
+            );
             obj.insert(
                 "shippingTag".into(),
-                json!(p.shipping_tag.clone().filter(|s| !s.is_empty()).unwrap_or_else(|| "default".into())),
+                json!(p
+                    .shipping_tag
+                    .clone()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or_else(|| "default".into())),
             );
             obj.insert("shippingCost".into(), json!(opt_f(&p.shipping_cost)));
             obj.insert("presaleMode".into(), json!(presale.mode));
             obj.insert("presaleGoalTarget".into(), json!(presale.goal_target));
-            obj.insert("presaleFixedDateType".into(), json!(presale.fixed_date_type));
-            obj.insert("presaleFixedDateValue".into(), json!(presale.fixed_date_value));
+            obj.insert(
+                "presaleFixedDateType".into(),
+                json!(presale.fixed_date_type),
+            );
+            obj.insert(
+                "presaleFixedDateValue".into(),
+                json!(presale.fixed_date_value),
+            );
             obj.insert("presalePaidCountBase".into(), json!(paid_count_base));
             obj.insert("presalePaidOffset".into(), json!(paid_offset));
             obj.insert("presalePaidCount".into(), json!(paid_count));
@@ -203,10 +231,9 @@ pub async fn upload(
                     original_name = n.to_string();
                 }
                 content_type = field.content_type().unwrap_or("").to_lowercase();
-                let bytes = field
-                    .bytes()
-                    .await
-                    .map_err(|e| haruhi_core::AppError::bad_request(format!("读取文件失败: {e}")))?;
+                let bytes = field.bytes().await.map_err(|e| {
+                    haruhi_core::AppError::bad_request(format!("读取文件失败: {e}"))
+                })?;
                 file_bytes = Some(bytes.to_vec());
             }
             Some("purpose") => {
@@ -221,7 +248,11 @@ pub async fn upload(
     let file_bytes = match file_bytes {
         Some(b) => b,
         None => {
-            return Ok((StatusCode::BAD_REQUEST, Json(json!({ "error": "No file uploaded" }))).into_response())
+            return Ok((
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": "No file uploaded" })),
+            )
+                .into_response())
         }
     };
 
@@ -239,7 +270,11 @@ pub async fn upload(
             "jpg" | "jpeg" | "png" | "webp" | "gif" | "bmp"
         );
     if !is_image {
-        return Ok((StatusCode::BAD_REQUEST, Json(json!({ "error": "仅支持图片文件" }))).into_response());
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "仅支持图片文件" })),
+        )
+            .into_response());
     }
 
     let shop_dir = state.cfg.uploads_subdir("shop");
@@ -270,7 +305,7 @@ pub async fn upload(
     // qr / original：原样落盘（保留扩展名）。
     let ext = ext_of_lower(&original_name);
     let fname = if ext.is_empty() {
-        format!("{uuid}")
+        uuid.to_string()
     } else {
         format!("{uuid}.{ext}")
     };
@@ -389,7 +424,11 @@ pub async fn update_product(
     let clean_price = num(body.get("price").unwrap_or(&Value::Null));
     let stock_in = body.get("stock").cloned().unwrap_or(Value::Null);
     let has_stock_input = !(stock_in.is_null() || is_empty_str(&stock_in));
-    let clean_stock = if has_stock_input { Some(num(&stock_in)) } else { None };
+    let clean_stock = if has_stock_input {
+        Some(num(&stock_in))
+    } else {
+        None
+    };
     let clean_shipping_cost = num(body.get("shippingCost").unwrap_or(&json!(0)));
     let discount_in = body.get("discountPrice").cloned().unwrap_or(Value::Null);
     let clean_discount = normalize_discount_price(&discount_in, &json!(clean_price));
@@ -428,7 +467,11 @@ pub async fn update_product(
     };
     let final_stock = match clean_stock {
         Some(s) => s as i64,
-        None => existing.1.as_deref().and_then(|x| x.trim().parse::<f64>().ok()).unwrap_or(0.0) as i64,
+        None => existing
+            .1
+            .as_deref()
+            .and_then(|x| x.trim().parse::<f64>().ok())
+            .unwrap_or(0.0) as i64,
     };
 
     let res = sqlx::query(
@@ -495,9 +538,16 @@ pub async fn adjust_product(
         None => return Ok(not_found("商品不存在")),
     };
 
-    let current_stock = product.1.as_deref().and_then(|x| x.trim().parse::<f64>().ok()).unwrap_or(0.0) as i64;
-    let current_offset =
-        product.2.as_deref().and_then(|x| x.trim().parse::<i64>().ok()).unwrap_or(0);
+    let current_stock = product
+        .1
+        .as_deref()
+        .and_then(|x| x.trim().parse::<f64>().ok())
+        .unwrap_or(0.0) as i64;
+    let current_offset = product
+        .2
+        .as_deref()
+        .and_then(|x| x.trim().parse::<i64>().ok())
+        .unwrap_or(0);
     let next_stock = current_stock + stock_delta;
     if next_stock < 0 {
         return Ok(bad(&format!("库存不足，当前库存仅 {current_stock}")));
@@ -570,7 +620,9 @@ fn is_empty_str(v: &Value) -> bool {
 
 fn json_str(v: Option<&Value>, default: &str) -> String {
     match v {
-        Some(val) if !val.is_null() => serde_json::to_string(val).unwrap_or_else(|_| default.to_string()),
+        Some(val) if !val.is_null() => {
+            serde_json::to_string(val).unwrap_or_else(|_| default.to_string())
+        }
         _ => default.to_string(),
     }
 }

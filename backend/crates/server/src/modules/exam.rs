@@ -126,12 +126,20 @@ fn extract_file_paths(questions_json: &str, levels_json: &str) -> Vec<String> {
             for b in blocks {
                 let ty = b.get("type").and_then(|v| v.as_str());
                 if ty == Some("image") {
-                    if let Some(src) = b.get("image").and_then(|i| i.get("src")).and_then(|v| v.as_str()) {
+                    if let Some(src) = b
+                        .get("image")
+                        .and_then(|i| i.get("src"))
+                        .and_then(|v| v.as_str())
+                    {
                         out.push(src.to_string());
                     }
                 }
                 if ty == Some("audio") {
-                    if let Some(src) = b.get("audio").and_then(|i| i.get("src")).and_then(|v| v.as_str()) {
+                    if let Some(src) = b
+                        .get("audio")
+                        .and_then(|i| i.get("src"))
+                        .and_then(|v| v.as_str())
+                    {
                         out.push(src.to_string());
                     }
                 }
@@ -142,7 +150,10 @@ fn extract_file_paths(questions_json: &str, levels_json: &str) -> Vec<String> {
     if let Some(arr) = questions.as_array() {
         for q in arr {
             collect_blocks(q.get("stemBlocks").and_then(|v| v.as_array()), &mut paths);
-            collect_blocks(q.get("analysisBlocks").and_then(|v| v.as_array()), &mut paths);
+            collect_blocks(
+                q.get("analysisBlocks").and_then(|v| v.as_array()),
+                &mut paths,
+            );
         }
     }
     paths
@@ -151,8 +162,14 @@ fn extract_file_paths(questions_json: &str, levels_json: &str) -> Vec<String> {
 /// 拼接送审文本（对齐 ai.js textToAudit：标题/卷头/副标题 + 前 8 题样本，截断 3000）。
 fn build_audit_text(config: &Value, questions: &Value) -> String {
     let title = config.get("title").and_then(|v| v.as_str()).unwrap_or("");
-    let paper_title = config.get("paperTitle").and_then(|v| v.as_str()).unwrap_or("");
-    let paper_subtitle = config.get("paperSubtitle").and_then(|v| v.as_str()).unwrap_or("");
+    let paper_title = config
+        .get("paperTitle")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let paper_subtitle = config
+        .get("paperSubtitle")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
 
     let mut samples: Vec<String> = Vec::new();
     if let Some(qs) = questions.as_array() {
@@ -187,7 +204,9 @@ fn spawn_audit(state: &AppState, id: String, config: Value, questions: Value) {
     let ai = haruhi_ai::AiClient::from_config(&state.cfg);
     let audit_text = build_audit_text(&config, &questions);
     tokio::spawn(async move {
-        let verdict = ai.check_text(haruhi_ai::EXAM_SYSTEM_PROMPT, &audit_text).await;
+        let verdict = ai
+            .check_text(haruhi_ai::EXAM_SYSTEM_PROMPT, &audit_text)
+            .await;
         let new_status = if verdict.ok { "published" } else { "locked" };
         if let Err(e) = sqlx::query("UPDATE exams SET status = ?, ai_reason = ? WHERE id = ?")
             .bind(new_status)
@@ -484,7 +503,10 @@ async fn list_exams(
 
     let page = parse_int_or(q.get("page").map(|s| s.as_str()), 1);
     let limit = parse_int_or(q.get("limit").map(|s| s.as_str()), 9);
-    let search = q.get("search").map(|s| s.trim().to_string()).unwrap_or_default();
+    let search = q
+        .get("search")
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
 
     // WHERE
     let mut where_clause = String::from("WHERE status = 'published'");
@@ -561,7 +583,10 @@ async fn list_exams(
 }
 
 // POST /exams（公开，创建 → pending + 异步审核，返回 edit_token）
-async fn create_exam(State(state): State<AppState>, Json(body): Json<Value>) -> AppResult<Response> {
+async fn create_exam(
+    State(state): State<AppState>,
+    Json(body): Json<Value>,
+) -> AppResult<Response> {
     let config = body.get("config").cloned().unwrap_or(json!({}));
     let questions = body.get("questions").cloned().unwrap_or(json!([]));
     let levels = body.get("levels").cloned().unwrap_or(json!([]));
@@ -602,7 +627,10 @@ async fn create_exam(State(state): State<AppState>, Json(body): Json<Value>) -> 
 }
 
 // POST /exams/import（公开导入：忠实旧实现无 admin 校验）
-async fn import_exam(State(state): State<AppState>, Json(body): Json<Value>) -> AppResult<Response> {
+async fn import_exam(
+    State(state): State<AppState>,
+    Json(body): Json<Value>,
+) -> AppResult<Response> {
     let errors = validate_exam_data(&body);
     if !errors.is_empty() {
         return Ok((
@@ -850,11 +878,12 @@ async fn update_exam(
 async fn admin_stats(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "exam", Action::Read).await?;
 
-    let site_visits: Option<i64> =
-        sqlx::query_scalar("SELECT CAST(value AS INTEGER) FROM site_stats WHERE key='total_visits'")
-            .fetch_optional(&state.pools.exam)
-            .await?
-            .flatten();
+    let site_visits: Option<i64> = sqlx::query_scalar(
+        "SELECT CAST(value AS INTEGER) FROM site_stats WHERE key='total_visits'",
+    )
+    .fetch_optional(&state.pools.exam)
+    .await?
+    .flatten();
     let total_exams: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM exams")
         .fetch_one(&state.pools.exam)
         .await?;
@@ -884,23 +913,25 @@ async fn admin_list(State(state): State<AppState>, user: AuthUser) -> AppResult<
 
     let data: Vec<Value> = rows
         .into_iter()
-        .map(|(id, title, status, visit_count, ai_reason, created_at, edit_token, config)| {
-            let edit_link = format!(
-                "/exam/create?id={id}&token={}",
-                edit_token.clone().unwrap_or_default()
-            );
-            json!({
-                "id": id,
-                "title": title,
-                "status": status,
-                "visit_count": visit_count,
-                "ai_reason": ai_reason,
-                "created_at": created_at,
-                "edit_token": edit_token,
-                "config": parse_json_or(config.as_deref(), json!({})),
-                "edit_link": edit_link,
-            })
-        })
+        .map(
+            |(id, title, status, visit_count, ai_reason, created_at, edit_token, config)| {
+                let edit_link = format!(
+                    "/exam/create?id={id}&token={}",
+                    edit_token.clone().unwrap_or_default()
+                );
+                json!({
+                    "id": id,
+                    "title": title,
+                    "status": status,
+                    "visit_count": visit_count,
+                    "ai_reason": ai_reason,
+                    "created_at": created_at,
+                    "edit_token": edit_token,
+                    "config": parse_json_or(config.as_deref(), json!({})),
+                    "edit_link": edit_link,
+                })
+            },
+        )
         .collect();
 
     Ok(Json(fix_url_path(Value::Array(data))))

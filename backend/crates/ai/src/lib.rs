@@ -19,7 +19,10 @@ pub struct Verdict {
 
 impl Verdict {
     fn pass(reason: &str) -> Self {
-        Self { ok: true, reason: reason.to_string() }
+        Self {
+            ok: true,
+            reason: reason.to_string(),
+        }
     }
 }
 
@@ -44,7 +47,10 @@ impl AiClient {
     }
 
     pub fn is_online(&self) -> bool {
-        self.api_key.as_deref().map(|k| !k.is_empty()).unwrap_or(false)
+        self.api_key
+            .as_deref()
+            .map(|k| !k.is_empty())
+            .unwrap_or(false)
     }
 
     /// 审核纯文本。system 传 ART_SYSTEM_PROMPT 或 EXAM_SYSTEM_PROMPT。
@@ -133,7 +139,10 @@ fn parse_verdict(raw: &str) -> Verdict {
         .unwrap_or(raw);
     match serde_json::from_str::<Value>(json_str) {
         Ok(v) => {
-            let ok = v.get("safe").or_else(|| v.get("pass")).and_then(|b| b.as_bool());
+            let ok = v
+                .get("safe")
+                .or_else(|| v.get("pass"))
+                .and_then(|b| b.as_bool());
             let reason = v
                 .get("reason")
                 .and_then(|r| r.as_str())
@@ -148,13 +157,19 @@ fn parse_verdict(raw: &str) -> Verdict {
             // 非结构化兜底：含安全词则放行，否则判违规（与旧图像逻辑一致）
             let lower = raw.to_lowercase();
             if lower.contains("true") || lower.contains("pass") || lower.contains("安全") {
-                Verdict { ok: true, reason: "Pass (Text Analysis)".into() }
+                Verdict {
+                    ok: true,
+                    reason: "Pass (Text Analysis)".into(),
+                }
             } else if raw.trim().is_empty() {
                 Verdict::pass("AI_PARSE_ERROR")
             } else {
                 Verdict {
                     ok: false,
-                    reason: format!("AI Review (Unstructured): {}", &raw.chars().take(50).collect::<String>()),
+                    reason: format!(
+                        "AI Review (Unstructured): {}",
+                        &raw.chars().take(50).collect::<String>()
+                    ),
                 }
             }
         }

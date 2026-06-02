@@ -16,6 +16,9 @@ EnvironmentFile=/etc/haruhifanclub.env
 ExecStart=/var/www/haruhifanclub/bin/haruhi-server
 Restart=on-failure
 RestartSec=3
+# 给优雅关闭留时间（刷 WAL + 处理在途请求），超时才 SIGKILL
+KillSignal=SIGTERM
+TimeoutStopSec=30
 # 数据与上传目录需可写
 ReadWritePaths=/var/www/haruhifanclub/data /var/www/haruhifanclub/uploads
 

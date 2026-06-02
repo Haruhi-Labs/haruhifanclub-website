@@ -78,7 +78,10 @@ pub async fn get_coupon_by_code_tx(
 }
 
 // POST /coupons/preview（公开）
-pub async fn preview_coupon(State(state): State<AppState>, Json(body): Json<Value>) -> AppResult<Response> {
+pub async fn preview_coupon(
+    State(state): State<AppState>,
+    Json(body): Json<Value>,
+) -> AppResult<Response> {
     let code = normalize_coupon_code(body.get("code").and_then(|v| v.as_str()).unwrap_or(""));
     let order_amount = num(body.get("orderAmount").unwrap_or(&Value::Null));
 
@@ -123,7 +126,10 @@ pub async fn list_coupons(
     let status = q.get("status").cloned().unwrap_or_else(|| "all".into());
     let batch_no = sanitize_config_text(q.get("batchNo").map(|s| s.as_str()).unwrap_or(""), 80);
     let keyword = sanitize_config_text(q.get("keyword").map(|s| s.as_str()).unwrap_or(""), 80);
-    let sort_by = q.get("sortBy").cloned().unwrap_or_else(|| "created_at".into());
+    let sort_by = q
+        .get("sortBy")
+        .cloned()
+        .unwrap_or_else(|| "created_at".into());
     let sort_dir = if q.get("sortDir").map(|s| s.to_lowercase()) == Some("asc".into()) {
         "ASC"
     } else {
@@ -168,7 +174,11 @@ pub async fn list_coupons(
         cq = cq.bind(p);
     }
     let total: i64 = cq.fetch_one(&state.pools.shop).await?;
-    let total_pages = if total > 0 { (total + page_size - 1) / page_size } else { 1 };
+    let total_pages = if total > 0 {
+        (total + page_size - 1) / page_size
+    } else {
+        1
+    };
 
     let list_sql = format!(
         "{COUPON_SELECT} {where_sql} ORDER BY {order_by} {sort_dir}, id DESC LIMIT ? OFFSET ?"
@@ -209,7 +219,11 @@ pub async fn batch_coupons(
 
     let quantity = num(body.get("quantity").unwrap_or(&Value::Null));
     let prefix = normalize_coupon_prefix(body.get("prefix").and_then(|v| v.as_str()).unwrap_or(""));
-    let custom_batch = sanitize_config_text(body.get("batchNo").and_then(|v| v.as_str()).unwrap_or(""), 30).to_uppercase();
+    let custom_batch = sanitize_config_text(
+        body.get("batchNo").and_then(|v| v.as_str()).unwrap_or(""),
+        30,
+    )
+    .to_uppercase();
     let batch_no = if custom_batch.is_empty() {
         generate_batch_no()
     } else {
@@ -261,7 +275,11 @@ pub async fn batch_coupons(
         }
         if !inserted {
             let _ = tx.rollback().await;
-            return Ok((axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": "优惠券码生成冲突，请重试" }))).into_response());
+            return Ok((
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "优惠券码生成冲突，请重试" })),
+            )
+                .into_response());
         }
     }
     tx.commit().await?;
@@ -303,7 +321,11 @@ pub async fn set_coupon_status(
         Some(c) => c,
         None => return Ok(not_found("优惠券不存在")),
     };
-    let cur_status = coupon.1.as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
+    let cur_status = coupon
+        .1
+        .as_deref()
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(0);
     if cur_status == COUPON_USED {
         return Ok(bad("已使用优惠券不可更改状态"));
     }
@@ -337,7 +359,11 @@ pub async fn delete_coupon(
         Some(c) => c,
         None => return Ok(not_found("优惠券不存在")),
     };
-    let cur_status = coupon.1.as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
+    let cur_status = coupon
+        .1
+        .as_deref()
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(0);
     if cur_status == COUPON_USED {
         return Ok(bad("已使用优惠券不可删除"));
     }
@@ -375,13 +401,13 @@ fn generate_batch_no() -> String {
 fn generate_coupon_code(prefix: &str) -> String {
     use rand::Rng;
     let mut rng = rand::thread_rng();
-    let random: String = (0..4)
-        .map(|_| format!("{:02X}", rng.gen::<u8>()))
-        .collect();
+    let random: String = (0..4).map(|_| format!("{:02X}", rng.gen::<u8>())).collect();
     let tail: String = {
         // Math.random().toString(36).slice(2,6) 风格：4 位 base36 大写
         const CHARS: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        (0..4).map(|_| CHARS[rng.gen_range(0..CHARS.len())] as char).collect()
+        (0..4)
+            .map(|_| CHARS[rng.gen_range(0..CHARS.len())] as char)
+            .collect()
     };
     format!("{prefix}-{random}{tail}")
 }
@@ -389,7 +415,13 @@ fn generate_coupon_code(prefix: &str) -> String {
 /// normalizeCouponRuleInput：返回规则对象或错误。
 fn normalize_coupon_rule_input(payload: &Value) -> Result<Value, String> {
     let name = {
-        let n = sanitize_config_text(payload.get("name").and_then(|v| v.as_str()).unwrap_or("优惠券"), 60);
+        let n = sanitize_config_text(
+            payload
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("优惠券"),
+            60,
+        );
         if n.is_empty() {
             "优惠券".to_string()
         } else {
@@ -400,7 +432,12 @@ fn normalize_coupon_rule_input(payload: &Value) -> Result<Value, String> {
     if !min_spend.is_finite() || min_spend < 0.0 {
         return Err("优惠门槛金额无效".into());
     }
-    let discount_type = payload.get("discountType").and_then(|v| v.as_str()).unwrap_or("amount").trim().to_string();
+    let discount_type = payload
+        .get("discountType")
+        .and_then(|v| v.as_str())
+        .unwrap_or("amount")
+        .trim()
+        .to_string();
     if !COUPON_DISCOUNT_TYPES.contains(&discount_type.as_str()) {
         return Err("优惠类型无效".into());
     }
@@ -447,9 +484,11 @@ fn normalize_coupon_rule_input(payload: &Value) -> Result<Value, String> {
                     return Err("过期时间必须晚于当前时间".into());
                 }
                 // 转 ISO8601（对齐 new Date().toISOString()）
-                Some(chrono::DateTime::<chrono::Utc>::from_timestamp_millis(ms)
-                    .map(|d| d.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string())
-                    .unwrap_or(s))
+                Some(
+                    chrono::DateTime::<chrono::Utc>::from_timestamp_millis(ms)
+                        .map(|d| d.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string())
+                        .unwrap_or(s),
+                )
             }
             None => return Err("过期时间格式错误".into()),
         }

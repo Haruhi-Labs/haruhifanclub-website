@@ -6,11 +6,11 @@ use std::sync::Arc;
 
 use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::Argon2;
-use rand_core::OsRng;
 use axum::extract::{FromRef, FromRequestParts, OptionalFromRequestParts};
 use axum::http::request::Parts;
 use haruhi_core::{AppError, AppResult};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use rand_core::OsRng;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
@@ -37,7 +37,12 @@ pub struct AuthUser {
 
 // ---------- 令牌 ----------
 
-pub fn issue_token(secret: &str, user_id: i64, is_super: bool, ttl_seconds: i64) -> AppResult<String> {
+pub fn issue_token(
+    secret: &str,
+    user_id: i64,
+    is_super: bool,
+    ttl_seconds: i64,
+) -> AppResult<String> {
     let now = chrono::Utc::now().timestamp();
     let claims = Claims {
         sub: user_id,

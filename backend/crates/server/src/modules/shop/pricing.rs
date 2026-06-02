@@ -116,7 +116,10 @@ pub fn normalize_product_presale_input(payload: &Value) -> Result<PresaleNormali
         .unwrap_or(PRESALE_NONE)
         .trim()
         .to_lowercase();
-    let mode = if matches!(mode_raw.as_str(), PRESALE_NONE | PRESALE_GOAL | PRESALE_FIXED) {
+    let mode = if matches!(
+        mode_raw.as_str(),
+        PRESALE_NONE | PRESALE_GOAL | PRESALE_FIXED
+    ) {
         mode_raw
     } else {
         PRESALE_NONE.to_string()
@@ -304,7 +307,8 @@ pub fn calculate_order_pricing(
             round_money(if p != 0.0 { p } else { price })
         };
         let discount_price = normalize_discount_price(&discount_v, &price_v);
-        let shipping_tag = to_shipping_group_key(product.get("shippingTag").unwrap_or(&Value::Null));
+        let shipping_tag =
+            to_shipping_group_key(product.get("shippingTag").unwrap_or(&Value::Null));
         let shipping_cost = round_money(num(product.get("shippingCost").unwrap_or(&Value::Null)));
 
         let entry = shipping_groups.entry(shipping_tag.clone()).or_insert(-1.0);
@@ -319,7 +323,13 @@ pub fn calculate_order_pricing(
             .and_then(|v| v.as_str())
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string())
-            .or_else(|| if item_name.is_empty() { None } else { Some(item_name.clone()) })
+            .or_else(|| {
+                if item_name.is_empty() {
+                    None
+                } else {
+                    Some(item_name.clone())
+                }
+            })
             .unwrap_or_else(|| format!("商品{id}"));
 
         priced_items.push(json!({
@@ -368,12 +378,7 @@ fn normalize_priced_item_for_merge(item: &Value) -> Option<Value> {
         None
     };
     let price = round_money(item.get("price").map(num).unwrap_or(0.0).max(0.0));
-    let original_price = round_money(
-        item.get("originalPrice")
-            .map(num)
-            .unwrap_or(0.0)
-            .max(price),
-    );
+    let original_price = round_money(item.get("originalPrice").map(num).unwrap_or(0.0).max(price));
     let discount_price = normalize_discount_price(
         item.get("discountPrice").unwrap_or(&Value::Null),
         &json!(original_price),
@@ -435,20 +440,33 @@ pub fn merge_priced_items(groups: &[&[Value]]) -> Vec<Value> {
                 None => continue,
             };
             let key = serde_json::to_string(&json!([
-                item.get("id").and_then(|v| v.as_i64()).map(|n| n.to_string()).unwrap_or_default(),
+                item.get("id")
+                    .and_then(|v| v.as_i64())
+                    .map(|n| n.to_string())
+                    .unwrap_or_default(),
                 item.get("name"),
                 item.get("price"),
                 item.get("originalPrice"),
-                item.get("discountPrice").and_then(|v| v.as_f64()).map(|n| n.to_string()).unwrap_or_default(),
+                item.get("discountPrice")
+                    .and_then(|v| v.as_f64())
+                    .map(|n| n.to_string())
+                    .unwrap_or_default(),
                 item.get("shippingTag"),
                 item.get("shippingCost"),
-                if truthy(item.get("isPresale").unwrap_or(&Value::Null)) { 1 } else { 0 },
+                if truthy(item.get("isPresale").unwrap_or(&Value::Null)) {
+                    1
+                } else {
+                    0
+                },
                 item.get("presaleMode"),
             ]))
             .unwrap_or_default();
 
             if let Some(existing) = merged.get_mut(&key) {
-                let q = existing.get("quantity").and_then(|v| v.as_i64()).unwrap_or(0)
+                let q = existing
+                    .get("quantity")
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0)
                     + item.get("quantity").and_then(|v| v.as_i64()).unwrap_or(0);
                 existing["quantity"] = json!(q);
             } else {
@@ -475,8 +493,8 @@ pub fn calculate_pricing_from_priced_items(
     let mut products_total = 0.0_f64;
 
     for item in &normalized {
-        products_total +=
-            item.get("price").map(num).unwrap_or(0.0) * item.get("quantity").map(num).unwrap_or(0.0);
+        products_total += item.get("price").map(num).unwrap_or(0.0)
+            * item.get("quantity").map(num).unwrap_or(0.0);
         let shipping_tag = to_shipping_group_key(item.get("shippingTag").unwrap_or(&Value::Null));
         let shipping_cost = round_money(item.get("shippingCost").map(num).unwrap_or(0.0));
         let entry = shipping_groups.entry(shipping_tag).or_insert(-1.0);
@@ -524,11 +542,15 @@ pub fn format_coupon(coupon: &Value) -> Value {
     obj.insert("code".into(), json!(code));
     obj.insert(
         "minSpend".into(),
-        json!(round_money(num(coupon.get("minSpend").unwrap_or(&Value::Null)))),
+        json!(round_money(num(coupon
+            .get("minSpend")
+            .unwrap_or(&Value::Null)))),
     );
     obj.insert(
         "discountValue".into(),
-        json!(round_money(num(coupon.get("discountValue").unwrap_or(&Value::Null)))),
+        json!(round_money(num(coupon
+            .get("discountValue")
+            .unwrap_or(&Value::Null)))),
     );
     let max_discount = match coupon.get("maxDiscount") {
         Some(Value::Null) | None => Value::Null,
@@ -620,7 +642,11 @@ pub fn evaluate_coupon(coupon: Option<&Value>, order_amount: f64) -> Result<Coup
     if row.get("status").and_then(|v| v.as_i64()).unwrap_or(0) != COUPON_UNUSED {
         return Err("优惠券不可用".into());
     }
-    if row.get("isExpired").and_then(|v| v.as_bool()).unwrap_or(false) {
+    if row
+        .get("isExpired")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
         return Err("优惠券已过期".into());
     }
     let (discount_amount, payable_amount) = coupon_discount_amount(&row, order_amount)?;
@@ -708,9 +734,15 @@ fn dedupe_parts(parts: &[Value]) -> Vec<Value> {
         let amount = to_money(part.get("amount").unwrap_or(&Value::Null));
         let status = to_status(part.get("statusBeforeMerge").unwrap_or(&Value::Null));
         if let Some(prev) = map.get_mut(&order_id) {
-            let new_amount = to_money(&json!(num(prev.get("amount").unwrap_or(&Value::Null)) + amount));
+            let new_amount = to_money(&json!(
+                num(prev.get("amount").unwrap_or(&Value::Null)) + amount
+            ));
             prev["amount"] = json!(new_amount);
-            if prev.get("statusBeforeMerge").map(|v| v.is_null()).unwrap_or(true) {
+            if prev
+                .get("statusBeforeMerge")
+                .map(|v| v.is_null())
+                .unwrap_or(true)
+            {
                 prev["statusBeforeMerge"] = match status {
                     Some(s) => json!(s),
                     None => Value::Null,
@@ -732,7 +764,9 @@ fn dedupe_parts(parts: &[Value]) -> Vec<Value> {
 }
 
 fn compute_shipping_adjustment(source: f64, appended: f64, merged: f64) -> f64 {
-    to_money(&json!(to_money(&json!(merged)) - to_money(&json!(source)) - to_money(&json!(appended))))
+    to_money(&json!(
+        to_money(&json!(merged)) - to_money(&json!(source)) - to_money(&json!(appended))
+    ))
 }
 
 /// 忠实移植 normalizeOrderMergeMeta。输入可为字符串或对象，None/无效返回 Value::Null。
@@ -798,7 +832,8 @@ pub fn normalize_order_merge_meta(raw_value: Option<Value>) -> Value {
                 continue;
             }
             let source_shipping = to_money(row.get("sourceShippingFee").unwrap_or(&Value::Null));
-            let appended_shipping = to_money(row.get("appendedShippingFee").unwrap_or(&Value::Null));
+            let appended_shipping =
+                to_money(row.get("appendedShippingFee").unwrap_or(&Value::Null));
             let merged_shipping = to_money(row.get("mergedShippingFee").unwrap_or(&Value::Null));
             let shipping_adjustment = if row.get("shippingAdjustment").is_some()
                 && !row.get("shippingAdjustment").unwrap().is_null()
@@ -843,7 +878,8 @@ pub fn normalize_order_merge_meta(raw_value: Option<Value>) -> Value {
         let source_order_id = clean_id(parsed.get("sourceOrderId").unwrap_or(&Value::Null));
         let appended_order_id = clean_id(parsed.get("submittedOrderId").unwrap_or(&Value::Null));
         let new_order_id = clean_id(parsed.get("mergedOrderId").unwrap_or(&Value::Null));
-        if !source_order_id.is_empty() && !appended_order_id.is_empty() && !new_order_id.is_empty() {
+        if !source_order_id.is_empty() && !appended_order_id.is_empty() && !new_order_id.is_empty()
+        {
             let source_shipping = to_money(parsed.get("sourceShippingFee").unwrap_or(&Value::Null));
             let appended_shipping =
                 to_money(parsed.get("appendedShippingFee").unwrap_or(&Value::Null));
@@ -881,23 +917,43 @@ pub fn normalize_order_merge_meta(raw_value: Option<Value>) -> Value {
             .unwrap_or(Value::Null)
     };
 
-    let merged_order_id = first_non_empty_id(parsed.get("mergedOrderId"), &latest_str("newOrderId"));
-    let source_order_id = first_non_empty_id(parsed.get("sourceOrderId"), &latest_str("sourceOrderId"));
-    let submitted_order_id =
-        first_non_empty_id(parsed.get("submittedOrderId"), &latest_str("appendedOrderId"));
-    let source_shipping = to_money(&coalesce(parsed.get("sourceShippingFee"), &latest_str("sourceShippingFee")));
-    let appended_shipping =
-        to_money(&coalesce(parsed.get("appendedShippingFee"), &latest_str("appendedShippingFee")));
-    let merged_shipping =
-        to_money(&coalesce(parsed.get("mergedShippingFee"), &latest_str("mergedShippingFee")));
+    let merged_order_id =
+        first_non_empty_id(parsed.get("mergedOrderId"), &latest_str("newOrderId"));
+    let source_order_id =
+        first_non_empty_id(parsed.get("sourceOrderId"), &latest_str("sourceOrderId"));
+    let submitted_order_id = first_non_empty_id(
+        parsed.get("submittedOrderId"),
+        &latest_str("appendedOrderId"),
+    );
+    let source_shipping = to_money(&coalesce(
+        parsed.get("sourceShippingFee"),
+        &latest_str("sourceShippingFee"),
+    ));
+    let appended_shipping = to_money(&coalesce(
+        parsed.get("appendedShippingFee"),
+        &latest_str("appendedShippingFee"),
+    ));
+    let merged_shipping = to_money(&coalesce(
+        parsed.get("mergedShippingFee"),
+        &latest_str("mergedShippingFee"),
+    ));
     let shipping_adjustment = if field_present(&parsed, "shippingAdjustment") {
         to_money(parsed.get("shippingAdjustment").unwrap())
     } else {
         compute_shipping_adjustment(source_shipping, appended_shipping, merged_shipping)
     };
-    let source_amount = to_money(&coalesce(parsed.get("sourceAmount"), &latest_str("sourceAmount")));
-    let appended_amount = to_money(&coalesce(parsed.get("appendedAmount"), &latest_str("appendedAmount")));
-    let merged_amount = to_money(&coalesce(parsed.get("mergedAmount"), &latest_str("mergedAmount")));
+    let source_amount = to_money(&coalesce(
+        parsed.get("sourceAmount"),
+        &latest_str("sourceAmount"),
+    ));
+    let appended_amount = to_money(&coalesce(
+        parsed.get("appendedAmount"),
+        &latest_str("appendedAmount"),
+    ));
+    let merged_amount = to_money(&coalesce(
+        parsed.get("mergedAmount"),
+        &latest_str("mergedAmount"),
+    ));
     let incremental = if field_present(&parsed, "incrementalPayable") {
         to_money(parsed.get("incrementalPayable").unwrap())
     } else if latest

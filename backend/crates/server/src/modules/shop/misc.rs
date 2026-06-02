@@ -29,8 +29,8 @@ fn sanitize_config_url(value: &str) -> String {
     if clean.starts_with(&format!("{UPLOAD_URL_PREFIX}/")) {
         return clean;
     }
-    if clean.starts_with(LEGACY_API_UPLOADS_PREFIX) {
-        return format!("{UPLOAD_URL_PREFIX}/{}", &clean[LEGACY_API_UPLOADS_PREFIX.len()..]);
+    if let Some(rest) = clean.strip_prefix(LEGACY_API_UPLOADS_PREFIX) {
+        return format!("{UPLOAD_URL_PREFIX}/{rest}");
     }
     String::new()
 }
@@ -76,7 +76,10 @@ pub async fn get_site_config(State(state): State<AppState>) -> AppResult<Json<Va
 }
 
 // GET /admin/site-config（Read）
-pub async fn admin_get_site_config(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+pub async fn admin_get_site_config(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "shop", Action::Read).await?;
     Ok(Json(load_site_config(&state.pools.shop).await?))
 }
@@ -102,9 +105,18 @@ pub async fn create_contact_message(
     Json(body): Json<Value>,
 ) -> AppResult<Response> {
     let name = sanitize_config_text(body.get("name").and_then(|v| v.as_str()).unwrap_or(""), 60);
-    let contact = sanitize_config_text(body.get("contact").and_then(|v| v.as_str()).unwrap_or(""), 80);
-    let order_id = sanitize_config_text(body.get("orderId").and_then(|v| v.as_str()).unwrap_or(""), 60);
-    let content = sanitize_config_text(body.get("content").and_then(|v| v.as_str()).unwrap_or(""), 2000);
+    let contact = sanitize_config_text(
+        body.get("contact").and_then(|v| v.as_str()).unwrap_or(""),
+        80,
+    );
+    let order_id = sanitize_config_text(
+        body.get("orderId").and_then(|v| v.as_str()).unwrap_or(""),
+        60,
+    );
+    let content = sanitize_config_text(
+        body.get("content").and_then(|v| v.as_str()).unwrap_or(""),
+        2000,
+    );
 
     if name.is_empty() {
         return Ok(bad("请填写您的称呼"));
@@ -151,7 +163,10 @@ pub async fn list_contact_messages(
 
     let status = q.get("status").cloned().unwrap_or_else(|| "all".into());
     let keyword = sanitize_config_text(q.get("keyword").map(|s| s.as_str()).unwrap_or(""), 80);
-    let sort_by = q.get("sortBy").cloned().unwrap_or_else(|| "created_at".into());
+    let sort_by = q
+        .get("sortBy")
+        .cloned()
+        .unwrap_or_else(|| "created_at".into());
     let sort_dir = if q.get("sortDir").map(|s| s.to_lowercase()) == Some("asc".into()) {
         "ASC"
     } else {
@@ -171,7 +186,8 @@ pub async fn list_contact_messages(
         params.push(n.to_string());
     }
     if !keyword.is_empty() {
-        conditions.push("(name LIKE ? OR contact LIKE ? OR orderId LIKE ? OR content LIKE ?)".into());
+        conditions
+            .push("(name LIKE ? OR contact LIKE ? OR orderId LIKE ? OR content LIKE ?)".into());
         let term = format!("%{keyword}%");
         for _ in 0..4 {
             params.push(term.clone());
@@ -194,7 +210,11 @@ pub async fn list_contact_messages(
         cq = cq.bind(p);
     }
     let total: i64 = cq.fetch_one(&state.pools.shop).await?;
-    let total_pages = if total > 0 { (total + page_size - 1) / page_size } else { 1 };
+    let total_pages = if total > 0 {
+        (total + page_size - 1) / page_size
+    } else {
+        1
+    };
 
     let list_sql = format!(
         "{CONTACT_SELECT} {where_sql} ORDER BY {order_by} {sort_dir}, id DESC LIMIT ? OFFSET ?"
@@ -249,11 +269,10 @@ pub async fn set_contact_message_status(
         return Ok(bad("状态仅支持 0 或 1"));
     }
 
-    let existing: Option<(i64,)> =
-        sqlx::query_as("SELECT id FROM contact_messages WHERE id = ?")
-            .bind(message_id)
-            .fetch_optional(&state.pools.shop)
-            .await?;
+    let existing: Option<(i64,)> = sqlx::query_as("SELECT id FROM contact_messages WHERE id = ?")
+        .bind(message_id)
+        .fetch_optional(&state.pools.shop)
+        .await?;
     if existing.is_none() {
         return Ok(not_found("留言不存在"));
     }
@@ -274,7 +293,10 @@ pub async fn set_contact_message_status(
 // ============================================================
 
 // POST /analytics/event（公开）
-pub async fn analytics_event(State(state): State<AppState>, Json(body): Json<Value>) -> AppResult<Response> {
+pub async fn analytics_event(
+    State(state): State<AppState>,
+    Json(body): Json<Value>,
+) -> AppResult<Response> {
     let event_key = body
         .get("eventKey")
         .and_then(|v| v.as_str())
@@ -294,17 +316,23 @@ pub async fn analytics_event(State(state): State<AppState>, Json(body): Json<Val
         .map(|s| s.chars().take(200).collect::<String>())
         .unwrap_or_default();
     let meta = match body.get("meta") {
-        Some(m) if m.is_object() => serde_json::to_string(m).unwrap_or_else(|_| "{}".into()).chars().take(2000).collect::<String>(),
+        Some(m) if m.is_object() => serde_json::to_string(m)
+            .unwrap_or_else(|_| "{}".into())
+            .chars()
+            .take(2000)
+            .collect::<String>(),
         _ => "{}".to_string(),
     };
 
-    sqlx::query("INSERT INTO analytics_events (sessionId, eventKey, page, meta) VALUES (?, ?, ?, ?)")
-        .bind(&session_id)
-        .bind(&event_key)
-        .bind(&page)
-        .bind(&meta)
-        .execute(&state.pools.shop)
-        .await?;
+    sqlx::query(
+        "INSERT INTO analytics_events (sessionId, eventKey, page, meta) VALUES (?, ?, ?, ?)",
+    )
+    .bind(&session_id)
+    .bind(&event_key)
+    .bind(&page)
+    .bind(&meta)
+    .execute(&state.pools.shop)
+    .await?;
     Ok(Json(json!({ "success": true })).into_response())
 }
 
@@ -313,7 +341,10 @@ pub async fn analytics_event(State(state): State<AppState>, Json(body): Json<Val
 // ============================================================
 
 // GET /admin/dashboard-summary（Read）
-pub async fn dashboard_summary(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+pub async fn dashboard_summary(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "shop", Action::Read).await?;
 
     let pending_verify: i64 =
@@ -347,7 +378,10 @@ pub async fn dashboard_summary(State(state): State<AppState>, user: AuthUser) ->
 }
 
 fn placeholders(n: usize) -> String {
-    std::iter::repeat("?").take(n).collect::<Vec<_>>().join(", ")
+    std::iter::repeat("?")
+        .take(n)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 // ---------- 日期工具（对齐 server.cjs 的 getToday/parseDateInput/buildDateRange/resolveStatsRange）----------
@@ -405,7 +439,11 @@ fn resolve_stats_range(
     let today = today_local();
 
     if selected == "all" {
-        return Ok(StatsRange { period: "all".into(), start_date: None, end_date: None });
+        return Ok(StatsRange {
+            period: "all".into(),
+            start_date: None,
+            end_date: None,
+        });
     }
     if selected == "custom" {
         let s = parse_date_input(start_date.unwrap_or("")).ok_or("自定义时间格式错误")?;
@@ -435,7 +473,11 @@ fn period_range_for_product_report(period: Option<&str>) -> Result<StatsRange, S
     let p = period.unwrap_or("week").to_string();
     let today = today_local();
     if p == "all" {
-        return Ok(StatsRange { period: "all".into(), start_date: None, end_date: None });
+        return Ok(StatsRange {
+            period: "all".into(),
+            start_date: None,
+            end_date: None,
+        });
     }
     if p == "week" {
         // 周一为一周起始（对齐旧：day===0?7:day，start - (day-1)）
@@ -449,8 +491,9 @@ fn period_range_for_product_report(period: Option<&str>) -> Result<StatsRange, S
         });
     }
     if p == "month" {
-        let start = chrono::NaiveDate::from_ymd_opt(today.year_ce().1 as i32, today.month0() + 1, 1)
-            .unwrap_or(today);
+        let start =
+            chrono::NaiveDate::from_ymd_opt(today.year_ce().1 as i32, today.month0() + 1, 1)
+                .unwrap_or(today);
         return Ok(StatsRange {
             period: "month".into(),
             start_date: Some(format_date(start)),
@@ -498,7 +541,8 @@ pub async fn sales_trend(
                 return Ok(Json(json!({
                     "period": "all", "startDate": null, "endDate": null, "points": [],
                     "summary": { "salesAmount": 0, "orderCount": 0, "avgOrderAmount": 0 }
-                })).into_response());
+                }))
+                .into_response());
             }
         }
     }
@@ -513,8 +557,12 @@ pub async fn sales_trend(
              GROUP BY DATE(created_at) ORDER BY DATE(created_at) ASC"
         );
         sqlx::query_as(&sql)
-            .bind(SALES_VALID_STATUSES[0]).bind(SALES_VALID_STATUSES[1]).bind(SALES_VALID_STATUSES[2]).bind(SALES_VALID_STATUSES[3])
-            .bind(&sd).bind(&ed)
+            .bind(SALES_VALID_STATUSES[0])
+            .bind(SALES_VALID_STATUSES[1])
+            .bind(SALES_VALID_STATUSES[2])
+            .bind(SALES_VALID_STATUSES[3])
+            .bind(&sd)
+            .bind(&ed)
             .fetch_all(&state.pools.shop)
             .await?
     };
@@ -569,7 +617,10 @@ pub async fn product_sales(
             "SELECT items FROM orders WHERE CAST(status AS INTEGER) IN ({ph}) AND DATE(created_at) BETWEEN DATE(?) AND DATE(?)"
         );
         sqlx::query_scalar(&sql)
-            .bind(SALES_VALID_STATUSES[0]).bind(SALES_VALID_STATUSES[1]).bind(SALES_VALID_STATUSES[2]).bind(SALES_VALID_STATUSES[3])
+            .bind(SALES_VALID_STATUSES[0])
+            .bind(SALES_VALID_STATUSES[1])
+            .bind(SALES_VALID_STATUSES[2])
+            .bind(SALES_VALID_STATUSES[3])
             .bind(range.start_date.clone().unwrap_or_default())
             .bind(range.end_date.clone().unwrap_or_default())
             .fetch_all(&state.pools.shop)
@@ -577,7 +628,10 @@ pub async fn product_sales(
     } else {
         let sql = format!("SELECT items FROM orders WHERE CAST(status AS INTEGER) IN ({ph})");
         sqlx::query_scalar(&sql)
-            .bind(SALES_VALID_STATUSES[0]).bind(SALES_VALID_STATUSES[1]).bind(SALES_VALID_STATUSES[2]).bind(SALES_VALID_STATUSES[3])
+            .bind(SALES_VALID_STATUSES[0])
+            .bind(SALES_VALID_STATUSES[1])
+            .bind(SALES_VALID_STATUSES[2])
+            .bind(SALES_VALID_STATUSES[3])
             .fetch_all(&state.pools.shop)
             .await?
     };
@@ -596,13 +650,21 @@ pub async fn product_sales(
                 let id_val = item.get("id");
                 let key = match id_val {
                     Some(v) if !v.is_null() => format!("id:{}", num(v) as i64),
-                    _ => format!("name:{}", item.get("name").and_then(|v| v.as_str()).unwrap_or("unknown")),
+                    _ => format!(
+                        "name:{}",
+                        item.get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown")
+                    ),
                 };
                 let entry = map.entry(key.clone()).or_insert_with(|| {
                     order.push(key.clone());
                     (
                         id_val.filter(|v| !v.is_null()).map(|v| num(v) as i64),
-                        item.get("name").and_then(|v| v.as_str()).unwrap_or("未命名商品").to_string(),
+                        item.get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("未命名商品")
+                            .to_string(),
                         0,
                         0.0,
                     )
@@ -626,11 +688,18 @@ pub async fn product_sales(
         let qb = b.get("quantity").and_then(|v| v.as_i64()).unwrap_or(0);
         let aa = a.get("amount").and_then(|v| v.as_f64()).unwrap_or(0.0);
         let ab = b.get("amount").and_then(|v| v.as_f64()).unwrap_or(0.0);
-        qb.cmp(&qa).then(ab.partial_cmp(&aa).unwrap_or(std::cmp::Ordering::Equal))
+        qb.cmp(&qa)
+            .then(ab.partial_cmp(&aa).unwrap_or(std::cmp::Ordering::Equal))
     });
 
-    let total_quantity: i64 = items.iter().map(|i| i.get("quantity").and_then(|v| v.as_i64()).unwrap_or(0)).sum();
-    let total_amount: f64 = items.iter().map(|i| i.get("amount").and_then(|v| v.as_f64()).unwrap_or(0.0)).sum();
+    let total_quantity: i64 = items
+        .iter()
+        .map(|i| i.get("quantity").and_then(|v| v.as_i64()).unwrap_or(0))
+        .sum();
+    let total_amount: f64 = items
+        .iter()
+        .map(|i| i.get("amount").and_then(|v| v.as_f64()).unwrap_or(0.0))
+        .sum();
 
     Ok(Json(json!({
         "period": range.period,
@@ -682,7 +751,8 @@ pub async fn conversion(
                 return Ok(Json(json!({
                     "period": "all", "startDate": null, "endDate": null,
                     "steps": empty_steps, "overallConversion": 0
-                })).into_response());
+                }))
+                .into_response());
             }
         }
     }
@@ -720,8 +790,16 @@ pub async fn conversion(
         steps.push(json!({ "key": k, "label": l, "visitors": visitors, "conversionRate": conversion_rate }));
     }
 
-    let first = steps.first().and_then(|s| s.get("visitors")).and_then(|v| v.as_i64()).unwrap_or(0);
-    let last = steps.last().and_then(|s| s.get("visitors")).and_then(|v| v.as_i64()).unwrap_or(0);
+    let first = steps
+        .first()
+        .and_then(|s| s.get("visitors"))
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
+    let last = steps
+        .last()
+        .and_then(|s| s.get("visitors"))
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
     let overall = if first > 0 {
         round_money((last as f64 / first as f64) * 100.0)
     } else {

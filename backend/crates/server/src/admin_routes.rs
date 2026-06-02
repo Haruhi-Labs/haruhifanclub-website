@@ -57,13 +57,20 @@ async fn list_roles(State(state): State<AppState>, user: AuthUser) -> AppResult<
 
 async fn list_users(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     require_super(&user)?;
-    let urows: Vec<(i64, String, Option<String>, bool, String, String, Option<String>)> =
-        sqlx::query_as(
-            "SELECT id, username, display_name, is_super_admin, status, created_at, last_login_at \
+    let urows: Vec<(
+        i64,
+        String,
+        Option<String>,
+        bool,
+        String,
+        String,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT id, username, display_name, is_super_admin, status, created_at, last_login_at \
              FROM users ORDER BY id",
-        )
-        .fetch_all(&state.pools.core)
-        .await?;
+    )
+    .fetch_all(&state.pools.core)
+    .await?;
 
     let roles: Vec<(i64, String, String)> = sqlx::query_as(
         "SELECT ua.user_id, ua.app, r.key FROM user_app_roles ua \
@@ -74,19 +81,21 @@ async fn list_users(State(state): State<AppState>, user: AuthUser) -> AppResult<
 
     let users: Vec<Value> = urows
         .into_iter()
-        .map(|(id, username, display_name, is_super, status, created_at, last_login_at)| {
-            let app_roles: BTreeMap<String, String> = roles
-                .iter()
-                .filter(|(uid, _, _)| *uid == id)
-                .map(|(_, app, key)| (app.clone(), key.clone()))
-                .collect();
-            json!({
-                "id": id, "username": username, "displayName": display_name,
-                "isSuperAdmin": is_super, "status": status,
-                "createdAt": created_at, "lastLoginAt": last_login_at,
-                "roles": app_roles,
-            })
-        })
+        .map(
+            |(id, username, display_name, is_super, status, created_at, last_login_at)| {
+                let app_roles: BTreeMap<String, String> = roles
+                    .iter()
+                    .filter(|(uid, _, _)| *uid == id)
+                    .map(|(_, app, key)| (app.clone(), key.clone()))
+                    .collect();
+                json!({
+                    "id": id, "username": username, "displayName": display_name,
+                    "isSuperAdmin": is_super, "status": status,
+                    "createdAt": created_at, "lastLoginAt": last_login_at,
+                    "roles": app_roles,
+                })
+            },
+        )
         .collect();
     Ok(Json(json!({ "users": users })))
 }
@@ -209,7 +218,14 @@ async fn reset_password(
     if affected == 0 {
         return Err(AppError::not_found("用户不存在"));
     }
-    audit(&state, user.id, "console", "reset_password", &id.to_string()).await;
+    audit(
+        &state,
+        user.id,
+        "console",
+        "reset_password",
+        &id.to_string(),
+    )
+    .await;
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -283,13 +299,19 @@ async fn set_roles(
 
 async fn list_audit(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     require_super(&user)?;
-    let rows: Vec<(i64, Option<i64>, Option<String>, Option<String>, Option<String>, String)> =
-        sqlx::query_as(
-            "SELECT id, user_id, app, action, target, created_at FROM audit_log \
+    let rows: Vec<(
+        i64,
+        Option<i64>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        String,
+    )> = sqlx::query_as(
+        "SELECT id, user_id, app, action, target, created_at FROM audit_log \
              ORDER BY id DESC LIMIT 200",
-        )
-        .fetch_all(&state.pools.core)
-        .await?;
+    )
+    .fetch_all(&state.pools.core)
+    .await?;
     let items: Vec<Value> = rows
         .into_iter()
         .map(|(id, user_id, app, action, target, created_at)| {
@@ -301,14 +323,12 @@ async fn list_audit(State(state): State<AppState>, user: AuthUser) -> AppResult<
 
 /// 写审计日志（失败仅告警，不阻断主流程）。
 async fn audit(state: &AppState, user_id: i64, app: &str, action: &str, target: &str) {
-    let _ = sqlx::query(
-        "INSERT INTO audit_log (user_id, app, action, target) VALUES (?, ?, ?, ?)",
-    )
-    .bind(user_id)
-    .bind(app)
-    .bind(action)
-    .bind(target)
-    .execute(&state.pools.core)
-    .await
-    .map_err(|e| tracing::warn!("写审计日志失败: {e}"));
+    let _ = sqlx::query("INSERT INTO audit_log (user_id, app, action, target) VALUES (?, ?, ?, ?)")
+        .bind(user_id)
+        .bind(app)
+        .bind(action)
+        .bind(target)
+        .execute(&state.pools.core)
+        .await
+        .map_err(|e| tracing::warn!("写审计日志失败: {e}"));
 }

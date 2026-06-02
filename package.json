@@ -9,6 +9,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"cargo run -p haruhi-server\" \"pnpm --filter @haruhi/${APP:-news} dev\"",
     "dev:backend": "cargo run -p haruhi-server",
     "build:backend": "cargo build --release -p haruhi-server",
     "dev:news": "pnpm --filter @haruhi/news dev",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
+    "concurrently": "^9.1.0",
     "eslint": "^9.18.0",
     "eslint-plugin-vue": "^9.32.0",
     "prettier": "^3.4.2",

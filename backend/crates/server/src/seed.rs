@@ -12,10 +12,8 @@ pub async fn seed_superadmin(cfg: &Config, core: &SqlitePool) -> anyhow::Result<
         return Ok(());
     }
 
-    let (Some(user), Some(pass)) = (
-        cfg.superadmin_user.clone(),
-        cfg.superadmin_password.clone(),
-    ) else {
+    let (Some(user), Some(pass)) = (cfg.superadmin_user.clone(), cfg.superadmin_password.clone())
+    else {
         tracing::warn!(
             "core.db 无用户且未配置 HARUHI_SUPERADMIN_USER/PASSWORD，跳过超管 seed（请稍后手动创建）"
         );

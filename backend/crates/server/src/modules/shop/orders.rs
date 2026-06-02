@@ -28,10 +28,12 @@ async fn fetch_order(pool: &Shop, id: &str) -> AppResult<Option<OrderRow>> {
 }
 
 async fn fetch_sub_orders(pool: &Shop, id: &str) -> AppResult<Vec<SubOrderRow>> {
-    Ok(sqlx::query_as(&format!("{SUB_ORDER_SELECT} WHERE orderId = ? ORDER BY id ASC"))
-        .bind(id)
-        .fetch_all(pool)
-        .await?)
+    Ok(sqlx::query_as(&format!(
+        "{SUB_ORDER_SELECT} WHERE orderId = ? ORDER BY id ASC"
+    ))
+    .bind(id)
+    .fetch_all(pool)
+    .await?)
 }
 
 /// 判断请求是否带有效的 shop 后台权限（Bearer JWT + RBAC Read）。
@@ -53,7 +55,9 @@ async fn is_admin_request(state: &AppState, headers: &HeaderMap) -> bool {
         id: claims.sub,
         is_super: claims.is_super,
     };
-    authorize(&state.pools.core, &user, "shop", Action::Read).await.is_ok()
+    authorize(&state.pools.core, &user, "shop", Action::Read)
+        .await
+        .is_ok()
 }
 
 /// 校验收货信息（对齐 normalizeOrderContactInput）。返回各字段或错误消息。
@@ -71,7 +75,14 @@ fn normalize_contact_input(contact: &Value) -> Result<Contact, String> {
     if !contact.is_object() {
         return Err("收货信息不能为空".into());
     }
-    let g = |k: &str| contact.get(k).and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let g = |k: &str| {
+        contact
+            .get(k)
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string()
+    };
     let name = g("name");
     let phone = g("phone");
     let email = g("email");
@@ -102,13 +113,24 @@ fn normalize_contact_input(contact: &Value) -> Result<Contact, String> {
     if address_detail.is_empty() {
         return Err("详细地址不能为空".into());
     }
-    Ok(Contact { name, phone, email, province, city, district, address_detail })
+    Ok(Contact {
+        name,
+        phone,
+        email,
+        province,
+        city,
+        district,
+        address_detail,
+    })
 }
 
 fn is_valid_phone(s: &str) -> bool {
     // /^1[3-9]\d{9}$/
     let b = s.as_bytes();
-    b.len() == 11 && b[0] == b'1' && (b'3'..=b'9').contains(&b[1]) && b[2..].iter().all(|c| c.is_ascii_digit())
+    b.len() == 11
+        && b[0] == b'1'
+        && (b'3'..=b'9').contains(&b[1])
+        && b[2..].iter().all(|c| c.is_ascii_digit())
 }
 
 fn is_valid_email(s: &str) -> bool {
@@ -137,7 +159,10 @@ fn threshold(state: &AppState) -> f64 {
 // ============================================================
 // POST /orders（公开，下单：事务 + 计价 + 合并 + 拆单 + 核销）
 // ============================================================
-pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>) -> AppResult<Response> {
+pub async fn create_order(
+    State(state): State<AppState>,
+    Json(body): Json<Value>,
+) -> AppResult<Response> {
     let thr = threshold(&state);
 
     // 入参校验
@@ -163,7 +188,12 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
             return Ok(bad(&format!("第 {} 个商品ID无效", index + 1)));
         }
         if qty.fract() != 0.0 || qty <= 0.0 {
-            let label = item.get("name").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(|s| s.to_string()).unwrap_or_else(|| (pid as i64).to_string());
+            let label = item
+                .get("name")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| (pid as i64).to_string());
             return Ok(bad(&format!("商品 {label} 数量无效")));
         }
         let mut it = item.clone();
@@ -178,11 +208,25 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
     if !client_total.is_finite() || client_total < 0.0 {
         return Ok(bad("订单金额无效"));
     }
-    let coupon_code = normalize_coupon_code(body.get("couponCode").and_then(|v| v.as_str()).unwrap_or(""));
+    let coupon_code = normalize_coupon_code(
+        body.get("couponCode")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
+    );
 
     let merge_target = body.get("mergeTarget").cloned().unwrap_or(Value::Null);
-    let merge_order_id = merge_target.get("orderId").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
-    let merge_phone_last4 = merge_target.get("phoneLast4").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let merge_order_id = merge_target
+        .get("orderId")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    let merge_phone_last4 = merge_target
+        .get("phoneLast4")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     let should_merge = !merge_order_id.is_empty() || !merge_phone_last4.is_empty();
     if should_merge {
         if merge_order_id.is_empty() {
@@ -213,7 +257,11 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
             })
             .collect()
     };
-    let placeholders = unique_ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+    let placeholders = unique_ids
+        .iter()
+        .map(|_| "?")
+        .collect::<Vec<_>>()
+        .join(", ");
     let sql = format!(
         "SELECT id, name, CAST(price AS REAL) AS price, CAST(discountPrice AS REAL) AS discountPrice, \
          CAST(stock AS INTEGER) AS stock, shippingTag, CAST(shippingCost AS REAL) AS shippingCost, \
@@ -256,8 +304,15 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
             }
         };
         let presale = product_presale_snapshot(product);
-        if !presale.is_presale && (num(product.get("stock").unwrap_or(&Value::Null)) as i64) < *total_qty {
-            let pname = product.get("name").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(|s| s.to_string()).unwrap_or_else(|| pid.to_string());
+        if !presale.is_presale
+            && (num(product.get("stock").unwrap_or(&Value::Null)) as i64) < *total_qty
+        {
+            let pname = product
+                .get("name")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| pid.to_string());
             let _ = tx.rollback().await;
             return Ok(bad(&format!("商品 {pname} 库存不足")));
         }
@@ -289,7 +344,8 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
         }
     }
 
-    let current_order_server_total = round_money((pricing.original_total - coupon_discount_amount).max(0.0));
+    let current_order_server_total =
+        round_money((pricing.original_total - coupon_discount_amount).max(0.0));
     if !should_merge && (client_total - current_order_server_total).abs() > 0.01 {
         let _ = tx.rollback().await;
         return Ok(bad("订单金额已变化，请刷新页面后重试"));
@@ -301,9 +357,11 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
     let mut final_original_total = pricing.original_total;
     let mut final_discount_amount = coupon_discount_amount;
     let mut final_server_total = current_order_server_total;
-    let mut final_coupon_code: Option<String> = applied_coupon
-        .as_ref()
-        .and_then(|c| c.get("code").and_then(|v| v.as_str()).map(|s| s.to_string()));
+    let mut final_coupon_code: Option<String> = applied_coupon.as_ref().and_then(|c| {
+        c.get("code")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+    });
     let mut merge_meta: Value = Value::Null;
     let mut source_order: Option<OrderRow> = None;
     let mut source_coupon_code = String::new();
@@ -316,7 +374,11 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
                 return Ok(bad("待合并订单不存在"));
             }
         };
-        let src_status = src.status.as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
+        let src_status = src
+            .status
+            .as_deref()
+            .and_then(|s| s.parse::<i64>().ok())
+            .unwrap_or(0);
         if !is_self_service_mergeable_source(src_status) {
             let _ = tx.rollback().await;
             return Ok(bad("仅支持合并未发货订单"));
@@ -333,10 +395,13 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
         }
 
         let source_merge_meta = normalize_order_merge_meta(
-            src.merge_meta.as_deref().map(|s| Value::String(s.to_string())),
+            src.merge_meta
+                .as_deref()
+                .map(|s| Value::String(s.to_string())),
         );
         let source_items_parsed = safe_parse(src.items.as_deref(), json!([]));
-        let source_items_arr: Vec<Value> = source_items_parsed.as_array().cloned().unwrap_or_default();
+        let source_items_arr: Vec<Value> =
+            source_items_parsed.as_array().cloned().unwrap_or_default();
         let source_items = merge_priced_items(&[&source_items_arr]);
         if source_items.is_empty() {
             let _ = tx.rollback().await;
@@ -344,13 +409,27 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
         }
 
         let source_pricing = calculate_pricing_from_priced_items(&source_items, thr);
-        let source_discount_amount = round_money(src.discount_amount.as_deref().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0));
-        let source_amount = round_money(src.total.as_deref().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0));
+        let source_discount_amount = round_money(
+            src.discount_amount
+                .as_deref()
+                .and_then(|s| s.parse::<f64>().ok())
+                .unwrap_or(0.0),
+        );
+        let source_amount = round_money(
+            src.total
+                .as_deref()
+                .and_then(|s| s.parse::<f64>().ok())
+                .unwrap_or(0.0),
+        );
         let merged_items = merge_priced_items(&[&source_items, &pricing.priced_items]);
         let merged_pricing = calculate_pricing_from_priced_items(&merged_items, thr);
-        let shipping_adjustment = round_money(merged_pricing.shipping_fee - source_pricing.shipping_fee - pricing.shipping_fee);
+        let shipping_adjustment = round_money(
+            merged_pricing.shipping_fee - source_pricing.shipping_fee - pricing.shipping_fee,
+        );
         let shipping_saved = round_money((-shipping_adjustment).max(0.0));
-        let merge_time = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+        let merge_time = chrono::Utc::now()
+            .format("%Y-%m-%dT%H:%M:%S%.3fZ")
+            .to_string();
 
         final_order_id = generate_unique_order_id_tx(&mut tx).await?;
         final_priced_items = merged_pricing.priced_items.clone();
@@ -360,7 +439,11 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
         final_coupon_code = if !source_coupon_code.is_empty() {
             Some(source_coupon_code.clone())
         } else {
-            applied_coupon.as_ref().and_then(|c| c.get("code").and_then(|v| v.as_str()).map(|s| s.to_string()))
+            applied_coupon.as_ref().and_then(|c| {
+                c.get("code")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+            })
         };
 
         // contactChanged
@@ -378,7 +461,8 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
             "province": contact.province, "city": contact.city, "district": contact.district,
             "addressDetail": contact.address_detail,
         });
-        let contact_changed = serde_json::to_string(&source_contact).ok() != serde_json::to_string(&next_contact).ok();
+        let contact_changed = serde_json::to_string(&source_contact).ok()
+            != serde_json::to_string(&next_contact).ok();
 
         // parts
         let source_parts: Vec<Value> = match source_merge_meta.get("parts").and_then(|v| v.as_array()) {
@@ -412,9 +496,15 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
         let mut parts_order: Vec<String> = Vec::new();
         let mut parts_map: HashMap<String, Value> = HashMap::new();
         for part in &source_parts {
-            let oid = part.get("orderId").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let oid = part
+                .get("orderId")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             if let Some(existing) = parts_map.get_mut(&oid) {
-                let amt = round_money(num(existing.get("amount").unwrap()) + num(part.get("amount").unwrap()));
+                let amt = round_money(
+                    num(existing.get("amount").unwrap()) + num(part.get("amount").unwrap()),
+                );
                 existing["amount"] = json!(amt);
             } else {
                 parts_order.push(oid.clone());
@@ -423,13 +513,17 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
         }
         // 加入当前提交订单 id
         if let Some(existing) = parts_map.get_mut(&id) {
-            let amt = round_money(num(existing.get("amount").unwrap()) + current_order_server_total);
+            let amt =
+                round_money(num(existing.get("amount").unwrap()) + current_order_server_total);
             existing["amount"] = json!(amt);
         } else {
             parts_order.push(id.clone());
             parts_map.insert(id.clone(), json!({ "orderId": id, "amount": current_order_server_total, "statusBeforeMerge": 1 }));
         }
-        let parts: Vec<Value> = parts_order.iter().filter_map(|k| parts_map.get(k).cloned()).collect();
+        let parts: Vec<Value> = parts_order
+            .iter()
+            .filter_map(|k| parts_map.get(k).cloned())
+            .collect();
 
         // history
         let mut merged_history: Vec<Value> = match source_merge_meta.get("history").and_then(|v| v.as_array()) {
@@ -541,8 +635,16 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
     }
 
     // 拆单标记
-    let presale_items: Vec<Value> = final_priced_items.iter().filter(|i| truthy(i.get("isPresale").unwrap_or(&Value::Null))).cloned().collect();
-    let spot_items: Vec<Value> = final_priced_items.iter().filter(|i| !truthy(i.get("isPresale").unwrap_or(&Value::Null))).cloned().collect();
+    let presale_items: Vec<Value> = final_priced_items
+        .iter()
+        .filter(|i| truthy(i.get("isPresale").unwrap_or(&Value::Null)))
+        .cloned()
+        .collect();
+    let spot_items: Vec<Value> = final_priced_items
+        .iter()
+        .filter(|i| !truthy(i.get("isPresale").unwrap_or(&Value::Null)))
+        .cloned()
+        .collect();
     let has_presale_flag = if !presale_items.is_empty() { 1 } else { 0 };
     let has_spot_flag = if !spot_items.is_empty() { 1 } else { 0 };
     let is_mixed = !presale_items.is_empty() && !spot_items.is_empty();
@@ -611,15 +713,21 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
         for pi in &presale_items {
             let pid = num(pi.get("id").unwrap_or(&Value::Null)) as i64;
             let sub_key = format!("presale-{pid}");
-            let name = pi.get("name").and_then(|v| v.as_str()).map(|s| s.to_string()).unwrap_or_else(|| format!("商品{pid}"));
+            let name = pi
+                .get("name")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| format!("商品{pid}"));
             let label = format!("预售: {name}");
-            sqlx::query("INSERT INTO sub_orders (orderId, subKey, label, items) VALUES (?, ?, ?, ?)")
-                .bind(&final_order_id)
-                .bind(&sub_key)
-                .bind(&label)
-                .bind(serde_json::to_string(&vec![pi.clone()]).unwrap_or_else(|_| "[]".into()))
-                .execute(&mut *tx)
-                .await?;
+            sqlx::query(
+                "INSERT INTO sub_orders (orderId, subKey, label, items) VALUES (?, ?, ?, ?)",
+            )
+            .bind(&final_order_id)
+            .bind(&sub_key)
+            .bind(&label)
+            .bind(serde_json::to_string(&vec![pi.clone()]).unwrap_or_else(|_| "[]".into()))
+            .execute(&mut *tx)
+            .await?;
         }
     }
 
@@ -654,14 +762,19 @@ pub async fn create_order(State(state): State<AppState>, Json(body): Json<Value>
 
     // 删除源订单
     if let Some(src) = &source_order {
-        sqlx::query("DELETE FROM orders WHERE id = ?").bind(&src.id).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM orders WHERE id = ?")
+            .bind(&src.id)
+            .execute(&mut *tx)
+            .await?;
     }
 
     tx.commit().await?;
 
     // 入队邮件（事务外）
-    if let Some(order_json) = email::load_order_for_email(&state.pools.shop, &final_order_id).await {
-        email::enqueue_order_email(&state.cfg, &state.pools.shop, "order_created", &order_json).await;
+    if let Some(order_json) = email::load_order_for_email(&state.pools.shop, &final_order_id).await
+    {
+        email::enqueue_order_email(&state.cfg, &state.pools.shop, "order_created", &order_json)
+            .await;
     }
 
     Ok(Json(json!({
@@ -688,7 +801,9 @@ async fn fetch_order_tx(
 }
 
 /// buildOrderId + 唯一性重试（事务内）。
-async fn generate_unique_order_id_tx(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>) -> AppResult<String> {
+async fn generate_unique_order_id_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+) -> AppResult<String> {
     for _ in 0..10 {
         let candidate = build_order_id();
         let exists: Option<(String,)> = sqlx::query_as("SELECT id FROM orders WHERE id = ?")
@@ -699,7 +814,9 @@ async fn generate_unique_order_id_tx(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite
             return Ok(candidate);
         }
     }
-    Err(haruhi_core::AppError::internal("生成新订单号失败，请稍后重试"))
+    Err(haruhi_core::AppError::internal(
+        "生成新订单号失败，请稍后重试",
+    ))
 }
 
 fn build_order_id() -> String {
@@ -769,7 +886,10 @@ pub async fn get_order(
     let order = map_order_row(&row, Some(&subs), None);
 
     if !is_admin_request(&state, &headers).await {
-        let phone_last4 = q.get("phoneLast4").map(|s| s.trim().to_string()).unwrap_or_default();
+        let phone_last4 = q
+            .get("phoneLast4")
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
         if phone_last4.len() != 4 || !phone_last4.bytes().all(|b| b.is_ascii_digit()) {
             return Ok(bad("请填写手机号后四位"));
         }
@@ -816,7 +936,11 @@ pub async fn update_order_contact(
         if expected.is_empty() || phone_last4 != expected {
             return Ok(forbidden("手机号后四位校验失败"));
         }
-        let status = existing.status.as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
+        let status = existing
+            .status
+            .as_deref()
+            .and_then(|s| s.parse::<i64>().ok())
+            .unwrap_or(0);
         if !is_self_service_contact_editable(status) {
             return Ok(bad("订单已发货，仅支持联系管理员修改收货信息"));
         }
@@ -850,12 +974,16 @@ pub async fn update_order_contact(
 // ============================================================
 // POST /orders/:id/payment（公开，待付款1 -> 待确认5，事务）
 // ============================================================
-pub async fn submit_payment(State(state): State<AppState>, Path(id): Path<String>) -> AppResult<Response> {
+pub async fn submit_payment(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> AppResult<Response> {
     let mut tx = state.pools.shop.begin().await?;
-    let order: Option<(Option<String>,)> = sqlx::query_as("SELECT CAST(status AS TEXT) FROM orders WHERE id = ?")
-        .bind(&id)
-        .fetch_optional(&mut *tx)
-        .await?;
+    let order: Option<(Option<String>,)> =
+        sqlx::query_as("SELECT CAST(status AS TEXT) FROM orders WHERE id = ?")
+            .bind(&id)
+            .fetch_optional(&mut *tx)
+            .await?;
     let order = match order {
         Some(o) => o,
         None => {
@@ -863,7 +991,11 @@ pub async fn submit_payment(State(state): State<AppState>, Path(id): Path<String
             return Ok(not_found("订单不存在"));
         }
     };
-    let old_status = order.0.as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
+    let old_status = order
+        .0
+        .as_deref()
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(0);
     if old_status == 5 {
         tx.commit().await?;
         return Ok(Json(json!({ "success": true, "status": 5 })).into_response());
@@ -872,7 +1004,10 @@ pub async fn submit_payment(State(state): State<AppState>, Path(id): Path<String
         let _ = tx.rollback().await;
         return Ok(bad("当前订单状态不允许提交支付"));
     }
-    sqlx::query("UPDATE orders SET status = 5 WHERE id = ?").bind(&id).execute(&mut *tx).await?;
+    sqlx::query("UPDATE orders SET status = 5 WHERE id = ?")
+        .bind(&id)
+        .execute(&mut *tx)
+        .await?;
     tx.commit().await?;
     Ok(Json(json!({ "success": true, "status": 5 })).into_response())
 }

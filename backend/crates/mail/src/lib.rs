@@ -47,7 +47,7 @@ impl Mailer {
         }
     }
 
-    fn from_mailbox(&self) -> anyhow::Result<Mailbox> {
+    fn sender_mailbox(&self) -> anyhow::Result<Mailbox> {
         let addr = self
             .cfg
             .from_address
@@ -84,8 +84,11 @@ impl Mailer {
             .resend_api_key
             .clone()
             .ok_or_else(|| anyhow::anyhow!("缺少 RESEND_API_KEY"))?;
-        let from = self.from_mailbox()?.to_string();
-        let url = format!("{}/emails", self.cfg.resend_api_base_url.trim_end_matches('/'));
+        let from = self.sender_mailbox()?.to_string();
+        let url = format!(
+            "{}/emails",
+            self.cfg.resend_api_base_url.trim_end_matches('/')
+        );
         let mut body = serde_json::json!({
             "from": from,
             "to": [to],
@@ -124,7 +127,7 @@ impl Mailer {
             .clone()
             .ok_or_else(|| anyhow::anyhow!("缺少 SMTP_HOST"))?;
         let email = Message::builder()
-            .from(self.from_mailbox()?)
+            .from(self.sender_mailbox()?)
             .to(to.parse().map_err(|e| anyhow::anyhow!("收件人非法: {e}"))?)
             .subject(subject)
             .multipart(

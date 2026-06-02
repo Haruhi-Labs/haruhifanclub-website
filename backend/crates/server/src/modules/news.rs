@@ -669,10 +669,7 @@ async fn list_articles(State(state): State<AppState>) -> AppResult<Json<Value>> 
         match (ap, bp) {
             (true, false) => std::cmp::Ordering::Less,
             (false, true) => std::cmp::Ordering::Greater,
-            (true, true) => a
-                .pin_order
-                .unwrap_or(0)
-                .cmp(&b.pin_order.unwrap_or(0)),
+            (true, true) => a.pin_order.unwrap_or(0).cmp(&b.pin_order.unwrap_or(0)),
             (false, false) => b.id.cmp(&a.id),
         }
     });
@@ -823,7 +820,9 @@ async fn create_article(
         obj.insert("pinOrder".into(), json!(pin_order));
         obj.insert("id".into(), json!(new_id));
     }
-    Ok(Json(json!({ "message": "success", "data": body, "status": status })))
+    Ok(Json(
+        json!({ "message": "success", "data": body, "status": status }),
+    ))
 }
 
 // PUT /articles/:id（Write）

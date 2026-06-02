@@ -31,7 +31,10 @@ pub async fn list_orders(
 
     let status = q.get("status").cloned().unwrap_or_else(|| "all".into());
     let keyword = sanitize_config_text(q.get("keyword").map(|s| s.as_str()).unwrap_or(""), 80);
-    let sort_by = q.get("sortBy").cloned().unwrap_or_else(|| "created_at".into());
+    let sort_by = q
+        .get("sortBy")
+        .cloned()
+        .unwrap_or_else(|| "created_at".into());
     let sort_dir = if q.get("sortDir").map(|s| s.to_lowercase()) == Some("asc".into()) {
         "ASC"
     } else {
@@ -56,7 +59,9 @@ pub async fn list_orders(
         params.push(n.to_string());
     }
     if !keyword.is_empty() {
-        conditions.push("(id LIKE ? OR contactName LIKE ? OR contactPhone LIKE ? OR mergeMeta LIKE ?)".into());
+        conditions.push(
+            "(id LIKE ? OR contactName LIKE ? OR contactPhone LIKE ? OR mergeMeta LIKE ?)".into(),
+        );
         let term = format!("%{keyword}%");
         for _ in 0..4 {
             params.push(term.clone());
@@ -81,7 +86,11 @@ pub async fn list_orders(
         cq = cq.bind(p);
     }
     let total: i64 = cq.fetch_one(&state.pools.shop).await?;
-    let total_pages = if total > 0 { (total + page_size - 1) / page_size } else { 1 };
+    let total_pages = if total > 0 {
+        (total + page_size - 1) / page_size
+    } else {
+        1
+    };
 
     let list_sql = format!(
         "{ORDER_SELECT} {where_sql} ORDER BY {order_by} {sort_dir}, id DESC LIMIT ? OFFSET ?"
@@ -107,7 +116,10 @@ pub async fn list_orders(
         }
         let sub_rows: Vec<SubOrderWithOrderId> = sq.fetch_all(&state.pools.shop).await?;
         for sr in sub_rows {
-            subs_by_order.entry(sr.order_id.clone()).or_default().push(sr.into_sub_order_row());
+            subs_by_order
+                .entry(sr.order_id.clone())
+                .or_default()
+                .push(sr.into_sub_order_row());
         }
     }
 
@@ -183,15 +195,27 @@ pub async fn list_order_ids(
     }
     if let Some(exp) = q.get("exported").filter(|s| !s.is_empty()) {
         conditions.push("CAST(exported AS INTEGER) = ?".into());
-        params.push(if exp.parse::<f64>().unwrap_or(0.0) != 0.0 { 1 } else { 0 });
+        params.push(if exp.parse::<f64>().unwrap_or(0.0) != 0.0 {
+            1
+        } else {
+            0
+        });
     }
     if let Some(sp) = q.get("spotExported").filter(|s| !s.is_empty()) {
         conditions.push("CAST(spotExported AS INTEGER) = ?".into());
-        params.push(if sp.parse::<f64>().unwrap_or(0.0) != 0.0 { 1 } else { 0 });
+        params.push(if sp.parse::<f64>().unwrap_or(0.0) != 0.0 {
+            1
+        } else {
+            0
+        });
     }
     if let Some(hp) = q.get("hasPresale").filter(|s| !s.is_empty()) {
         conditions.push("CAST(hasPresaleItems AS INTEGER) = ?".into());
-        params.push(if hp.parse::<f64>().unwrap_or(0.0) != 0.0 { 1 } else { 0 });
+        params.push(if hp.parse::<f64>().unwrap_or(0.0) != 0.0 {
+            1
+        } else {
+            0
+        });
     }
     let not_fully_exported = q.get("notFullyExported").map(|s| s.as_str()) == Some("1");
     let select_fields = if not_fully_exported {
@@ -226,7 +250,9 @@ pub async fn list_order_ids(
     for row in rows {
         let items = safe_parse(row.items.as_deref(), json!([]));
         let items_arr: Vec<Value> = items.as_array().cloned().unwrap_or_default();
-        let has_spot = items_arr.iter().any(|i| !truthy(i.get("isPresale").unwrap_or(&Value::Null)));
+        let has_spot = items_arr
+            .iter()
+            .any(|i| !truthy(i.get("isPresale").unwrap_or(&Value::Null)));
         let presale_ids: std::collections::HashSet<i64> = items_arr
             .iter()
             .filter(|i| truthy(i.get("isPresale").unwrap_or(&Value::Null)))
@@ -237,8 +263,10 @@ pub async fn list_order_ids(
             .as_array()
             .map(|a| a.iter().map(|v| num(v) as i64).collect())
             .unwrap_or_default();
-        let spot_done = !has_spot || row.spot_exported.unwrap_or(0) != 0 || row.exported.unwrap_or(0) != 0;
-        let presale_done = presale_ids.is_empty() || presale_ids.iter().all(|pid| exported_set.contains(pid));
+        let spot_done =
+            !has_spot || row.spot_exported.unwrap_or(0) != 0 || row.exported.unwrap_or(0) != 0;
+        let presale_done =
+            presale_ids.is_empty() || presale_ids.iter().all(|pid| exported_set.contains(pid));
         if !(spot_done && presale_done) {
             ids.push(row.id);
         }
@@ -276,7 +304,10 @@ pub async fn mark_exported(
         Some(a) if !a.is_empty() => a.clone(),
         _ => return Ok(bad("请提供订单 ID 列表")),
     };
-    let id_strs: Vec<String> = ids.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect();
+    let id_strs: Vec<String> = ids
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+        .collect();
     let ph = id_strs.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let sql = format!("UPDATE orders SET exported = 1 WHERE id IN ({ph})");
     let mut query = sqlx::query(&sql);
@@ -326,7 +357,8 @@ pub async fn mark_spot_exported(
             .filter(|i| truthy(i.get("isPresale").unwrap_or(&Value::Null)))
             .map(|i| num(i.get("id").unwrap_or(&Value::Null)) as i64)
             .collect();
-        let presale_done = all_presale_ids.is_empty() || all_presale_ids.iter().all(|pid| exported_set.contains(pid));
+        let presale_done = all_presale_ids.is_empty()
+            || all_presale_ids.iter().all(|pid| exported_set.contains(pid));
         let all_exported = if presale_done { 1 } else { 0 };
         sqlx::query("UPDATE orders SET spotExported = 1, exported = CASE WHEN ? = 1 THEN 1 ELSE exported END WHERE id = ?")
             .bind(all_exported)
@@ -346,8 +378,16 @@ pub async fn mark_presale_exported(
     Json(body): Json<Value>,
 ) -> AppResult<Response> {
     authorize(&state.pools.core, &user, "shop", Action::Write).await?;
-    let ids = body.get("ids").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-    let product_ids = body.get("productIds").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let ids = body
+        .get("ids")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let product_ids = body
+        .get("productIds")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     if ids.is_empty() || product_ids.is_empty() {
         return Ok(bad("请提供订单 ID 列表和商品 ID 列表"));
     }
@@ -391,7 +431,9 @@ pub async fn mark_presale_exported(
             .filter(|i| truthy(i.get("isPresale").unwrap_or(&Value::Null)))
             .map(|i| num(i.get("id").unwrap_or(&Value::Null)) as i64)
             .collect();
-        let has_spot = items_arr.iter().any(|i| !truthy(i.get("isPresale").unwrap_or(&Value::Null)));
+        let has_spot = items_arr
+            .iter()
+            .any(|i| !truthy(i.get("isPresale").unwrap_or(&Value::Null)));
         let spot_done = !has_spot || spot_exported.unwrap_or(0) != 0 || exported.unwrap_or(0) != 0;
         let presale_done = all_presale_ids.iter().all(|pid| merged_set.contains(pid));
         let all_exported = if spot_done && presale_done { 1 } else { 0 };
@@ -409,7 +451,10 @@ pub async fn mark_presale_exported(
 // ============================================================
 // GET /orders/spot-export-data（Read）
 // ============================================================
-pub async fn spot_export_data(State(state): State<AppState>, user: AuthUser) -> AppResult<Response> {
+pub async fn spot_export_data(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Response> {
     authorize(&state.pools.core, &user, "shop", Action::Read).await?;
     let rows: Vec<OrderRow> = sqlx::query_as(
         &format!("{ORDER_SELECT} WHERE CAST(status AS INTEGER) = 2 AND CAST(exported AS INTEGER) = 0 AND CAST(spotExported AS INTEGER) = 0 ORDER BY created_at DESC"),
@@ -421,7 +466,10 @@ pub async fn spot_export_data(State(state): State<AppState>, user: AuthUser) -> 
     for row in &rows {
         let items = safe_parse(row.items.as_deref(), json!([]));
         let items_arr: Vec<Value> = items.as_array().cloned().unwrap_or_default();
-        let spot_items: Vec<Value> = items_arr.into_iter().filter(|i| !truthy(i.get("isPresale").unwrap_or(&Value::Null))).collect();
+        let spot_items: Vec<Value> = items_arr
+            .into_iter()
+            .filter(|i| !truthy(i.get("isPresale").unwrap_or(&Value::Null)))
+            .collect();
         if spot_items.is_empty() {
             continue;
         }
@@ -442,8 +490,16 @@ pub async fn ship_sub_order(
     authorize(&state.pools.core, &user, "shop", Action::Write).await?;
     let order_id = id.trim().to_string();
     let sub_key = sub_key.trim().to_string();
-    let tracking_company = body.get("trackingCompany").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let tracking_no = body.get("trackingNo").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let tracking_company = body
+        .get("trackingCompany")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let tracking_no = body
+        .get("trackingNo")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
 
     if order_id.is_empty() || sub_key.is_empty() {
         return Ok(bad("参数不完整"));
@@ -462,17 +518,24 @@ pub async fn ship_sub_order(
             return Ok(super::products::not_found("订单不存在"));
         }
     };
-    if order.0.as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0) != 2 {
+    if order
+        .0
+        .as_deref()
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(0)
+        != 2
+    {
         let _ = tx.rollback().await;
         return Ok(bad("订单状态不允许发货"));
     }
 
-    let sub: Option<(Option<i64>,)> =
-        sqlx::query_as("SELECT CAST(shipped AS INTEGER) FROM sub_orders WHERE orderId = ? AND subKey = ?")
-            .bind(&order_id)
-            .bind(&sub_key)
-            .fetch_optional(&mut *tx)
-            .await?;
+    let sub: Option<(Option<i64>,)> = sqlx::query_as(
+        "SELECT CAST(shipped AS INTEGER) FROM sub_orders WHERE orderId = ? AND subKey = ?",
+    )
+    .bind(&order_id)
+    .bind(&sub_key)
+    .fetch_optional(&mut *tx)
+    .await?;
     let sub = match sub {
         Some(s) => s,
         None => {
@@ -486,14 +549,20 @@ pub async fn ship_sub_order(
     }
 
     // 更新子订单
-    let mut set_parts = vec!["shipped = 1".to_string(), "shipped_at = CURRENT_TIMESTAMP".to_string()];
+    let mut set_parts = vec![
+        "shipped = 1".to_string(),
+        "shipped_at = CURRENT_TIMESTAMP".to_string(),
+    ];
     if !tracking_company.is_empty() {
         set_parts.push("trackingCompany = ?".into());
     }
     if !tracking_no.is_empty() {
         set_parts.push("trackingNo = ?".into());
     }
-    let upd_sql = format!("UPDATE sub_orders SET {} WHERE orderId = ? AND subKey = ?", set_parts.join(", "));
+    let upd_sql = format!(
+        "UPDATE sub_orders SET {} WHERE orderId = ? AND subKey = ?",
+        set_parts.join(", ")
+    );
     let mut upd = sqlx::query(&upd_sql);
     if !tracking_company.is_empty() {
         upd = upd.bind(&tracking_company);
@@ -504,10 +573,12 @@ pub async fn ship_sub_order(
     upd = upd.bind(&order_id).bind(&sub_key);
     upd.execute(&mut *tx).await?;
 
-    let unshipped: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sub_orders WHERE orderId = ? AND CAST(shipped AS INTEGER) = 0")
-        .bind(&order_id)
-        .fetch_one(&mut *tx)
-        .await?;
+    let unshipped: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sub_orders WHERE orderId = ? AND CAST(shipped AS INTEGER) = 0",
+    )
+    .bind(&order_id)
+    .fetch_one(&mut *tx)
+    .await?;
 
     if unshipped == 0 {
         let last: Option<(Option<String>, Option<String>)> = sqlx::query_as(
@@ -525,10 +596,16 @@ pub async fn ship_sub_order(
                     .execute(&mut *tx)
                     .await?;
             } else {
-                sqlx::query("UPDATE orders SET status = 3 WHERE id = ?").bind(&order_id).execute(&mut *tx).await?;
+                sqlx::query("UPDATE orders SET status = 3 WHERE id = ?")
+                    .bind(&order_id)
+                    .execute(&mut *tx)
+                    .await?;
             }
         } else {
-            sqlx::query("UPDATE orders SET status = 3 WHERE id = ?").bind(&order_id).execute(&mut *tx).await?;
+            sqlx::query("UPDATE orders SET status = 3 WHERE id = ?")
+                .bind(&order_id)
+                .execute(&mut *tx)
+                .await?;
         }
     }
 
@@ -613,7 +690,10 @@ pub async fn import_tracking(
         .map_err(|e| haruhi_core::AppError::bad_request(format!("解析上传失败: {e}")))?
     {
         if field.name() == Some("file") {
-            let bytes = field.bytes().await.map_err(|e| haruhi_core::AppError::bad_request(format!("读取文件失败: {e}")))?;
+            let bytes = field
+                .bytes()
+                .await
+                .map_err(|e| haruhi_core::AppError::bad_request(format!("读取文件失败: {e}")))?;
             csv_bytes = Some(bytes.to_vec());
         } else {
             let _ = field.bytes().await;
@@ -649,10 +729,26 @@ pub async fn import_tracking(
 
     for rec in records.iter().skip(1) {
         let fields = parse_csv_line(rec);
-        let order_id = fields.get(col_order_id).map(|s| s.trim()).unwrap_or("").to_string();
-        let tracking_company = col_tracking_company.and_then(|c| fields.get(c)).map(|s| s.trim()).unwrap_or("").to_string();
-        let tracking_no = fields.get(col_tracking_no).map(|s| s.trim()).unwrap_or("").to_string();
-        let csv_items_text = col_items.and_then(|c| fields.get(c)).map(|s| s.trim()).unwrap_or("").to_string();
+        let order_id = fields
+            .get(col_order_id)
+            .map(|s| s.trim())
+            .unwrap_or("")
+            .to_string();
+        let tracking_company = col_tracking_company
+            .and_then(|c| fields.get(c))
+            .map(|s| s.trim())
+            .unwrap_or("")
+            .to_string();
+        let tracking_no = fields
+            .get(col_tracking_no)
+            .map(|s| s.trim())
+            .unwrap_or("")
+            .to_string();
+        let csv_items_text = col_items
+            .and_then(|c| fields.get(c))
+            .map(|s| s.trim())
+            .unwrap_or("")
+            .to_string();
 
         if order_id.is_empty() || tracking_no.is_empty() {
             skipped += 1;
@@ -672,7 +768,13 @@ pub async fn import_tracking(
                 continue;
             }
         };
-        if order.0.as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0) != 2 {
+        if order
+            .0
+            .as_deref()
+            .and_then(|s| s.parse::<i64>().ok())
+            .unwrap_or(0)
+            != 2
+        {
             skipped += 1;
             details.push(format!("{order_id}: 跳过(状态非待发货)"));
             continue;
@@ -686,12 +788,14 @@ pub async fn import_tracking(
         .await?;
 
         if sub_orders.is_empty() {
-            sqlx::query("UPDATE orders SET trackingCompany = ?, trackingNo = ?, status = 3 WHERE id = ?")
-                .bind(&tracking_company)
-                .bind(&tracking_no)
-                .bind(&order_id)
-                .execute(&state.pools.shop)
-                .await?;
+            sqlx::query(
+                "UPDATE orders SET trackingCompany = ?, trackingNo = ?, status = 3 WHERE id = ?",
+            )
+            .bind(&tracking_company)
+            .bind(&tracking_no)
+            .bind(&order_id)
+            .execute(&state.pools.shop)
+            .await?;
             enqueue_order_email_safe(&state, "order_shipped", &order_id).await;
             success += 1;
             details.push(format!("{order_id}: 已发货"));
@@ -711,16 +815,37 @@ pub async fn import_tracking(
             if !csv_item_names.is_empty() {
                 let mut best_score = 0;
                 for sub in &sub_orders {
-                    if sub.shipped.as_deref().and_then(|x| x.parse::<f64>().ok()).unwrap_or(0.0) != 0.0 {
+                    if sub
+                        .shipped
+                        .as_deref()
+                        .and_then(|x| x.parse::<f64>().ok())
+                        .unwrap_or(0.0)
+                        != 0.0
+                    {
                         continue;
                     }
                     let sub_items = safe_parse(sub.items.as_deref(), json!([]));
                     let sub_names: Vec<String> = sub_items
                         .as_array()
-                        .map(|a| a.iter().map(|it| it.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string()).collect())
+                        .map(|a| {
+                            a.iter()
+                                .map(|it| {
+                                    it.get("name")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string()
+                                })
+                                .collect()
+                        })
                         .unwrap_or_default();
-                    let csv_in_sub = csv_item_names.iter().filter(|n| sub_names.iter().any(|sn| name_match(sn, n))).count();
-                    let sub_in_csv = sub_names.iter().filter(|sn| csv_item_names.iter().any(|n| name_match(sn, n))).count();
+                    let csv_in_sub = csv_item_names
+                        .iter()
+                        .filter(|n| sub_names.iter().any(|sn| name_match(sn, n)))
+                        .count();
+                    let sub_in_csv = sub_names
+                        .iter()
+                        .filter(|sn| csv_item_names.iter().any(|n| name_match(sn, n)))
+                        .count();
                     let score = csv_in_sub + sub_in_csv;
                     if score > best_score {
                         best_score = score;
@@ -731,7 +856,13 @@ pub async fn import_tracking(
             if matched.is_none() {
                 let unshipped: Vec<&SubOrderWithOrderId> = sub_orders
                     .iter()
-                    .filter(|s| s.shipped.as_deref().and_then(|x| x.parse::<f64>().ok()).unwrap_or(0.0) == 0.0)
+                    .filter(|s| {
+                        s.shipped
+                            .as_deref()
+                            .and_then(|x| x.parse::<f64>().ok())
+                            .unwrap_or(0.0)
+                            == 0.0
+                    })
                     .collect();
                 if unshipped.len() == 1 {
                     matched = Some(unshipped[0]);
@@ -746,7 +877,14 @@ pub async fn import_tracking(
             };
 
             // 内联发货（事务）
-            let result = ship_matched_sub(&state.pools.shop, &order_id, &matched.sub_key, &tracking_company, &tracking_no).await;
+            let result = ship_matched_sub(
+                &state.pools.shop,
+                &order_id,
+                &matched.sub_key,
+                &tracking_company,
+                &tracking_no,
+            )
+            .await;
             match result {
                 Ok(()) => {
                     enqueue_sub_order_email_safe(&state, &order_id, &matched.sub_key).await;
@@ -788,19 +926,23 @@ async fn ship_matched_sub(
     .await
     .map_err(|e| e.to_string())?;
 
-    let unshipped: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sub_orders WHERE orderId = ? AND CAST(shipped AS INTEGER) = 0")
+    let unshipped: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sub_orders WHERE orderId = ? AND CAST(shipped AS INTEGER) = 0",
+    )
+    .bind(order_id)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(|e| e.to_string())?;
+    if unshipped == 0 {
+        sqlx::query(
+            "UPDATE orders SET status = 3, trackingCompany = ?, trackingNo = ? WHERE id = ?",
+        )
+        .bind(tracking_company)
+        .bind(tracking_no)
         .bind(order_id)
-        .fetch_one(&mut *tx)
+        .execute(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;
-    if unshipped == 0 {
-        sqlx::query("UPDATE orders SET status = 3, trackingCompany = ?, trackingNo = ? WHERE id = ?")
-            .bind(tracking_company)
-            .bind(tracking_no)
-            .bind(order_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| e.to_string())?;
     }
     tx.commit().await.map_err(|e| e.to_string())?;
     Ok(())
@@ -894,8 +1036,16 @@ pub async fn update_order_status(
     authorize(&state.pools.core, &user, "shop", Action::Moderate).await?;
 
     let order_id = id;
-    let tracking_company = body.get("trackingCompany").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let tracking_no = body.get("trackingNo").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let tracking_company = body
+        .get("trackingCompany")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let tracking_no = body
+        .get("trackingNo")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
     let new_status = num(body.get("status").unwrap_or(&Value::Null));
     if new_status.fract() != 0.0 || !ORDER_STATUS_VALUES.contains(&(new_status as i64)) {
         return Ok(bad("订单状态值无效"));
@@ -915,7 +1065,11 @@ pub async fn update_order_status(
             return Ok(super::products::not_found("Order not found"));
         }
     };
-    let old_status = order.0.as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
+    let old_status = order
+        .0
+        .as_deref()
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(0);
     let allowed = status_transitions(old_status);
     if new_status != old_status && !allowed.contains(&new_status) {
         let _ = tx.rollback().await;
@@ -924,10 +1078,11 @@ pub async fn update_order_status(
 
     // 含子订单时阻止直接发货
     if new_status == 3 && old_status == 2 {
-        let sub_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sub_orders WHERE orderId = ?")
-            .bind(&order_id)
-            .fetch_one(&mut *tx)
-            .await?;
+        let sub_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM sub_orders WHERE orderId = ?")
+                .bind(&order_id)
+                .fetch_one(&mut *tx)
+                .await?;
         if sub_count > 0 {
             let _ = tx.rollback().await;
             return Ok(bad("该订单包含子订单，请通过子订单逐个发货"));
@@ -967,13 +1122,15 @@ pub async fn update_order_status(
     }
 
     if new_status == 3 && !tracking_company.is_empty() && !tracking_no.is_empty() {
-        sqlx::query("UPDATE orders SET status = ?, trackingCompany = ?, trackingNo = ? WHERE id = ?")
-            .bind(new_status)
-            .bind(&tracking_company)
-            .bind(&tracking_no)
-            .bind(&order_id)
-            .execute(&mut *tx)
-            .await?;
+        sqlx::query(
+            "UPDATE orders SET status = ?, trackingCompany = ?, trackingNo = ? WHERE id = ?",
+        )
+        .bind(new_status)
+        .bind(&tracking_company)
+        .bind(&tracking_no)
+        .bind(&order_id)
+        .execute(&mut *tx)
+        .await?;
     } else {
         sqlx::query("UPDATE orders SET status = ? WHERE id = ?")
             .bind(new_status)
@@ -1017,7 +1174,13 @@ pub async fn delete_order(
             return Ok(super::products::not_found("订单不存在"));
         }
     };
-    if order.0.as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0) != 5 {
+    if order
+        .0
+        .as_deref()
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(0)
+        != 5
+    {
         let _ = tx.rollback().await;
         return Ok(bad("仅允许删除待确认订单"));
     }
@@ -1050,7 +1213,10 @@ pub async fn delete_order(
             .await?;
     }
 
-    sqlx::query("DELETE FROM orders WHERE id = ?").bind(&order_id).execute(&mut *tx).await?;
+    sqlx::query("DELETE FROM orders WHERE id = ?")
+        .bind(&order_id)
+        .execute(&mut *tx)
+        .await?;
     tx.commit().await?;
     Ok(Json(json!({ "success": true })).into_response())
 }
@@ -1061,4 +1227,3 @@ async fn enqueue_order_email_safe(state: &AppState, event_key: &str, order_id: &
         email::enqueue_order_email(&state.cfg, &state.pools.shop, event_key, &order_json).await;
     }
 }
-

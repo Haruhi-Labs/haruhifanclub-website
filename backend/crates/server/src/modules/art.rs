@@ -43,13 +43,25 @@ pub fn router() -> Router<AppState> {
         .route("/admin/artworks/{id}/reject", post(admin_reject_artwork))
         .route("/admin/artworks/{id}/status", post(admin_artwork_status))
         .route("/admin/artworks/{id}/update", post(admin_artwork_update))
-        .route("/admin/artworks/{id}", axum::routing::delete(admin_delete_artwork))
+        .route(
+            "/admin/artworks/{id}",
+            axum::routing::delete(admin_delete_artwork),
+        )
         .route("/admin/comments", get(admin_list_comments))
         .route("/admin/comments/{id}/status", post(admin_comment_status))
-        .route("/admin/comments/{id}", axum::routing::delete(admin_delete_comment))
-        .route("/admin/creators", get(admin_list_creators).post(admin_create_creator))
+        .route(
+            "/admin/comments/{id}",
+            axum::routing::delete(admin_delete_comment),
+        )
+        .route(
+            "/admin/creators",
+            get(admin_list_creators).post(admin_create_creator),
+        )
         .route("/admin/creators/{uid}/update", post(admin_update_creator))
-        .route("/admin/creators/{uid}", axum::routing::delete(admin_delete_creator))
+        .route(
+            "/admin/creators/{uid}",
+            axum::routing::delete(admin_delete_creator),
+        )
         .route("/admin/points-ledger", get(admin_points_ledger))
         .route("/admin/points/grant", post(admin_points_grant))
 }
@@ -155,7 +167,8 @@ fn json_with_cookie(value: Value, set: Option<[String; 2]>) -> Response {
     if let Some(cookies) = set {
         for c in cookies {
             if let Ok(hv) = axum::http::HeaderValue::from_str(&c) {
-                resp.headers_mut().append(axum::http::header::SET_COOKIE, hv);
+                resp.headers_mut()
+                    .append(axum::http::header::SET_COOKIE, hv);
             }
         }
     }
@@ -473,7 +486,9 @@ async fn creators_verify(
     let creator = row
         .as_ref()
         .map(|(uid, avatar_url)| json!({ "uid": uid, "avatar_url": avatar_url }));
-    Ok(Json(json!({ "ok": true, "exists": row.is_some(), "creator": creator })))
+    Ok(Json(
+        json!({ "ok": true, "exists": row.is_some(), "creator": creator }),
+    ))
 }
 
 // 5. 作品列表（过滤/搜索/排序/分页）
@@ -553,8 +568,7 @@ async fn list_artworks(
     let offset = (page - 1) * page_size;
 
     // 排序
-    let mut order_by =
-        String::from("ORDER BY datetime(a.created_at) DESC, a.id DESC");
+    let mut order_by = String::from("ORDER BY datetime(a.created_at) DESC, a.id DESC");
     let mut order_params: Vec<i64> = Vec::new();
     let mut seed_used: Option<i64> = None;
 
@@ -735,11 +749,19 @@ async fn create_artwork(State(state): State<AppState>, mut mp: Multipart) -> App
     let uploader_uid = safe_text(get("uploader_uid"));
     let source_type = {
         let s = safe_text(get("source_type"));
-        if s.is_empty() { "network".to_string() } else { s }
+        if s.is_empty() {
+            "network".to_string()
+        } else {
+            s
+        }
     };
     let content_type = {
         let s = safe_text(get("content_type"));
-        if s.is_empty() { "haruhi".to_string() } else { s }
+        if s.is_empty() {
+            "haruhi".to_string()
+        } else {
+            s
+        }
     };
     let origin_url = safe_text(get("origin_url"));
 
@@ -754,11 +776,20 @@ async fn create_artwork(State(state): State<AppState>, mut mp: Multipart) -> App
     // AI 审核
     let ai = haruhi_ai::AiClient::from_config(&state.cfg);
     let text_check = ai
-        .check_text(haruhi_ai::ART_SYSTEM_PROMPT, &format!("{title}\n{description}"))
+        .check_text(
+            haruhi_ai::ART_SYSTEM_PROMPT,
+            &format!("{title}\n{description}"),
+        )
         .await;
     let image_verdict = match &cover_bytes {
-        Some(b) => ai.check_image(haruhi_ai::ART_SYSTEM_PROMPT, b, "image/webp").await,
-        None => haruhi_ai::Verdict { ok: true, reason: "EMPTY".into() },
+        Some(b) => {
+            ai.check_image(haruhi_ai::ART_SYSTEM_PROMPT, b, "image/webp")
+                .await
+        }
+        None => haruhi_ai::Verdict {
+            ok: true,
+            reason: "EMPTY".into(),
+        },
     };
 
     // 状态机（对齐旧 finalStatus 逻辑）
@@ -801,7 +832,10 @@ async fn create_artwork(State(state): State<AppState>, mut mp: Multipart) -> App
 
     let _ = (cover_disp_rel.is_empty(), cover_orig_rel.is_empty()); // 保留语义：封面=images[0]
     let cover_path = &images_list[0]["path"].as_str().unwrap_or("").to_string();
-    let cover_original = &images_list[0]["original"].as_str().unwrap_or("").to_string();
+    let cover_original = &images_list[0]["original"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
 
     let last_id: i64 = sqlx::query_scalar(
         "INSERT INTO artworks \
@@ -897,13 +931,15 @@ async fn list_comments(
         .await?;
     let data: Vec<Value> = rows
         .into_iter()
-        .map(|(id, artwork_id, user_name, avatar_key, body, like_total, created_at)| {
-            json!({
-                "id": id, "artwork_id": artwork_id, "user_name": user_name,
-                "avatar_key": avatar_key, "body": body, "like_total": like_total,
-                "created_at": created_at,
-            })
-        })
+        .map(
+            |(id, artwork_id, user_name, avatar_key, body, like_total, created_at)| {
+                json!({
+                    "id": id, "artwork_id": artwork_id, "user_name": user_name,
+                    "avatar_key": avatar_key, "body": body, "like_total": like_total,
+                    "created_at": created_at,
+                })
+            },
+        )
         .collect();
     Ok(Json(json!({ "ok": true, "data": data })).into_response())
 }
@@ -999,7 +1035,11 @@ async fn like_target(
 ) -> (StatusCode, Value) {
     let day = chrono::Utc::now().format("%Y-%m-%d").to_string();
     let now = now_iso();
-    let table = if target_type == "artwork" { "artworks" } else { "comments" };
+    let table = if target_type == "artwork" {
+        "artworks"
+    } else {
+        "comments"
+    };
 
     let mut tx = match state.pools.art.begin().await {
         Ok(t) => t,
@@ -1044,7 +1084,10 @@ async fn like_target(
     let used = row.map(|(_, c)| c).unwrap_or(0);
     if used >= 10 {
         let _ = tx.rollback().await;
-        return (StatusCode::TOO_MANY_REQUESTS, json!({ "ok": false, "message": "上限" }));
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            json!({ "ok": false, "message": "上限" }),
+        );
     }
 
     let step = async {
@@ -1157,11 +1200,21 @@ async fn admin_approve_artwork(
     Json(body): Json<Value>,
 ) -> AppResult<Response> {
     authorize(&state.pools.core, &user, "art", Action::Moderate).await?;
-    let note = body.get("note").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let note = body
+        .get("note")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     let now = now_iso();
 
     // 取作品，决定是否补发积分
-    let art: Option<(Option<String>, Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
+    let art: Option<(
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
         "SELECT source_type, uploader_uid, content_type, created_at FROM artworks WHERE id=?",
     )
     .bind(id)
@@ -1223,7 +1276,12 @@ async fn admin_reject_artwork(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Moderate).await?;
-    let note = body.get("note").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let note = body
+        .get("note")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     sqlx::query("UPDATE artworks SET status='rejected', review_note=?, reviewed_at=? WHERE id=?")
         .bind(&note)
         .bind(now_iso())
@@ -1295,11 +1353,12 @@ async fn admin_delete_artwork(
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Manage).await?;
 
-    let row: Option<(Option<String>, Option<String>, Option<String>)> =
-        sqlx::query_as("SELECT file_path, file_path_original, images_json FROM artworks WHERE id=?")
-            .bind(id)
-            .fetch_optional(&state.pools.art)
-            .await?;
+    let row: Option<(Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT file_path, file_path_original, images_json FROM artworks WHERE id=?",
+    )
+    .bind(id)
+    .fetch_optional(&state.pools.art)
+    .await?;
     if let Some((file_path, file_path_original, images_json)) = row {
         let mut files: Vec<String> = Vec::new();
         if let Some(f) = file_path.filter(|s| !s.is_empty()) {
@@ -1344,35 +1403,62 @@ async fn admin_list_comments(
     Query(q): Query<std::collections::HashMap<String, String>>,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Read).await?;
-    let status = q.get("status").map(|s| s.as_str()).unwrap_or("flagged").to_string();
+    let status = q
+        .get("status")
+        .map(|s| s.as_str())
+        .unwrap_or("flagged")
+        .to_string();
 
-    let rows: Vec<(i64, i64, Option<String>, Option<String>, Option<i64>, Option<String>, i64, Option<String>, Option<String>, Option<String>)> =
-        if status != "all" {
-            sqlx::query_as(
+    let rows: Vec<(
+        i64,
+        i64,
+        Option<String>,
+        Option<String>,
+        Option<i64>,
+        Option<String>,
+        i64,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = if status != "all" {
+        sqlx::query_as(
                 "SELECT id, artwork_id, anon_id, user_name, avatar_key, body, COALESCE(like_total,0), created_at, status, ai_reason \
                  FROM comments WHERE status=? ORDER BY datetime(created_at) DESC LIMIT 200",
             )
             .bind(&status)
             .fetch_all(&state.pools.art)
             .await?
-        } else {
-            sqlx::query_as(
+    } else {
+        sqlx::query_as(
                 "SELECT id, artwork_id, anon_id, user_name, avatar_key, body, COALESCE(like_total,0), created_at, status, ai_reason \
                  FROM comments ORDER BY datetime(created_at) DESC LIMIT 200",
             )
             .fetch_all(&state.pools.art)
             .await?
-        };
+    };
 
     let data: Vec<Value> = rows
         .into_iter()
-        .map(|(id, artwork_id, anon_id, user_name, avatar_key, body, like_total, created_at, status, ai_reason)| {
-            json!({
-                "id": id, "artwork_id": artwork_id, "anon_id": anon_id, "user_name": user_name,
-                "avatar_key": avatar_key, "body": body, "like_total": like_total,
-                "created_at": created_at, "status": status, "ai_reason": ai_reason,
-            })
-        })
+        .map(
+            |(
+                id,
+                artwork_id,
+                anon_id,
+                user_name,
+                avatar_key,
+                body,
+                like_total,
+                created_at,
+                status,
+                ai_reason,
+            )| {
+                json!({
+                    "id": id, "artwork_id": artwork_id, "anon_id": anon_id, "user_name": user_name,
+                    "avatar_key": avatar_key, "body": body, "like_total": like_total,
+                    "created_at": created_at, "status": status, "ai_reason": ai_reason,
+                })
+            },
+        )
         .collect();
     Ok(Json(json!({ "ok": true, "data": data })))
 }
@@ -1431,7 +1517,12 @@ async fn admin_create_creator(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Manage).await?;
-    let uid = body.get("uid").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let uid = body
+        .get("uid")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     if !uid.is_empty() {
         let exists: Option<String> = sqlx::query_scalar("SELECT uid FROM creators WHERE uid=?")
             .bind(&uid)
@@ -1483,7 +1574,11 @@ async fn admin_update_creator(
     }
 
     if old_uid.is_empty() {
-        return Ok((StatusCode::BAD_REQUEST, Json(json!({ "ok": false, "message": "Missing param" }))).into_response());
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "ok": false, "message": "Missing param" })),
+        )
+            .into_response());
     }
 
     let creator: Option<(String,)> = sqlx::query_as("SELECT uid FROM creators WHERE uid=?")
@@ -1491,7 +1586,11 @@ async fn admin_update_creator(
         .fetch_optional(&state.pools.art)
         .await?;
     if creator.is_none() {
-        return Ok((StatusCode::NOT_FOUND, Json(json!({ "ok": false, "message": "Creator not found" }))).into_response());
+        return Ok((
+            StatusCode::NOT_FOUND,
+            Json(json!({ "ok": false, "message": "Creator not found" })),
+        )
+            .into_response());
     }
 
     let mut tx = state.pools.art.begin().await?;
@@ -1542,7 +1641,11 @@ async fn admin_update_creator(
         Ok(uid) => uid,
         Err(msg) => {
             let _ = tx.rollback().await;
-            return Ok((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "ok": false, "message": msg }))).into_response());
+            return Ok((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "ok": false, "message": msg })),
+            )
+                .into_response());
         }
     };
 
@@ -1555,7 +1658,11 @@ async fn admin_update_creator(
         let dir = state.cfg.uploads_subdir("art").join(&folder);
         if let Err(e) = haruhi_media::save_file(&dir, &file, &bytes).await {
             let _ = tx.rollback().await;
-            return Ok((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "ok": false, "message": e.to_string() }))).into_response());
+            return Ok((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "ok": false, "message": e.to_string() })),
+            )
+                .into_response());
         }
         let avatar_url = format!("uploads/art/{folder}/{file}");
         if let Err(e) = sqlx::query("UPDATE creators SET avatar_url=? WHERE uid=?")
@@ -1565,7 +1672,11 @@ async fn admin_update_creator(
             .await
         {
             let _ = tx.rollback().await;
-            return Ok((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "ok": false, "message": e.to_string() }))).into_response());
+            return Ok((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "ok": false, "message": e.to_string() })),
+            )
+                .into_response());
         }
     }
 
@@ -1591,14 +1702,19 @@ async fn admin_points_ledger(
     user: AuthUser,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Read).await?;
-    let rows: Vec<(Option<String>, Option<i64>, Option<String>, Option<String>, Option<String>)> =
-        sqlx::query_as(
-            "SELECT pl.uid, pl.points, pl.granted_at, pl.note, a.title AS artwork_title \
+    let rows: Vec<(
+        Option<String>,
+        Option<i64>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT pl.uid, pl.points, pl.granted_at, pl.note, a.title AS artwork_title \
              FROM points_ledger pl LEFT JOIN artworks a ON a.id=pl.artwork_id \
              ORDER BY datetime(pl.granted_at) DESC",
-        )
-        .fetch_all(&state.pools.art)
-        .await?;
+    )
+    .fetch_all(&state.pools.art)
+    .await?;
     let data: Vec<Value> = rows
         .into_iter()
         .map(|(uid, points, granted_at, note, artwork_title)| {
@@ -1653,7 +1769,9 @@ fn json_num_i64(v: &Value) -> Option<i64> {
     } else if let Some(f) = v.as_f64() {
         Some(f as i64)
     } else {
-        v.as_str().and_then(|s| s.trim().parse::<f64>().ok()).map(|f| f as i64)
+        v.as_str()
+            .and_then(|s| s.trim().parse::<f64>().ok())
+            .map(|f| f as i64)
     }
 }
 

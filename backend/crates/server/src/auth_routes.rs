@@ -2,6 +2,7 @@
 //! 登出由前端丢弃 token 实现（无状态 JWT）。
 
 use axum::extract::State;
+use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use haruhi_auth::{issue_token, verify_password, AuthUser};
@@ -9,6 +10,7 @@ use haruhi_core::{AppError, AppResult};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use crate::ratelimit::client_ip;
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
@@ -23,7 +25,19 @@ struct LoginReq {
     password: String,
 }
 
-async fn login(State(state): State<AppState>, Json(req): Json<LoginReq>) -> AppResult<Json<Value>> {
+async fn login(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<LoginReq>,
+) -> AppResult<Json<Value>> {
+    // per-IP 限流：防凭证爆破
+    let ip = client_ip(&headers);
+    if let Err(remaining) = state.login_limiter.check_and_record(&ip) {
+        return Err(AppError::TooManyRequests(format!(
+            "登录尝试过于频繁，请 {remaining} 秒后再试"
+        )));
+    }
+
     let row: Option<(i64, String, bool, String)> = sqlx::query_as(
         "SELECT id, password_hash, is_super_admin, status FROM users WHERE username = ?",
     )
@@ -38,6 +52,8 @@ async fn login(State(state): State<AppState>, Json(req): Json<LoginReq>) -> AppR
     if !verify_password(&req.password, &hash) {
         return Err(AppError::Unauthorized);
     }
+    // 成功则清零该 IP 计数
+    state.login_limiter.reset(&ip);
 
     let token = issue_token(
         &state.cfg.jwt_secret,
@@ -61,12 +77,11 @@ async fn me(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Val
 
 /// 组装用户档案 + 各 app 权限矩阵。
 async fn load_profile(state: &AppState, user_id: i64) -> AppResult<Value> {
-    let urow: Option<(String, Option<String>, bool)> = sqlx::query_as(
-        "SELECT username, display_name, is_super_admin FROM users WHERE id = ?",
-    )
-    .bind(user_id)
-    .fetch_optional(&state.pools.core)
-    .await?;
+    let urow: Option<(String, Option<String>, bool)> =
+        sqlx::query_as("SELECT username, display_name, is_super_admin FROM users WHERE id = ?")
+            .bind(user_id)
+            .fetch_optional(&state.pools.core)
+            .await?;
     let (username, display_name, is_super) = urow.ok_or(AppError::Unauthorized)?;
 
     let roles: Vec<(String, String, String, i64)> = sqlx::query_as(

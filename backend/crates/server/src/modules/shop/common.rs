@@ -176,7 +176,8 @@ pub const COUPON_SELECT: &str = "SELECT id, code, name, batchNo, CAST(minSpend A
     expiresAt, usedOrderId, used_at, created_at FROM coupons";
 
 /// contact_messages 表全列（status CAST AS TEXT）。配合 misc::ContactRow。
-pub const CONTACT_SELECT: &str = "SELECT id, name, contact, orderId, content, CAST(status AS TEXT) AS status, \
+pub const CONTACT_SELECT: &str =
+    "SELECT id, name, contact, orderId, content, CAST(status AS TEXT) AS status, \
     handled_at, created_at FROM contact_messages";
 
 // ============================================================
@@ -289,7 +290,9 @@ pub fn map_order_row(
     items_override: Option<Value>,
 ) -> Value {
     let merge_meta = super::pricing::normalize_order_merge_meta(
-        row.merge_meta.as_deref().map(|s| Value::String(s.to_string())),
+        row.merge_meta
+            .as_deref()
+            .map(|s| Value::String(s.to_string())),
     );
     let items = items_override.unwrap_or_else(|| safe_parse(row.items.as_deref(), json!([])));
     let items_arr: Vec<Value> = items.as_array().cloned().unwrap_or_default();
@@ -298,7 +301,11 @@ pub fn map_order_row(
     let any_presale = items_arr
         .iter()
         .any(|i| truthy(i.get("isPresale").unwrap_or(&Value::Null)));
-    let has_presale_items = if has_presale_flag || any_presale { 1 } else { 0 };
+    let has_presale_items = if has_presale_flag || any_presale {
+        1
+    } else {
+        0
+    };
     let has_spot_items = items_arr
         .iter()
         .any(|i| !truthy(i.get("isPresale").unwrap_or(&Value::Null)));
@@ -309,8 +316,7 @@ pub fn map_order_row(
     } else {
         "spot"
     };
-    let presale_exported_products =
-        safe_parse(row.presale_exported_products.as_deref(), json!([]));
+    let presale_exported_products = safe_parse(row.presale_exported_products.as_deref(), json!([]));
 
     let sub_orders_json: Vec<Value> = sub_orders
         .map(|subs| subs.iter().map(sub_order_to_json).collect())
@@ -320,8 +326,14 @@ pub fn map_order_row(
     let mut obj = Map::new();
     obj.insert("id".into(), json!(row.id));
     obj.insert("total".into(), json!(opt_str_num(&row.total)));
-    obj.insert("originalTotal".into(), json!(opt_str_num(&row.original_total)));
-    obj.insert("discountAmount".into(), json!(opt_str_num(&row.discount_amount)));
+    obj.insert(
+        "originalTotal".into(),
+        json!(opt_str_num(&row.original_total)),
+    );
+    obj.insert(
+        "discountAmount".into(),
+        json!(opt_str_num(&row.discount_amount)),
+    );
     obj.insert("couponCode".into(), json!(row.coupon_code));
     obj.insert("mergeMeta".into(), merge_meta.clone());
     obj.insert("items".into(), items.clone());
@@ -337,9 +349,15 @@ pub fn map_order_row(
     obj.insert("status".into(), json!(opt_str_int(&row.status)));
     obj.insert("created_at".into(), json!(row.created_at));
     obj.insert("exported".into(), json!(opt_str_bool_flag(&row.exported)));
-    obj.insert("spotExported".into(), json!(opt_str_bool_flag(&row.spot_exported)));
+    obj.insert(
+        "spotExported".into(),
+        json!(opt_str_bool_flag(&row.spot_exported)),
+    );
     obj.insert("hasPresaleItems".into(), json!(has_presale_items));
-    obj.insert("hasSpotItems".into(), json!(opt_str_bool_flag(&row.has_spot_items)));
+    obj.insert(
+        "hasSpotItems".into(),
+        json!(opt_str_bool_flag(&row.has_spot_items)),
+    );
     obj.insert("orderType".into(), json!(order_type));
     obj.insert("presaleExportedProducts".into(), presale_exported_products);
     obj.insert("subOrders".into(), json!(sub_orders_json));

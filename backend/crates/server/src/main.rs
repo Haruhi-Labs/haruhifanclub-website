@@ -1,8 +1,13 @@
 //! haruhifanclub 统一后端入口。
+//
+// 各模块 handler 直接用元组承接 sqlx 行（忠实移植旧后端，避免为每个查询造 DTO），
+// type_complexity 是有意取舍而非疏忽，crate 级放行该 lint。
+#![allow(clippy::type_complexity)]
 
 mod admin_routes;
 mod auth_routes;
 mod modules;
+mod ratelimit;
 mod routes;
 mod seed;
 mod state;
@@ -11,6 +16,7 @@ use std::sync::Arc;
 
 use haruhi_core::Config;
 use haruhi_db::Pools;
+use ratelimit::LoginLimiter;
 use state::AppState;
 
 #[tokio::main]
@@ -30,14 +36,59 @@ async fn main() -> anyhow::Result<()> {
 
     let state = AppState {
         cfg: cfg.clone(),
-        pools,
+        pools: pools.clone(),
+        // 登录限流：单 IP 10 分钟内最多 10 次尝试
+        login_limiter: Arc::new(LoginLimiter::new(10, 600)),
     };
     let app = routes::router(state);
 
     let listener = tokio::net::TcpListener::bind(cfg.bind).await?;
     tracing::info!("haruhi 后端启动: http://{}", cfg.bind);
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
+
+    // 优雅退出：等在途请求结束后，显式 checkpoint + 关闭连接池刷 WAL，保证数据一致。
+    tracing::info!("正在关闭连接池并刷盘 WAL…");
+    for pool in [
+        &pools.core,
+        &pools.news,
+        &pools.art,
+        &pools.exam,
+        &pools.novel,
+        &pools.shop,
+    ] {
+        let _ = sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
+            .execute(pool)
+            .await;
+        pool.close().await;
+    }
+    tracing::info!("已安全退出");
     Ok(())
+}
+
+/// 等待 SIGTERM(systemd 重启) 或 Ctrl-C。
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        let _ = tokio::signal::ctrl_c().await;
+    };
+    #[cfg(unix)]
+    let terminate = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut s) => {
+                s.recv().await;
+            }
+            Err(_) => std::future::pending::<()>().await,
+        }
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+    tracing::info!("收到关闭信号，开始优雅退出…");
 }
 
 fn init_tracing() {

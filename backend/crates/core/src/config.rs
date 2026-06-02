@@ -28,6 +28,9 @@ pub struct Config {
     pub shop_free_shipping_threshold: i64,
     pub mail: MailConfig,
     pub public_site_url: String,
+
+    // CORS 允许的来源（release 生效）；为空则默认仅 public_site_url。逗号分隔 HARUHI_CORS_ORIGINS。
+    pub cors_origins: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -73,8 +76,25 @@ impl Config {
             .parse()
             .map_err(|e| anyhow::anyhow!("HARUHI_BIND 解析失败: {e}"))?;
 
-        let jwt_secret = env("HARUHI_JWT_SECRET")
-            .ok_or_else(|| anyhow::anyhow!("缺少 HARUHI_JWT_SECRET（必填）"))?;
+        // 关键密钥：release 必填(fail-fast)；debug 用不安全默认值方便本地 `cargo run` 开箱即用
+        let jwt_secret = match env("HARUHI_JWT_SECRET") {
+            Some(s) => s,
+            None if cfg!(debug_assertions) => {
+                tracing::warn!("⚠ 未设置 HARUHI_JWT_SECRET，调试构建用不安全默认值（生产务必设置 ≥32 位随机串）");
+                "dev-insecure-jwt-secret-change-me".to_string()
+            }
+            None => anyhow::bail!("缺少 HARUHI_JWT_SECRET（生产必填）"),
+        };
+        if jwt_secret.len() < 16 {
+            tracing::warn!("⚠ HARUHI_JWT_SECRET 过短(<16 位)，建议 ≥32 位随机串");
+        }
+        let art_cookie_secret = match env("ART_COOKIE_SECRET") {
+            Some(s) => s,
+            None if cfg!(debug_assertions) => "dev-art-cookie-secret".to_string(),
+            None => anyhow::bail!("缺少 ART_COOKIE_SECRET（生产必填）"),
+        };
+        // 调试构建默认 seed 一个 admin/admin123 超管，免去本地配置
+        let dev = cfg!(debug_assertions);
 
         let mail = MailConfig {
             enabled: env_bool("MAIL_ENABLED", false),
@@ -97,8 +117,10 @@ impl Config {
             uploads_dir: PathBuf::from(env_or("HARUHI_UPLOADS_DIR", "./uploads")),
             jwt_secret,
             jwt_ttl_seconds: env_parse("HARUHI_JWT_TTL_SECONDS", 86_400),
-            superadmin_user: env("HARUHI_SUPERADMIN_USER"),
-            superadmin_password: env("HARUHI_SUPERADMIN_PASSWORD"),
+            superadmin_user: env("HARUHI_SUPERADMIN_USER")
+                .or_else(|| dev.then(|| "admin".to_string())),
+            superadmin_password: env("HARUHI_SUPERADMIN_PASSWORD")
+                .or_else(|| dev.then(|| "admin123".to_string())),
             dashscope_api_key: env("DASHSCOPE_API_KEY"),
             ai_api_url: env_or(
                 "AI_API_URL",
@@ -106,10 +128,18 @@ impl Config {
             ),
             ai_text_model: env_or("AI_TEXT_MODEL", "qwen-plus"),
             ai_image_model: env_or("AI_IMAGE_MODEL", "qwen-vl-plus"),
-            art_cookie_secret: env_or("ART_COOKIE_SECRET", "dev-art-cookie-secret"),
+            art_cookie_secret,
             shop_free_shipping_threshold: env_parse("SHOP_FREE_SHIPPING_THRESHOLD", 150),
             mail,
             public_site_url: env_or("PUBLIC_SITE_URL", "https://haruyuki.cn"),
+            cors_origins: env("HARUHI_CORS_ORIGINS")
+                .map(|s| {
+                    s.split(',')
+                        .map(|x| x.trim().to_string())
+                        .filter(|x| !x.is_empty())
+                        .collect()
+                })
+                .unwrap_or_default(),
         })
     }
 
