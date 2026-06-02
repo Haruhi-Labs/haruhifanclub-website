@@ -97,6 +97,26 @@ export function createAuth(apiBase = '/api') {
   }
 }
 
+/**
+ * 前端作用域判定（镜像后端 authorize 的层级逻辑）：用于细粒度门控（如按 news.activity 显隐后台 tab）。
+ * 拥有该作用域、其任一祖先(父级)、或超管，均视为有权。
+ * @param {{isSuperAdmin?:boolean, apps?:Record<string,unknown>}|null} user
+ * @param {string} scope 如 'news.activity'
+ */
+export function hasScope(user, scope) {
+  if (!user) return false
+  if (user.isSuperAdmin) return true
+  if (!user.apps) return false
+  let cur = scope
+  while (cur) {
+    if (user.apps[cur]) return true
+    const i = cur.lastIndexOf('.')
+    if (i < 0) break
+    cur = cur.slice(0, i)
+  }
+  return false
+}
+
 // JWT 本地解码（仅用于同步校验 exp，不验签；验签由后端做）
 function decodeJwtPayload(token) {
   if (!token || typeof token !== 'string') return null
@@ -121,8 +141,15 @@ function decodeJwtPayload(token) {
 export function createAdminAuth(app, apiBase = '/api') {
   const auth = createAuth(apiBase)
 
-  // 是否具备本模块管理权限：超管或被授予该 app 角色
-  const hasPerm = (user) => !!user && (user.isSuperAdmin || (user.apps && user.apps[app]))
+  // 是否可进入本模块后台：超管 / 被授予该 app 角色 / 被授予该 app 任一子作用域(如 news.activity)
+  const hasPerm = (user) => {
+    if (!user) return false
+    if (user.isSuperAdmin) return true
+    if (!user.apps) return false
+    if (user.apps[app]) return true
+    const prefix = app + '.'
+    return Object.keys(user.apps).some((k) => k.startsWith(prefix))
+  }
 
   // 同步：本地 token 存在且未过期（供路由守卫快速判断；真正权限由 restore/login 异步校验）
   const hasValidToken = () => {

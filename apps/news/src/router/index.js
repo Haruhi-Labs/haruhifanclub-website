@@ -1,80 +1,20 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import HomeView from '../views/HomeView.vue';
-import EditorView from '../views/EditorView.vue';
-import BlogDetailView from '../views/BlogDetailView.vue';
-import AdminView from '../views/AdminView.vue';
-import HandbookView from '../views/HandbookView.vue';
-import QuizView from '../views/QuizView.vue';
-import StoreView from '../views/StoreView.vue';
-import ActivityView from '../views/ActivityView.vue'; // [新增] 引入
+
+// 按特性组合各 feature 的路由数组（path/name/meta 与重构前一字不差）。
+import { blogRoutes } from '@/features/blog/routes';
+import { handbookRoutes } from '@/features/handbook/routes';
+import { storeRoutes } from '@/features/store/routes';
+import { quizRoutes } from '@/features/quiz/routes';
+import { activityRoutes } from '@/features/activity/routes';
+import { adminRoutes } from '@/features/admin/routes';
 
 const routes = [
-    {
-        path: '/',
-        name: 'home',
-        component: HomeView
-    },
-    {
-        path: '/tag/:tag',
-        name: 'tag',
-        component: HomeView,
-        props: true
-    },
-    {
-        path: '/participant/:name',
-        name: 'participant',
-        component: HomeView,
-        props: true
-    },
-    {
-        path: '/author/:author',
-        name: 'author',
-        component: HomeView,
-        props: true
-    },
-    {
-        path: '/search',
-        name: 'search',
-        component: HomeView
-    },
-    {
-        path: '/submit',
-        name: 'editor',
-        component: EditorView
-    },
-    {
-        path: '/admin',
-        name: 'admin',
-        component: AdminView
-    },
-    {
-        path: '/blog/:id',
-        name: 'blog',
-        component: BlogDetailView,
-        props: true
-    },
-    {
-        path: '/handbook',
-        name: 'handbook',
-        component: HandbookView
-    },
-    {
-        path: '/store',
-        name: 'store',
-        component: StoreView
-    },
-    {
-        // [新增] 活动中心路由
-        path: '/activity',
-        name: 'activity',
-        component: ActivityView
-    },
-    {
-        path: '/quiz-game',
-        name: 'quiz',
-        component: QuizView,
-        meta: { hideNavbar: true }
-    }
+    ...blogRoutes,
+    ...handbookRoutes,
+    ...storeRoutes,
+    ...activityRoutes,
+    ...quizRoutes,
+    ...adminRoutes
 ];
 
 const router = createRouter({

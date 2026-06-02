@@ -197,7 +197,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMainStore } from '@/stores/main';
 import { buildMasonryPages } from '@/utils/masonry';
-import NewsCard from '@/components/NewsCard.vue';
+import NewsCard from '@/features/blog/components/NewsCard.vue';
 
 const route = useRoute();
 const store = useMainStore();

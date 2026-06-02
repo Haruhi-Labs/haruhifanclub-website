@@ -415,7 +415,7 @@
 import { reactive, ref, watch, nextTick, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
 import { useMainStore } from '@/stores/main';
-import NewsCard from '@/components/NewsCard.vue';
+import NewsCard from '@/features/blog/components/NewsCard.vue';
 
 const store = useMainStore();
 const router = useRouter();

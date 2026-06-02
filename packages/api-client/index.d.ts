@@ -67,3 +67,4 @@ export function clearToken(): void
 export function createApiClient(base?: string): ApiClient
 export function createAuth(apiBase?: string): Auth
 export function createAdminAuth(app: string, apiBase?: string): AdminAuth
+export function hasScope(user: CurrentUser | null | undefined, scope: string): boolean
