@@ -234,7 +234,7 @@ async fn create_activity(
     user: AuthUser,
     Json(mut body): Json<Value>,
 ) -> AppResult<Json<Value>> {
-    authorize(&state.pools.core, &user, "news", Action::Manage).await?;
+    authorize(&state.pools.core, &user, "news.activity", Action::Manage).await?;
 
     // 图片转存
     if let Some(img) = body.get("image").and_then(|v| v.as_str()) {
@@ -285,7 +285,7 @@ async fn update_activity(
     Path(id): Path<String>,
     Json(mut body): Json<Value>,
 ) -> AppResult<Json<Value>> {
-    authorize(&state.pools.core, &user, "news", Action::Manage).await?;
+    authorize(&state.pools.core, &user, "news.activity", Action::Manage).await?;
 
     if let Some(img) = body.get("image").and_then(|v| v.as_str()) {
         if !img.is_empty() {
@@ -314,7 +314,7 @@ async fn delete_activity(
     user: AuthUser,
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
-    authorize(&state.pools.core, &user, "news", Action::Manage).await?;
+    authorize(&state.pools.core, &user, "news.activity", Action::Manage).await?;
     sqlx::query("DELETE FROM activities WHERE id = ?")
         .bind(&id)
         .execute(&state.pools.news)
@@ -328,7 +328,7 @@ async fn reorder_activities(
     user: AuthUser,
     Json(body): Json<Value>,
 ) -> AppResult<Response> {
-    authorize(&state.pools.core, &user, "news", Action::Manage).await?;
+    authorize(&state.pools.core, &user, "news.activity", Action::Manage).await?;
     reorder_generic(&state, "activities", &body).await
 }
 
@@ -384,7 +384,7 @@ async fn create_prize(
     user: AuthUser,
     Json(mut body): Json<Value>,
 ) -> AppResult<Json<Value>> {
-    authorize(&state.pools.core, &user, "news", Action::Manage).await?;
+    authorize(&state.pools.core, &user, "news.store", Action::Manage).await?;
 
     if let Some(img) = body.get("image").and_then(|v| v.as_str()) {
         if !img.is_empty() {
@@ -432,7 +432,7 @@ async fn update_prize(
     Path(id): Path<String>,
     Json(mut body): Json<Value>,
 ) -> AppResult<Json<Value>> {
-    authorize(&state.pools.core, &user, "news", Action::Manage).await?;
+    authorize(&state.pools.core, &user, "news.store", Action::Manage).await?;
 
     if let Some(img) = body.get("image").and_then(|v| v.as_str()) {
         if !img.is_empty() {
@@ -460,7 +460,7 @@ async fn delete_prize(
     user: AuthUser,
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
-    authorize(&state.pools.core, &user, "news", Action::Manage).await?;
+    authorize(&state.pools.core, &user, "news.store", Action::Manage).await?;
     sqlx::query("DELETE FROM prizes WHERE id = ?")
         .bind(&id)
         .execute(&state.pools.news)
@@ -474,7 +474,7 @@ async fn reorder_prizes(
     user: AuthUser,
     Json(body): Json<Value>,
 ) -> AppResult<Response> {
-    authorize(&state.pools.core, &user, "news", Action::Manage).await?;
+    authorize(&state.pools.core, &user, "news.store", Action::Manage).await?;
     reorder_generic(&state, "prizes", &body).await
 }
 
@@ -706,7 +706,7 @@ async fn get_article(
     let status = row.status.as_deref().unwrap_or("");
     if !status.is_empty() && status != "published" {
         let allowed = match &user {
-            Some(u) => authorize(&state.pools.core, u, "news", Action::Read)
+            Some(u) => authorize(&state.pools.core, u, "news.blog", Action::Read)
                 .await
                 .is_ok(),
             None => false,
@@ -732,7 +732,7 @@ async fn admin_list_articles(
     State(state): State<AppState>,
     user: AuthUser,
 ) -> AppResult<Json<Value>> {
-    authorize(&state.pools.core, &user, "news", Action::Read).await?;
+    authorize(&state.pools.core, &user, "news.blog", Action::Read).await?;
     let rows: Vec<ArticleRow> = sqlx::query_as("SELECT * FROM articles ORDER BY id DESC")
         .fetch_all(&state.pools.news)
         .await?;
@@ -748,7 +748,7 @@ async fn create_article(
 ) -> AppResult<Json<Value>> {
     // 是否后台：登录用户且具备 news Write 权限 → published；否则游客投稿 → pending
     let is_admin = match &user {
-        Some(u) => authorize(&state.pools.core, u, "news", Action::Write)
+        Some(u) => authorize(&state.pools.core, u, "news.blog", Action::Write)
             .await
             .is_ok(),
         None => false,
@@ -833,7 +833,7 @@ async fn update_article(
     Path(id): Path<String>,
     Json(mut body): Json<Value>,
 ) -> AppResult<Json<Value>> {
-    authorize(&state.pools.core, &user, "news", Action::Write).await?;
+    authorize(&state.pools.core, &user, "news.blog", Action::Write).await?;
 
     if let Some(img) = body.get("image").and_then(|v| v.as_str()) {
         if !img.is_empty() {
@@ -885,7 +885,7 @@ async fn delete_article(
     user: AuthUser,
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
-    authorize(&state.pools.core, &user, "news", Action::Manage).await?;
+    authorize(&state.pools.core, &user, "news.blog", Action::Manage).await?;
     sqlx::query("DELETE FROM articles WHERE id = ?")
         .bind(&id)
         .execute(&state.pools.news)
@@ -899,7 +899,7 @@ async fn delete_article(
 
 // GET /admin/points/users（Read）
 async fn points_users(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
-    authorize(&state.pools.core, &user, "news", Action::Read).await?;
+    authorize(&state.pools.core, &user, "news.points", Action::Read).await?;
     let rows: Vec<(String, Option<i64>)> =
         sqlx::query_as("SELECT id, total FROM users ORDER BY total DESC")
             .fetch_all(&state.pools.news)
@@ -957,7 +957,7 @@ async fn points_update(
     user: AuthUser,
     Json(body): Json<Value>,
 ) -> AppResult<Response> {
-    authorize(&state.pools.core, &user, "news", Action::Manage).await?;
+    authorize(&state.pools.core, &user, "news.points", Action::Manage).await?;
 
     let id = body.get("id").and_then(|v| v.as_str()).unwrap_or("").trim();
     if id.is_empty() {

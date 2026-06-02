@@ -13,7 +13,19 @@ use serde_json::{json, Value};
 
 use crate::state::AppState;
 
-const APPS: [&str; 6] = ["news", "art", "exam", "novel", "shop", "console"];
+// 顶层应用 + news 的细粒度子作用域（拥有父级 "news" 角色即覆盖所有 news.* 子作用域）
+const APPS: &[&str] = &[
+    "news",
+    "news.blog",
+    "news.activity",
+    "news.store",
+    "news.points",
+    "art",
+    "exam",
+    "novel",
+    "shop",
+    "console",
+];
 
 pub fn router() -> Router<AppState> {
     Router::new()

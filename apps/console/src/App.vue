@@ -32,6 +32,10 @@ const appNames: Record<string, string> = {
   novel: '书库',
   shop: '商城',
   console: '控制台',
+  'news.blog': '团报',
+  'news.activity': '活动',
+  'news.store': '积分商城',
+  'news.points': '积分',
 }
 
 const newUser = reactive({ username: '', password: '', display_name: '' })

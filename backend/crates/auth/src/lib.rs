@@ -137,12 +137,31 @@ pub async fn authorize(
     if status.as_deref() != Some("active") {
         return Err(AppError::Forbidden);
     }
-    let level = role_level(core, user.id, app).await?.unwrap_or(0);
-    if level >= action.level() {
+    // 作用域链：拥有父作用域(如 "news")角色的用户，对其子作用域(如 "news.activity")同样有效。
+    let mut best = 0;
+    for scope in scope_chain(app) {
+        if let Some(l) = role_level(core, user.id, &scope).await? {
+            if l > best {
+                best = l;
+            }
+        }
+    }
+    if best >= action.level() {
         Ok(())
     } else {
         Err(AppError::Forbidden)
     }
+}
+
+/// 作用域链：从最具体到最顶层。"news.activity" -> ["news.activity", "news"]；"news" -> ["news"]。
+pub fn scope_chain(app: &str) -> Vec<String> {
+    let mut chain = vec![app.to_string()];
+    let mut cur = app;
+    while let Some(idx) = cur.rfind('.') {
+        cur = &cur[..idx];
+        chain.push(cur.to_string());
+    }
+    chain
 }
 
 /// 仅超级管理员可通过。
