@@ -32,13 +32,26 @@ migrate_novel() {
 
 migrate_art() {
   echo "[art] 画廊"
-  copy_db "$ART_SRC/server/data.sqlite" art
+  # 旧 art 库可能为空且 schema 滞后（缺运行期 ensureColumn 加的 ai_reason/images_json 等列）。
+  # 空库时跳过拷贝，由后端迁移建全新完整 schema；有数据时拷贝并补齐缺列（幂等）。
+  local rows
+  rows=$(sqlite3 "$ART_SRC/server/data.sqlite" "SELECT COUNT(*) FROM artworks" 2>/dev/null || echo 0)
+  if [ "${rows:-0}" -gt 0 ]; then
+    copy_db "$ART_SRC/server/data.sqlite" art
+    for c in "ai_reason TEXT" "images_json TEXT" "licenses_json TEXT" "file_path_original TEXT" \
+             "reviewed_at TEXT" "like_total INTEGER DEFAULT 0"; do
+      n=${c%% *}
+      sqlite3 data/art.db "PRAGMA table_info(artworks)" | grep -q "|$n|" || \
+        sqlite3 data/art.db "ALTER TABLE artworks ADD COLUMN $c"
+    done
+    sqlite3 data/art.db "UPDATE artworks SET file_path='art/'||substr(file_path,9)                   WHERE file_path LIKE 'uploads/%'; \
+                         UPDATE artworks SET file_path_original='art/'||substr(file_path_original,9) WHERE file_path_original LIKE 'uploads/%';" 2>/dev/null || true
+  else
+    echo "  (旧 art 库为空，跳过拷贝，由后端迁移建全新 schema)"
+    rm -f data/art.db data/art.db-wal data/art.db-shm
+  fi
   mkdir -p uploads/art
-  # 旧 art uploads 按月份子目录；库中 file_path/file_path_original/images_json 存 "uploads/<YYYY-MM>/x"
-  if [ -d "$ART_SRC/server/uploads" ]; then rsync -a "$ART_SRC/server/uploads/" uploads/art/ --exclude='.gitkeep'; fi
-  sqlite3 data/art.db "UPDATE artworks SET file_path='art/'||substr(file_path,9)                   WHERE file_path LIKE 'uploads/%'; \
-                       UPDATE artworks SET file_path_original='art/'||substr(file_path_original,9) WHERE file_path_original LIKE 'uploads/%';" 2>/dev/null || true
-  # images_json 内含多路径，逐条 JSON 重写在应用层处理（见后端迁移脚本/启动校验）
+  [ -d "$ART_SRC/server/uploads" ] && rsync -a "$ART_SRC/server/uploads/" uploads/art/ --exclude='.gitkeep' 2>/dev/null || true
 }
 
 migrate_news() {
@@ -54,7 +67,8 @@ migrate_exam() {
   copy_db "$EXAM_SRC/server/exam_platform.db" exam
   mkdir -p uploads/exam
   rsync -a "$EXAM_SRC/server/uploads/" uploads/exam/ 2>/dev/null || true
-  # TODO(exam): 重写 uploads 引用前缀（图片/音频）为 exam/...
+  # 若生产 exam 数据的 config/questions JSON 内嵌旧媒体前缀 /exam/api/uploads/，统一改为 /uploads/exam/
+  sqlite3 data/exam.db "UPDATE exams SET questions=replace(questions,'/exam/api/uploads/','/uploads/exam/'), config=replace(config,'/exam/api/uploads/','/uploads/exam/') WHERE questions LIKE '%/exam/api/uploads/%' OR config LIKE '%/exam/api/uploads/%';"
 }
 
 migrate_shop() {
