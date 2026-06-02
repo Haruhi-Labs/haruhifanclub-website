@@ -3,6 +3,7 @@
 
 pub mod config;
 pub mod error;
+pub mod parse;
 
 pub use config::{Config, MailConfig};
 pub use error::{AppError, AppResult};

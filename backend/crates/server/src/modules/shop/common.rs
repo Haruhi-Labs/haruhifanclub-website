@@ -125,35 +125,8 @@ pub fn sanitize_config_text(value: &str, max_length: usize) -> String {
 }
 
 /// 模拟 JS parseInt(x,10) || default（0 视为 falsy → default）。
-pub fn parse_int_or(s: Option<&str>, default: i64) -> i64 {
-    let n = s.and_then(parse_int_radix10);
-    match n {
-        Some(v) if v != 0 => v,
-        _ => default,
-    }
-}
-
-/// 模拟 JS Number.parseInt(x,10)：取十进制前缀，无效返回 None。
-pub fn parse_int_radix10(s: &str) -> Option<i64> {
-    let t = s.trim_start();
-    let bytes = t.as_bytes();
-    let mut i = 0;
-    let mut sign = 1_i64;
-    if i < bytes.len() && (bytes[i] == b'+' || bytes[i] == b'-') {
-        if bytes[i] == b'-' {
-            sign = -1;
-        }
-        i += 1;
-    }
-    let start = i;
-    while i < bytes.len() && bytes[i].is_ascii_digit() {
-        i += 1;
-    }
-    if i == start {
-        return None;
-    }
-    t[start..i].parse::<i64>().ok().map(|n| sign * n)
-}
+// 数值解析统一到 core::parse（此前 shop/exam/news 各写一份）。re-export 保持 shop 各处调用点不变。
+pub use haruhi_core::parse::{parse_int_or, parse_int_radix10};
 
 // ============================================================
 // 松类型容错的 SELECT 列表（数值列统一 CAST AS TEXT，按 Option<String> 读，避免 sqlx 解码 500）

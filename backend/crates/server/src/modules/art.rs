@@ -179,20 +179,7 @@ fn json_with_cookie(value: Value, set: Option<[String; 2]>) -> Response {
 // 小工具（对齐旧 index.js 的各 helper）
 // ============================================================
 
-fn clamp_int(v: Option<&str>, min: i64, max: i64, d: i64) -> i64 {
-    match v.and_then(|s| s.trim().parse::<f64>().ok()) {
-        Some(n) if n.is_finite() => (n.floor() as i64).clamp(min, max),
-        _ => d,
-    }
-}
-
-fn safe_text(v: Option<&str>) -> String {
-    v.unwrap_or("").trim().to_string()
-}
-
-fn clamp_len(s: Option<&str>, m: usize) -> String {
-    s.unwrap_or("").chars().take(m).collect()
-}
+use haruhi_core::parse::{clamp_int, clamp_len, safe_text};
 
 /// 解析存库 JSON 数组为 Value 数组，失败返回空数组（对齐 safeJsonArr）。
 fn safe_json_arr(s: Option<&str>) -> Vec<Value> {

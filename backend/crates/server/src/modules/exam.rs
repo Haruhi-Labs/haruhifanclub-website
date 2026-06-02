@@ -72,37 +72,7 @@ fn fix_url_path(v: Value) -> Value {
 }
 
 /// 模拟 JS parseInt(s,10) || default：取十进制前缀，无效或 <=0 回退默认（对齐旧 parseInt(...)||N）。
-fn parse_int_or(s: Option<&str>, default: i64) -> i64 {
-    let n = match s {
-        Some(s) => parse_int_radix10(s),
-        None => None,
-    };
-    match n {
-        Some(v) if v != 0 => v, // JS 中 0 为 falsy → 取默认
-        _ => default,
-    }
-}
-
-fn parse_int_radix10(s: &str) -> Option<i64> {
-    let t = s.trim_start();
-    let bytes = t.as_bytes();
-    let mut i = 0;
-    let mut sign = 1_i64;
-    if i < bytes.len() && (bytes[i] == b'+' || bytes[i] == b'-') {
-        if bytes[i] == b'-' {
-            sign = -1;
-        }
-        i += 1;
-    }
-    let start = i;
-    while i < bytes.len() && bytes[i].is_ascii_digit() {
-        i += 1;
-    }
-    if i == start {
-        return None;
-    }
-    t[start..i].parse::<i64>().ok().map(|n| sign * n)
-}
+use haruhi_core::parse::parse_int_or;
 
 /// 从试卷 questions/levels JSON 中抽取引用的文件路径（对齐 extractFilePaths）。
 fn extract_file_paths(questions_json: &str, levels_json: &str) -> Vec<String> {

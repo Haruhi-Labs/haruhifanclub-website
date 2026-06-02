@@ -116,17 +116,7 @@ fn parse_json_arr(s: Option<&str>) -> Value {
 }
 
 /// 取 i64（兼容数字或数字字符串，对齐旧 Number()）。
-fn num_i64(v: &Value) -> Option<i64> {
-    if let Some(n) = v.as_i64() {
-        Some(n)
-    } else if let Some(f) = v.as_f64() {
-        Some(f as i64)
-    } else {
-        v.as_str()
-            .and_then(|s| s.trim().parse::<f64>().ok())
-            .map(|f| f as i64)
-    }
-}
+use haruhi_core::parse::{num_i64, parse_int_radix10};
 
 /// 把请求体中的字段值绑定到 sqlx query（对象/数组 → JSON 字符串，对齐旧 db.js insert/update）。
 fn bind_value<'q>(
@@ -1083,26 +1073,4 @@ fn bind_scalar<'q>(
         Value::String(s) => q.bind(s.clone()),
         other => q.bind(serde_json::to_string(other).unwrap_or_else(|_| "null".into())),
     }
-}
-
-/// 模拟 JS parseInt(s, 10)：跳过前导空白，可选符号，取尽可能长的十进制前缀。
-fn parse_int_radix10(s: &str) -> Option<i64> {
-    let t = s.trim_start();
-    let bytes = t.as_bytes();
-    let mut i = 0;
-    let mut sign = 1_i64;
-    if i < bytes.len() && (bytes[i] == b'+' || bytes[i] == b'-') {
-        if bytes[i] == b'-' {
-            sign = -1;
-        }
-        i += 1;
-    }
-    let start = i;
-    while i < bytes.len() && bytes[i].is_ascii_digit() {
-        i += 1;
-    }
-    if i == start {
-        return None; // 无数字 → NaN
-    }
-    t[start..i].parse::<i64>().ok().map(|n| sign * n)
 }

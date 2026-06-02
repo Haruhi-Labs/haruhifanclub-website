@@ -248,7 +248,7 @@ mod tests {
         assert_eq!(c.sub, 42);
         assert!(c.is_super);
         assert!(decode_token("wrong-secret", &t).is_err()); // 错误密钥拒绝
-        // 过期 120 秒（超过 jsonwebtoken 默认 60s leeway）应被拒
+                                                            // 过期 120 秒（超过 jsonwebtoken 默认 60s leeway）应被拒
         let expired = issue_token(secret, 1, false, -120).unwrap();
         assert!(decode_token(secret, &expired).is_err());
     }
