@@ -7,7 +7,7 @@ use std::sync::Arc;
 use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::Argon2;
 use rand_core::OsRng;
-use axum::extract::{FromRef, FromRequestParts};
+use axum::extract::{FromRef, FromRequestParts, OptionalFromRequestParts};
 use axum::http::request::Parts;
 use haruhi_core::{AppError, AppResult};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
@@ -176,5 +176,37 @@ where
             id: claims.sub,
             is_super: claims.is_super,
         })
+    }
+}
+
+/// 可选鉴权：`Option<AuthUser>`。无 Bearer 头或 token 非法时为 None，
+/// 仅在“可选登录”的端点（如游客投稿、公开详情）使用。axum 0.8 要求单独实现此 trait。
+impl<S> OptionalFromRequestParts<S> for AuthUser
+where
+    AuthSecret: FromRef<S>,
+    S: Send + Sync,
+{
+    type Rejection = AppError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &S,
+    ) -> Result<Option<Self>, Self::Rejection> {
+        let secret = AuthSecret::from_ref(state);
+        let token = parts
+            .headers
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.strip_prefix("Bearer "));
+        match token {
+            Some(token) => match decode_token(&secret.0, token) {
+                Ok(claims) => Ok(Some(AuthUser {
+                    id: claims.sub,
+                    is_super: claims.is_super,
+                })),
+                Err(_) => Ok(None),
+            },
+            None => Ok(None),
+        }
     }
 }

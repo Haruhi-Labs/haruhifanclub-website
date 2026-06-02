@@ -44,11 +44,9 @@ migrate_art() {
 migrate_news() {
   echo "[news] 京都学报"
   copy_db "$NEWS_SRC/server/database.sqlite" news
-  mkdir -p uploads/news
-  # 旧 news 图片在 public/uploads/<md5>.<ext>，库中 image/originalImage/content 存 "/uploads/<md5>.<ext>"
-  rsync -a "$NEWS_SRC/public/uploads/" uploads/news/ 2>/dev/null || true
-  # 路径前缀重写：/uploads/<md5> -> news/<md5>（详见 news 模块迁移说明）
-  # TODO(news): 重写 articles.image/originalImage/content 内的图片前缀
+  # 图片三种不一致前缀(/uploads/<md5>、/Name.webp、裸 Name.webp)统一规整为 /uploads/news/<basename>
+  # 并把 public/uploads 与 public 根的引用文件汇集到 uploads/news/。忽略 lowdb 的 *.json 死数据。
+  python3 deploy/migrate-news.py
 }
 
 migrate_exam() {

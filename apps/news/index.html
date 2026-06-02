@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>春日团报 - 凉宫春日应援团</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@300;400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.2/browser/pixi.min.js"></script>
+    <script>
+    (() => {
+      const isDevHost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+      const debugLog = (...args) => { if (isDevHost) console.log(...args); };
+      const debugError = (...args) => { if (isDevHost) console.error(...args); };
+
+      if (!isDevHost && !window.__PET_LOG_FILTER_INSTALLED__) {
+        window.__PET_LOG_FILTER_INSTALLED__ = true;
+        const rawLog = console.log.bind(console);
+        console.log = (...args) => {
+          const text = typeof args[0] === "string" ? args[0] : "";
+          if (text.includes("setParameterValueById") || text.includes("nestEls")) return;
+          rawLog(...args);
+        };
+      }
+
+      const isCoarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches; 
+      const isNarrowScreen  = window.matchMedia?.("(max-width: 900px)")?.matches;
+
+      if (isCoarsePointer || isNarrowScreen) {
+        debugLog("[DesktopPet] skipped on mobile/tablet");
+        return;
+      }
+      
+      const PET_MODELS = [
+        "https://cdn.harucdn.com/model_haruhi.js",
+        "https://cdn.harucdn.com/model_mikuru.js",
+        "https://cdn.harucdn.com/model_yuki.js",
+      ];
+
+      const chosen = PET_MODELS[(Math.random() * PET_MODELS.length) | 0];
+      debugLog("[DesktopPet] chosen =", chosen);
+
+      const s = document.createElement("script");
+      s.src = chosen;
+      s.defer = true;
+      s.onerror = () => debugError("[DesktopPet] load failed:", chosen);
+      document.body.appendChild(s);
+    })();
+    </script>
+
+
+
+  </body>
+</html>
