@@ -66,8 +66,10 @@ async function request(method, path, { params, body, isForm, headers } = {}) {
 function fixPath(p) {
   if (!p) return ''
   if (p.startsWith('http') || p.startsWith('blob:') || p.startsWith('data:')) return p
-  if (!p.startsWith('/')) return `${ASSET_BASE}/${p}`
-  return p
+  if (p.startsWith('/')) return p
+  // 后端 mapArtworkRow 可能已带 "uploads/" 前缀，去重后统一拼 /uploads/，避免 /uploads/uploads/...
+  const rel = p.startsWith('uploads/') ? p.slice('uploads/'.length) : p
+  return `${ASSET_BASE}/${rel}`
 }
 
 function transformArtwork(a) {
