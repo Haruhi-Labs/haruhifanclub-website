@@ -1,0 +1,23 @@
+# haruhifanclub 统一后端 systemd 服务单元
+# 安装：cp deploy/haruhifanclub.service /etc/systemd/system/
+#       systemctl daemon-reload && systemctl enable --now haruhifanclub
+# 日志：journalctl -u haruhifanclub -f
+
+[Unit]
+Description=haruhifanclub unified Rust backend (axum)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/haruhifanclub
+# 环境变量从 /etc/haruhifanclub.env 读取（由 deploy/env.sample 改写，含密钥，权限 600）
+EnvironmentFile=/etc/haruhifanclub.env
+ExecStart=/var/www/haruhifanclub/bin/haruhi-server
+Restart=on-failure
+RestartSec=3
+# 数据与上传目录需可写
+ReadWritePaths=/var/www/haruhifanclub/data /var/www/haruhifanclub/uploads
+
+[Install]
+WantedBy=multi-user.target
