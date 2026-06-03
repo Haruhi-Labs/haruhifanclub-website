@@ -60,8 +60,9 @@ packages/api-client 统一 fetch       data/<module>.db + data/core.db    upload
 nvm use && pnpm install
 cargo build
 
-# 2) 准备环境变量（.env 写入受限，可直接 export 或复制模板）
-cp deploy/env.sample .env        # 填写 HARUHI_JWT_SECRET / 超管账号 等
+# 2) 准备环境变量（二选一）
+bash deploy/gen-secrets.sh       # 推荐：openssl 生成强密钥，渲染填好的 .env（已存在则不覆盖）
+cp deploy/env.sample .env        # 或手动复制模板，自行填 HARUHI_JWT_SECRET / 超管账号 等
 
 # 3)（可选）迁移历史数据：把旧站 sqlite + uploads 拷进来
 bash deploy/migrate-data.sh             # 全部模块
