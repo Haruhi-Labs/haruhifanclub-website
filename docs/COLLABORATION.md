@@ -107,7 +107,7 @@ gh repo edit <你的账号>/haruhifanclub \
 
 ### 4.1 先创建标签（labeler / Dependabot 会用到）
 
-`.github/labeler.yml`（PR 自动打标签）、Dependabot 与 issue 模板都会给 issue/PR 贴标签，但 **GitHub 不会自动创建不存在的标签**——标签缺失时打标签会静默失败。启用前先在 **Settings → Labels** 建好（或用 `gh` 批量建）：
+`.github/labeler.yml`（PR 自动打标签）、Dependabot、issue 模板、以及 **CodeRabbit 的自动打标**（`.coderabbit.yaml` 的 `labeling_instructions`）都会给 issue/PR 贴标签，但 **GitHub 不会自动创建不存在的标签**——标签缺失时打标签会静默失败。启用前先在 **Settings → Labels** 建好（或用 `gh` 批量建）：
 
 ```bash
 # 路径标签（与 .github/labeler.yml 对应）
@@ -116,6 +116,10 @@ for l in app:news app:art app:exam app:novel app:shop app:console api-client bac
 done
 # issue 模板与 Dependabot 默认用到的标签
 for l in bug enhancement dependencies; do gh label create "$l" --force >/dev/null 2>&1 || true; done
+# CodeRabbit 自动打标用（类型 + 优先级；克制，见 .coderabbit.yaml）
+for l in "type: feature" "type: fix" "type: refactor" "type: docs" "type: chore" "priority: high" "priority: low"; do
+  gh label create "$l" --force >/dev/null 2>&1 || true
+done
 ```
 
 ---
@@ -187,7 +191,7 @@ git commit -am "chore(repo): 替换 @OWNER 占位为真实维护者账号"
 - [ ] 默认分支为 `main`，分支保护已开，**required status check = `ci-ok`（仅此一个）**
 - [ ] 合并方式限定为 **squash**，开启 "合并后删除分支" 与 "线性历史"
 - [ ] PR 评审要求：至少 1 名 reviewer + Require review from Code Owners
-- [ ] 已创建 labeler / Dependabot / issue 模板用到的标签（app:* / backend / ci / docs / deps / bug / enhancement / dependencies）
+- [ ] 已创建 labeler / Dependabot / issue 模板 / CodeRabbit 用到的标签（app:* / backend / ci / docs / deps / bug / enhancement / dependencies / type:* / priority:*）
 - [ ] CodeRabbit GitHub App 已授权到本仓，新 PR 能触发自动评审
 - [ ] Dependabot alerts / security updates 已开；Private vulnerability reporting 已开
 - [ ] 打 `v0.1.0` tag 能触发 release，Releases 里有自动生成的 CHANGELOG

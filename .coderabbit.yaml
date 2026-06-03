@@ -44,6 +44,29 @@ reviews:
   # 折叠逐文件 walkthrough 的细节，保持 PR 评论区整洁。
   collapse_walkthrough: true
 
+  # 克制地自动打标：只打「类型 type:*」与「优先级 priority:*」两族。
+  # - 类型对应 Conventional Commits 的主桶；按 PR 的主要性质打一个。
+  # - 优先级只标两端（高风险/紧急、明显琐碎），中间大多数 PR 不打，避免噪音。
+  # - 区域标签（app:* / backend / ci ...）由 .github/labeler.yml 按路径打，这里不重复。
+  # 注意：所列标签需先在仓库 Labels 中存在（见 docs/COLLABORATION.md 的建标签步骤），否则不会生效。
+  labeling_instructions:
+    - label: "type: feature"
+      instructions: "PR 主要新增用户可见功能（对应 feat）。"
+    - label: "type: fix"
+      instructions: "PR 主要修复缺陷（对应 fix）。"
+    - label: "type: refactor"
+      instructions: "不改外部行为的内部重构、性能或风格调整（对应 refactor/perf/style）。"
+    - label: "type: docs"
+      instructions: "仅改文档（README/docs/注释，对应 docs）。"
+    - label: "type: chore"
+      instructions: "构建/CI/依赖/测试等杂务（对应 build/ci/chore/test/deps），无业务逻辑变更。"
+    - label: "priority: high"
+      instructions: "仅在明确符合时打：涉及安全/鉴权/密钥、数据丢失或迁移、破坏性变更、线上故障或用户可见回归等高风险或紧急改动。"
+    - label: "priority: low"
+      instructions: "明显琐碎低风险：纯文档/拼写、依赖小版本升、纯测试、纯内部重构。"
+  # 不确定优先级时不要硬打——留空即可（不设 priority: medium），保持克制。
+  auto_apply_labels: true
+
   auto_review:
     enabled: true
     # 草稿 PR 不自动评审，等转为 ready 再评。
