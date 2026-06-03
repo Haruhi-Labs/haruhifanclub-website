@@ -30,11 +30,13 @@ git remote -v              # 应为空（尚无 origin）
 
 ```bash
 # 在仓库根执行；<你的账号> 替换为真实 GitHub 用户名/组织
-gh repo create <你的账号>/haruhifanclub --private --source=. --remote=origin
+# 用 --public：开源仓库 CodeRabbit 评审永久免费、GitHub Actions 分钟数也免费无限；
+# 且 data/ uploads/ .env 均不进 git，公开仅暴露源码、无数据/密钥泄露。
+gh repo create <你的账号>/haruhifanclub --public --source=. --remote=origin
 git push -u origin main
 ```
 
-**方式 B：先在 GitHub 网页建空仓，再手动接 remote**
+**方式 B：先在 GitHub 网页建空仓，再手动接 remote**（建仓时选 **Public**）
 
 ```bash
 # 在 GitHub 上建一个空仓库 haruhifanclub（不要勾选 README/.gitignore/license，避免冲突）
@@ -89,6 +91,11 @@ gh repo edit <你的账号>/haruhifanclub \
 3. 之后**新开的 PR** 会自动触发 CodeRabbit 评审；按其意见回应/修改即可。
 
 > 评审规则以仓库根的 `.coderabbit.yaml` 为准，无需在网页端重复配置。
+>
+> **费用与功能范围**：CodeRabbit 官方明确「open-source 永久免费、public 仓库 free reviews forever、零额外设置」。
+> 但官方文案**未逐条承诺** public 免费即包含行内评审 / 全部 linters / `.coderabbit.yaml` 自定义 / 自动打标（"满配 Pro"是第三方说法）。
+> **以实测为准**：装好后开一个测试 PR，确认行内评论 + linters + 本仓 `path_instructions`/`labeling_instructions` 是否生效；
+> 需要先体验满配可启 14 天 Pro+ 试用（无需信用卡）。私有仓库的免费版仅 PR 摘要 + IDE/CLI，满配需 Pro。
 
 ---
 
