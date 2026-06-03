@@ -26,6 +26,26 @@ export function clearToken() {
 }
 
 /**
+ * 把后端返回的上传资源路径解析为可访问 URL（统一各 app 此前各写一份的
+ * art `fixPath` / novel `${ASSET_BASE}/${path}` 拼接）。语义取自 art 的 fixPath，
+ * novel 等更简单的 `/uploads/<path>` 拼接是其子集：
+ * - 空值 → ''；
+ * - 绝对 URL（http/https）、blob:、data: → 原样返回；
+ * - 站内绝对路径（以 '/' 开头）→ 原样返回；
+ * - 否则去掉可能的前导 'uploads/' 再拼 `<base>/<rel>`，避免 /uploads/uploads/... 双前缀。
+ * @param {string} path 后端字段，如 'novel/covers/1.png' 或 'uploads/art/2024-01/x.webp'
+ * @param {string} [base] 资源根，默认 '/uploads'
+ * @returns {string}
+ */
+export function resolveUploadUrl(path, base = '/uploads') {
+  if (!path) return ''
+  if (path.startsWith('http') || path.startsWith('blob:') || path.startsWith('data:')) return path
+  if (path.startsWith('/')) return path
+  const rel = path.startsWith('uploads/') ? path.slice('uploads/'.length) : path
+  return `${base}/${rel}`
+}
+
+/**
  * 创建一个 API 客户端。
  * @param {string} base 基础路径，例如 '/api' 或 '/api/novel'
  */

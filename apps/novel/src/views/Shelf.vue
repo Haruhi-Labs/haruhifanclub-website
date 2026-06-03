@@ -130,13 +130,13 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import { resolveUploadUrl } from '@haruhi/api-client';
 
 const router = useRouter();
 const books = ref([]);
 const loading = ref(true);
 // 统一后端：模块 API 走 /api/novel，静态文件走 /uploads
 const API_BASE = '/api/novel';
-const ASSET_BASE = '/uploads';
 
 // === 书架分栏配置 ===
 const CATEGORY_CONFIG = [
@@ -163,7 +163,7 @@ const getCoverUrl = (path) => {
   if (!path) return '';
 
   // 原始路径，例如 "novel/covers/001.png"
-  const original = `${ASSET_BASE}/${path}`;
+  const original = resolveUploadUrl(path);
 
   // 替换扩展名为 webp（前提是服务器已经有同名 webp）
   const webp = original.replace(/\.(png|jpg|jpeg)$/i, '.webp');

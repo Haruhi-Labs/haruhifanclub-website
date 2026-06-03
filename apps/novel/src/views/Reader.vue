@@ -296,11 +296,11 @@ import {
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 import ePub from 'epubjs';
+import { resolveUploadUrl } from '@haruhi/api-client';
 
 const route = useRoute();
 // 统一后端：模块 API 走 /api/novel，静态文件走 /uploads
 const API_BASE = '/api/novel';
-const ASSET_BASE = '/uploads';
 
 // 小工具：兼容 CSS.escape
 const cssEscape = (str) => {
@@ -499,7 +499,7 @@ const loadBookData = async (id) => {
     const metaRes = await axios.get(`${API_BASE}/books/${id}`);
     bookTitle.value = metaRes.data.title;
 
-    const fileRes = await axios.get(`${ASSET_BASE}/${metaRes.data.file_path}`, {
+    const fileRes = await axios.get(resolveUploadUrl(metaRes.data.file_path), {
       responseType: 'arraybuffer',
       onDownloadProgress: (e) => {
         if (!e.total) return;

@@ -190,12 +190,11 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import { createApiClient, createAdminAuth } from '@haruhi/api-client';
+import { createApiClient, createAdminAuth, resolveUploadUrl } from '@haruhi/api-client';
 
 // 统一后端：模块 API 走 /api/novel，鉴权走共享的 createAdminAuth（已内置 novel 权限校验），静态文件走 /uploads
 const api = createApiClient('/api/novel');
 const admin = createAdminAuth('novel');
-const ASSET_BASE = '/uploads';
 
 const isLoggedIn = ref(false);
 const loginForm = reactive({ username: '', password: '' });
@@ -239,7 +238,7 @@ const refreshBooks = async () => {
   }
 };
 
-const getCoverUrl = (path) => (path ? `${ASSET_BASE}/${path}` : '');
+const getCoverUrl = (path) => resolveUploadUrl(path);
 
 const uploadBook = async () => {
   const file = fileInput.value?.files?.[0];

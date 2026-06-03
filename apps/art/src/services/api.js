@@ -1,5 +1,5 @@
 import { seedCreators, seedArtworks, seedComments } from '../mock/seedData.js'
-import { getToken } from '@haruhi/api-client'
+import { getToken, resolveUploadUrl } from '@haruhi/api-client'
 
 // 统一后端约定：
 // - 模块 API 统一前缀 /api/art（旧的 /api/xxx → /api/art/xxx）
@@ -60,17 +60,10 @@ async function request(method, path, { params, body, isForm, headers } = {}) {
   return data
 }
 
-// 辅助函数：修复图片路径
+// 辅助函数：修复图片路径——委托给共享的 resolveUploadUrl（语义与原 fixPath 完全一致）。
 // 后端返回的图片字段（image_url/original_url/avatar_url 等）为相对 uploads 根的路径，
 // 统一拼成 /uploads/<path>；已是绝对地址或站内绝对路径则原样保留。
-function fixPath(p) {
-  if (!p) return ''
-  if (p.startsWith('http') || p.startsWith('blob:') || p.startsWith('data:')) return p
-  if (p.startsWith('/')) return p
-  // 后端 mapArtworkRow 可能已带 "uploads/" 前缀，去重后统一拼 /uploads/，避免 /uploads/uploads/...
-  const rel = p.startsWith('uploads/') ? p.slice('uploads/'.length) : p
-  return `${ASSET_BASE}/${rel}`
-}
+const fixPath = (p) => resolveUploadUrl(p, ASSET_BASE)
 
 function transformArtwork(a) {
   if (!a) return a
