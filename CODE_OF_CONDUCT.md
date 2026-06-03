@@ -42,8 +42,7 @@
 
 如遇违反本准则的行为，请私下联系项目维护者举报：
 
-> **联系人占位：`@OWNER`（请替换为真实 GitHub 用户名 / 维护者邮箱）。**
-> 在仓库正式启用前，此处先用占位符标注，详见 [`docs/COLLABORATION.md`](docs/COLLABORATION.md) 的"替换占位"步骤。
+> **联系人：GitHub 用户 [@Haruhiyuki](https://github.com/Haruhiyuki)。**
 
 所有举报都会被认真、保密地审阅与处理。维护者有义务为举报人保密。
 

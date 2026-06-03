@@ -209,7 +209,7 @@ scope_chain("news")          == ["news"]
 
 - **单版本前端工具链**：全仓对齐 Vite 7 + Pinia 3（exam/console 也已并入），上传 URL 拼接抽到
   api-client 的 `resolveUploadUrl`（art/novel 去重），数值/文本解析抽到 `core::parse`。
-- **协作文档**：`CONTRIBUTING.md`、`docs/COLLABORATION.md`；新增模块流程见 `docs/ADDING_MODULE.md`（novel 为端到端模板）；部署/数据迁移见 `docs/DEPLOYMENT.md`。
+- **协作文档**：`CONTRIBUTING.md`；新增模块流程见 `docs/ADDING_MODULE.md`（novel 为端到端模板）；部署/数据迁移见 `docs/DEPLOYMENT.md`。
 - **CI/质量门禁**：`.github/workflows/`（`ci.yml` 路径过滤 + `ci-ok` 汇聚 gate、`pr-checks.yml`、`labeler.yml`、`release.yml`）；
   `commitlint.config.mjs`（约定式提交）、`.coderabbit.yaml`（自动评审）、`cliff.toml`（git-cliff 生成 changelog）、`.github/dependabot.yml`（依赖更新）。
 - **提交 scope 集合**（与提交规范一致）：`news art exam novel shop console api-client server core db auth media ai mail deploy ci docs deps release repo`。
@@ -217,6 +217,6 @@ scope_chain("news")          == ["news"]
 ## 更多
 
 - 顶层概览与本地起步：根 `README.md`
-- 贡献流程与提交规范：`CONTRIBUTING.md`、`docs/COLLABORATION.md`
+- 贡献流程与提交规范：`CONTRIBUTING.md`
 - 加新模块（以 novel 为模板）：`docs/ADDING_MODULE.md`
 - 部署与数据迁移：`docs/DEPLOYMENT.md`

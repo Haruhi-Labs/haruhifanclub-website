@@ -6,7 +6,7 @@
 >
 > 本仓已对齐单版本工具链基线（Vite 7 + Pinia 3 全仓单版本，pnpm 单 lockfile），构建命令对所有 app 一致；
 > 上传 URL 拼接抽到 `@haruhi/api-client` 的 `resolveUploadUrl`、数值解析抽到 `core::parse`，
-> 部署流程本身不受影响。协作/发布基建见根 `CONTRIBUTING.md`、`docs/COLLABORATION.md`、`cliff.toml`（changelog）。
+> 部署流程本身不受影响。协作/发布基建见根 `CONTRIBUTING.md`、`cliff.toml`（changelog）。
 
 ## 0. 现状速览
 

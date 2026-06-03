@@ -11,7 +11,6 @@
 > - 架构总览 → [`README.md`](README.md)、[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 > - 新增业务模块 → [`docs/ADDING_MODULE.md`](docs/ADDING_MODULE.md)
 > - 部署上线 → [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
-> - 协作 / 仓库启用运行手册 → [`docs/COLLABORATION.md`](docs/COLLABORATION.md)
 > - 行为准则 → [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
 > - 安全披露 → [`SECURITY.md`](SECURITY.md)
 
@@ -305,8 +304,8 @@ fix(reader): 修复阅读器          # reader 不在 scope 集合里
 
 ## CI 关卡说明
 
-> 注意：仓库当前**尚无 GitHub remote**，GitHub 侧自动化要在你 push 到 GitHub 并按
-> [`docs/COLLABORATION.md`](docs/COLLABORATION.md) 配置后才会运行。文件均已"就绪即用"。
+> 注意：GitHub 侧自动化（CI / CodeRabbit）会在 PR 上自动运行；下列关卡最终以仓库
+> `.github/workflows/` 与分支保护设置为准。
 
 PR 会触发以下关卡（最终以仓库 `.github/workflows/` 与分支保护设置为准）：
 
@@ -379,8 +378,6 @@ git push origin v0.1.0      # 触发 release workflow：git-cliff 生成 CHANGEL
 ```
 
 - 因为 CHANGELOG 由 conventional commits 生成，**提交规范越严谨，CHANGELOG 越准确好读**。
-- 完整启用步骤（建仓、分支保护、CodeRabbit 授权、Dependabot、首个 release）见
-  [`docs/COLLABORATION.md`](docs/COLLABORATION.md)。
 
 ---
 

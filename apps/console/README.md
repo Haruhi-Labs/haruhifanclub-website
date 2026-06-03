@@ -68,5 +68,5 @@ pnpm --filter @haruhi/console preview   # 预览产物
 ## 更多
 
 - 仓库总览与架构：[根 README](../../README.md)
-- 协作与提交规范（scope 用 `console`）：[CONTRIBUTING](../../CONTRIBUTING.md)、[docs/COLLABORATION.md](../../docs/COLLABORATION.md)
+- 协作与提交规范（scope 用 `console`）：[CONTRIBUTING](../../CONTRIBUTING.md)
 - 新增后台模块流程：`docs/ADDING_MODULE.md`（`novel` 为端到端模板）

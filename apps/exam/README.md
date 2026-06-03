@@ -88,5 +88,5 @@ pnpm --filter @haruhi/exam preview   # 预览构建产物
 ## 更多
 
 - 仓库总体架构与启动：见根 [`README.md`](../../README.md)
-- 贡献规范与提交约定（scope `exam`）：见 [`CONTRIBUTING.md`](../../CONTRIBUTING.md)、[`docs/COLLABORATION.md`](../../docs/COLLABORATION.md)
+- 贡献规范与提交约定（scope `exam`）：见 [`CONTRIBUTING.md`](../../CONTRIBUTING.md)
 - 新增模块流程：见 [`docs/ADDING_MODULE.md`](../../docs/ADDING_MODULE.md)

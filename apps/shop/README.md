@@ -70,5 +70,5 @@ pnpm --filter @haruhi/shop preview    # 预览构建产物
 ## 更多
 
 - 整体架构、工具链与提交规范见仓库根 [README](../../README.md)。
-- 协作流程与贡献规范见 [CONTRIBUTING](../../CONTRIBUTING.md) 与 [docs/COLLABORATION.md](../../docs/COLLABORATION.md)。
+- 协作流程与贡献规范见 [CONTRIBUTING](../../CONTRIBUTING.md)。
 - 提交 scope 用 `shop`。

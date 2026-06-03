@@ -10,9 +10,8 @@
 
 请改为**私下**联系维护者：
 
-> **安全联系占位：`@OWNER`（请替换为真实维护者邮箱 / GitHub 用户名）。**
-> 优先使用 GitHub 的 **Private vulnerability reporting**（仓库 → Security → Report a vulnerability），
-> 启用方式见 [`docs/COLLABORATION.md`](docs/COLLABORATION.md)。
+> **安全联系：GitHub 用户 [@Haruhiyuki](https://github.com/Haruhiyuki)。**
+> 优先使用 GitHub 的 **Private vulnerability reporting**（仓库 → Security → Report a vulnerability）。
 
 报告时请尽量提供：
 
@@ -50,4 +49,4 @@
 
 ---
 
-相关文档：[贡献指南](CONTRIBUTING.md) · [行为准则](CODE_OF_CONDUCT.md) · [协作运行手册](docs/COLLABORATION.md)
+相关文档：[贡献指南](CONTRIBUTING.md) · [行为准则](CODE_OF_CONDUCT.md)

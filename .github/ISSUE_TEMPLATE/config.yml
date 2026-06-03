@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: 文档（架构 / 部署 / 新增模块）
-    url: https://github.com/OWNER/haruhifanclub/tree/main/docs
-    about: "先看 docs/：ARCHITECTURE.md、DEPLOYMENT.md、ADDING_MODULE.md（注意：把 OWNER 替换为你的 GitHub 用户名 / 组织）。"
+    url: https://github.com/Haruhi-Labs/haruhifanclub-website/tree/main/docs
+    about: "先看 docs/：ARCHITECTURE.md、DEPLOYMENT.md、ADDING_MODULE.md。"
   - name: 讨论区 / 提问
-    url: https://github.com/OWNER/haruhifanclub/discussions
-    about: "使用相关疑问、想法讨论请走 Discussions（占位：需先在仓库设置中开启 Discussions，并把 OWNER 替换为你的 GitHub 用户名 / 组织）。"
+    url: https://github.com/Haruhi-Labs/haruhifanclub-website/discussions
+    about: "使用相关疑问、想法讨论请走 Discussions（需先在仓库设置中开启 Discussions）。"

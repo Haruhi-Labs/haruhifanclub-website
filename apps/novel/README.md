@@ -67,5 +67,5 @@ dev 下 `/api` 与 `/uploads` 由 Vite 代理到 `http://127.0.0.1:17777`（见 
 ## 更多
 
 - 仓库总览与架构约定：根 [README](../../README.md)
-- 协作与提交规范：[CONTRIBUTING](../../CONTRIBUTING.md)、[docs/COLLABORATION.md](../../docs/COLLABORATION.md)
+- 协作与提交规范：[CONTRIBUTING](../../CONTRIBUTING.md)
 - 新增模块指引：[docs/ADDING_MODULE.md](../../docs/ADDING_MODULE.md)（novel 为参考模板）

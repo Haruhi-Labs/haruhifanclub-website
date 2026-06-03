@@ -48,7 +48,7 @@ reviews:
   # - 类型对应 Conventional Commits 的主桶；按 PR 的主要性质打一个。
   # - 优先级只标两端（高风险/紧急、明显琐碎），中间大多数 PR 不打，避免噪音。
   # - 区域标签（app:* / backend / ci ...）由 .github/labeler.yml 按路径打，这里不重复。
-  # 注意：所列标签需先在仓库 Labels 中存在（见 docs/COLLABORATION.md 的建标签步骤），否则不会生效。
+  # 注意：所列标签需先在仓库 Labels 中存在（在 Settings → Labels 建好），否则不会生效。
   labeling_instructions:
     - label: "type: feature"
       instructions: "PR 主要新增用户可见功能（对应 feat）。"

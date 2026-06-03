@@ -71,4 +71,4 @@ cargo run -p haruhi-server
 
 - 根 README：[`../../../README.md`](../../../README.md)
 - 贡献指南：[`../../../CONTRIBUTING.md`](../../../CONTRIBUTING.md)
-- 协作与新增模块：[`../../../docs/COLLABORATION.md`](../../../docs/COLLABORATION.md) / [`../../../docs/ADDING_MODULE.md`](../../../docs/ADDING_MODULE.md)
+- 新增模块：[`../../../docs/ADDING_MODULE.md`](../../../docs/ADDING_MODULE.md)

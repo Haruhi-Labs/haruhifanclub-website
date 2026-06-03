@@ -29,6 +29,9 @@ _legacy_dumps/
 # === Claude Code 本地工作目录（工作流脚本 / 会话缓存，按需自行版本化）===
 .claude/
 
+# === 仅供维护者本地阅读的仓库初始化运行手册（不进发布仓库）===
+/docs/COLLABORATION.md
+
 # === sqlx 离线缓存保留（不要忽略）===
 !.sqlx/
 

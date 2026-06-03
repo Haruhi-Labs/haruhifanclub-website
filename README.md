@@ -101,7 +101,7 @@ cargo build --release -p haruhi-server  # 后端单二进制 → target/release/
 CI（`.github/workflows/`）用 `dorny/paths-filter` 做**路径过滤**，frontend / backend job 在无关改动时被跳过；
 底部聚合 gate job **`ci-ok`**（`if: always()`）汇总各 job 结论，是 branch protection 唯一需要 require 的 status check。
 另接入 **CodeRabbit**（`.coderabbit.yaml`）做 PR 评审、**git-cliff**（`cliff.toml`）生成 CHANGELOG、**Dependabot**（`.github/dependabot.yml`）跟进依赖。
-贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)，协作约定见 [docs/COLLABORATION.md](docs/COLLABORATION.md)。
+贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ---
 
@@ -130,5 +130,4 @@ CI（`.github/workflows/`）用 `dorny/paths-filter` 做**路径过滤**，front
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 整体架构与设计取舍
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — systemd + Nginx 部署、数据持久化与备份
 - [docs/ADDING_MODULE.md](docs/ADDING_MODULE.md) — 新增一个模块 / 站点的端到端步骤
-- [docs/COLLABORATION.md](docs/COLLABORATION.md) — 协作约定与 CI / 自动化说明
 - 另见 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)、[SECURITY.md](SECURITY.md)

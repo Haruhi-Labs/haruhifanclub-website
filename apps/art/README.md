@@ -64,5 +64,5 @@ pnpm --filter @haruhi/art preview   # 预览 build 产物
 ## 更多
 
 - 仓库总览与架构约定：[../../README.md](../../README.md)
-- 协作与提交规范：[../../CONTRIBUTING.md](../../CONTRIBUTING.md)、[../../docs/COLLABORATION.md](../../docs/COLLABORATION.md)
+- 协作与提交规范：[../../CONTRIBUTING.md](../../CONTRIBUTING.md)
 - 新增模块流程：[../../docs/ADDING_MODULE.md](../../docs/ADDING_MODULE.md)

@@ -262,7 +262,7 @@ const scopes = [
 ]
 ```
 
-> 提交规范见 `CONTRIBUTING.md` / `docs/COLLABORATION.md`；scope 集合是协作门禁的一部分（与 `.coderabbit.yaml`、
+> 提交规范见 `CONTRIBUTING.md`；scope 集合是协作门禁的一部分（与 `.coderabbit.yaml`、
 > 路径过滤 CI、git-cliff release 一套）。
 
 ### 6b. Nginx —— `deploy/nginx.conf`（及 `deploy/test.haruyuki.cn.nginx.conf`）
@@ -296,4 +296,4 @@ location /widget/ { alias /var/www/haruhifanclub/apps/widget/dist/; try_files $u
 
 ---
 
-更多：根 `README.md`、`CONTRIBUTING.md`、`docs/ARCHITECTURE.md`（数据隔离 §4 / RBAC §5）、`docs/COLLABORATION.md`、`docs/DEPLOYMENT.md`。
+更多：根 `README.md`、`CONTRIBUTING.md`、`docs/ARCHITECTURE.md`（数据隔离 §4 / RBAC §5）、`docs/DEPLOYMENT.md`。
