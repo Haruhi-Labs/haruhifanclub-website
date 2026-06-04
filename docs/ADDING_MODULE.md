@@ -263,7 +263,7 @@ const scopes = [
 ```
 
 > 提交规范见 `CONTRIBUTING.md`；scope 集合是协作门禁的一部分（与 `.coderabbit.yaml`、
-> 路径过滤 CI、git-cliff release 一套）。
+> 路径过滤 CI 一套）。
 
 ### 6b. Nginx —— `deploy/nginx.conf`（及 `deploy/test.haruyuki.cn.nginx.conf`）
 

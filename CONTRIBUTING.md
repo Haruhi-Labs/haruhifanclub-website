@@ -27,7 +27,6 @@
 - [CI 关卡说明](#ci-关卡说明)
 - [代码风格](#代码风格)
 - [新增模块指引](#新增模块指引)
-- [发布与 CHANGELOG](#发布与-changelog)
 - [行为准则与安全](#行为准则与安全)
 
 ---
@@ -363,21 +362,6 @@ pnpm lint     # = eslint . && cargo fmt --check && cargo clippy -- -D warnings
 - **部署**：`deploy/nginx.conf` 加一条 `/<m>/` location；如需迁旧数据改迁移脚本。
 
 `apps/*` 已在 `pnpm-workspace.yaml` 通配，新建目录后 `pnpm install` 即纳入 workspace。
-
----
-
-## 发布与 CHANGELOG
-
-本仓走**轻量发布**：**Conventional Commits + [git-cliff](https://github.com/orhun/git-cliff)**
-自动从提交历史生成 `CHANGELOG.md`，打 `v*` tag 触发 GitHub Release。**不发 npm、不做版本号联动。**
-
-```bash
-# 打版本 tag（在 main 上）
-git tag v0.1.0
-git push origin v0.1.0      # 触发 release workflow：git-cliff 生成 CHANGELOG + 建 Release
-```
-
-- 因为 CHANGELOG 由 conventional commits 生成，**提交规范越严谨，CHANGELOG 越准确好读**。
 
 ---
 

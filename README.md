@@ -100,7 +100,7 @@ cargo build --release -p haruhi-server  # 后端单二进制 → target/release/
 由 CI 中的 commitlint 逐条校验——**本仓库不安装本地 git hooks，规范完全靠 CI 把关**。
 CI（`.github/workflows/`）用 `dorny/paths-filter` 做**路径过滤**，frontend / backend job 在无关改动时被跳过；
 底部聚合 gate job **`ci-ok`**（`if: always()`）汇总各 job 结论，是 branch protection 唯一需要 require 的 status check。
-另接入 **CodeRabbit**（`.coderabbit.yaml`）做 PR 评审、**git-cliff**（`cliff.toml`）生成 CHANGELOG、**Dependabot**（`.github/dependabot.yml`）跟进依赖。
+另接入 **CodeRabbit**（`.coderabbit.yaml`）做 PR 评审、**Dependabot**（`.github/dependabot.yml`）跟进依赖。
 贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ---
