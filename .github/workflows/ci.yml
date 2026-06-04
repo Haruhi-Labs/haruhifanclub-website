@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.87.0
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.87.0
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
@@ -118,7 +118,7 @@ jobs:
           cache: pnpm
       - name: pnpm audit (prod deps)
         run: pnpm install --frozen-lockfile && pnpm audit --prod || true
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.87.0
       - uses: Swatinem/rust-cache@v2
       - name: cargo audit
         run: cargo install cargo-audit --locked && cargo audit || true

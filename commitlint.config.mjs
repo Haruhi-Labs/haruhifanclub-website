@@ -46,7 +46,6 @@
  *   ci       持续集成
  *   docs     文档
  *   deps     依赖
- *   release  版本/发布
  *   repo     仓库级（配置、元信息等）
  */
 
@@ -89,7 +88,6 @@ const scopes = [
   'ci',
   'docs',
   'deps',
-  'release',
   'repo',
 ];
 

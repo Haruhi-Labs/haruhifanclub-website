@@ -1,3 +1,4 @@
+# 锁定具体版本以保证可复现（与 deploy.sh 的交叉编译镜像 rust:1.87 对齐）。
 [toolchain]
-channel = "stable"
+channel = "1.87.0"
 components = ["rustfmt", "clippy"]

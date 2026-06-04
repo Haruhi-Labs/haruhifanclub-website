@@ -53,7 +53,7 @@ packages/api-client 统一 fetch       data/<module>.db + data/core.db    upload
 
 ## 快速上手
 
-依赖：**Node ≥ 20**（`.nvmrc`）、**pnpm 10.11.0**、**Rust stable**（`rust-toolchain.toml`）、**ffmpeg**、**sqlite3**。
+依赖：**Node ≥ 20**（`.nvmrc`）、**pnpm 10.11.0**、**Rust 1.87.0**（`rust-toolchain.toml`）、**ffmpeg**、**sqlite3**。
 
 ```bash
 # 1) 安装依赖并构建后端
@@ -96,7 +96,7 @@ cargo build --release -p haruhi-server  # 后端单二进制 → target/release/
 
 ## 工程化与协作
 
-提交遵循 **Conventional Commits**，scope 取自固定集合（`news art exam novel shop console api-client server core db auth media ai mail deploy ci docs deps release repo`），
+提交遵循 **Conventional Commits**，scope 取自固定集合（`news art exam novel shop console api-client server core db auth media ai mail deploy ci docs deps repo`），
 由 CI 中的 commitlint 逐条校验——**本仓库不安装本地 git hooks，规范完全靠 CI 把关**。
 CI（`.github/workflows/`）用 `dorny/paths-filter` 做**路径过滤**，frontend / backend job 在无关改动时被跳过；
 底部聚合 gate job **`ci-ok`**（`if: always()`）汇总各 job 结论，是 branch protection 唯一需要 require 的 status check。
@@ -111,7 +111,7 @@ CI（`.github/workflows/`）用 `dorny/paths-filter` 做**路径过滤**，front
   `getToken` / `setToken` / `clearToken`、`createApiClient(base)`（封装 `get/post/put/patch/del/postForm` 与 JSON / 表单 / 错误处理）、
   `createAuth`、`createAdminAuth(app)`、`hasScope`，以及统一的上传 URL 拼接 `resolveUploadUrl(path, base?)`（art / novel 去重后的共用实现）。
 - **`core::parse`**：后端各模块共用的数值 / 文本解析工具。
-- **`packages/ui`、`packages/config`**：目前是**空 stub**，无 `package.json`、未启用（git 不跟踪空目录）。
+- **`packages/ui`、`packages/config`**：预留的共享包，仅含一份说明性 `README.md`、无 `package.json`，故 pnpm 不纳入 workspace、当前**未启用**。
 
 ---
 

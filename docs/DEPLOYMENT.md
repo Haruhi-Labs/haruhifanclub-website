@@ -27,7 +27,7 @@ nvm install 20 && nvm use 20            # .nvmrc 锁定 20
 corepack enable && corepack prepare pnpm@10.11.0 --activate
 
 # Rust stable（本机直接编 native 时需要；用 Docker 交叉编译则服务器免装）
-curl https://sh.rustup.rs -sSf | sh    # rust-toolchain.toml 锁定 stable + rustfmt/clippy
+curl https://sh.rustup.rs -sSf | sh    # rust-toolchain.toml 锁定 1.87.0 + rustfmt/clippy
 
 # 运行/构建期工具
 apt-get install -y ffmpeg sqlite3 nginx   # ffmpeg: 音频处理；sqlite3: 迁移/备份；nginx: 反代
@@ -36,7 +36,7 @@ apt-get install -y certbot
 ```
 
 版本约束：`package.json` 要求 Node ≥20、`packageManager: pnpm@10.11.0`、`.nvmrc=20`；
-Rust 见 `rust-toolchain.toml`（stable，含 rustfmt/clippy），`Cargo.toml` 的最低 `rust-version = 1.80`。
+Rust 见 `rust-toolchain.toml`（1.87.0，含 rustfmt/clippy），`Cargo.toml` 的最低 `rust-version = 1.80`。
 
 ## 2. 构建
 
@@ -60,7 +60,7 @@ cargo build --release -p haruhi-server  # → target/release/haruhi-server
 
 **生产服务器是 linux/amd64，推荐用 Docker 交叉编译**出 Linux 二进制（无需在服务器装 Rust，也避免本机
 是 macOS/arm 的架构不匹配）。我们实际用的镜像是 `rust:1.87-bookworm`（满足 `Cargo.toml` 的
-`rust-version = 1.80` 下限，对应 `rust-toolchain.toml` 的 stable 通道）：
+`rust-version = 1.80` 下限，对应 `rust-toolchain.toml` 的 1.87.0 通道）：
 
 ```bash
 # 在 monorepo 根执行；输出到独立 target-linux/（与本机 target/ 隔离，复用缓存）
