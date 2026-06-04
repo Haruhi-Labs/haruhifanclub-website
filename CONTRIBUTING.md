@@ -181,6 +181,9 @@ pnpm -r --filter "./apps/*" build        # 各前端 → apps/*/dist
 cargo build --release -p haruhi-server   # 后端单二进制 → target/release/haruhi-server
 ```
 
+> 这里 `cargo build --release` 出的是**本机平台**二进制，仅用于本地跑/测；**部署到 linux 服务器**走
+> `deploy/deploy.sh`（Docker 交叉编译到 `linux/amd64`），见 [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)。
+>
 > `exam` 与 `console` 是 TypeScript app，其 `build` 内含 `vue-tsc --noEmit` 类型检查——
 > 改这两个 app 的类型相关代码后，务必本地 build 一遍。
 

@@ -68,27 +68,39 @@ cp deploy/env.sample .env        # 或手动复制模板，自行填 HARUHI_JWT_
 bash deploy/migrate-data.sh             # 全部模块
 bash deploy/migrate-data.sh novel art   # 指定模块
 
-# 4) 起后端
-cargo run -p haruhi-server       # 监听 127.0.0.1:17777
+# 4) 起后端（一个后端服务所有 app）
+pnpm dev:backend                 # = cargo run -p haruhi-server，监听 127.0.0.1:17777
 
-# 5) 起某个前端（dev 代理 /api 与 /uploads 到 17777）
-pnpm --filter @haruhi/novel dev         # http://localhost:5203/library/
-pnpm --filter @haruhi/console dev       # http://localhost:5200/console/
+# 5) 起某个前端（dev 自动把 /api、/uploads 代理到后端）
+pnpm dev:novel                   # 书库 → http://localhost:5203/library/
+                                 # 其它：dev:news / dev:art / dev:exam / dev:shop / dev:console
 ```
 
-根 `package.json` 也提供了便捷脚本：`pnpm dev:backend`、`pnpm dev:<app>`（如 `pnpm dev:shop`），
-以及 `pnpm dev`（用 concurrently 同时起后端 + `APP` 指定的前端，默认 `news`）。
+> 想**一条命令同时起后端 + 某个前端**：`APP=novel pnpm dev`（concurrently 同开，默认 `APP=news`）。
+> 各 app 的 dev 端口/子路径见上方「前端 apps」表。
 
 ---
 
 ## 构建与部署
 
+**部署到生产（推荐，一条命令）**：`deploy/deploy.sh` 会构建前端 + **用 Docker 把后端交叉编译到
+`linux/amd64`**（生产服务器架构）+ rsync 推送（原子替换二进制 + 备份旧版可回滚）+ 重启 systemd：
+
 ```bash
-pnpm -r --filter "./apps/*" build       # 各前端 → apps/*/dist（等价 pnpm build:apps）
-cargo build --release -p haruhi-server  # 后端单二进制 → target/release/haruhi-server
+HARUHI_DEPLOY_HOST=root@<服务器> bash deploy/deploy.sh
 ```
 
-部署：后端单二进制由 **systemd** 守护（`deploy/haruhifanclub.service`），**Nginx** 反代 `/api` + `/uploads`、
+> ⚠️ 本机 `cargo build --release` 出的是**你本机平台**的二进制（如 macOS/arm），**装不到 linux 服务器上**——
+> 所以生产一律走 `deploy.sh` 的交叉编译。下面的原生构建只用于**本地运行 / 测试**。
+
+只想本地产出物（不部署）：
+
+```bash
+pnpm build:apps                          # 各前端 → apps/*/dist
+cargo build --release -p haruhi-server   # 后端二进制（仅本机平台，本地跑/测用）
+```
+
+部署架构：后端单二进制由 **systemd** 守护（`deploy/haruhifanclub.service`），**Nginx** 反代 `/api` + `/uploads`、
 静态托管各 `apps/*/dist`（`deploy/nginx.conf`）；`data/` 与 `uploads/` 独立持久化并备份（`deploy/backup.*`），永不进 git。
 完整步骤见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
 
