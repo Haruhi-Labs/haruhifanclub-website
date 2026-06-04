@@ -1,8 +1,8 @@
 <!--
   感谢贡献！请用中文填写本模板。
   PR 标题必须符合 Conventional Commits：type(scope): subject
-  type ∈ {feat fix perf refactor docs style test build ci chore revert}
-  scope（可选，给出则须取自）：news art exam novel shop console api-client server core db auth media ai mail deploy ci docs deps repo
+  type ∈ {feat fix perf refactor docs style test build ci chore revert}（受约束）
+  scope 可选、不限定取值：用它点明改动范围（如 news / server / deploy …，建议见 CONTRIBUTING）
   例：feat(news): 支持公告置顶 / fix(server): 修复登录态过期判断
   squash 合并时本 PR 标题即最终提交信息，请务必规范。
 -->

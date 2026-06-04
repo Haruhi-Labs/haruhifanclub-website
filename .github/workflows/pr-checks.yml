@@ -43,28 +43,8 @@ jobs:
             ci
             chore
             revert
-          # scope 可选；给出则必须在此集合内（与 commitlint.config.mjs 保持一致）
-          scopes: |
-            news
-            art
-            exam
-            novel
-            shop
-            console
-            api-client
-            server
-            core
-            db
-            auth
-            media
-            ai
-            mail
-            deploy
-            ci
-            docs
-            deps
-            repo
-          # scope 非必填
+          # scope 自由、不限定取值（不在此处维护 scope 集合）：不传 scopes 即只校验 type，
+          # scope 写法建议见 CONTRIBUTING.md。
           requireScope: false
           # subject 允许中文（默认正则会拒绝非 ASCII 起始）；这里允许任意非空 subject
           subjectPattern: ^.+$

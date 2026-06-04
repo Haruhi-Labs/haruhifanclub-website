@@ -96,7 +96,7 @@ cargo build --release -p haruhi-server  # 后端单二进制 → target/release/
 
 ## 工程化与协作
 
-提交遵循 **Conventional Commits**，scope 取自固定集合（`news art exam novel shop console api-client server core db auth media ai mail deploy ci docs deps repo`），
+提交遵循 **Conventional Commits**：**type 受约束**、**scope 可选且自由**（用来点明改动范围，建议写法见 CONTRIBUTING），
 由 CI 中的 commitlint 逐条校验——**本仓库不安装本地 git hooks，规范完全靠 CI 把关**。
 CI（`.github/workflows/`）用 `dorny/paths-filter` 做**路径过滤**，frontend / backend job 在无关改动时被跳过；
 底部聚合 gate job **`ci-ok`**（`if: always()`）汇总各 job 结论，是 branch protection 唯一需要 require 的 status check。

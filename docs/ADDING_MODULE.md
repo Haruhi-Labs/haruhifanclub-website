@@ -19,7 +19,6 @@
   apps/widget/src/...                                 新增  接入 createApiClient/createAdminAuth
 RBAC / 部署 / 协作
   backend/crates/server/src/admin_routes.rs          改    APPS 加 "widget"（及子作用域）
-  commitlint.config.mjs                               改    scopes 集合加 "widget"（否则 commit 过不了门禁）
   deploy/nginx.conf  (+ deploy/test.haruyuki.cn.nginx.conf)  改  /widget/ location
   deploy/migrate-data.sh / migrate-live.py            改    （若需迁旧数据）
 ```
@@ -249,21 +248,10 @@ const APPS: &[&str] = &[
 
 ## 6. 提交 scope、Nginx + 数据迁移
 
-### 6a. 提交 scope —— `commitlint.config.mjs`
+### 6a. 提交 scope —— 无需改配置
 
-把模块名加进 `scopes` 集合，否则带该 scope 的 commit 过不了 commitlint 门禁：
-
-```js
-// commitlint.config.mjs
-const scopes = [
-  'news', 'art', 'exam', 'novel', 'shop', 'console',
-  'widget',            // 加这行 → 允许 feat(widget): ...
-  'api-client', 'server', /* ... */
-]
-```
-
-> 提交规范见 `CONTRIBUTING.md`；scope 集合是协作门禁的一部分（与 `.coderabbit.yaml`、
-> 路径过滤 CI 一套）。
+scope 是**自由的、不在代码里维护集合**，所以新增模块**不用动 `commitlint.config.mjs`**——
+直接用模块名当 scope 即可（如 `feat(widget): 新增挂件模块`）。提交规范见 `CONTRIBUTING.md`。
 
 ### 6b. Nginx —— `deploy/nginx.conf`（及 `deploy/test.haruyuki.cn.nginx.conf`）
 
@@ -291,7 +279,7 @@ location /widget/ { alias /var/www/haruhifanclub/apps/widget/dist/; try_files $u
 - [ ] `/console/` 里能给用户分配 `widget` 角色，分配后该用户后台权限即时生效
 - [ ] `pnpm -r --filter "./apps/*" build` 出 `apps/widget/dist`；Nginx `/widget/` 可访问
 - [ ] `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings` 通过
-- [ ] `pnpm lint:js` 通过；commit 用允许的 scope（`feat(widget): ...`）
+- [ ] `pnpm lint:js` 通过；commit 用模块名作 scope（`feat(widget): ...`）
 - [ ] 以上即 CI（`.github/workflows/ci.yml`）的 frontend / backend 两个 job，最终由聚合 gate `ci-ok` 汇总
 
 ---
