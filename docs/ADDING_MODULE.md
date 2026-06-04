@@ -250,7 +250,7 @@ const APPS: &[&str] = &[
 
 ### 6a. 提交 scope —— 无需改配置
 
-scope 是**自由的、不在代码里维护集合**，所以新增模块**不用动 `commitlint.config.mjs`**——
+scope 是**自由的、不在任何地方登记集合**，所以新增模块**无需改动任何配置**——
 直接用模块名当 scope 即可（如 `feat(widget): 新增挂件模块`）。提交规范见 `CONTRIBUTING.md`。
 
 ### 6b. Nginx —— `deploy/nginx.conf`（及 `deploy/test.haruyuki.cn.nginx.conf`）

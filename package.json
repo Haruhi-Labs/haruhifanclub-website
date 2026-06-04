@@ -21,12 +21,9 @@
     "build:apps": "pnpm -r --filter \"./apps/*\" build",
     "lint": "eslint . && cargo fmt --check && cargo clippy -- -D warnings",
     "lint:js": "eslint .",
-    "lint:commit": "commitlint --from=HEAD~1 --to=HEAD",
     "format": "prettier --write \"**/*.{js,ts,vue,json,md}\" && cargo fmt"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.0.0",
-    "@commitlint/config-conventional": "^19.0.0",
     "@eslint/js": "^9.18.0",
     "concurrently": "^9.1.0",
     "eslint": "^9.18.0",
