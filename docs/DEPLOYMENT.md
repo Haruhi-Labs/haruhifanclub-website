@@ -80,6 +80,16 @@ install -D target-linux/release/haruhi-server /var/www/haruhifanclub-test/bin/ha
 rsync -a --delete apps/ /var/www/haruhifanclub-test/apps/  # 仅同步含 dist 的 app 目录
 ```
 
+> **一键部署脚本**：上面的「构建前端 + 交叉编译后端 + 推送 + 重启 systemd」整套已固化为
+> [`deploy/deploy.sh`](../deploy/deploy.sh)（原子替换二进制 + 备份旧版便于回滚）。例如：
+>
+> ```bash
+> HARUHI_DEPLOY_HOST=root@119.23.77.86 HARUHI_DEPLOY_ROOT=/var/www/haruhifanclub bash deploy/deploy.sh
+> ```
+>
+> 支持 `HARUHI_SKIP_FRONTEND=1` / `HARUHI_SKIP_BACKEND=1` 只发一侧；回滚命令脚本结束时会打印。
+> 部署仍不走 CI（手动可控），脚本即「可重复的手册」。
+
 ## 3. 环境变量
 
 模板：`deploy/env.sample`（注释均独立成行，对 dotenvy 与 systemd `EnvironmentFile` **两种加载都安全**）。
