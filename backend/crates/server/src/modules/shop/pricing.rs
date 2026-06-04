@@ -1057,3 +1057,134 @@ fn none_if_empty(s: &str) -> Value {
         json!(s)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ---- 商品价格 ----
+
+    #[test]
+    fn effective_price_picks_valid_discount() {
+        assert_eq!(effective_product_price(&json!(100), &json!(80)), 80.0);
+        // 折扣价 >= 原价 → 视为无效，取原价
+        assert_eq!(effective_product_price(&json!(100), &json!(120)), 100.0);
+        assert_eq!(effective_product_price(&json!(100), &json!(0)), 100.0);
+        assert_eq!(effective_product_price(&json!(100), &Value::Null), 100.0);
+    }
+
+    #[test]
+    fn discount_and_positive_price_rules() {
+        assert_eq!(
+            normalize_discount_price(&json!(80), &json!(100)),
+            Some(80.0)
+        );
+        assert_eq!(normalize_discount_price(&json!(100), &json!(100)), None); // 等于原价
+        assert_eq!(normalize_discount_price(&json!(0), &json!(100)), None);
+        assert_eq!(to_positive_price_or_null(&json!(50)), Some(50.0));
+        assert_eq!(to_positive_price_or_null(&json!(0)), None);
+        assert_eq!(to_positive_price_or_null(&json!(-5)), None);
+    }
+
+    // ---- 订单计价 / 运费门槛 ----
+
+    fn item(id: i64, price: f64, qty: i64, tag: &str, ship: f64) -> Value {
+        json!({
+            "id": id, "name": format!("p{id}"),
+            "price": price, "quantity": qty,
+            "shippingTag": tag, "shippingCost": ship,
+        })
+    }
+
+    #[test]
+    fn shipping_charged_below_threshold() {
+        let items = vec![item(1, 50.0, 2, "A", 10.0)]; // 小计 100 < 150
+        let r = calculate_pricing_from_priced_items(&items, 150.0);
+        assert_eq!(r.products_total, 100.0);
+        assert_eq!(r.shipping_fee, 10.0);
+        assert_eq!(r.original_total, 110.0);
+    }
+
+    #[test]
+    fn free_shipping_at_or_above_threshold() {
+        let items = vec![item(1, 100.0, 2, "A", 10.0)]; // 小计 200 >= 150
+        let r = calculate_pricing_from_priced_items(&items, 150.0);
+        assert_eq!(r.products_total, 200.0);
+        assert_eq!(r.shipping_fee, 0.0);
+        assert_eq!(r.original_total, 200.0);
+    }
+
+    #[test]
+    fn shipping_group_takes_max_cost() {
+        // 同一 shippingTag 的运费取组内最高（两个不同商品 id，避免被合并）
+        let items = vec![item(1, 10.0, 1, "A", 8.0), item(2, 10.0, 1, "A", 12.0)];
+        let r = calculate_pricing_from_priced_items(&items, 1000.0);
+        assert_eq!(r.products_total, 20.0);
+        assert_eq!(r.shipping_fee, 12.0);
+    }
+
+    // ---- 优惠券 ----
+
+    #[test]
+    fn coupon_code_normalized() {
+        assert_eq!(normalize_coupon_code("  abc "), "ABC");
+        assert_eq!(normalize_coupon_code("XyZ"), "XYZ");
+    }
+
+    #[test]
+    fn coupon_expiry() {
+        assert!(!is_coupon_expired(&json!({}))); // 无 expiresAt
+        assert!(!is_coupon_expired(&json!({ "expiresAt": "" })));
+        assert!(is_coupon_expired(&json!({ "expiresAt": "2000-01-01" }))); // 过去
+        assert!(is_coupon_expired(&json!({ "expiresAt": "not-a-date" }))); // 无法解析 → 过期
+        assert!(!is_coupon_expired(&json!({ "expiresAt": "2999-12-31" }))); // 未来
+    }
+
+    #[test]
+    fn evaluate_coupon_amount_and_percent() {
+        // 不存在
+        assert!(evaluate_coupon(None, 100.0).is_err());
+
+        // 定额：减 20
+        let c =
+            json!({ "status": 1, "discountType": "amount", "discountValue": 20, "minSpend": 0 });
+        let e = evaluate_coupon(Some(&c), 100.0).unwrap();
+        assert_eq!(e.discount_amount, 20.0);
+        assert_eq!(e.payable_amount, 80.0);
+
+        // 未达门槛
+        let c =
+            json!({ "status": 1, "discountType": "amount", "discountValue": 20, "minSpend": 200 });
+        assert!(evaluate_coupon(Some(&c), 100.0).is_err());
+
+        // 百分比：10% of 200 = 20
+        let c =
+            json!({ "status": 1, "discountType": "percent", "discountValue": 10, "minSpend": 0 });
+        let e = evaluate_coupon(Some(&c), 200.0).unwrap();
+        assert_eq!(e.discount_amount, 20.0);
+        assert_eq!(e.payable_amount, 180.0);
+
+        // 百分比封顶 maxDiscount=15
+        let c = json!({ "status": 1, "discountType": "percent", "discountValue": 10, "minSpend": 0, "maxDiscount": 15 });
+        let e = evaluate_coupon(Some(&c), 200.0).unwrap();
+        assert_eq!(e.discount_amount, 15.0);
+        assert_eq!(e.payable_amount, 185.0);
+    }
+
+    #[test]
+    fn evaluate_coupon_rejects_unusable_and_expired() {
+        // status != COUPON_UNUSED(1)
+        let c =
+            json!({ "status": 2, "discountType": "amount", "discountValue": 10, "minSpend": 0 });
+        assert!(evaluate_coupon(Some(&c), 100.0).is_err());
+        // 已过期
+        let c = json!({ "status": 1, "expiresAt": "2000-01-01", "discountType": "amount", "discountValue": 10, "minSpend": 0 });
+        assert!(evaluate_coupon(Some(&c), 100.0).is_err());
+    }
+
+    #[test]
+    fn fmt_num_integer_vs_fraction() {
+        assert_eq!(fmt_num(100.0), "100");
+        assert_eq!(fmt_num(99.5), "99.5");
+    }
+}

@@ -72,6 +72,23 @@ jobs:
       - run: pnpm lint:js
       - run: pnpm --filter @haruhi/${{ matrix.app }} build
 
+  # 前端单元测试（vitest，目前覆盖共享层 packages/api-client）。快，PR + main 都跑。
+  frontend-test:
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r --if-present test
+
   # 后端 · PR 快检：fmt + clippy(lib+bins，不编 tests/) + 单测（`cargo test --lib`，不含集成）。
   backend:
     needs: changes
@@ -128,7 +145,7 @@ jobs:
   # 规则：changes 必须 success（路径过滤源头，坏了不能放行）；
   #       frontend / backend / backend-full 允许 success 或 skipped（按事件/路径正常跳过），其余即失败。
   ci-ok:
-    needs: [changes, frontend, backend, backend-full]
+    needs: [changes, frontend, frontend-test, backend, backend-full]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -136,23 +153,24 @@ jobs:
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
+          FRONTEND_TEST_RESULT: ${{ needs.frontend-test.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           BACKEND_FULL_RESULT: ${{ needs.backend-full.result }}
         run: |
-          echo "changes=$CHANGES_RESULT frontend=$FRONTEND_RESULT backend=$BACKEND_RESULT backend-full=$BACKEND_FULL_RESULT"
+          echo "changes=$CHANGES_RESULT frontend=$FRONTEND_RESULT frontend-test=$FRONTEND_TEST_RESULT backend=$BACKEND_RESULT backend-full=$BACKEND_FULL_RESULT"
           ok=1
           # 源头 job：必须 success。
           if [ "$CHANGES_RESULT" != "success" ]; then
             ok=0
           fi
           # 业务 job：success 或 skipped（路径过滤 / 事件分层跳过）皆可，其余判失败。
-          for r in "$FRONTEND_RESULT" "$BACKEND_RESULT" "$BACKEND_FULL_RESULT"; do
+          for r in "$FRONTEND_RESULT" "$FRONTEND_TEST_RESULT" "$BACKEND_RESULT" "$BACKEND_FULL_RESULT"; do
             if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
               ok=0
             fi
           done
           if [ "$ok" -ne 1 ]; then
-            echo "::error::CI 门禁未通过（changes 必须 success；frontend/backend/backend-full 必须 success 或 skipped）"
+            echo "::error::CI 门禁未通过（changes 必须 success；frontend/frontend-test/backend/backend-full 必须 success 或 skipped）"
             exit 1
           fi
           echo "全部必需 job 通过或被合理跳过，CI 门禁放行。"
