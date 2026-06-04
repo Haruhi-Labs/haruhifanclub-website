@@ -2,6 +2,15 @@
 
 春日应援团「凉宫春日入团测试」风格的在线考试平台：用户在线作答、批改、按分数评定等级并把成绩/试卷导出为图片分享；同时提供试卷在线编辑（带 `edit_token` 免登录编辑链接）与管理员审核后台。本 app 是全仓唯一使用 **TypeScript** 的前端样板。
 
+## 功能特性
+
+- **在线作答与批改** — 单选 / 多选 / 判断 / 填空题，作答本地存档（刷新可恢复），交卷自动批改
+- **等级评定** — 按总分落入配置的分数区间评定等级（名称 / 颜色 / 头像 / 评语）
+- **成绩与试卷分享** — 成绩单及完整试卷（正反双页拼版）用 `html-to-image` 导出高清 PNG，并生成二维码分享链接
+- **多媒体题目** — 题干 / 解析支持文字 + 图片（WebP）+ 音频（后端 ffmpeg 转 MP3）内容块自由组合
+- **在线编辑** — 可视化编辑试卷（配置 / 题目 / 等级三大面板），`edit_token` 免登录编辑链接，支持 JSON 导入 / 导出
+- **管理后台** — 试卷审核（通过 / 锁定 / 删除）与统计（统一 JWT 登录 + RBAC）
+
 ## 技术栈与关键依赖
 
 - Vue 3（`<script setup>`）+ Vue Router 4 + Pinia 3
@@ -76,6 +85,29 @@ pnpm --filter @haruhi/exam preview   # 预览构建产物
 - **作答本地存档**：考生姓名、答案、批改结果、考号（`BK+日期+随机`）按 `haruhi_exam_<id>` 持久化到 `localStorage`，刷新可恢复。
 - **访问控制**：后端返回 `403 EXAM_UNAVAILABLE` 时按 `status`（`pending`/`locked`）显示对应不可访问提示，而非报错。
 - **题型**：单选 / 多选（答案逗号分隔、顺序无关）/ 判断 / 填空，批改时文本经 `normalizeText` 归一化比较。
+
+### JSON 试卷导入格式
+
+编辑器的「导入 JSON」可批量建卷，文件分三段：
+
+```jsonc
+{
+  "config":    { "title": "...", "paperTitle": "...", "author": "...", "contact": "..." }, // 试卷基本信息
+  "questions": [ /* 题目列表 */ ],
+  "levels":    [ { "id": "level1", "min": 0, "max": 30, "name": "不及格", "color": "#ef4444", "comment": "..." } ] // 等级配置
+}
+```
+
+每道题由 `id / no / column(C1–C4) / type / score / stemBlocks / answer / analysisBlocks` 组成；题干（`stemBlocks`）与解析（`analysisBlocks`）都是**内容块数组**，块类型 `text` / `image`（`src` 指向 `/uploads/exam/*.webp`）/ `audio`（`/uploads/exam/*.mp3`）可任意组合。答案格式随题型而定：
+
+| 题型（`type`） | `options` | `answer` 格式 |
+| --- | --- | --- |
+| 单选 `choice` | A/B/C/D | 单个字母，如 `"C"` |
+| 多选 `multiple` | A/B/C/D | 逗号分隔、顺序无关，如 `"A,C"` |
+| 判断 `judgment` | 固定 `true` / `false` | `"true"` 或 `"false"` |
+| 填空 `fill` | 无 | 直接写答案，多空逗号分隔，如 `"2,北京"` |
+
+`levels` 的分数区间不可重叠、需连续覆盖试卷满分。导入时编辑器会校验必填字段与答案格式。
 
 ## 与共享层 / 后端的关系
 
