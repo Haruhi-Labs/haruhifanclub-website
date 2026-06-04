@@ -33,3 +33,9 @@ sha2.workspace = true
 rand.workspace = true
 uuid = { workspace = true }
 base64.workspace = true
+
+[dev-dependencies]
+# 集成测试：tower oneshot 打路由、http-body-util 读响应体、tempfile 建临时数据目录
+tower = { workspace = true, features = ["util"] }
+http-body-util = "0.1"
+tempfile = "3"

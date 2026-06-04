@@ -1,23 +1,12 @@
-//! haruhifanclub 统一后端入口。
-//
-// 各模块 handler 直接用元组承接 sqlx 行（忠实移植旧后端，避免为每个查询造 DTO），
-// type_complexity 是有意取舍而非疏忽，crate 级放行该 lint。
-#![allow(clippy::type_complexity)]
-
-mod admin_routes;
-mod auth_routes;
-mod modules;
-mod ratelimit;
-mod routes;
-mod seed;
-mod state;
+//! haruhifanclub 统一后端入口（二进制）。模块定义在 `lib.rs`，此处仅装配并启动。
 
 use std::sync::Arc;
 
 use haruhi_core::Config;
 use haruhi_db::Pools;
-use ratelimit::LoginLimiter;
-use state::AppState;
+use haruhi_server::ratelimit::LoginLimiter;
+use haruhi_server::state::AppState;
+use haruhi_server::{modules, routes, seed};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
