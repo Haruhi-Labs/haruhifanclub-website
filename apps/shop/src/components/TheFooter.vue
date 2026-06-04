@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
 import { appBaseUrl, resolveAppPath } from '@/utils/runtimePaths'
 
 const logoSrc = `${appBaseUrl}haruhi-logo-192.png`

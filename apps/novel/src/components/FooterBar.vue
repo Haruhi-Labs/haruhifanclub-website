@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
 /**
  * TheFooter.vue
  * 经典米色卡片风格页脚 - 重构版
