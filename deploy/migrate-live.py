@@ -50,8 +50,19 @@ def migrate_news():
     db = os.path.join(DEST_DATA, "news.db")
     snapshot("/root/harunews/server/database.sqlite", db)
     DST = os.path.join(DEST_UP, "news")
-    rsync("/root/harunews/dist/uploads", DST)
-    SRC_UP, SRC_PUB = "/root/harunews/dist/uploads", "/root/harunews/dist"
+    # 图片真源（优先级从高到低）：老站 nginx 曾用 try_files 优先从静态根 /var/www/haruyuki.cn/uploads
+    # 取图（最全的图库，含活动中心/奖品图），找不到才回退后端 public/uploads；dist/uploads 只是构建
+    # 产物的子集，单看它会漏图。这里逐个 additive 合并，静态根最后写、优先级最高。
+    SRC_DIRS = [
+        "/var/www/haruyuki.cn/uploads",
+        "/root/harunews/public/uploads",
+        "/root/harunews/dist/uploads",
+        "/root/harunews/dist",
+    ]
+    for sd in ("/root/harunews/dist/uploads", "/root/harunews/public/uploads",
+               "/var/www/haruyuki.cn/uploads"):
+        if os.path.isdir(sd):
+            rsync(sd, DST)
     missing = []
 
     def ensure(base):
@@ -60,7 +71,8 @@ def migrate_news():
         d = os.path.join(DST, base)
         if os.path.exists(d):
             return
-        for c in (os.path.join(SRC_UP, base), os.path.join(SRC_PUB, base)):
+        for sd in SRC_DIRS:
+            c = os.path.join(sd, base)
             if os.path.isfile(c):
                 shutil.copy2(c, d); return
         missing.append(base)
