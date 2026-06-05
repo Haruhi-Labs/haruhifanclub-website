@@ -92,7 +92,7 @@ const scrollToTop = () => {
           <div class="nav-group">
             <h4 class="group-header">加入组织</h4>
             <div class="capsule-list">
-              <a href="https://haruyuki.cn/handbook" target="_blank" class="capsule-btn blue">
+              <a href="https://haruyuki.cn/news/handbook" target="_blank" class="capsule-btn blue">
                 <span>团员手册</span>
                 <span class="arrow">→</span>
               </a>

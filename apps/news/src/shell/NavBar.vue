@@ -43,9 +43,10 @@
         <!-- 右侧功能区 -->
         <div class="nav-right">
            <!-- 新增：SOS团期末考试 -->
-           <router-link to="/exam" target="_blank" class="nav-right-link" :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'">
+           <!-- exam 是独立 app（/exam/），必须用原生 a 整页跳转；router-link 会被解析进 /news/ base 导致跳错 -->
+           <a href="/exam/" target="_blank" class="nav-right-link" :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'">
               SOS团期末考试
-           </router-link>
+           </a>
 
            <!-- 修改：去掉了 emoji -->
            <router-link :to="{ name: 'quiz' }" target="_blank" class="nav-right-link" :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'">
@@ -96,7 +97,7 @@
             <router-link to="/" @click="toggleMobileMenu" class="mobile-nav-link mobile-nav-link--gray">首页</router-link>
 
             <!-- 移动端菜单也添加了考试入口 -->
-            <router-link to="/exam" target="_blank" @click="toggleMobileMenu" class="mobile-nav-link mobile-nav-link--red">SOS团期末考试</router-link>
+            <a href="/exam/" target="_blank" @click="toggleMobileMenu" class="mobile-nav-link mobile-nav-link--red">SOS团期末考试</a>
 
             <router-link to="/activity" @click="toggleMobileMenu" class="mobile-nav-link mobile-nav-link--cyan">活动中心</router-link>
             <router-link to="/store" @click="toggleMobileMenu" class="mobile-nav-link mobile-nav-link--purple">奖品兑换</router-link>
