@@ -9,6 +9,10 @@ dist/
 target/
 **/*.rs.bk
 
+# === Python（deploy 迁移脚本）===
+__pycache__/
+*.pyc
+
 # === 运行时数据（永不进 git，单独备份）===
 data/
 uploads/
