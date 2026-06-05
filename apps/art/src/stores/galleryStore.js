@@ -132,90 +132,67 @@ export const useGalleryStore = defineStore('gallery', {
       this.error = ''
       this.usingSeed = false
 
-      try {
-        // ✅ 统一走后端排序（跨页）
-        const params = {
-          status: 'approved',
-          // content_type: this.content, // moved to logic below
-          q: this.q,
-          searchField: this.searchField,
-          page: this.page,
-          pageSize: this.limit
-        }
+      // 统一走后端排序（跨页）
+      const params = {
+        status: 'approved',
+        q: this.q,
+        searchField: this.searchField,
+        page: this.page,
+        pageSize: this.limit
+      }
+      if (this.content !== 'mix') params.content_type = this.content
+      // balanced 若存在按 all 处理：不传 source_type，保证全局排序正确
+      if (this.sourceMode === 'personal' || this.sourceMode === 'network') params.source_type = this.sourceMode
+      if (this.sortMode === 'likes') { params.sort = 'likes'; params.order = 'desc' }
+      else if (this.sortMode === 'time') { params.sort = 'time'; params.order = 'desc' }
+      else { params.sort = 'random'; params.seed = this.randomSeed }
 
-        if (this.content !== 'mix') {
-          params.content_type = this.content
-        }
-
-        console.log('[GalleryStore] loading...', { sort: this.sortMode, seed: this.randomSeed, reqId: currentReqId })
-
-        // balanced 若存在，后端会当 all；这里也直接不传 source_type，保证全局排序正确
-        if (this.sourceMode === 'personal' || this.sourceMode === 'network') {
-          params.source_type = this.sourceMode
-        }
-
-        // ✅ sort 映射到后端：time | likes | random
-        if (this.sortMode === 'likes') {
-          params.sort = 'likes'
-          params.order = 'desc'
-        } else if (this.sortMode === 'time') {
-          params.sort = 'time'
-          params.order = 'desc'
-        } else {
-          params.sort = 'random'
-          params.seed = this.randomSeed
-        }
-
-        const out = await api.artworksList(params)
-
-        if (this.reqId !== currentReqId) return
-
-        this.list = out.data || []
-        this.total = Number(out.total || 0)
-        this.hasMore = (this.page * this.limit) < this.total
-
-        // Seed 兜底（同样支持跨页/排序）
-        if (this.list.length === 0 && this.page === 1 && !String(this.q || '').trim() && this.total === 0) {
-          const localAll = filterLocal(seedArtworks, {
-            content: this.content,
-            sourceMode: this.sourceMode,
-            q: this.q,
-            searchField: this.searchField
-          })
-
-          const sortedLocal = applyLocalSort(localAll, this.sortMode, this.randomSeed)
-          const pg = paginate(sortedLocal, this.page, this.limit)
-
-          this.list = pg.data
-          this.total = pg.total
-          this.hasMore = (this.page * this.limit) < this.total
-          if (this.list.length > 0) this.usingSeed = true
-        }
-
-      } catch (e) {
-        if (this.reqId !== currentReqId) return
-
-        console.warn('API Error, falling back to seed data:', e)
-        this.error = ''
-
+      const seedFallback = () => {
+        // 仅本地开发（无后端）才用 seed 假数据占位；生产绝不展示占位作品
         const localAll = filterLocal(seedArtworks, {
-          content: this.content,
-          sourceMode: this.sourceMode,
-          q: this.q,
-          searchField: this.searchField
+          content: this.content, sourceMode: this.sourceMode, q: this.q, searchField: this.searchField
         })
-
-        const sortedLocal = applyLocalSort(localAll, this.sortMode, this.randomSeed)
-        const pg = paginate(sortedLocal, this.page, this.limit)
-
+        const pg = paginate(applyLocalSort(localAll, this.sortMode, this.randomSeed), this.page, this.limit)
         this.list = pg.data
         this.total = pg.total
         this.hasMore = (this.page * this.limit) < this.total
-        this.usingSeed = true
-
-      } finally {
-        if (this.reqId === currentReqId) this.loading = false
+        this.usingSeed = this.list.length > 0
       }
+
+      // 失败时静默重试一次，缓解移动端首屏偶发的瞬时网络失败（避免一抖动就掉到占位）
+      let out = null
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          out = await api.artworksList(params)
+          break
+        } catch (e) {
+          if (this.reqId !== currentReqId) return
+          if (attempt === 0) { await new Promise(r => setTimeout(r, 500)); continue }
+          // 两次都失败
+          console.warn('[Gallery] 作品加载失败（已重试）：', e)
+          if (import.meta.env.DEV) {
+            seedFallback()
+          } else {
+            this.list = []; this.total = 0; this.hasMore = false
+            this.error = '作品加载失败，请刷新后重试'
+          }
+          this.loading = false
+          return
+        }
+      }
+
+      if (this.reqId !== currentReqId) return
+
+      this.list = out.data || []
+      this.total = Number(out.total || 0)
+      this.hasMore = (this.page * this.limit) < this.total
+
+      // 接口成功但确无已通过作品：仅本地开发用 seed 占位，生产显示真实空态
+      if (import.meta.env.DEV && this.list.length === 0 && this.page === 1 && !String(this.q || '').trim() && this.total === 0) {
+        seedFallback()
+      }
+
+      this.loading = false
     },
 
     async likeArtwork(item) {
