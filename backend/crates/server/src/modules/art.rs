@@ -851,6 +851,18 @@ async fn create_artwork(State(state): State<AppState>, mut mp: Multipart) -> App
     .fetch_one(&state.pools.art)
     .await?;
 
+    // AI 拦截（flagged）→ 通知管理员（异步、不阻塞、失败仅记日志）
+    if final_status == "flagged" {
+        crate::notify::ai_flagged(
+            &state,
+            "art",
+            "作品",
+            &title,
+            &last_id.to_string(),
+            &review_note,
+        );
+    }
+
     // 自动发积分（approved + personal + 有 uid）
     let mut points_added = false;
     if final_status == "approved" && source_type == "personal" && !uploader_uid.is_empty() {
@@ -996,6 +1008,19 @@ async fn create_comment(
     .bind(&ai_reason)
     .fetch_one(&state.pools.art)
     .await?;
+
+    // AI 拦截（flagged）→ 通知管理员（异步、不阻塞、失败仅记日志）
+    if status == "flagged" {
+        let snippet: String = comment_body.chars().take(40).collect();
+        crate::notify::ai_flagged(
+            &state,
+            "art",
+            "评论",
+            &format!("{user_name}：{snippet}"),
+            &last_id.to_string(),
+            &ai_reason,
+        );
+    }
 
     if status != "public" {
         Ok(json_with_cookie(

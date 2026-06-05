@@ -171,8 +171,16 @@ fn build_audit_text(config: &Value, questions: &Value) -> String {
 /// 异步审核：跑完后把 status 更新为 published / locked + ai_reason（对齐旧 checkContent().then()）。
 fn spawn_audit(state: &AppState, id: String, config: Value, questions: Value) {
     let pool = state.pools.exam.clone();
+    let core = state.pools.core.clone();
+    let cfg = state.cfg.clone();
     let ai = haruhi_ai::AiClient::from_config(&state.cfg);
     let audit_text = build_audit_text(&config, &questions);
+    let title = config
+        .get("title")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("（未命名试卷）")
+        .to_string();
     tokio::spawn(async move {
         let verdict = ai
             .check_text(haruhi_ai::EXAM_SYSTEM_PROMPT, &audit_text)
@@ -186,6 +194,12 @@ fn spawn_audit(state: &AppState, id: String, config: Value, questions: Value) {
             .await
         {
             tracing::error!("exam 审核状态更新失败 ({id}): {e}");
+            return;
+        }
+        // AI 拦截（locked）→ 通知管理员（已在 spawn 内，直接 await）
+        if !verdict.ok {
+            crate::notify::send_ai_flagged(&core, &cfg, "exam", "试卷", &title, &id, &verdict.reason)
+                .await;
         }
     });
 }

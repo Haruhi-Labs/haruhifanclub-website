@@ -65,8 +65,9 @@ async fn list_users(State(state): State<AppState>, user: AuthUser) -> AppResult<
         String,
         String,
         Option<String>,
+        Option<String>,
     )> = sqlx::query_as(
-        "SELECT id, username, display_name, is_super_admin, status, created_at, last_login_at \
+        "SELECT id, username, display_name, is_super_admin, status, created_at, last_login_at, email \
              FROM users ORDER BY id",
     )
     .fetch_all(&state.pools.core)
@@ -82,7 +83,7 @@ async fn list_users(State(state): State<AppState>, user: AuthUser) -> AppResult<
     let users: Vec<Value> = urows
         .into_iter()
         .map(
-            |(id, username, display_name, is_super, status, created_at, last_login_at)| {
+            |(id, username, display_name, is_super, status, created_at, last_login_at, email)| {
                 let app_roles: BTreeMap<String, String> = roles
                     .iter()
                     .filter(|(uid, _, _)| *uid == id)
@@ -90,7 +91,7 @@ async fn list_users(State(state): State<AppState>, user: AuthUser) -> AppResult<
                     .collect();
                 json!({
                     "id": id, "username": username, "displayName": display_name,
-                    "isSuperAdmin": is_super, "status": status,
+                    "isSuperAdmin": is_super, "status": status, "email": email,
                     "createdAt": created_at, "lastLoginAt": last_login_at,
                     "roles": app_roles,
                 })
@@ -106,6 +107,8 @@ struct CreateUser {
     password: String,
     #[serde(default)]
     display_name: Option<String>,
+    #[serde(default)]
+    email: Option<String>,
     #[serde(default)]
     is_super_admin: bool,
 }
@@ -128,13 +131,15 @@ async fn create_user(
         return Err(AppError::conflict("用户名已存在"));
     }
     let hash = hash_password(&req.password)?;
+    let email = req.email.as_deref().map(str::trim).filter(|s| !s.is_empty());
     let id: i64 = sqlx::query_scalar(
-        "INSERT INTO users (username, password_hash, display_name, is_super_admin, status) \
-         VALUES (?, ?, ?, ?, 'active') RETURNING id",
+        "INSERT INTO users (username, password_hash, display_name, email, is_super_admin, status) \
+         VALUES (?, ?, ?, ?, ?, 'active') RETURNING id",
     )
     .bind(username)
     .bind(&hash)
     .bind(&req.display_name)
+    .bind(email)
     .bind(req.is_super_admin)
     .fetch_one(&state.pools.core)
     .await?;
@@ -146,6 +151,8 @@ async fn create_user(
 struct UpdateUser {
     #[serde(default)]
     display_name: Option<String>,
+    #[serde(default)]
+    email: Option<String>,
     #[serde(default)]
     status: Option<String>,
     #[serde(default)]
@@ -162,6 +169,15 @@ async fn update_user(
     if let Some(name) = req.display_name {
         sqlx::query("UPDATE users SET display_name = ? WHERE id = ?")
             .bind(name)
+            .bind(id)
+            .execute(&state.pools.core)
+            .await?;
+    }
+    if let Some(email) = req.email {
+        let email = email.trim();
+        let email_val = if email.is_empty() { None } else { Some(email) };
+        sqlx::query("UPDATE users SET email = ? WHERE id = ?")
+            .bind(email_val)
             .bind(id)
             .execute(&state.pools.core)
             .await?;
