@@ -819,6 +819,8 @@ const exportSpotOrders = async () => {
   const mixedIds = []
 
   for (const order of allSelectedOrders) {
+    if (order.exported || order.spotExported) continue
+
     const spotItems = (order.items || []).filter(i => !i.isPresale)
     if (spotItems.length === 0) continue // pure presale, skip
 
@@ -832,7 +834,7 @@ const exportSpotOrders = async () => {
   }
 
   if (rows.length === 0) {
-    store.showNotification('所选订单中没有包含现货商品的订单')
+    store.showNotification('所选订单中没有未导出的现货商品订单')
     return
   }
 
