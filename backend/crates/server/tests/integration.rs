@@ -299,6 +299,15 @@ async fn seed_book(state: &AppState, id: &str, title: &str, sort_order: f64) {
         .unwrap();
 }
 
+async fn seed_coupon(state: &AppState, code: &str) {
+    sqlx::query("INSERT INTO coupons (code, name, status) VALUES (?, ?, 1)")
+        .bind(code)
+        .bind(code)
+        .execute(&state.pools.shop)
+        .await
+        .unwrap();
+}
+
 /// 构造 multipart/form-data 请求。parts: (字段名, 文件名(None=普通字段), 内容)。
 fn multipart_req(
     path: &str,
@@ -419,6 +428,26 @@ async fn novel_books_listed_in_sort_order() {
     assert_eq!(arr.len(), 3);
     assert_eq!(arr[0]["title"], "前", "应按 sort_order 升序");
     assert_eq!(arr[2]["title"], "后");
+}
+
+#[tokio::test]
+async fn shop_coupons_pagination_meta() {
+    let app = setup().await;
+    let supert = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    for i in 0..25 {
+        seed_coupon(&app.state, &format!("C{i:03}")).await;
+    }
+    let (s, j) = send(
+        &app.router,
+        get("/api/shop/admin/coupons?pageSize=10&page=2", Some(&supert)),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(j["pagination"]["total"], 25);
+    assert_eq!(j["pagination"]["totalPages"], 3, "25/10 向上取整=3");
+    assert_eq!(j["pagination"]["page"], 2);
+    assert_eq!(j["pagination"]["pageSize"], 10);
+    assert_eq!(j["items"].as_array().unwrap().len(), 10, "第 2 页 10 条");
 }
 
 // ---- RBAC 边界 ----
