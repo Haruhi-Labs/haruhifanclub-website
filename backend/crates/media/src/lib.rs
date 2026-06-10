@@ -10,7 +10,10 @@ pub mod upload;
 
 pub use epub_ops::{read_epub, EpubInfo};
 pub use image_ops::encode_webp;
-pub use upload::{save_base64_image, save_file};
+pub use upload::{
+    check_image, check_media, is_audio_ext, is_image_ext, save_base64_image, save_file,
+    UploadReject, MAX_AUDIO_BYTES, MAX_IMAGE_BYTES,
+};
 
 /// 确保目录存在。
 pub async fn ensure_dir(dir: &Path) -> std::io::Result<()> {

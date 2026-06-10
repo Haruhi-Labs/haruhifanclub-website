@@ -662,6 +662,10 @@ async fn create_artwork(State(state): State<AppState>, mut mp: Multipart) -> App
                     .bytes()
                     .await
                     .map_err(|e| AppError::bad_request(format!("读取文件失败: {e}")))?;
+                // 类型/大小白名单：画廊为公开匿名上传口，仅接受图片，防任意文件滥用。
+                let ext = haruhi_media::ext_of(&fname, "");
+                haruhi_media::check_image(&ext, bytes.len())
+                    .map_err(|r| AppError::bad_request(r.to_string()))?;
                 display_files.push((fname, bytes));
             }
             "originals" => {
@@ -670,6 +674,9 @@ async fn create_artwork(State(state): State<AppState>, mut mp: Multipart) -> App
                     .bytes()
                     .await
                     .map_err(|e| AppError::bad_request(format!("读取文件失败: {e}")))?;
+                let ext = haruhi_media::ext_of(&fname, "");
+                haruhi_media::check_image(&ext, bytes.len())
+                    .map_err(|r| AppError::bad_request(r.to_string()))?;
                 original_files.push((fname, bytes));
             }
             _ => {

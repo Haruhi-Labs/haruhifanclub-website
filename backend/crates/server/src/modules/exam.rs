@@ -314,6 +314,12 @@ async fn upload(State(state): State<AppState>, mut mp: Multipart) -> AppResult<R
     };
 
     let ext = haruhi_media::ext_of(&original_name, "").to_lowercase();
+
+    // 类型/大小白名单：匿名上传仅允许图片或音频，杜绝任意文件落盘（如 .html/.js）。
+    if let Err(reject) = haruhi_media::check_media(&ext, file_bytes.len()) {
+        return Ok((StatusCode::BAD_REQUEST, Json(json!({ "error": reject.to_string() }))).into_response());
+    }
+
     let uuid = uuid::Uuid::new_v4().to_string();
     let exam_dir = state.cfg.uploads_subdir("exam");
 
