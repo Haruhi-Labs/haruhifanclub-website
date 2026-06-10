@@ -131,7 +131,11 @@ async fn create_user(
         return Err(AppError::conflict("用户名已存在"));
     }
     let hash = hash_password(&req.password)?;
-    let email = req.email.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let email = req
+        .email
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO users (username, password_hash, display_name, email, is_super_admin, status) \
          VALUES (?, ?, ?, ?, ?, 'active') RETURNING id",

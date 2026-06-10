@@ -144,7 +144,10 @@ mod tests {
             check_media("html", 10),
             Err(UploadReject::BadType(_))
         ));
-        assert!(matches!(check_media("js", 10), Err(UploadReject::BadType(_))));
+        assert!(matches!(
+            check_media("js", 10),
+            Err(UploadReject::BadType(_))
+        ));
         // 音频用音频上限
         assert!(check_media("mp3", MAX_IMAGE_BYTES + 1).is_ok());
         assert!(matches!(

@@ -198,8 +198,16 @@ fn spawn_audit(state: &AppState, id: String, config: Value, questions: Value) {
         }
         // AI 拦截（locked）→ 通知管理员（已在 spawn 内，直接 await）
         if !verdict.ok {
-            crate::notify::send_ai_flagged(&core, &cfg, "exam", "试卷", &title, &id, &verdict.reason)
-                .await;
+            crate::notify::send_ai_flagged(
+                &core,
+                &cfg,
+                "exam",
+                "试卷",
+                &title,
+                &id,
+                &verdict.reason,
+            )
+            .await;
         }
     });
 }
@@ -327,7 +335,11 @@ async fn upload(
 
     // 类型/大小白名单：匿名上传仅允许图片或音频，杜绝任意文件落盘（如 .html/.js）。
     if let Err(reject) = haruhi_media::check_media(&ext, file_bytes.len()) {
-        return Ok((StatusCode::BAD_REQUEST, Json(json!({ "error": reject.to_string() }))).into_response());
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": reject.to_string() })),
+        )
+            .into_response());
     }
 
     let uuid = uuid::Uuid::new_v4().to_string();

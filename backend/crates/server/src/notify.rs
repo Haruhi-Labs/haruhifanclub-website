@@ -10,7 +10,14 @@ use sqlx::SqlitePool;
 use crate::state::AppState;
 
 /// 异步触发：克隆所需状态后 `spawn`，立即返回，不阻塞请求处理。
-pub fn ai_flagged(state: &AppState, app: &str, kind: &str, title: &str, item_id: &str, reason: &str) {
+pub fn ai_flagged(
+    state: &AppState,
+    app: &str,
+    kind: &str,
+    title: &str,
+    item_id: &str,
+    reason: &str,
+) {
     let core = state.pools.core.clone();
     let cfg = state.cfg.clone();
     let app = app.to_string();
@@ -63,8 +70,16 @@ pub async fn send_ai_flagged(
 
     let label = app_label(app);
     let url = admin_url(app);
-    let reason = if reason.trim().is_empty() { "未提供" } else { reason };
-    let esc = |s: &str| s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+    let reason = if reason.trim().is_empty() {
+        "未提供"
+    } else {
+        reason
+    };
+    let esc = |s: &str| {
+        s.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+    };
 
     let subject = format!("【春日应援团·{label}】AI 审核拦截了一项{kind}，待处理");
     let html = format!(
