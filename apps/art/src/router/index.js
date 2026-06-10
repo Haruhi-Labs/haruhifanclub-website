@@ -1,10 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+// 首屏画廊保持同步加载（落地即用）；其余路由懒加载按需分包，
+// 尤其 AdminView 较大，避免拖累首屏体积。
 import GalleryView from '../views/GalleryView.vue'
-import UploadView from '../views/UploadView.vue'
-import AdminView from '../views/AdminView.vue'
-import LicenseView from '../views/LicenseView.vue'
-import PointsView from '../views/PointsView.vue'
+
+const UploadView = () => import('../views/UploadView.vue')
+const AdminView = () => import('../views/AdminView.vue')
+const LicenseView = () => import('../views/LicenseView.vue')
+const PointsView = () => import('../views/PointsView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
