@@ -141,17 +141,34 @@ fn bind_value<'q>(
     }
 }
 
+/// 合法 SQL 标识符：首字符为字母/下划线，其余为字母/数字/下划线。
+/// 用于动态拼接列名前的白名单校验，杜绝列名 SQL 注入。
+fn is_safe_ident(s: &str) -> bool {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 /// 动态部分更新：UPDATE <table> SET k=?,... WHERE id=?（对齐旧 db.update，跳过 id 键）。
-/// allowed 为 None 表示不过滤列名（旧实现不过滤，按调用方传入字段为准）。
+/// 列名（来自请求体 JSON key）只允许合法标识符——值始终参数化绑定，标识符做白名单校验。
 async fn dynamic_update(
     pool: &sqlx::SqlitePool,
     table: &str,
     id: &str,
     data: &Map<String, Value>,
-) -> Result<u64, sqlx::Error> {
+) -> AppResult<u64> {
     let keys: Vec<&String> = data.keys().filter(|k| k.as_str() != "id").collect();
     if keys.is_empty() {
         return Ok(0);
+    }
+    // 列名白名单：任何非法标识符直接拒绝，避免被拼进 SQL 结构。
+    if let Some(bad) = keys.iter().find(|k| !is_safe_ident(k)) {
+        return Err(haruhi_core::AppError::bad_request(format!(
+            "非法字段名: {bad}"
+        )));
     }
     let set_clause = keys
         .iter()
@@ -1029,6 +1046,27 @@ async fn points_update(
         "data": { "id": id, "total": new_total, "history": history }
     }))
     .into_response())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_safe_ident;
+
+    #[test]
+    fn safe_ident_accepts_real_columns_rejects_injection() {
+        // 合法列名（真实业务字段）放行
+        assert!(is_safe_ident("title"));
+        assert!(is_safe_ident("ai_reason"));
+        assert!(is_safe_ident("_internal"));
+        assert!(is_safe_ident("visit_count"));
+        // 注入尝试一律拒绝
+        assert!(!is_safe_ident(""));
+        assert!(!is_safe_ident("1col"));
+        assert!(!is_safe_ident("title = 1, x"));
+        assert!(!is_safe_ident("title; DROP TABLE articles"));
+        assert!(!is_safe_ident("a)=(SELECT"));
+        assert!(!is_safe_ident("col WHERE 1=1"));
+    }
 }
 
 /// 取用户积分历史（最近 50 条，timestamp 降序）。
