@@ -290,6 +290,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import DOMPurify from 'dompurify';
 import { useMainStore } from '@/stores/main';
 
 // --- 数据部分 ---
@@ -883,7 +884,12 @@ const formatContent = (text) => {
   // 4. 简单的 Markdown 粗体支持 (**text**)
   content = content.replace(/\*\*(.*?)\*\*/g, '<strong class="detail-bold">$1</strong>');
 
-  return content;
+  // 5. 兜底净化：上面仅转义了 <、>，URL 经 [^\s<]+ 匹配仍可能含 " 导致属性注入
+  //    （如 http://x"onmouseover=...）；用 DOMPurify 剥离危险属性/标签。
+  return DOMPurify.sanitize(content, {
+    ALLOWED_TAGS: ['a', 'strong', 'br'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+  });
 };
 
 /* ---------- 断电/Canvas 逻辑 (保持不变) ---------- */

@@ -177,7 +177,7 @@
           <div
             class="max-w-3xl mx-auto min-h-[80vh] bg-white/40 backdrop-blur-sm rounded-lg p-6 shadow-sm md:p-10"
           >
-            <div class="novel-content pb-20" v-html="currentContent"></div>
+            <div class="novel-content pb-20" v-html="safeContent"></div>
           </div>
           <div
             class="max-w-3xl mx-auto mt-8 flex justify-between items-center border-t border-[#D1C4B6] pt-6 pb-24 px-4"
@@ -213,7 +213,7 @@
                 ref="flipColumns"
                 class="flip-columns novel-content"
                 :style="{ transform: pageTransform }"
-                v-html="currentContent"
+                v-html="safeContent"
               ></div>
             </div>
 
@@ -296,6 +296,7 @@ import {
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 import ePub from 'epubjs';
+import DOMPurify from 'dompurify';
 import { resolveUploadUrl } from '@haruhi/api-client';
 
 const route = useRoute();
@@ -335,6 +336,11 @@ const book = ref(null);
 const chapters = ref([]);
 const currentChapterIndex = ref(0);
 const currentContent = ref('');
+// EPUB 章节是外部上传的 HTML，渲染前用 DOMPurify 净化，剥离 script/事件处理器等，
+// 保留正文排版标签；防止恶意 EPUB 对读者发起 XSS。
+const safeContent = computed(() =>
+  DOMPurify.sanitize(currentContent.value, { USE_PROFILES: { html: true } }),
+);
 const bookTitle = ref('加载中...');
 
 const sidebarOpen = ref(
