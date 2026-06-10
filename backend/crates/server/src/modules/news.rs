@@ -141,6 +141,42 @@ fn bind_value<'q>(
     }
 }
 
+fn normalize_numeric_fields(body: &mut Value, fields: &[&str], insert_missing: bool) {
+    let Some(obj) = body.as_object_mut() else {
+        return;
+    };
+
+    for field in fields {
+        let value = obj.get(*field).and_then(num_i64).unwrap_or(0);
+        if obj.contains_key(*field) || insert_missing {
+            obj.insert((*field).to_string(), json!(value));
+        }
+    }
+}
+
+fn num_f64(v: &Value) -> Option<f64> {
+    if let Some(n) = v.as_f64() {
+        Some(n)
+    } else {
+        v.as_str()
+            .and_then(|s| s.trim().parse::<f64>().ok())
+            .filter(|n| n.is_finite())
+    }
+}
+
+fn normalize_float_fields(body: &mut Value, fields: &[&str], insert_missing: bool) {
+    let Some(obj) = body.as_object_mut() else {
+        return;
+    };
+
+    for field in fields {
+        let value = obj.get(*field).and_then(num_f64).unwrap_or(0.0);
+        if obj.contains_key(*field) || insert_missing {
+            obj.insert((*field).to_string(), json!(value));
+        }
+    }
+}
+
 /// 合法 SQL 标识符：首字符为字母/下划线，其余为字母/数字/下划线。
 /// 用于动态拼接列名前的白名单校验，杜绝列名 SQL 注入。
 fn is_safe_ident(s: &str) -> bool {
@@ -227,10 +263,18 @@ fn activity_to_json(a: &ActivityRow) -> Value {
 
 // GET /activities（公开）
 async fn list_activities(State(state): State<AppState>) -> AppResult<Json<Value>> {
-    let rows: Vec<ActivityRow> =
-        sqlx::query_as("SELECT * FROM activities ORDER BY displayOrder ASC, id ASC")
-            .fetch_all(&state.pools.news)
-            .await?;
+    let rows: Vec<ActivityRow> = sqlx::query_as(
+        "SELECT id, title, intro, detail, image, \
+                CAST(COALESCE(NULLIF(TRIM(totalPoints), ''), '0') AS INTEGER) AS totalPoints, \
+                actionName, \
+                CAST(COALESCE(NULLIF(TRIM(pointsPerAction), ''), '0') AS INTEGER) AS pointsPerAction, \
+                status, type, \
+                CAST(COALESCE(NULLIF(TRIM(displayOrder), ''), '0') AS INTEGER) AS displayOrder \
+         FROM activities \
+         ORDER BY COALESCE(CAST(NULLIF(TRIM(displayOrder), '') AS INTEGER), id) ASC, id ASC",
+    )
+    .fetch_all(&state.pools.news)
+    .await?;
     let data: Vec<Value> = rows.iter().map(activity_to_json).collect();
     Ok(Json(json!({ "message": "success", "data": data })))
 }
@@ -242,6 +286,7 @@ async fn create_activity(
     Json(mut body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "news.activity", Action::Manage).await?;
+    normalize_numeric_fields(&mut body, &["totalPoints", "pointsPerAction"], true);
 
     // 图片转存
     if let Some(img) = body.get("image").and_then(|v| v.as_str()) {
@@ -293,6 +338,11 @@ async fn update_activity(
     Json(mut body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "news.activity", Action::Manage).await?;
+    normalize_numeric_fields(
+        &mut body,
+        &["totalPoints", "pointsPerAction", "displayOrder"],
+        false,
+    );
 
     if let Some(img) = body.get("image").and_then(|v| v.as_str()) {
         if !img.is_empty() {
@@ -377,10 +427,17 @@ fn prize_to_json(p: &PrizeRow) -> Value {
 
 // GET /prizes（公开）
 async fn list_prizes(State(state): State<AppState>) -> AppResult<Json<Value>> {
-    let rows: Vec<PrizeRow> =
-        sqlx::query_as("SELECT * FROM prizes ORDER BY displayOrder ASC, id ASC")
-            .fetch_all(&state.pools.news)
-            .await?;
+    let rows: Vec<PrizeRow> = sqlx::query_as(
+        "SELECT id, name, description, \
+                CAST(COALESCE(NULLIF(TRIM(points), ''), '0') AS INTEGER) AS points, \
+                CAST(COALESCE(NULLIF(TRIM(stock), ''), '0') AS INTEGER) AS stock, \
+                category, rarity, color, size, image, \
+                CAST(COALESCE(NULLIF(TRIM(displayOrder), ''), '0') AS INTEGER) AS displayOrder \
+         FROM prizes \
+         ORDER BY COALESCE(CAST(NULLIF(TRIM(displayOrder), '') AS INTEGER), id) ASC, id ASC",
+    )
+    .fetch_all(&state.pools.news)
+    .await?;
     let data: Vec<Value> = rows.iter().map(prize_to_json).collect();
     Ok(Json(json!({ "message": "success", "data": data })))
 }
@@ -392,6 +449,7 @@ async fn create_prize(
     Json(mut body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "news.store", Action::Manage).await?;
+    normalize_numeric_fields(&mut body, &["points", "stock"], true);
 
     if let Some(img) = body.get("image").and_then(|v| v.as_str()) {
         if !img.is_empty() {
@@ -440,6 +498,7 @@ async fn update_prize(
     Json(mut body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "news.store", Action::Manage).await?;
+    normalize_numeric_fields(&mut body, &["points", "stock", "displayOrder"], false);
 
     if let Some(img) = body.get("image").and_then(|v| v.as_str()) {
         if !img.is_empty() {
@@ -512,7 +571,9 @@ async fn reorder_generic(state: &AppState, table: &str, body: &Value) -> AppResu
     let mut order_vals: Vec<i64> = if id_list.is_empty() {
         Vec::new()
     } else {
-        let sql = format!("SELECT id, displayOrder FROM {table} WHERE id IN ({placeholders})");
+        let sql = format!(
+            "SELECT id, CAST(NULLIF(TRIM(displayOrder), '') AS INTEGER) AS displayOrder FROM {table} WHERE id IN ({placeholders})"
+        );
         let mut q = sqlx::query_as::<_, (i64, Option<i64>)>(&sql);
         for id in &id_list {
             q = q.bind(id);
@@ -655,19 +716,26 @@ fn build_article_list_item(r: &ArticleRow) -> Value {
 
 // 注：created_at 不在旧 list SQL 中，但 ArticleRow(FromRow) 需要该列；这里补选，
 // 不影响 build_article_list_item 输出（其不返回 created_at）。
-const ARTICLE_LIST_COLS: &str = "SELECT id, title, subtitle, date, type, author, tags, image, \
-    originalImage, coverFocalX, coverFocalY, content, isPinned, pinOrder, participants, status, \
-    created_at, summary \
-    FROM articles WHERE status IS NULL OR status = 'published'";
+const ARTICLE_COLS: &str = "SELECT id, title, subtitle, date, type, author, tags, image, \
+    originalImage, \
+    CAST(NULLIF(TRIM(coverFocalX), '') AS REAL) AS coverFocalX, \
+    CAST(NULLIF(TRIM(coverFocalY), '') AS REAL) AS coverFocalY, \
+    content, \
+    CAST(COALESCE(NULLIF(TRIM(isPinned), ''), '0') AS INTEGER) AS isPinned, \
+    CAST(COALESCE(NULLIF(TRIM(pinOrder), ''), '0') AS INTEGER) AS pinOrder, \
+    participants, status, created_at, summary \
+    FROM articles";
 
 // GET /articles（公开，已发布列表）
 async fn list_articles(State(state): State<AppState>) -> AppResult<Json<Value>> {
     // 注意：列表 SELECT 仍取 content（buildArticleListItem 需要它生成 preview），
     // 但响应里不返回 content（对齐旧 buildArticleListItem 输出）。旧 SQL 未取 content
     // 而依赖 summary/preview 退化；这里取 content 以忠实复现 preview 生成逻辑。
-    let mut rows: Vec<ArticleRow> = sqlx::query_as(ARTICLE_LIST_COLS)
-        .fetch_all(&state.pools.news)
-        .await?;
+    let mut rows: Vec<ArticleRow> = sqlx::query_as(&format!(
+        "{ARTICLE_COLS} WHERE status IS NULL OR status = 'published'"
+    ))
+    .fetch_all(&state.pools.news)
+    .await?;
 
     // 排序：置顶优先（pinOrder 升序），其余按 id 降序
     rows.sort_by(|a, b| {
@@ -691,7 +759,7 @@ async fn get_article(
     Path(id): Path<String>,
     user: Option<AuthUser>,
 ) -> AppResult<Response> {
-    let row: Option<ArticleRow> = sqlx::query_as("SELECT * FROM articles WHERE id = ?")
+    let row: Option<ArticleRow> = sqlx::query_as(&format!("{ARTICLE_COLS} WHERE id = ?"))
         .bind(&id)
         .fetch_optional(&state.pools.news)
         .await?;
@@ -737,7 +805,7 @@ async fn admin_list_articles(
     user: AuthUser,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "news.blog", Action::Read).await?;
-    let rows: Vec<ArticleRow> = sqlx::query_as("SELECT * FROM articles ORDER BY id DESC")
+    let rows: Vec<ArticleRow> = sqlx::query_as(&format!("{ARTICLE_COLS} ORDER BY id DESC"))
         .fetch_all(&state.pools.news)
         .await?;
     let data: Vec<Value> = rows.iter().map(parse_article_full).collect();
@@ -759,6 +827,7 @@ async fn create_article(
     };
     let status = if is_admin { "published" } else { "pending" };
     let created_at = chrono::Utc::now().to_rfc3339();
+    normalize_float_fields(&mut body, &["coverFocalX", "coverFocalY"], false);
 
     // isPinned → 0/1；pinOrder → Number || 0
     let is_pinned = body
@@ -869,6 +938,8 @@ async fn update_article(
         };
         body["isPinned"] = json!(if b { 1 } else { 0 });
     }
+    normalize_numeric_fields(&mut body, &["pinOrder"], false);
+    normalize_float_fields(&mut body, &["coverFocalX", "coverFocalY"], false);
 
     if let Some(obj) = body.as_object_mut() {
         obj.remove("id");
@@ -906,10 +977,12 @@ async fn delete_article(
 // GET /admin/points/users（Read）
 async fn points_users(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "news.points", Action::Read).await?;
-    let rows: Vec<(String, Option<i64>)> =
-        sqlx::query_as("SELECT id, total FROM users ORDER BY total DESC")
-            .fetch_all(&state.pools.news)
-            .await?;
+    let rows: Vec<(String, Option<i64>)> = sqlx::query_as(
+        "SELECT id, CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total \
+         FROM users ORDER BY CAST(NULLIF(TRIM(total), '') AS INTEGER) DESC",
+    )
+    .fetch_all(&state.pools.news)
+    .await?;
     let data: Vec<Value> = rows
         .into_iter()
         .map(|(id, total)| json!({ "id": id, "total": total }))
@@ -940,11 +1013,12 @@ async fn points_get(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
-    let user_row: Option<(String, Option<i64>)> =
-        sqlx::query_as("SELECT id, total FROM users WHERE id = ?")
-            .bind(&id)
-            .fetch_optional(&state.pools.news)
-            .await?;
+    let user_row: Option<(String, Option<i64>)> = sqlx::query_as(
+        "SELECT id, CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total FROM users WHERE id = ?",
+    )
+    .bind(&id)
+    .fetch_optional(&state.pools.news)
+    .await?;
     let history = fetch_points_history(&state, &id).await?;
 
     let (uid, total) = match user_row {
@@ -997,11 +1071,12 @@ async fn points_update(
         .to_string();
 
     // 取或建用户
-    let existing: Option<(String, Option<i64>)> =
-        sqlx::query_as("SELECT id, total FROM users WHERE id = ?")
-            .bind(id)
-            .fetch_optional(&state.pools.news)
-            .await?;
+    let existing: Option<(String, Option<i64>)> = sqlx::query_as(
+        "SELECT id, CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total FROM users WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(&state.pools.news)
+    .await?;
     let old_total = match existing {
         Some((_, t)) => t.unwrap_or(0),
         None => {
@@ -1051,7 +1126,7 @@ async fn points_update(
 /// 取用户积分历史（最近 50 条，timestamp 降序）。
 async fn fetch_points_history(state: &AppState, user_id: &str) -> AppResult<Vec<Value>> {
     let rows: Vec<(Option<String>, Option<String>, Option<String>, Option<i64>)> = sqlx::query_as(
-        "SELECT date, change, reason, timestamp FROM points_history \
+        "SELECT date, change, reason, CAST(NULLIF(TRIM(timestamp), '') AS INTEGER) AS timestamp FROM points_history \
          WHERE user_id = ? ORDER BY timestamp DESC LIMIT 50",
     )
     .bind(user_id)
@@ -1094,7 +1169,8 @@ fn bind_scalar<'q>(
 
 #[cfg(test)]
 mod tests {
-    use super::is_safe_ident;
+    use super::{is_safe_ident, normalize_numeric_fields};
+    use serde_json::json;
 
     #[test]
     fn safe_ident_accepts_real_columns_rejects_injection() {
@@ -1110,5 +1186,27 @@ mod tests {
         assert!(!is_safe_ident("title; DROP TABLE articles"));
         assert!(!is_safe_ident("a)=(SELECT"));
         assert!(!is_safe_ident("col WHERE 1=1"));
+    }
+
+    #[test]
+    fn numeric_fields_are_normalized_before_db_write() {
+        let mut body = json!({
+            "totalPoints": "",
+            "pointsPerAction": "12",
+        });
+
+        normalize_numeric_fields(
+            &mut body,
+            &["totalPoints", "pointsPerAction", "displayOrder"],
+            true,
+        );
+
+        assert_eq!(body["totalPoints"], json!(0));
+        assert_eq!(body["pointsPerAction"], json!(12));
+        assert_eq!(body["displayOrder"], json!(0));
+
+        let mut partial = json!({ "title": "只改标题" });
+        normalize_numeric_fields(&mut partial, &["totalPoints"], false);
+        assert!(partial.get("totalPoints").is_none());
     }
 }

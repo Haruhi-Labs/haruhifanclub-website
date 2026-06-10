@@ -42,14 +42,17 @@ fn book_to_json(b: BookRow) -> Value {
 }
 
 const SELECT_COLS: &str =
-    "SELECT id, title, author, cover_path, file_path, upload_date, category, sort_order FROM books";
+    "SELECT id, title, author, cover_path, file_path, upload_date, category, \
+     CAST(NULLIF(TRIM(sort_order), '') AS REAL) AS sort_order FROM books";
 
 // ---------- 公开接口 ----------
 
 async fn list_books(State(state): State<AppState>) -> AppResult<Json<Value>> {
-    let rows: Vec<BookRow> = sqlx::query_as(&format!("{SELECT_COLS} ORDER BY sort_order ASC"))
-        .fetch_all(&state.pools.novel)
-        .await?;
+    let rows: Vec<BookRow> = sqlx::query_as(&format!(
+        "{SELECT_COLS} ORDER BY CAST(NULLIF(TRIM(sort_order), '') AS REAL) ASC"
+    ))
+    .fetch_all(&state.pools.novel)
+    .await?;
     let books: Vec<Value> = rows.into_iter().map(book_to_json).collect();
     Ok(Json(Value::Array(books)))
 }

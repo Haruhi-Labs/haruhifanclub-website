@@ -276,7 +276,7 @@ struct ArtRow {
 const SELECT_ART: &str = "SELECT a.id, a.title, a.description, a.uploader_name, a.uploader_uid, \
     a.source_type, a.content_type, a.tags_json, a.tags_norm, a.origin_url, a.file_path, \
     a.file_path_original, a.status, a.review_note, a.reviewed_at, a.created_at, a.licenses_json, \
-    COALESCE(a.like_total,0) AS like_total, a.images_json, a.ai_reason, c.avatar_url AS uploader_avatar \
+    COALESCE(CAST(NULLIF(TRIM(a.like_total), '') AS INTEGER), 0) AS like_total, a.images_json, a.ai_reason, c.avatar_url AS uploader_avatar \
     FROM artworks a LEFT JOIN creators c ON a.uploader_uid = c.uid";
 
 /// 映射作品行为响应 JSON（忠实对齐 mapArtworkRow，含单图/多图逻辑）。
@@ -373,7 +373,7 @@ async fn points_leaderboard(
     let offset = (page - 1) * page_size;
 
     let rows: Vec<(Option<String>, Option<i64>, Option<String>)> = sqlx::query_as(
-        "SELECT pl.uid, SUM(pl.points) as total, c.avatar_url \
+        "SELECT pl.uid, CAST(SUM(CAST(NULLIF(TRIM(pl.points), '') AS INTEGER)) AS INTEGER) as total, c.avatar_url \
          FROM points_ledger pl LEFT JOIN creators c ON c.uid = pl.uid \
          GROUP BY pl.uid ORDER BY total DESC LIMIT ? OFFSET ?",
     )
@@ -399,16 +399,17 @@ async fn points_history(
         return Ok(Json(json!({ "ok": false, "message": "Missing uid" })));
     }
 
-    let total: Option<i64> =
-        sqlx::query_scalar("SELECT SUM(points) as total FROM points_ledger WHERE uid=?")
-            .bind(&uid)
-            .fetch_one(&state.pools.art)
-            .await?;
+    let total: Option<i64> = sqlx::query_scalar(
+        "SELECT CAST(SUM(CAST(NULLIF(TRIM(points), '') AS INTEGER)) AS INTEGER) as total FROM points_ledger WHERE uid=?",
+    )
+    .bind(&uid)
+    .fetch_one(&state.pools.art)
+    .await?;
     let total = total.unwrap_or(0);
 
     let history_rows: Vec<(Option<i64>, Option<String>, Option<String>, Option<String>)> =
         sqlx::query_as(
-            "SELECT pl.points, pl.note, pl.created_at, a.title as artwork_title \
+            "SELECT CAST(NULLIF(TRIM(pl.points), '') AS INTEGER) AS points, pl.note, pl.created_at, a.title as artwork_title \
              FROM points_ledger pl LEFT JOIN artworks a ON a.id = pl.artwork_id \
              WHERE pl.uid=? ORDER BY datetime(pl.created_at) DESC LIMIT 50",
         )
@@ -561,7 +562,7 @@ async fn list_artworks(
 
     if sort == "likes" {
         order_by =
-            "ORDER BY COALESCE(a.like_total,0) DESC, datetime(a.created_at) DESC, a.id DESC".into();
+            "ORDER BY COALESCE(CAST(NULLIF(TRIM(a.like_total), '') AS INTEGER), 0) DESC, datetime(a.created_at) DESC, a.id DESC".into();
     } else if sort == "time" {
         order_by = "ORDER BY datetime(a.created_at) DESC, a.id DESC".into();
     } else if sort == "random" {
@@ -939,7 +940,9 @@ async fn list_comments(
     };
     let rows: Vec<(i64, i64, Option<String>, Option<i64>, Option<String>, i64, Option<String>)> =
         sqlx::query_as(
-            "SELECT id, artwork_id, user_name, avatar_key, body, COALESCE(like_total,0), created_at \
+            "SELECT id, artwork_id, user_name, \
+             CAST(NULLIF(TRIM(avatar_key), '') AS INTEGER) AS avatar_key, body, \
+             COALESCE(CAST(NULLIF(TRIM(like_total), '') AS INTEGER), 0) AS like_total, created_at \
              FROM comments WHERE artwork_id=? AND status='public' ORDER BY datetime(created_at) ASC",
         )
         .bind(artwork_id)
@@ -1141,13 +1144,15 @@ async fn like_target(
             .await?;
         }
         sqlx::query(&format!(
-            "UPDATE {table} SET like_total=COALESCE(like_total,0)+1 WHERE id=?"
+            "UPDATE {table} SET like_total=COALESCE(CAST(NULLIF(TRIM(like_total), '') AS INTEGER), 0)+1 WHERE id=?"
         ))
         .bind(target_id)
         .execute(&mut *tx)
         .await?;
         let updated: i64 =
-            sqlx::query_scalar(&format!("SELECT COALESCE(like_total,0) FROM {table} WHERE id=?"))
+            sqlx::query_scalar(&format!(
+                "SELECT COALESCE(CAST(NULLIF(TRIM(like_total), '') AS INTEGER), 0) FROM {table} WHERE id=?"
+            ))
                 .bind(target_id)
                 .fetch_one(&mut *tx)
                 .await?;
@@ -1451,7 +1456,9 @@ async fn admin_list_comments(
         Option<String>,
     )> = if status != "all" {
         sqlx::query_as(
-                "SELECT id, artwork_id, anon_id, user_name, avatar_key, body, COALESCE(like_total,0), created_at, status, ai_reason \
+                "SELECT id, artwork_id, anon_id, user_name, \
+                 CAST(NULLIF(TRIM(avatar_key), '') AS INTEGER) AS avatar_key, body, \
+                 COALESCE(CAST(NULLIF(TRIM(like_total), '') AS INTEGER), 0) AS like_total, created_at, status, ai_reason \
                  FROM comments WHERE status=? ORDER BY datetime(created_at) DESC LIMIT 200",
             )
             .bind(&status)
@@ -1459,7 +1466,9 @@ async fn admin_list_comments(
             .await?
     } else {
         sqlx::query_as(
-                "SELECT id, artwork_id, anon_id, user_name, avatar_key, body, COALESCE(like_total,0), created_at, status, ai_reason \
+                "SELECT id, artwork_id, anon_id, user_name, \
+                 CAST(NULLIF(TRIM(avatar_key), '') AS INTEGER) AS avatar_key, body, \
+                 COALESCE(CAST(NULLIF(TRIM(like_total), '') AS INTEGER), 0) AS like_total, created_at, status, ai_reason \
                  FROM comments ORDER BY datetime(created_at) DESC LIMIT 200",
             )
             .fetch_all(&state.pools.art)
@@ -1738,7 +1747,7 @@ async fn admin_points_ledger(
         Option<String>,
         Option<String>,
     )> = sqlx::query_as(
-        "SELECT pl.uid, pl.points, pl.granted_at, pl.note, a.title AS artwork_title \
+        "SELECT pl.uid, CAST(NULLIF(TRIM(pl.points), '') AS INTEGER) AS points, pl.granted_at, pl.note, a.title AS artwork_title \
              FROM points_ledger pl LEFT JOIN artworks a ON a.id=pl.artwork_id \
              ORDER BY datetime(pl.granted_at) DESC",
     )
