@@ -9,6 +9,7 @@ pub mod admin_routes;
 pub mod auth_routes;
 pub mod modules;
 pub mod notify;
+pub mod pagination;
 pub mod ratelimit;
 pub mod routes;
 pub mod seed;

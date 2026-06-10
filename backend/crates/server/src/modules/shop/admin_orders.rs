@@ -86,11 +86,6 @@ pub async fn list_orders(
         cq = cq.bind(p);
     }
     let total: i64 = cq.fetch_one(&state.pools.shop).await?;
-    let total_pages = if total > 0 {
-        (total + page_size - 1) / page_size
-    } else {
-        1
-    };
 
     let list_sql = format!(
         "{ORDER_SELECT} {where_sql} ORDER BY {order_by} {sort_dir}, id DESC LIMIT ? OFFSET ?"
@@ -133,7 +128,7 @@ pub async fn list_orders(
 
     Ok(Json(json!({
         "items": items,
-        "pagination": { "page": page, "pageSize": page_size, "total": total, "totalPages": total_pages },
+        "pagination": crate::pagination::page_meta(page, page_size, total),
         "sort": { "by": order_by, "dir": sort_dir.to_lowercase() },
         "filters": { "status": status, "keyword": keyword },
     }))
