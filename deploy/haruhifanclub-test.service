@@ -14,6 +14,30 @@ RestartSec=3
 # 给优雅关闭留时间（刷 WAL + 处理在途请求），超时才 SIGKILL
 KillSignal=SIGTERM
 TimeoutStopSec=30
+# 数据与上传目录需可写
+ReadWritePaths=/var/www/haruhifanclub-test/data /var/www/haruhifanclub-test/uploads
+
+# ---- 沙箱加固（与生产对等）----
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectClock=true
+ProtectHostname=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target

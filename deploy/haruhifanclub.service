@@ -22,5 +22,28 @@ TimeoutStopSec=30
 # 数据与上传目录需可写
 ReadWritePaths=/var/www/haruhifanclub/data /var/www/haruhifanclub/uploads
 
+# ---- 沙箱加固（纵深防御；与 ReadWritePaths 配合）----
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectClock=true
+ProtectHostname=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+# @system-service 已覆盖 ffmpeg 转码所需的 fork/exec；若音频转码异常可临时放宽
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+UMask=0077
+
 [Install]
 WantedBy=multi-user.target
