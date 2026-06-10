@@ -66,14 +66,16 @@ impl AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let status = self.status();
-        // 5xx 记录详情，但不向客户端暴露内部信息
-        if status.is_server_error() {
+        // 5xx 记录详情，但一律不向客户端暴露内部信息（含 Internal/anyhow 文案，
+        // 可能含库表结构、文件路径等敏感细节）。4xx 文案是有意给用户看的，保留。
+        let message = if status.is_server_error() {
             tracing::error!(error = %self, "服务端错误");
-        }
-        let message = match &self {
-            AppError::Database(sqlx::Error::RowNotFound) => "资源不存在".to_string(),
-            AppError::Database(_) => "服务器内部错误".to_string(),
-            other => other.to_string(),
+            "服务器内部错误".to_string()
+        } else if matches!(self, AppError::Database(sqlx::Error::RowNotFound)) {
+            // 该分支映射为 404，给用户友好文案而非 sqlx 原始英文
+            "资源不存在".to_string()
+        } else {
+            self.to_string()
         };
         (status, Json(json!({ "error": message }))).into_response()
     }
