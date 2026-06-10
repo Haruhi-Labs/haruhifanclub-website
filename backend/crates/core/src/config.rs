@@ -76,11 +76,22 @@ impl Config {
             .parse()
             .map_err(|e| anyhow::anyhow!("HARUHI_BIND 解析失败: {e}"))?;
 
-        // 关键密钥：release 必填(fail-fast)；debug 用不安全默认值方便本地 `cargo run` 开箱即用
+        // 不安全的本地默认值（JWT/cookie 密钥、admin/admin123 超管）仅在
+        // 「调试构建 且 绑定回环地址」时启用：防止误把 debug 二进制暴露到公网时
+        // 仍带默认凭证。正常本地 `cargo run`（默认 127.0.0.1）行为不变。
+        let dev = cfg!(debug_assertions) && bind.ip().is_loopback();
+        if cfg!(debug_assertions) && !dev {
+            tracing::warn!(
+                "⚠ 调试构建绑定到非回环地址（{bind}），已禁用所有不安全默认值；\
+                 JWT/ART_COOKIE 密钥与超管账号须显式配置"
+            );
+        }
+
+        // 关键密钥：非 dev（release 或暴露的 debug）必填(fail-fast)；dev 用不安全默认值方便本地开箱即用
         let jwt_secret = match env("HARUHI_JWT_SECRET") {
             Some(s) => s,
-            None if cfg!(debug_assertions) => {
-                tracing::warn!("⚠ 未设置 HARUHI_JWT_SECRET，调试构建用不安全默认值（生产务必设置 ≥32 位随机串）");
+            None if dev => {
+                tracing::warn!("⚠ 未设置 HARUHI_JWT_SECRET，本地调试用不安全默认值（生产务必设置 ≥32 位随机串）");
                 "dev-insecure-jwt-secret-change-me".to_string()
             }
             None => anyhow::bail!("缺少 HARUHI_JWT_SECRET（生产必填）"),
@@ -90,11 +101,16 @@ impl Config {
         }
         let art_cookie_secret = match env("ART_COOKIE_SECRET") {
             Some(s) => s,
-            None if cfg!(debug_assertions) => "dev-art-cookie-secret".to_string(),
+            None if dev => "dev-art-cookie-secret".to_string(),
             None => anyhow::bail!("缺少 ART_COOKIE_SECRET（生产必填）"),
         };
-        // 调试构建默认 seed 一个 admin/admin123 超管，免去本地配置
-        let dev = cfg!(debug_assertions);
+        // dev 下若未显式配置超管，则默认 seed admin/admin123——提示勿用于公网
+        if dev
+            && (env("HARUHI_SUPERADMIN_USER").is_none()
+                || env("HARUHI_SUPERADMIN_PASSWORD").is_none())
+        {
+            tracing::warn!("⚠ 本地调试使用默认超管 admin/admin123，请勿用于公网环境");
+        }
 
         let mail = MailConfig {
             enabled: env_bool("MAIL_ENABLED", false),

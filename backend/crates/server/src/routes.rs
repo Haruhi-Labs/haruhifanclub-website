@@ -50,16 +50,19 @@ async fn ready(
     }
 }
 
-/// CORS：调试构建放宽(Any，方便本地)；release 限定来源（HARUHI_CORS_ORIGINS，默认仅 public_site_url）。
+/// CORS 来源策略：
+/// - 显式配置 HARUHI_CORS_ORIGINS → 一律按白名单（debug 也能锁紧）；
+/// - 未配置 + debug → 放开 Any，方便本地；
+/// - 未配置 + release → 收敛到 public_site_url。
 fn build_cors(cfg: &Config) -> CorsLayer {
     let base = CorsLayer::new().allow_methods(Any).allow_headers(Any);
-    if cfg!(debug_assertions) {
+    let origins: Vec<String> = if !cfg.cors_origins.is_empty() {
+        cfg.cors_origins.clone()
+    } else if cfg!(debug_assertions) {
         return base.allow_origin(Any);
-    }
-    let mut origins = cfg.cors_origins.clone();
-    if origins.is_empty() {
-        origins.push(cfg.public_site_url.clone());
-    }
+    } else {
+        vec![cfg.public_site_url.clone()]
+    };
     let parsed: Vec<HeaderValue> = origins.iter().filter_map(|o| o.parse().ok()).collect();
     if parsed.is_empty() {
         base.allow_origin(Any)
