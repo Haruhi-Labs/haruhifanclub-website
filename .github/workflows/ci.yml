@@ -133,8 +133,12 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - name: pnpm audit (prod deps)
-        run: pnpm install --frozen-lockfile && pnpm audit --prod || true
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile
+      - name: pnpm audit (prod deps，重点)
+        run: pnpm audit --prod || true
+      - name: pnpm audit (含 dev 依赖，信息性)
+        run: pnpm audit || true
       - uses: dtolnay/rust-toolchain@1.87.0
       - uses: Swatinem/rust-cache@v2
       - name: cargo audit
