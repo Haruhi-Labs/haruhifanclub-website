@@ -415,6 +415,7 @@
 import { reactive, ref, watch, nextTick, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
 import { useMainStore } from '@/stores/main';
+import { renderBlockMarkdown } from '@/features/blog/inlineMarkdown.js';
 import NewsCard from '@/features/blog/components/NewsCard.vue';
 
 const store = useMainStore();
@@ -633,18 +634,6 @@ const moveBlock = (index, dir) => {
     if ((index === 0 && dir === -1) || (index === editorForm.content.length - 1 && dir === 1)) return;
     [editorForm.content[index], editorForm.content[index + dir]] = [editorForm.content[index + dir], editorForm.content[index]];
 };
-
-const escapeHtml = (str) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
-const parseInlineStyles = (html) => html
-    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-    .replace(/\*(.*?)\*/g, '<i>$1</i>')
-    .replace(/__(.*?)__/g, '<u>$1</u>')
-    .replace(/~~(.*?)~~/g, '<s class="inline-strikethrough">$1</s>')
-    // 链接解析
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="inline-link" onclick="event.stopPropagation()">$1</a>');
-
-const renderBlockMarkdown = (text) => parseInlineStyles(escapeHtml(text || ''));
 
 const handleParagraphKeydown = (e, idx) => {
     const isMeta = e.metaKey || e.ctrlKey;
