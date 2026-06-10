@@ -235,3 +235,271 @@ async fn public_news_articles_list_is_accessible() {
         "应返回 JSON 结构，实际: {j:?}"
     );
 }
+
+// ============================================================
+// 特征化回归网：钉住各模块「列表/分页 + RBAC + 上传校验」当前行为，
+// 作为后续抽取公共 CRUD/分页层的安全网（重构后这些必须保持全绿）。
+// ============================================================
+
+// ---- 额外测试工具 ----
+
+/// 给用户在某 app 授予角色（JWT 不含角色，authorize 实时查库，同一 token 立即生效）。
+async fn grant_role(state: &AppState, username: &str, app: &str, role_key: &str) {
+    let uid: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username = ?")
+        .bind(username)
+        .fetch_one(&state.pools.core)
+        .await
+        .unwrap();
+    let rid: i64 = sqlx::query_scalar("SELECT id FROM roles WHERE key = ?")
+        .bind(role_key)
+        .fetch_one(&state.pools.core)
+        .await
+        .unwrap();
+    sqlx::query("INSERT OR REPLACE INTO user_app_roles (user_id, app, role_id) VALUES (?, ?, ?)")
+        .bind(uid)
+        .bind(app)
+        .bind(rid)
+        .execute(&state.pools.core)
+        .await
+        .unwrap();
+}
+
+async fn seed_artwork(state: &AppState, title: &str, status: &str, created_at: &str) {
+    sqlx::query(
+        "INSERT INTO artworks (title, status, content_type, source_type, created_at, like_total) \
+         VALUES (?, ?, 'haruhi', 'network', ?, 0)",
+    )
+    .bind(title)
+    .bind(status)
+    .bind(created_at)
+    .execute(&state.pools.art)
+    .await
+    .unwrap();
+}
+
+async fn seed_exam(state: &AppState, id: &str, title: &str, status: &str) {
+    sqlx::query(
+        "INSERT INTO exams (id, title, status, config, questions) VALUES (?, ?, ?, '{}', '[]')",
+    )
+    .bind(id)
+    .bind(title)
+    .bind(status)
+    .execute(&state.pools.exam)
+    .await
+    .unwrap();
+}
+
+async fn seed_book(state: &AppState, id: &str, title: &str, sort_order: f64) {
+    sqlx::query("INSERT INTO books (id, title, author, sort_order) VALUES (?, ?, '佚名', ?)")
+        .bind(id)
+        .bind(title)
+        .bind(sort_order)
+        .execute(&state.pools.novel)
+        .await
+        .unwrap();
+}
+
+/// 构造 multipart/form-data 请求。parts: (字段名, 文件名(None=普通字段), 内容)。
+fn multipart_req(
+    path: &str,
+    parts: &[(&str, Option<&str>, &str)],
+    token: Option<&str>,
+) -> Request<Body> {
+    let boundary = "----haruhitestboundary";
+    let mut body: Vec<u8> = Vec::new();
+    for (name, filename, content) in parts {
+        body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
+        match filename {
+            Some(fname) => body.extend_from_slice(
+                format!(
+                    "Content-Disposition: form-data; name=\"{name}\"; filename=\"{fname}\"\r\n\
+                     Content-Type: application/octet-stream\r\n\r\n"
+                )
+                .as_bytes(),
+            ),
+            None => body.extend_from_slice(
+                format!("Content-Disposition: form-data; name=\"{name}\"\r\n\r\n").as_bytes(),
+            ),
+        }
+        body.extend_from_slice(content.as_bytes());
+        body.extend_from_slice(b"\r\n");
+    }
+    body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
+    let mut b = Request::builder().method("POST").uri(path).header(
+        "content-type",
+        format!("multipart/form-data; boundary={boundary}"),
+    );
+    if let Some(t) = token {
+        b = b.header("authorization", format!("Bearer {t}"));
+    }
+    b.body(Body::from(body)).unwrap()
+}
+
+// ---- 列表 / 分页 ----
+
+#[tokio::test]
+async fn art_list_default_filters_to_approved() {
+    let app = setup().await;
+    seed_artwork(&app.state, "a1", "approved", "2024-01-01 00:00:00").await;
+    seed_artwork(&app.state, "a2", "approved", "2024-01-02 00:00:00").await;
+    seed_artwork(&app.state, "a3", "approved", "2024-01-03 00:00:00").await;
+    seed_artwork(&app.state, "p1", "pending", "2024-01-04 00:00:00").await;
+
+    let (s, j) = send(&app.router, get("/api/art/artworks", None)).await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(j["ok"], true);
+    assert_eq!(j["total"], 3, "默认仅统计 approved: {j:?}");
+    assert_eq!(j["data"].as_array().unwrap().len(), 3);
+
+    let (_, all) = send(&app.router, get("/api/art/artworks?status=all", None)).await;
+    assert_eq!(all["total"], 4, "status=all 含 pending");
+}
+
+#[tokio::test]
+async fn art_list_pagination_math() {
+    let app = setup().await;
+    for i in 0..8 {
+        seed_artwork(
+            &app.state,
+            &format!("art{i}"),
+            "approved",
+            &format!("2024-02-{:02} 00:00:00", i + 1),
+        )
+        .await;
+    }
+    // pageSize 下限为 6（clamp）
+    let (_, p1) = send(
+        &app.router,
+        get("/api/art/artworks?pageSize=6&page=1", None),
+    )
+    .await;
+    assert_eq!(p1["total"], 8);
+    assert_eq!(p1["data"].as_array().unwrap().len(), 6, "首页 6 条");
+    let (_, p2) = send(
+        &app.router,
+        get("/api/art/artworks?pageSize=6&page=2", None),
+    )
+    .await;
+    assert_eq!(p2["total"], 8);
+    assert_eq!(p2["data"].as_array().unwrap().len(), 2, "次页 2 条");
+}
+
+#[tokio::test]
+async fn exam_list_reserves_first_page_slot() {
+    let app = setup().await;
+    for i in 0..10 {
+        seed_exam(
+            &app.state,
+            &format!("e{i}"),
+            &format!("exam{i}"),
+            "published",
+        )
+        .await;
+    }
+    let (s, j) = send(&app.router, get("/api/exam/exams", None)).await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(j["pagination"]["total"], 10);
+    // 非搜索模式首页为官方试卷预留 1 位 → 展示 limit-1 = 8 条
+    assert_eq!(
+        j["data"].as_array().unwrap().len(),
+        8,
+        "首页应保留 1 位、展示 8 条: {j:?}"
+    );
+}
+
+#[tokio::test]
+async fn novel_books_listed_in_sort_order() {
+    let app = setup().await;
+    seed_book(&app.state, "b-mid", "中", 2.0).await;
+    seed_book(&app.state, "b-first", "前", 1.0).await;
+    seed_book(&app.state, "b-last", "后", 3.0).await;
+    let (s, j) = send(&app.router, get("/api/novel/books", None)).await;
+    assert_eq!(s, StatusCode::OK);
+    let arr = j.as_array().expect("应返回数组");
+    assert_eq!(arr.len(), 3);
+    assert_eq!(arr[0]["title"], "前", "应按 sort_order 升序");
+    assert_eq!(arr[2]["title"], "后");
+}
+
+// ---- RBAC 边界 ----
+
+#[tokio::test]
+async fn admin_lists_enforce_rbac_across_modules() {
+    let app = setup().await;
+    let supert = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    insert_active_user(&app.state, "carol", "carol-pass").await;
+    let carol = login(&app.router, "carol", "carol-pass").await;
+
+    for path in [
+        "/api/art/admin/pending-artworks",
+        "/api/exam/admin/list",
+        "/api/shop/admin/coupons",
+    ] {
+        let (s, _) = send(&app.router, get(path, None)).await;
+        assert_eq!(s, StatusCode::UNAUTHORIZED, "{path} 匿名应 401");
+        let (s, _) = send(&app.router, get(path, Some(&carol))).await;
+        assert_eq!(s, StatusCode::FORBIDDEN, "{path} 无角色应 403");
+        let (s, _) = send(&app.router, get(path, Some(&supert))).await;
+        assert_eq!(s, StatusCode::OK, "{path} 超管应 200");
+    }
+
+    // 授予 art viewer(Read) 后，同一 token 即可访问 art 后台（authorize 实时查库）
+    grant_role(&app.state, "carol", "art", "viewer").await;
+    let (s, _) = send(
+        &app.router,
+        get("/api/art/admin/pending-artworks", Some(&carol)),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK, "授予 art viewer 后应放行");
+    // 但未授予的 exam 仍 403
+    let (s, _) = send(&app.router, get("/api/exam/admin/list", Some(&carol))).await;
+    assert_eq!(s, StatusCode::FORBIDDEN, "未授予 exam 应仍 403");
+}
+
+// ---- 匿名上传校验（保留匿名、拒绝非法类型）----
+
+#[tokio::test]
+async fn art_upload_rejects_non_image() {
+    let app = setup().await;
+    let req = multipart_req(
+        "/api/art/artworks",
+        &[
+            ("images", Some("evil.txt"), "not an image"),
+            ("title", None, "标题"),
+        ],
+        None,
+    );
+    let (s, _) = send(&app.router, req).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST, "非图片扩展名应被拒");
+}
+
+#[tokio::test]
+async fn art_upload_accepts_image_and_persists() {
+    let app = setup().await;
+    let req = multipart_req(
+        "/api/art/artworks",
+        &[
+            ("images", Some("ok.png"), "\u{89}PNG-fake-bytes"),
+            ("title", None, "我的作品"),
+        ],
+        None,
+    );
+    let (s, j) = send(&app.router, req).await;
+    assert_eq!(s, StatusCode::OK, "合法图片匿名上传应成功: {j:?}");
+    assert_eq!(j["ok"], true);
+    // 落库可验证（AI 离线 → 状态 pending，用 status=all 查得到）
+    let (_, all) = send(&app.router, get("/api/art/artworks?status=all", None)).await;
+    assert_eq!(all["total"], 1, "上传的作品应已落库");
+}
+
+#[tokio::test]
+async fn exam_upload_rejects_non_media() {
+    let app = setup().await;
+    let req = multipart_req(
+        "/api/exam/upload",
+        &[("file", Some("payload.html"), "<script>alert(1)</script>")],
+        None,
+    );
+    let (s, _) = send(&app.router, req).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST, "非图片/音频应被拒");
+}
