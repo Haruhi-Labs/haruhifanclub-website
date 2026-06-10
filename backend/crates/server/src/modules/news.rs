@@ -1048,27 +1048,6 @@ async fn points_update(
     .into_response())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::is_safe_ident;
-
-    #[test]
-    fn safe_ident_accepts_real_columns_rejects_injection() {
-        // 合法列名（真实业务字段）放行
-        assert!(is_safe_ident("title"));
-        assert!(is_safe_ident("ai_reason"));
-        assert!(is_safe_ident("_internal"));
-        assert!(is_safe_ident("visit_count"));
-        // 注入尝试一律拒绝
-        assert!(!is_safe_ident(""));
-        assert!(!is_safe_ident("1col"));
-        assert!(!is_safe_ident("title = 1, x"));
-        assert!(!is_safe_ident("title; DROP TABLE articles"));
-        assert!(!is_safe_ident("a)=(SELECT"));
-        assert!(!is_safe_ident("col WHERE 1=1"));
-    }
-}
-
 /// 取用户积分历史（最近 50 条，timestamp 降序）。
 async fn fetch_points_history(state: &AppState, user_id: &str) -> AppResult<Vec<Value>> {
     let rows: Vec<(Option<String>, Option<String>, Option<String>, Option<i64>)> = sqlx::query_as(
@@ -1110,5 +1089,26 @@ fn bind_scalar<'q>(
         }
         Value::String(s) => q.bind(s.clone()),
         other => q.bind(serde_json::to_string(other).unwrap_or_else(|_| "null".into())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_safe_ident;
+
+    #[test]
+    fn safe_ident_accepts_real_columns_rejects_injection() {
+        // 合法列名（真实业务字段）放行
+        assert!(is_safe_ident("title"));
+        assert!(is_safe_ident("ai_reason"));
+        assert!(is_safe_ident("_internal"));
+        assert!(is_safe_ident("visit_count"));
+        // 注入尝试一律拒绝
+        assert!(!is_safe_ident(""));
+        assert!(!is_safe_ident("1col"));
+        assert!(!is_safe_ident("title = 1, x"));
+        assert!(!is_safe_ident("title; DROP TABLE articles"));
+        assert!(!is_safe_ident("a)=(SELECT"));
+        assert!(!is_safe_ident("col WHERE 1=1"));
     }
 }
