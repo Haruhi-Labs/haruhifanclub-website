@@ -13,7 +13,7 @@ use axum::Router;
 use haruhi_auth::hash_password;
 use haruhi_core::{Config, MailConfig};
 use haruhi_db::Pools;
-use haruhi_server::ratelimit::LoginLimiter;
+use haruhi_server::ratelimit::RateLimiter;
 use haruhi_server::state::AppState;
 use haruhi_server::{routes, seed};
 use http_body_util::BodyExt;
@@ -78,7 +78,8 @@ async fn setup() -> TestApp {
     let state = AppState {
         cfg,
         pools,
-        login_limiter: Arc::new(LoginLimiter::new(10, 600)),
+        login_limiter: Arc::new(RateLimiter::new(10, 600)),
+        upload_limiter: Arc::new(RateLimiter::new(60, 600)),
     };
     let router = routes::router(state.clone());
     TestApp {

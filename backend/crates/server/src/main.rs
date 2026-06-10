@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use haruhi_core::Config;
 use haruhi_db::Pools;
-use haruhi_server::ratelimit::LoginLimiter;
+use haruhi_server::ratelimit::RateLimiter;
 use haruhi_server::state::AppState;
 use haruhi_server::{modules, routes, seed};
 
@@ -27,7 +27,9 @@ async fn main() -> anyhow::Result<()> {
         cfg: cfg.clone(),
         pools: pools.clone(),
         // 登录限流：单 IP 10 分钟内最多 10 次尝试
-        login_limiter: Arc::new(LoginLimiter::new(10, 600)),
+        login_limiter: Arc::new(RateLimiter::new(10, 600)),
+        // 匿名上传限流：单 IP 10 分钟内最多 60 次（足够正常创作，封堵刷量）
+        upload_limiter: Arc::new(RateLimiter::new(60, 600)),
     };
     let app = routes::router(state);
 

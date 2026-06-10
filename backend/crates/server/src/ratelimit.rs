@@ -1,4 +1,4 @@
-//! 轻量内存版登录限流（per-IP 滑动窗口），替代统一鉴权时丢失的旧 shop 登录限流。
+//! 轻量内存版限流（per-IP 滑动窗口）：用于登录与匿名上传等公开口防滥用。
 //! 单进程内存即可——单机部署无需 Redis。
 
 use std::collections::HashMap;
@@ -6,13 +6,14 @@ use std::sync::Mutex;
 
 use axum::http::HeaderMap;
 
-pub struct LoginLimiter {
+/// 通用 per-IP 滑动窗口限流器（同一实现，登录/上传各持一个实例）。
+pub struct RateLimiter {
     inner: Mutex<HashMap<String, (u32, i64)>>, // ip -> (窗口内尝试数, 窗口起点 epoch 秒)
     max: u32,
     window_secs: i64,
 }
 
-impl LoginLimiter {
+impl RateLimiter {
     pub fn new(max: u32, window_secs: i64) -> Self {
         Self {
             inner: Mutex::new(HashMap::new()),
@@ -70,7 +71,7 @@ mod tests {
 
     #[test]
     fn blocks_after_max_per_ip_and_resets() {
-        let l = LoginLimiter::new(3, 600);
+        let l = RateLimiter::new(3, 600);
         assert!(l.check_and_record("1.1.1.1").is_ok());
         assert!(l.check_and_record("1.1.1.1").is_ok());
         assert!(l.check_and_record("1.1.1.1").is_ok());

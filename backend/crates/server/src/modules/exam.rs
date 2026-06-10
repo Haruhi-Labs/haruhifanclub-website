@@ -279,8 +279,18 @@ fn validate_exam_data(data: &Value) -> Vec<String> {
 // 上传 / 清理
 // ============================================================
 
-// POST /upload（公开，对齐旧 /api/upload）
-async fn upload(State(state): State<AppState>, mut mp: Multipart) -> AppResult<Response> {
+// POST /upload（公开匿名，对齐旧 /api/upload；按 IP 限流防滥用）
+async fn upload(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    mut mp: Multipart,
+) -> AppResult<Response> {
+    let ip = crate::ratelimit::client_ip(&headers);
+    if let Err(secs) = state.upload_limiter.check_and_record(&ip) {
+        return Err(haruhi_core::AppError::TooManyRequests(format!(
+            "上传过于频繁，请 {secs} 秒后再试"
+        )));
+    }
     // 读取 file 字段
     let mut file_bytes: Option<Vec<u8>> = None;
     let mut original_name = String::from("file");

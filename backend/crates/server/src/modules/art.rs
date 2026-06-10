@@ -642,8 +642,18 @@ async fn get_artwork(
     ))
 }
 
-// 7. 创建作品（multipart：images[] + originals[] + 文本字段）
-async fn create_artwork(State(state): State<AppState>, mut mp: Multipart) -> AppResult<Response> {
+// 7. 创建作品（multipart：images[] + originals[] + 文本字段；公开匿名，按 IP 限流）
+async fn create_artwork(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    mut mp: Multipart,
+) -> AppResult<Response> {
+    let ip = crate::ratelimit::client_ip(&headers);
+    if let Err(secs) = state.upload_limiter.check_and_record(&ip) {
+        return Err(AppError::TooManyRequests(format!(
+            "上传过于频繁，请 {secs} 秒后再试"
+        )));
+    }
     // 收集字段
     let mut display_files: Vec<(String, Bytes)> = Vec::new(); // (orig_name, bytes)
     let mut original_files: Vec<(String, Bytes)> = Vec::new();
