@@ -1,13 +1,26 @@
-# @haruhi/ui （预留占位，尚未启用）
+# packages/ui
 
-共享 UI 组件 / 主题 token 的**预留包**，目前**为空、未启用**——没有 `package.json`，未纳入 pnpm workspace，任何 app 都**不应** import 它。
+预留目录，当前未启用。
 
-## 为什么留着空目录
+现状：
 
-整合方案（见根 [`../../README.md`](../../README.md) 与计划）刻意让 6 个前端 app **各自保留技术栈与样式**（原生 CSS / CSS vars / SCSS / Tailwind 各不相同），**不强行统一 UI**——强抽公共组件属过度工程。此目录仅作为"将来若出现高复用、跨 app 同构的展示型组件（如 NavBar/Modal/Toast）再渐进抽取"的预留位。
+- 没有 `package.json`。
+- 任何 app 都不应 import 本目录。
+- 没有共享组件、主题 token 或样式入口。
 
-真正已启用的共享前端代码在 [`../api-client`](../api-client)（鉴权 / fetch / `resolveUploadUrl`）。
+保留原因：
 
-## 启用时
+- 现有 app 的视觉和技术栈差异较大：原生 CSS、CSS 变量、SCSS、Tailwind 都在使用。
+- 当前复用的是鉴权、请求和上传路径，已经放在 `packages/api-client`。
+- 只有出现跨 app 高复用且形态稳定的组件时，再从具体 app 中抽取。
 
-补 `package.json`（name `@haruhi/ui`、`private: true`）、按需导出组件，再在目标 app 里 `"@haruhi/ui": "workspace:*"`。在此之前，请勿依赖本目录。
+启用前需要先补：
+
+```text
+package.json
+src/
+exports
+README 使用说明
+```
+
+在启用前，请不要添加 `"@haruhi/ui": "workspace:*"` 依赖。

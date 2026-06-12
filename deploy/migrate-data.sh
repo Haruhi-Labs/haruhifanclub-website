@@ -55,7 +55,7 @@ migrate_art() {
 }
 
 migrate_news() {
-  echo "[news] 京都学报"
+  echo "[news] 团内新闻（春日团报）"
   copy_db "$NEWS_SRC/server/database.sqlite" news
   # 图片三种不一致前缀(/uploads/<md5>、/Name.webp、裸 Name.webp)统一规整为 /uploads/news/<basename>
   # 并把 public/uploads 与 public 根的引用文件汇集到 uploads/news/。忽略 lowdb 的 *.json 死数据。

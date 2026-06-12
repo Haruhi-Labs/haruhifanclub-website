@@ -51,7 +51,7 @@ function logout() {
   <!-- 登录 -->
   <div v-else-if="!session.me" class="login-screen">
     <section class="login card">
-      <h1 class="brand">春日应援团 · 控制台</h1>
+      <h1 class="brand">凉宫春日应援团 · 控制台</h1>
       <input v-model="loginForm.username" placeholder="用户名" @keyup.enter="doLogin" />
       <input
         v-model="loginForm.password"

@@ -1,15 +1,15 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 #
-# 春日应援团（haruhifanclub）CodeRabbit AI 评审配置
+# 凉宫春日应援团（haruhifanclub-website）CodeRabbit AI 评审配置
 # ----------------------------------------------------------------------------
 # 适用仓库：Rust（Cargo workspace）+ Vue3（pnpm workspace）混合 monorepo。
 # 评审语言：中文（zh-CN）。
 #
 # 重要：此配置仅在你完成以下步骤后才会生效——
-#   1. 把仓库推送到 GitHub（当前仓库尚无 GitHub remote）。
+#   1. 把仓库推送到 GitHub 并配置 remote。
 #   2. 前往 https://coderabbit.ai 登录并授权安装 CodeRabbit GitHub App 到本仓。
 #      授权后 CodeRabbit 会在 PR 上自动评审，并读取本文件作为评审规则。
-# 在此之前本文件不产生任何效果（GitHub 侧自动化不会运行）。
+# 在此之前本文件不产生效果（GitHub 侧自动化不会运行）。
 # ----------------------------------------------------------------------------
 
 language: "zh-CN"
@@ -30,7 +30,7 @@ knowledge_base:
     scope: "local"
 
 reviews:
-  # 更积极地指出潜在问题（相对 chill 更严格）。
+  # 更积极地指出潜在问题。
   profile: "assertive"
   # 不强制“请求变更”阻断流程，把关交给 CI（lint/build/test + ci-ok gate）。
   request_changes_workflow: false
@@ -61,7 +61,7 @@ reviews:
     - label: "type: chore"
       instructions: "构建/CI/依赖/测试等杂务（对应 build/ci/chore/test/deps），无业务逻辑变更。"
     - label: "priority: high"
-      instructions: "仅在明确符合时打：涉及安全/鉴权/密钥、数据丢失或迁移、破坏性变更、线上故障或用户可见回归等高风险或紧急改动。"
+      instructions: "仅在明确符合时打：涉及安全/鉴权/密钥、数据丢失、破坏性 schema/DDL 变更、线上故障或用户可见回归等高风险或紧急改动。"
     - label: "priority: low"
       instructions: "明显琐碎低风险：纯文档/拼写、依赖小版本升、纯测试、纯内部重构。"
   # 不确定优先级时不要硬打——留空即可（不设 priority: medium），保持克制。
@@ -75,7 +75,7 @@ reviews:
     base_branches:
       - "main"
 
-  # 评审范围过滤：排除锁文件、构建产物、运行期数据、上传文件、旧站导出与压缩产物。
+  # 评审范围过滤：排除锁文件、构建产物、运行期数据、上传文件与压缩产物。
   path_filters:
     - "!pnpm-lock.yaml"
     - "!Cargo.lock"
@@ -103,14 +103,15 @@ reviews:
       instructions: >-
         Vue3 组合式 API 前端（pnpm app，包名 @haruhi/<app>）。重点检查：
         (1) XSS——慎用 v-html，绑定不可信内容前必须转义/净化；
-        (2) 所有后端请求统一经 @haruhi/api-client，禁止在 app 内直接 fetch/axios 或硬编码后端 URL；
+        (2) 后台鉴权、JWT 和模块管理接口优先经 @haruhi/api-client；如直接 fetch/axios，
+        必须集中封装在 services/utils 中，不得硬编码生产后端 URL；
         (3) 禁止硬编码 token / 密钥 / 凭据；
         (4) 组件状态泄漏——避免模块级共享可变状态、未清理的定时器/监听器、跨实例串数据；
         (5) 响应式陷阱：ref/reactive 误用、props 直接 mutate、watch/computed 副作用。
     - path: "backend/migrations/**"
       instructions: >-
-        数据库迁移（按 art/core/exam/news/novel/shop 库前缀分目录）。重点检查：
-        迁移是否幂等/可安全重放，是否会破坏现网已有数据（删列、改类型、加非空无默认值等需谨慎），
+        schema/DDL SQL（按数据库目录分组）。重点检查：
+        DDL 是否幂等/可安全重放，是否会破坏现网已有数据（删列、改类型、加非空无默认值等需谨慎），
         是否遵循各库的路径前缀约定，DDL 是否与对应 crate 的 sqlx 查询/解码假设一致。
     - path: "deploy/**"
       instructions: >-

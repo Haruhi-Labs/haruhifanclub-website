@@ -1,4 +1,4 @@
--- news.db：京都学报 / 新闻站（忠实照搬旧 harunews/server/db.js，幂等）
+-- news.db：团内新闻（春日团报）/ 新闻站（忠实照搬旧 harunews/server/db.js，幂等）
 -- 只移植 sqlite(database.sqlite) 相关逻辑，lowdb / *.json 备份均为死代码，已忽略。
 
 CREATE TABLE IF NOT EXISTS articles (

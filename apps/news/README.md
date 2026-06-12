@@ -1,78 +1,77 @@
-# @haruhi/news — 春日团报 / 京都学报主站
+# @haruhi/news
 
-凉宫春日应援团的内容主站与门户：博客·学报投稿、团员手册、积分商城、活动中心、入坑小测试，以及一个统一登录、按权限门控的后台。本应用是 monorepo 中 6 个前端 app 之一，独立构建后挂载在 `haruyuki.cn` 的 `/news/` 子路径下。
+内容主站和门户 app，包含团内新闻（春日团报）、团员手册、活动、积分商城、入坑测试和后台管理。
 
-## 功能特性
+## 入口
 
-- **博客 · 学报** — 文章投稿、首页瀑布流、详情阅读与全站搜索
-- **团员手册** — 静态长文 + 锚点侧栏导航
-- **积分商城 / 活动中心** — 奖品兑换与活动展示
-- **入坑小测试** — 整页接管（隐藏导航栏）的小游戏式测验
-- **新闻总览海报** — 后台按时间尺度筛选文章渲染海报，`html-to-image` 导出 PNG
-- **统一后台** — 单点登录 + 按 RBAC 子作用域门控的审核 / 管理 tab（文章 / 活动 / 奖品 / 积分）
-- **桌面彩蛋** — 非移动端随机注入 Live2D 桌宠（PixiJS，CDN）
+- 子路径：`/news/`
+- dev 端口：`5204`
+- 后端接口：`/api/news/*`
+- 上传资源：`/uploads/news/*`
+- 技术栈：Vue 3、Vue Router、Pinia、Vite、原生 CSS、`@haruhi/api-client`
 
-## 技术栈与关键依赖
-
-- Vue 3（`<script setup>`）+ Vue Router 4 + Pinia 3
-- 构建：Vite 7（`@vitejs/plugin-vue`），样式为**原生 CSS**（全局 `src/style.css` + 组件 scoped 样式 + PostCSS/Autoprefixer），无 CSS 框架
-- `@haruhi/api-client`（workspace 共享包）：统一 API 客户端、JWT、后台鉴权
-- `html-to-image`：后台「新闻总览」海报导出为 PNG
-- `index.html` 中按运行环境（仅桌面、非移动端）随机注入 Live2D 桌宠脚本，并加载 PixiJS（外链 CDN）
-
-## 目录结构要点
-
-```
-src/
-  main.js               入口：挂载 Pinia + Router
-  App.vue               外壳：NavBar（按 route.meta.hideNavbar 隐藏）+ router-view + 全局搜索/详情弹窗
-  router/index.js       汇总各 feature 的路由数组
-  stores/main.js        唯一 Pinia store：文章/奖品/活动列表、管理员态、搜索态
-  shell/                NavBar.vue、SiteFooter.vue
-  utils/masonry.js      首页瀑布流卡片高度估算
-  features/             按特性切分（每个特性自带 routes / views / 可选 admin / 可选 components）
-    blog/               主站核心：首页 HomeView、投稿 EditorView、详情 BlogDetailView；
-                        admin/ArticleAdmin（审核/已发布）、admin/GeneratorAdmin（新闻总览海报生成）
-    handbook/           团员手册（HandbookView 静态长文 + 锚点侧栏）
-    store/              积分商城 StoreView + admin/PrizeAdmin
-    activity/           活动中心 ActivityView + admin/ActivityAdmin
-    quiz/               入坑小测试 QuizView（meta.hideNavbar，整页自管布局）
-    points/             积分管理 admin/PointsAdmin（无前台页，仅后台 tab）
-    admin/              后台壳 AdminView：登录 gate + RBAC tab 门控 + 懒加载各特性 admin 子组件
-public/                 站点图片、字体、quiz 素材、Live2D 模型脚本（model_*.js）
-```
-
-## 本地开发
-
-前置：在仓库根目录 `pnpm install`，并确保后端 `haruhi-server` 已在 `127.0.0.1:17777` 运行（`cargo run -p haruhi-server`）。
+## 本地运行
 
 ```bash
-# 开发（端口 5204，base 子路径 /news/）
-pnpm --filter @haruhi/news dev
+bash deploy/gen-secrets.sh
+pnpm dev:backend
 
-# 生产构建 / 本地预览
+pnpm --filter @haruhi/news dev
 pnpm --filter @haruhi/news build
 pnpm --filter @haruhi/news preview
+pnpm --filter @haruhi/news test     # vitest 单元/组件测试
 ```
 
-`vite.config.js` 已配置 `base: '/news/'`，并把 `/api`、`/uploads` 代理到 `http://127.0.0.1:17777`；`@` 别名指向 `src/`。Router 用 `createWebHistory(import.meta.env.BASE_URL)`，与子路径部署对齐。
+访问 `http://localhost:5204/news/`。
 
-## 关键特性与约定
+本 app 已接入 vitest（`vitest.config.js`，jsdom 环境）。纯逻辑优先抽成可测模块，例如段落内联渲染助手 `features/blog/inlineMarkdown.js`（`escapeHtml`/`parseInlineStyles`/`renderBlockMarkdown`，含同目录 `*.test.js`）。拆巨型组件时，建议先抽纯函数/composable 并补单测，再动模板。
 
-- **特性化路由**：`router/index.js` 仅做组合，各特性在自己的 `routes.js` 中声明 path/name/meta，视图统一懒加载以按 feature 分包。
-- **统一后端约定**（见 `stores/main.js` 注释）：所有业务 API 走 `createApiClient('/api/news')` 统一前缀 `/api/news/*`；图片字段库里已是绝对路径 `/uploads/news/<md5>.<ext>`，前端直接使用，**不再拼接前缀**（故本 app 未用到 `resolveUploadUrl`）；已移除旧的 `X-Admin-Token` / `VITE_*` 环境变量逻辑。
-- **后台壳 + RBAC**：`AdminView` 用 `createAdminAuth('news')` 完成登录、会话恢复、登出；用 `hasScope(user, scope)` 按子作用域门控 tab —— `activities` → `news.activity`、`prizes` → `news.store`、`pending`/`published`/`generator` → `news.blog`、`points` → `news.points`（持有父级 `news` 或超管者可见全部）。每个 tab 对应的 admin 子组件按需 `defineAsyncComponent` 懒加载。
-- **新闻总览生成器**：`GeneratorAdmin` 按时间尺度筛选文章渲染海报，再用 `html-to-image` 导出 PNG。
-- **Quiz 整页接管**：`/quiz-game` 设 `meta.hideNavbar`，App 外壳不套默认布局容器。
-- **技术债提醒**：`features/blog`（约 8k 行）及各 `admin/*.vue`（活动/奖品/积分/文章审核/生成器）为大体量单文件组件，样式与逻辑高度集中，是已知重构目标；新增内容时优先沿特性边界拆分，避免继续堆积。
+## 目录
 
-## 与共享层 / 后端的关系
+```text
+src/
+  main.js
+  App.vue
+  router/index.js
+  stores/main.js
+  shell/
+    NavBar.vue
+    SiteFooter.vue
+  features/
+    blog/
+    handbook/
+    activity/
+    store/
+    quiz/
+    admin/
+  utils/masonry.js
+  style.css
+public/
+  图片、logo、Live2D model 脚本等静态资源
+```
 
-- 依赖共享包 `@haruhi/api-client`：`createApiClient`（自动注入 `Authorization: Bearer <jwt>`）、`createAdminAuth`、`hasScope`。
-- 登录走统一 `/api/auth`，业务走 `/api/news/*`，静态资源走 `/uploads/news/*`，均由后端单进程 `haruhi-server` 提供。
-- 后端 news 模块的后台接口受 `haruhi_auth::authorize(..., "news", Action::X)` 保护，前端 tab 的可见性与之对应。
+`router/index.js` 负责组合 feature 路由，各 feature 在自己的 `routes.js` 中声明路径和懒加载视图。
 
-## 更多
+## 功能范围
 
-- 仓库总览与架构约定：根目录 [`../../README.md`](../../README.md)
-- 协作与提交规范（scope 集合含 `news`）：[`../../CONTRIBUTING.md`](../../CONTRIBUTING.md)、[`../../docs/`](../../docs/)
+- 团内新闻（春日团报）的投稿、列表、详情和搜索。
+- 团员手册长文。
+- 活动展示。
+- 积分商城和奖品管理。
+- 入坑测试。
+- 新闻总览海报导出。
+- 后台审核和管理，按 `news.*` 子作用域控制菜单和操作。
+
+## 后端契约
+
+- 公共和后台业务接口都走 `createApiClient('/api/news')`。
+- 登录和当前用户走 `/api/auth/*`。
+- 后台权限使用 `createAdminAuth('news')` 和 `hasScope()`。
+- `news` 拆分为 `news.blog`、`news.activity`、`news.store`、`news.points` 四个子作用域。
+- 图片字段通常已是 `/uploads/news/...` 绝对路径，前端直接使用。
+
+## 维护注意
+
+- Vite `base` 是 `/news/`，Router 使用 `createWebHistory(import.meta.env.BASE_URL)`。
+- `index.html` 中包含桌面端 Live2D 相关外链脚本，改 CSP 或 Nginx 安全策略时要一并检查。
+- 改后台 tab、按钮或接口时，同时确认后端 `authorize()` 的作用域和前端 `hasScope()` 一致。

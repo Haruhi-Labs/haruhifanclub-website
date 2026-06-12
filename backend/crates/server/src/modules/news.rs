@@ -1,4 +1,4 @@
-//! news 模块：京都学报 / 新闻站（文章、活动、奖品、积分）。
+//! news 模块：团内新闻（春日团报）、活动、奖品、积分。
 //! 忠实移植旧 harunews 后端（server/index.js + db.js + imageUtils.js），统一挂载于 /api/news。
 //!
 //! 与旧实现的差异（详见交付报告）：

@@ -2,7 +2,7 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-// 京都学报/新闻站前端，部署于子路径 /news/，dev 代理到统一后端 17777。
+// 团内新闻（春日团报）/ news 前端，部署于子路径 /news/，dev 代理到统一后端 17777。
 export default defineConfig({
   base: '/news/',
   plugins: [vue()],

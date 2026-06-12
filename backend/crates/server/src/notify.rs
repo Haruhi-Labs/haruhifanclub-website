@@ -81,7 +81,7 @@ pub async fn send_ai_flagged(
             .replace('>', "&gt;")
     };
 
-    let subject = format!("【春日应援团·{label}】AI 审核拦截了一项{kind}，待处理");
+    let subject = format!("【凉宫春日应援团·{label}】AI 审核拦截了一项{kind}，待处理");
     let html = format!(
         "<div style=\"font-family:system-ui,'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;color:#1f2328\">\
          <h2 style=\"font-size:17px;margin:0 0 12px\">AI 审核拦截了一项{kind}</h2>\
@@ -93,7 +93,7 @@ pub async fn send_ai_flagged(
          <tr><td style=\"color:#6b7280;padding-right:14px\">拦截原因</td><td>{reason}</td></tr>\
          </table>\
          <p style=\"margin:18px 0 0\"><a href=\"{url}\" style=\"background:#D97757;color:#fff;text-decoration:none;padding:9px 16px;border-radius:8px;display:inline-block\">去后台处理 →</a></p>\
-         <p style=\"color:#9ca3af;font-size:12px;margin-top:18px\">本邮件由春日应援团统一后端在 AI 审核拦截内容时自动发送。你收到是因为你是超级管理员或该模块的管理员。</p>\
+         <p style=\"color:#9ca3af;font-size:12px;margin-top:18px\">本邮件由凉宫春日应援团统一后端在 AI 审核拦截内容时自动发送。你收到是因为你是超级管理员或该模块的管理员。</p>\
          </div>",
         kind = esc(kind),
         label = esc(&label),

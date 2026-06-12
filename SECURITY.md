@@ -1,51 +1,60 @@
 # 安全策略
 
-感谢你帮助 **haruhifanclub** 变得更安全。本项目后端涉及 **JWT 鉴权、RBAC 权限、文件上传** 等敏感面，
-我们非常重视安全问题，并承诺对负责任披露的报告者表示感谢。
+本项目涉及 JWT、RBAC、文件上传、订单和后台管理。安全问题请私下披露，不要公开 issue、PR 或 Discussion。
 
-## 请负责任地披露
+## 披露方式
 
-**请不要通过公开的 GitHub Issue / PR / Discussion 披露安全漏洞，也不要公开 0day。**
-公开披露会让尚未修复的漏洞被恶意利用，伤害到所有用户。
+优先使用 GitHub 的 Private vulnerability reporting：
 
-请改为**私下**联系维护者：
+```text
+Repository -> Security -> Report a vulnerability
+```
 
-> **安全联系：GitHub 用户 [@Haruhiyuki](https://github.com/Haruhiyuki)。**
-> 优先使用 GitHub 的 **Private vulnerability reporting**（仓库 → Security → Report a vulnerability）。
+也可以联系维护者：GitHub 用户 [@Haruhiyuki](https://github.com/Haruhiyuki)。
 
-报告时请尽量提供：
+报告中请尽量包含：
 
-- 漏洞类型与受影响的模块 / crate（如 `auth`、`media`、某个 `apps/<app>`）。
-- 复现步骤或 PoC（最小可复现示例最佳）。
-- 影响评估（可读取/篡改的数据、可绕过的权限、是否需登录等）。
-- 你认为可行的修复或缓解思路（可选）。
+- 受影响范围，例如 `auth`、`media`、`shop`、`apps/<app>`。
+- 复现步骤或 PoC。
+- 影响说明，例如能读写哪些数据、是否能绕过登录或权限。
+- 建议修复方式，可选。
 
-## 我们的响应承诺
+## 响应
 
-- **确认**：在 **3 个工作日**内确认收到你的报告。
-- **评估**：尽快评估严重程度并与你沟通修复计划与时间线。
-- **修复与披露**：修复发布后，在征得你同意的前提下进行协调披露，并在致谢中署名（如你愿意）。
-- 在漏洞被修复并给用户留出合理升级时间之前，**请对漏洞细节保密**。
+- 3 个工作日内确认收到报告。
+- 评估严重程度后沟通修复计划。
+- 修复发布后再协调披露。
+- 如你愿意，可在致谢中署名。
+
+漏洞修复并给使用方留出升级时间前，请不要公开细节。
 
 ## 支持范围
 
-| 范围 | 是否受支持 |
-| --- | --- |
-| `main` 分支最新代码 | ✅ 是 |
-| 旧的历史标签 / 已废弃分支 | ❌ 否（请先更新到 `main` 最新代码） |
-| 第三方依赖自身的漏洞 | 视情况转报上游；本仓 CI 的 `audit` 关卡会持续暴露依赖 CVE |
+| 范围             | 支持                                   |
+| ---------------- | -------------------------------------- |
+| `main` 最新代码  | 是                                     |
+| 旧标签、废弃分支 | 否，请先更新到 `main`                  |
+| 第三方依赖漏洞   | 视情况转报上游；本仓依赖审计会提示 CVE |
 
-## 重点关注面（贡献者自查）
+## 现有基线防护
 
-提交涉及以下方面的改动时，请额外当心，并在 PR 中说明你的安全考量：
+改动时不要削弱以下已就位的防护：
 
-- **鉴权 / 令牌（`auth`）**：JWT 签发与校验、过期、密钥（`HARUHI_JWT_SECRET`）来源；避免把密钥写进代码或日志。
-- **权限 / RBAC（`auth` + `console`）**：后台端点务必首行 `authorize(&pools.core, &user, "<module>", Action::X)`；
-  仅超管端点用 `require_super`；注意父级作用域继承（见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)）。
-- **文件上传 / 媒体（`media`）**：校验类型与大小，注意路径穿越，上传只落到 `uploads/<module>/`。
-- **SQL（各模块 + `db`）**：用 sqlx 参数化查询（运行时校验的 `query` / `query_as`），杜绝字符串拼接 SQL。
-- **密钥与运行时数据**：`.env`、`data/`、`uploads/` 已在 `.gitignore` 中——**切勿提交**任何密钥或真实用户数据。
+- **SQL**：值一律走 sqlx 参数绑定；动态拼接的列名（如 news `dynamic_update` 取自请求体 key）必须过合法标识符白名单。
+- **匿名上传**：art 画廊、exam 试卷按设计保留匿名上传，但有类型/大小白名单（`media::check_image` / `check_media`，图片 ≤32MB、音频 ≤64MB，exam 仅接受图片/音频）+ per-IP 限流（`upload_limiter`，10 分钟 60 次）。
+- **错误**：所有 5xx 统一返回「服务器内部错误」，详情仅入日志，不向客户端外泄库表结构/路径（`core::error`）。
+- **不安全默认值**：JWT/ART_COOKIE 密钥与 `admin/admin123` 超管仅在「debug 构建 + 绑定回环地址」时启用；debug 绑非回环或 release 一律要求显式配置。
+- **前端 XSS**：渲染外部/用户内容的 `v-html`（novel EPUB、news 活动详情）经 DOMPurify 净化；其余 `v-html` 已先 `escapeHtml`。
+- **边缘**：nginx `/uploads/` 带 CSP `sandbox`（防恶意 SVG 直链 XSS）、TLS 仅 1.2/1.3。
 
----
+## 贡献者自查
 
-相关文档：[贡献指南](CONTRIBUTING.md) · [行为准则](CODE_OF_CONDUCT.md)
+改动涉及以下内容时，在 PR 里写明安全考虑：
+
+- `auth`：JWT 签发/校验、过期、密钥来源、密码哈希。
+- RBAC：后台端点是否调用 `authorize()` 或 `require_super()`。
+- `media`：上传大小、类型、路径穿越、落盘目录；公开上传口是否复用 `check_image`/`check_media` 与限流。
+- SQL：是否使用 sqlx 参数绑定，避免字符串拼接 SQL；动态列名是否过白名单。
+- 密钥和数据：不要提交 `.env`、`data/`、`uploads/` 或真实用户数据。
+
+相关文档：[CONTRIBUTING.md](CONTRIBUTING.md) · [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)

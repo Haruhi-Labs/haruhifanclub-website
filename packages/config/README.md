@@ -1,13 +1,20 @@
-# @haruhi/config （预留占位，尚未启用）
+# packages/config
 
-共享构建 / lint 预设（vite、eslint、tsconfig 等）的**预留包**，目前**为空、未启用**——没有 `package.json`，未纳入 pnpm workspace。
+预留目录，当前未启用。
 
-## 现状
+现状：
 
-工程化基线目前**集中在根目录**、已足够：根 `eslint.config.js`（flat config，覆盖 `apps/*` 与 `packages/*`）、根 `.prettierrc.json`、`rust-toolchain.toml`、`.nvmrc`。各 app 的 `vite.config.*` / `tsconfig.json` 体量很小、彼此差异有意保留，暂无抽公共预设的必要。
+- 没有 `package.json`。
+- 不在 pnpm workspace 中作为可 import 包使用。
+- 没有导出的 Vite、ESLint、TypeScript 或 Prettier 预设。
 
-此目录仅为"将来若预设重复到值得收敛时再抽取"的预留位。详见根 [`../../README.md`](../../README.md) 与 [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md)。
+当前配置分布：
 
-## 启用时
+- ESLint：根 `eslint.config.js`
+- Prettier：根 `.prettierrc.json`
+- Node：根 `.nvmrc`
+- Rust：根 `rust-toolchain.toml`
+- Vite：各 app 自己的 `vite.config.*`
+- TypeScript：`apps/exam`、`apps/console` 各自维护
 
-补 `package.json`（name `@haruhi/config`、`private: true`），导出可被各 app `extends` / import 的预设，再逐个接入。在此之前，请勿依赖本目录。
+只有当多个 app 出现需要共同维护的构建或 lint 预设时，再为本目录补 `package.json` 和导出入口。

@@ -1,5 +1,5 @@
 {
-  "name": "haruhifanclub",
+  "name": "haruhifanclub-website",
   "version": "0.1.0",
   "private": true,
   "description": "凉宫春日应援团 — 统一 monorepo（前端 pnpm workspace + Rust 后端）",

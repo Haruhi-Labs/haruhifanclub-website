@@ -1,80 +1,74 @@
-# @haruhi/novel · 长门有希的书架
+# @haruhi/novel
 
-凉宫春日应援团的在线小说书库前端：以书架形式展示馆藏书籍，点开即在浏览器内解析并阅读 EPUB，并提供管理员后台上传与编目。部署在 `haruyuki.cn` 的 `/library/` 子路径下。
+书库 app，包含 EPUB 书架、阅读器、投稿反馈页和后台上传/编目。
 
-## 功能特性
+## 入口
 
-- **书架** — 按正传 / 设定集 / 官方短篇 / 社区同人分栏展示，封面 WebP 懒加载优化
-- **浏览器内阅读** — epubjs 解析整本 EPUB，流式滚动与多栏翻页两种模式（键盘翻页）
-- **简繁切换** — 基于 OpenCC 的原文 / 简体 / 繁体三态，切换不重置阅读进度
-- **目录导航** — 章节 + 章内锚点跳转与高亮（跨文件统一加前缀避免 id 冲突）
-- **管理后台** — 上传 EPUB（后端自动提取封面 / 标题）、就地编目（标题 / 作者 / 分栏 / 排序）、删除
-- **同人投稿与反馈** — 内嵌腾讯文档表单收集投稿与问题反馈
+- 子路径：`/library/`
+- dev 端口：`5203`
+- 后端接口：`/api/novel/*`
+- 上传资源：`/uploads/novel/*`
+- 技术栈：Vue 3、Vue Router、Tailwind CSS、Vite、`epubjs`、`jszip`、`axios`、`@haruhi/api-client`
 
-## 技术栈与关键依赖
-
-- Vue 3（`<script setup>`，单文件组件）+ Vue Router 4（`createWebHistory`），无 Pinia，少量页面级状态用 `ref` / `reactive` 局部管理。
-- 样式用 Tailwind CSS 3（`tailwind.config.js` + `postcss.config.js`，配色为应援团米黄/赤陶主题 `#FAF9DE` / `#D97757`）。
-- [`epubjs`](https://github.com/futurepress/epub.js) 解析 EPUB，配合 `jszip` 直接从压缩包内读取章节文件与图片。
-- 简繁转换通过 `index.html` 里以 `<script>` 引入的 `opencc-js`（CDN，全局 `window.OpenCC`），未加载时自动回退原文。
-- HTTP 请求：阅读/书架等公开接口直接用 `axios`；后台用共享 `@haruhi/api-client` 的封装客户端。
-- 构建：Vite 7（`@vitejs/plugin-vue`）。
-
-## 目录结构要点
-
-```
-apps/novel/
-├─ index.html              # 入口；引入站点字体与 opencc-js CDN，标题“长门有希的书架”
-├─ vite.config.js          # base=/library/，dev :5203，代理 /api 与 /uploads → 17777
-├─ tailwind.config.js      # 扫描 index.html + src/**
-└─ src/
-   ├─ main.js              # 挂载 App、注册 router
-   ├─ App.vue              # 外层布局 + 统一 FooterBar
-   ├─ router/index.js      # 4 条路由（见下）
-   ├─ components/
-   │  └─ FooterBar.vue     # 全站页脚
-   └─ views/
-      ├─ Shelf.vue         # 书架首页：分栏展示 + 封面懒加载/WebP 压缩
-      ├─ Reader.vue        # 阅读器：EPUB 解析、流式/翻页、简繁切换、目录锚点
-      ├─ Admin.vue         # 管理后台：登录、EPUB 上传、编目（标题/作者/分栏/排序）
-      └─ FeedbackView.vue  # 同人投稿 & 问题反馈（内嵌腾讯文档表单）
-```
-
-路由（`src/router/index.js`）：`/`（Shelf）、`/read/:id`（Reader，`props: true`）、`/admin`（Admin）、`/feedback`（FeedbackView）。
-
-## 本地开发
-
-前置：先在仓库根启动统一后端 `cargo run -p haruhi-server`（监听 `127.0.0.1:17777`），novel 模块对应 `/api/novel/*` 与 `/uploads/novel/*`。
+## 本地运行
 
 ```bash
-pnpm --filter @haruhi/novel dev       # Vite 开发服务器，端口 5203，base=/library/
-pnpm --filter @haruhi/novel build     # 产物输出 dist/
-pnpm --filter @haruhi/novel preview    # 本地预览构建产物
+bash deploy/gen-secrets.sh
+pnpm dev:backend
+
+pnpm --filter @haruhi/novel dev
+pnpm --filter @haruhi/novel build
+pnpm --filter @haruhi/novel preview
 ```
 
-dev 下 `/api` 与 `/uploads` 由 Vite 代理到 `http://127.0.0.1:17777`（见 `vite.config.js`），无需额外配置跨域。脚本仅 `dev` / `build` / `preview` 三个（来自 `package.json`），无 lint / 测试脚本。
+访问 `http://localhost:5203/library/`。
 
-## 关键特性与约定
+## 路由
 
-- 书架分栏：`Shelf.vue` 内置 `CATEGORY_CONFIG`（`main` 正传小说 / `setting` 设定集 / `short` 官方短篇 / `fanfic` 社区同人），按书籍的 `category` 字段分桶，缺省归入 `main`；配置外出现的类别会追加在末尾。后台 `Admin.vue` 的分栏选项与之保持一致。
-- 封面优化：列表封面先把后端返回路径的扩展名替换为 `.webp` 尝试加载，并在前端用 canvas 把封面预压缩为 WebP（最大宽 800px）缓存，加载失败时回退原图。
-- 阅读器（`Reader.vue`）核心能力：
-  - 拉取书籍元数据后，按 `file_path` 下载整本 EPUB（`arraybuffer`，带下载进度），用 epubjs 解析目录（navigation/spine）与章节。
-  - 两种阅读模式：流式滚动与多栏翻页（`column-*` + transform 平移，支持 ←/→、PageUp/Down、空格翻页）。
-  - 简繁三态切换（原文 / 简体 / 繁体），基于 OpenCC，仅重渲染文本不重置进度。
-  - 目录支持章节 + 章内锚点：为避免多文件 id 冲突，给每个 spine 文档的 `id` 与 `#锚点` 统一加「文件名前缀」（`makeDomId`），并据此做高亮与跳转。
-  - 章内图片从 EPUB 压缩包取出转 blob URL 注入，兼容 `<img>` 与 SVG `<image>`。
-- 后台（`Admin.vue`）：上传 `.epub` 到 `/admin/upload`（后端自动提取封面与标题），可就地编辑标题/作者/分栏/排序值（数值越小越靠前）并保存，或删除书籍。
+| 路径        | 视图           | 说明             |
+| ----------- | -------------- | ---------------- |
+| `/`         | `Shelf`        | 书架首页         |
+| `/read/:id` | `Reader`       | EPUB 阅读器      |
+| `/admin`    | `Admin`        | 上传、编目、删除 |
+| `/feedback` | `FeedbackView` | 投稿和反馈表单   |
 
-## 与共享层 / 后端的关系
+## 目录
 
-- 依赖 `@haruhi/api-client`（`workspace:*`）：
-  - `resolveUploadUrl(path)` 统一拼接 `/uploads/...` 静态资源 URL（封面、EPUB 文件），与 art 等 app 共用同一实现。
-  - 后台用 `createApiClient('/api/novel')` 收发模块接口，`createAdminAuth('novel')` 处理登录 / 会话恢复 / `novel` 权限校验（`login` 不抛错，失败返回 `{ ok:false, error }`）。
-- 后端为统一进程 `haruhi-server` 的 novel 模块：公开接口 `/api/novel/books`、`/api/novel/books/:id`；后台接口 `/api/novel/admin/*`（鉴权后由 `haruhi-auth` 校验 `novel` 权限），上传走 `haruhi-media` 的 EPUB 解析。novel 是仓库的端到端新增模块模板（见根 `docs/ADDING_MODULE.md`）。
+```text
+src/
+  main.js
+  App.vue
+  router/index.js
+  components/FooterBar.vue
+  views/
+    Shelf.vue
+    Reader.vue
+    Admin.vue
+    FeedbackView.vue
+  assets/
+```
 
-## 更多
+## 功能范围
 
-- 仓库总览与架构约定：根 [README](../../README.md)
-- 协作与提交规范：[CONTRIBUTING](../../CONTRIBUTING.md)
-- 新增模块指引：[docs/ADDING_MODULE.md](../../docs/ADDING_MODULE.md)（novel 为参考模板）
+- 书架按分类展示：正传、设定集、官方短篇、社区同人。
+- 阅读器下载 EPUB，解析 spine、目录、章节和图片。
+- 支持滚动和多栏翻页。
+- 支持原文、简体、繁体三态切换；OpenCC 从 `index.html` 外链加载，失败时显示原文。
+- 目录支持章节和章内锚点。
+- 后台上传 `.epub`，后端提取标题、作者、封面和文件路径。
+- 后台可编辑标题、作者、分类、排序并删除书籍。
+
+## 后端契约
+
+- 公开接口：`/api/novel/books`、`/api/novel/books/{id}`。
+- 后台接口：`/api/novel/admin/*`。
+- 后台登录使用 `createAdminAuth('novel')`。
+- 上传资源路径用 `resolveUploadUrl(path)`。
+- EPUB 解析和封面处理由后端 `haruhi-media` 负责。
+
+## 维护注意
+
+- Vite `base` 使用 `/library/`，部署和路由都按这个子路径配置。
+- 公开阅读接口部分代码使用 `axios`，后台接口使用 `@haruhi/api-client`。
+- `Reader.vue` 处理 EPUB 解析、翻页、锚点和简繁转换，改动时注意阅读进度和 blob URL 清理。
+- `novel` 是新增模块流程的参考实现，改结构时同步检查 [../../docs/ADDING_MODULE.md](../../docs/ADDING_MODULE.md)。
