@@ -159,16 +159,11 @@ const expandedKeys = ref(new Set());
 const compressedCovers = ref({});
 
 // ------------ 工具方法：原始封面 URL ------------
+// 注意：不要把扩展名改写成 .webp——服务器上没有同名 webp 副本（旧站遗留假设），
+// 改写会让全部 png/jpeg 封面 404。展示侧的体积优化由下方 canvas 压缩缓存承担。
 const getCoverUrl = (path) => {
   if (!path) return '';
-
-  // 原始路径，例如 "novel/covers/001.png"
-  const original = resolveUploadUrl(path);
-
-  // 替换扩展名为 webp（前提是服务器已经有同名 webp）
-  const webp = original.replace(/\.(png|jpg|jpeg)$/i, '.webp');
-
-  return webp;
+  return resolveUploadUrl(path);
 };
 
 
