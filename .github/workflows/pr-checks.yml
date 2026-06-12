@@ -4,7 +4,10 @@ name: PR Checks
 # 本仓用 **squash 合并**——PR 标题就是最终落到 main 的提交信息，所以**只校验 PR 标题**；
 # PR 里的中间提交会被 squash 丢弃，无需逐条校验。
 on:
-  pull_request:
+  # 只读取 PR 元数据，不 checkout 或执行 PR 分支代码。
+  # Dependabot PR 在 pull_request 下的 token 权限较窄，semantic action 写检查会报
+  # "Resource not accessible by integration"，因此这里按官方建议使用 pull_request_target。
+  pull_request_target:
     types: [opened, edited, synchronize, reopened]
 
 # 取消同一 PR 的旧运行，仅保留最新一次
@@ -12,7 +15,6 @@ concurrency:
   group: pr-checks-${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-# 顶层最小权限
 permissions:
   contents: read
 
@@ -22,10 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
-      # amannn/action-semantic-pull-request@v5 默认通过 Checks API 上报结果，需要 checks:write
-      checks: write
     steps:
-      - uses: amannn/action-semantic-pull-request@v5
+      - uses: amannn/action-semantic-pull-request@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -48,5 +48,3 @@ jobs:
           subjectPattern: ^.+$
           subjectPatternError: |
             PR 标题的 subject 部分（"type(scope): " 之后）不能为空。
-          # 允许 WIP 草稿 PR 跳过校验
-          wip: true
