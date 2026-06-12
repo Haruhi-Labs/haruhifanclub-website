@@ -697,8 +697,10 @@ async fn build_thumb(input: Bytes, w: u32, cache: std::path::PathBuf) -> AppResu
         let _ = tokio::fs::create_dir_all(dir).await;
     }
     let tmp = cache.with_extension(format!("tmp-{:x}", rand_hex()));
-    if tokio::fs::write(&tmp, &out).await.is_ok() {
-        let _ = tokio::fs::rename(&tmp, &cache).await;
+    if tokio::fs::write(&tmp, &out).await.is_ok() && tokio::fs::rename(&tmp, &cache).await.is_err()
+    {
+        // rename 失败（权限/跨文件系统等）时清掉临时文件，不留残渣
+        let _ = tokio::fs::remove_file(&tmp).await;
     }
     Ok(out)
 }

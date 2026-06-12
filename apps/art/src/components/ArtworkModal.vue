@@ -238,7 +238,9 @@ const currentOriginalUrl = computed(() => images.value[currentIndex.value]?.orig
 // --- 渐进式加载逻辑：缩略图（网格已缓存，秒显）→ 展示图 → 原图 ---
 const displaySrc = ref('')
 
-watch([currentIndex, art], () => {
+watch([currentIndex, art, visible], () => {
+  // 弹窗未打开不预载（当前父组件隐藏时会清空 item，这里再兜一层防御）
+  if (!visible.value) return
   // 1. 立即显示网格同款 640px 缩略图（命中浏览器缓存，无需等待）
   const mid = currentImgSrc.value
   displaySrc.value = thumbUrl(mid, 640)

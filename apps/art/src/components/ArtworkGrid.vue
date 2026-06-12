@@ -144,7 +144,8 @@ let cardObserver = null
 
 function observeCards() {
   if (!cardObserver || !galleryEl.value) return
-  // 重复 observe 同一元素是 no-op，翻页/筛选后直接全量重扫即可
+  // 先断开旧观察再全量重扫：翻页/筛选移除的卡片节点不再被观察器持有
+  cardObserver.disconnect()
   galleryEl.value.querySelectorAll('.art-card-wrap').forEach(el => cardObserver.observe(el))
 }
 
