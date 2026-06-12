@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { thumbUrl } from '../services/api.js'
 // import { useRouter } from 'vue-router' // No longer needed for author navigation
 
 const props = defineProps({
@@ -35,6 +36,12 @@ const list = computed(() => {
 
 function imgSrc(item){
   return item?.image_url || item?.imageUrl || item?.url || ''
+}
+
+// 网格统一用 640px 缩略图：卡片 <img> 与模糊背景层共用同一 URL，
+// 浏览器只下载/解码一次；展示原图留给弹窗的渐进加载
+function thumbSrc(item){
+  return thumbUrl(imgSrc(item), 640)
 }
 
 function isPersonal(item){
@@ -121,17 +128,45 @@ function onImgLoad(item, e) {
   // 正常比例 -> contain (完整展示)
   
   const isExtreme = ratio < 0.42 || ratio > 2.3
-  
+
   imgStyle[item.id] = {
     objectFit: isExtreme ? 'cover' : 'contain',
     // 统一居中，对于 contain 模式会留白，对于 cover 模式会裁切
     objectPosition: 'center center'
   }
 }
+
+// --- 视口外暂停浮动动画：滚出屏幕的卡片不再产生每帧合成开销 ---
+import { ref, onMounted, onUpdated, onBeforeUnmount } from 'vue'
+
+const galleryEl = ref(null)
+let cardObserver = null
+
+function observeCards() {
+  if (!cardObserver || !galleryEl.value) return
+  // 重复 observe 同一元素是 no-op，翻页/筛选后直接全量重扫即可
+  galleryEl.value.querySelectorAll('.art-card-wrap').forEach(el => cardObserver.observe(el))
+}
+
+onMounted(() => {
+  cardObserver = new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      en.target.style.animationPlayState = en.isIntersecting ? '' : 'paused'
+    }
+  }, { rootMargin: '100px' })
+  observeCards()
+})
+
+onUpdated(observeCards)
+
+onBeforeUnmount(() => {
+  cardObserver?.disconnect()
+  cardObserver = null
+})
 </script>
 
 <template>
-  <div class="gallery">
+  <div class="gallery" ref="galleryEl">
     <div class="grid">
       <div
         v-for="it in list"
@@ -146,17 +181,18 @@ function onImgLoad(item, e) {
           @keydown.enter="openCard(it)"
         >
           <div class="art-card__media">
-            <!-- 背景模糊层：填补留白 -->
-            <div 
+            <!-- 背景模糊层：填补留白（与 <img> 共用缩略图，零额外请求） -->
+            <div
               class="art-card__blur-bg"
-              :style="{ backgroundImage: `url(${imgSrc(it)})` }"
+              :style="{ backgroundImage: `url(${thumbSrc(it)})` }"
             ></div>
 
             <img
               class="art-card__img"
-              :src="imgSrc(it)"
+              :src="thumbSrc(it)"
               :alt="it.title || 'artwork'"
               loading="lazy"
+              decoding="async"
               :style="imgStyle[it.id] || { objectFit: 'cover' }"
               @load="onImgLoad(it, $event)"
             />
@@ -298,6 +334,8 @@ function onImgLoad(item, e) {
 .art-card-wrap {
   width: 100%;
   animation: float-card 6.8s ease-in-out infinite;
+  /* 永久动画的卡片预提升为独立合成层，浮动只走 GPU 合成、不重栅格化 */
+  will-change: transform;
 }
 
 .art-card-wrap:nth-child(2n) {
@@ -309,6 +347,12 @@ function onImgLoad(item, e) {
 }
 
 .art-card-wrap:hover {
+  animation-play-state: paused;
+}
+
+/* 弹窗打开时暂停浮动：卡片被全屏 backdrop-filter 遮罩盖住，
+   继续动画会让遮罩每帧重模糊，白白消耗 GPU */
+body.modal-open .art-card-wrap {
   animation-play-state: paused;
 }
 

@@ -65,6 +65,17 @@ async function request(method, path, { params, body, isForm, headers } = {}) {
 // 统一拼成 /uploads/<path>；已是绝对地址或站内绝对路径则原样保留。
 const fixPath = (p) => resolveUploadUrl(p, ASSET_BASE)
 
+// 站内 art 图片转缩略图端点（按需生成 + 磁盘缓存 + 长缓存头）。
+// 画廊网格的展示图平均 ~1MB，直接出图是页面最大瓶颈；网格/弹窗首屏统一走缩略图。
+// 外链、非 art 路径、gif/svg（后端不转码）原样返回。
+export function thumbUrl(url, w = 640) {
+  if (!url || typeof url !== 'string') return url
+  if (!url.startsWith(`${ASSET_BASE}/art/`)) return url
+  const rel = url.slice(ASSET_BASE.length + 1)
+  if (/\.(gif|svg)$/i.test(rel)) return url
+  return `${API_PREFIX}/thumb?path=${encodeURIComponent(rel)}&w=${w}`
+}
+
 function transformArtwork(a) {
   if (!a) return a
 
