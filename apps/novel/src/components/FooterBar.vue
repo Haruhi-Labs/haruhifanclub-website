@@ -4,8 +4,10 @@
  * 经典米色卡片风格页脚 - 重构版
  */
 
-// 使用项目中实际存在的 Logo 图片
-const logoSrc = '/haruhi-logo-192.png';
+// 使用项目中实际存在的 Logo 图片。
+// JS 字符串不会被 Vite 按 base 重写（模板/CSS 才会），app 部署在 /library/ 子路径下，
+// 必须显式拼 BASE_URL，否则打到域名根 404。
+const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`;
 
 const scrollToTop = () => {
   // 优先尝试滚动 #app 容器（移动端/主布局可能锁定在 #app 上）
