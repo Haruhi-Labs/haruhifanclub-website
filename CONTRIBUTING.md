@@ -1,99 +1,51 @@
 # 贡献指南
 
-本仓库是前端 pnpm workspace + 后端 Cargo workspace。贡献时优先保证三件事：本地能跑、PR 标题规范、相关文档同步更新。
+本文只说明如何参与贡献、如何协作、以及提交和评审需要遵守的规范。
 
-## 本地环境
+本地启动、依赖安装、调试命令和部署步骤不在本文重复维护，请看：
 
-```bash
-git clone <repo-url>
-cd haruhifanclub-website
+- [README.md](README.md)：项目入口、快速上手、常用命令
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)：架构和运行时约定
+- [docs/ADDING_MODULE.md](docs/ADDING_MODULE.md)：新增业务模块
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)：部署、环境变量、备份
 
-nvm use
-corepack enable
-corepack prepare pnpm@10.11.0 --activate
+## 协作流程
 
-pnpm install
-cargo build
+1. 从最新 `main` 切出短生命周期分支。
+2. 分支命名按改动目的表达，例如 `feat/novel-bookmark`、`fix/shop-order-total`、`docs/contributing-scope`。
+3. 改动保持聚焦。跨前端、后端、部署或数据结构的改动，需要在 PR 里明确影响范围。
+4. 提交 PR 时填写模板里的变更摘要、影响范围、验证方式、数据库/部署影响和评审提示。
+5. PR 标题使用 Conventional Commits。仓库采用 squash merge，PR 标题会成为 `main` 上的最终提交信息。
+6. CI 通过、评审完成后由维护者合并。
 
-# 生成 .env，包含本地后端端口 127.0.0.1:17777 和开发密钥。
-bash deploy/gen-secrets.sh
-```
+不完整但需要提前讨论的工作请开 draft PR。不要把无关格式化、依赖升级、重命名和业务改动混在同一个 PR。
 
-需要的系统工具：
+## PR 规范
 
-| 工具    | 版本/要求           | 用途                        |
-| ------- | ------------------- | --------------------------- |
-| Node    | `>=20`              | 前端 dev/build/lint         |
-| pnpm    | `10.11.0`           | workspace 包管理            |
-| Rust    | `1.87.0`            | 后端构建、fmt、clippy、测试 |
-| ffmpeg  | 可执行文件在 `PATH` | 音频转 MP3                  |
-| sqlite3 | 可执行文件在 `PATH` | 备份、查库                  |
+PR 描述应回答四件事：
 
-## 启动项目
+- 改了什么，为什么改。
+- 影响哪些 app、crate、接口、数据库、部署配置或文档。
+- 做过哪些验证；未验证的部分要说明原因。
+- 是否有兼容性、迁移、回滚或上线顺序要求。
 
-```bash
-# 后端。Vite 代理要求它监听 127.0.0.1:17777。
-pnpm dev:backend
+涉及下列内容时，必须在 PR 中显式说明：
 
-# 前端。访问地址要带子路径。
-pnpm dev:news      # http://localhost:5204/news/
-pnpm dev:art       # http://localhost:5201/art/
-pnpm dev:exam      # http://localhost:5202/exam/
-pnpm dev:novel     # http://localhost:5203/library/
-pnpm dev:shop      # http://localhost:5205/shop/
-pnpm dev:console   # http://localhost:5200/console/
-```
-
-也可以同时启动后端和一个前端：
-
-```bash
-APP=shop pnpm dev     # 默认 APP=news
-```
-
-## 项目结构
-
-```text
-apps/                  前端 app，各自独立子路径和 Vite 配置
-packages/api-client/   共享前端包：fetch、JWT、RBAC、上传 URL
-packages/ui/           预留目录，当前未启用
-packages/config/       预留目录，当前未启用
-backend/crates/        Rust crate：server/core/db/auth/media/ai/mail
-backend/migrations/    SQLite schema SQL
-deploy/                部署、备份脚本
-docs/                  架构、部署、新模块、协作说明
-```
-
-`data/`、`uploads/`、`.env` 是运行时数据或密钥，不提交。
-
-## 分支与 PR
-
-1. 从 `main` 切分支：`git switch -c feat/novel-bookmark`。
-2. 改动保持聚焦。跨前端、后端、部署的改动请在 PR 里写清影响范围。
-3. 推送前跑本地自查：
-
-   ```bash
-   pnpm lint
-   cargo test --workspace                # 含 server 的模块级集成回归网
-   pnpm -r --if-present test             # 前端单测（vitest，如 news / api-client）
-   pnpm --filter @haruhi/<app> build     # 改了前端 app 时
-   ```
-
-   后端 `backend/crates/server/tests/integration.rs` 是模块级特征化回归网（列表/分页/RBAC/上传校验），重构公共逻辑（如分页层）时应保持全绿。前端单测用 vitest，配置见各 app 的 `vitest.config.js`；改动巨型组件时建议先抽纯函数/composable 并补单测再动模板。
-
-4. PR 标题使用 Conventional Commits。由于仓库采用 squash 合并，PR 标题会成为 `main` 上的最终提交信息。
-5. CI 通过、评审完成后 squash 合并。
-
-本仓没有 husky、lefthook、lint-staged。本地检查靠命令，最终由 CI 拦截。
+- API 请求/响应、鉴权、RBAC 权限语义变化。
+- 数据库 schema、迁移脚本、默认数据或回填逻辑变化。
+- 环境变量、部署脚本、Nginx/systemd 配置变化。
+- 上传、媒体处理、邮件、AI 审核等外部依赖行为变化。
+- 安全相关修复或可能影响权限边界的改动。
 
 ## 提交规范
 
-格式：
+PR 标题和建议的提交信息格式：
 
 ```text
 type(scope): subject
 ```
 
-`scope` 可选，建议使用 app、crate 或领域名，例如 `news`、`shop`、`server`、`api-client`、`deploy`、`docs`。
+`scope` 可选，建议使用 app、crate 或领域名，例如 `news`、`shop`、`server`、`api-client`、`deploy`、`docs`、`workflows`。
 
 合法 `type`：
 
@@ -107,59 +59,74 @@ feat fix perf refactor docs style test build ci chore revert
 feat(novel): 支持 EPUB 章节书签
 fix(shop): 修正预售订单运费计算
 docs(readme): 补充本地 .env 启动步骤
-refactor(auth): 简化 RBAC 作用域判定
+ci(workflows): 拆分前端检查并改为手动审计
 ```
 
-CI 只强制校验 PR 标题的 `type` 合法且 subject 非空。中间提交会被 squash，仍建议按同一格式写。
+规范要求：
 
-## CI
+- subject 使用中文，写清具体行为，不写空泛描述。
+- PR 标题必须符合上述格式，因为 squash 后它就是最终提交信息。
+- 中间提交会被 squash 丢弃，但仍建议按同一格式写，便于评审。
 
-`.github/workflows/ci.yml` 使用路径过滤：
+## 评审规范
 
-| job             | 触发范围                             | 内容                                                                                       |
-| --------------- | ------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `frontend-lint` | 前端范围                             | `pnpm install`、`pnpm lint:js --quiet`，全仓 ESLint 只跑一次                                |
-| `frontend`      | `apps/**`、`packages/**`、前端锁文件 | `pnpm install`、相关前端 app build                                                         |
-| `frontend-test` | 前端范围                             | `pnpm -r --if-present test`，覆盖 `packages/api-client` 与已接入 vitest 的 app（如 `news`） |
-| `backend`       | 后端范围，PR                         | `cargo fmt --all --check`、`cargo clippy --workspace`、`cargo test --workspace --lib`        |
-| `backend-full`  | 后端范围，push main                  | `cargo clippy --workspace --all-targets`、`cargo test --workspace`                          |
-| `ci-ok`         | 总是运行                             | 聚合 gate，分支保护只 require 这个 check                                                    |
+评审优先看行为正确性、回归风险、权限边界、数据兼容性和测试覆盖。代码风格问题由工具优先处理，不把格式偏好当作主要评审意见。
 
-路径过滤会让无关 job 正常 skipped。分支保护不要直接 require `frontend` 或 `backend`，只 require `ci-ok`。
+作者处理评审意见时应：
 
-`.github/workflows/audit.yml` 是手动触发的依赖审计，执行 `pnpm audit` 和 `cargo audit`，信息性检查，不参与 PR/push 门禁。
+- 直接修复明确的问题。
+- 对有取舍的建议，在 PR 评论里说明选择和理由。
+- 如果发现原 PR 范围过大，拆出后续 issue 或后续 PR，不在当前 PR 里继续扩张。
 
-## 代码风格
+评审者提出阻塞意见时应说明具体文件、行为风险和期望结果，避免只给抽象判断。
+
+## 自查与 CI
+
+本地自查按改动范围选择执行，具体命令以 README 和 package scripts 为准。PR 模板中的验证清单用于记录实际跑过的检查。
+
+CI 规则：
+
+- `ci-ok` 是 CI 聚合门禁。PR 合并前应确认它通过。
+- `frontend`、`backend`、`backend-full` 等路径过滤 job 未命中路径时会 skipped，这是正常结果。
+- `frontend-lint` 只跑一次全仓 ESLint，避免在 app matrix 中重复输出。
+- `audit.yml` 是手动依赖审计，只作信息参考，不参与 PR/push 门禁。
+- PR 标题校验由 `pr-checks.yml` 执行，只校验 PR 标题，不逐条校验中间提交。
+
+如果 CI 失败，先修复失败原因，再请求复审。不要通过改 workflow 来绕过真实失败；只有当 CI 规则本身过期或误判时，才修改 workflow。
+
+## 代码规范
+
+通用要求：
+
+- 文档、注释、PR 标题和提交 subject 使用中文。
+- 保持改动局部化，优先沿用现有目录结构、命名方式和工具链。
+- 不提交运行时数据、上传文件、密钥或本地配置。
+- 改公共接口、环境变量、部署脚本或数据库 schema 时，同步更新 README 或 `docs/`。
 
 前端：
 
-- ESLint flat config 在根 `eslint.config.js`。
-- Prettier 配置在 `.prettierrc.json`：无分号、单引号、`printWidth: 100`。
-- `exam` 和 `console` 是 TypeScript，构建时会跑 `vue-tsc --noEmit`。
+- 遵守根目录 ESLint flat config 和 Prettier 配置。
+- 共享请求、鉴权、上传 URL、RBAC 等能力优先放在 `packages/api-client`，不要在各 app 里复制协议逻辑。
+- `exam` 和 `console` 是 TypeScript app，涉及类型边界时要保证 `vue-tsc` 能通过。
 
 后端：
 
-- 提交前跑 `cargo fmt --all` 或 `pnpm format`。
-- `cargo clippy --workspace -- -D warnings` 要无 warning。
+- handler 先做授权，再执行业务逻辑。普通后台端点使用 `authorize`，仅超管端点使用 `require_super`。
 - SQL 使用 `sqlx::query` / `query_as`，不使用 `query!` 宏。
-- 后台 handler 先做授权：`authorize(&state.pools.core, &user, "<module>", Action::X).await?`。仅超管端点用 `require_super`。
+- 需要持久化结构变化时，在对应 `backend/migrations/<module>/` 下补迁移。
+- 公共逻辑调整要关注 `backend/crates/server/tests/integration.rs` 的模块级回归覆盖。
 
 ## 新增模块
 
-详细步骤见 [docs/ADDING_MODULE.md](docs/ADDING_MODULE.md)。核心改动包括：
+新增业务模块不要只提交单侧代码。PR 至少需要说明这些接线点是否涉及：
 
-- `backend/crates/server/src/modules/<module>.rs`
-- `backend/crates/server/src/modules/mod.rs`
-- `backend/crates/db/src/lib.rs`
-- `backend/migrations/<module>/0001_init.sql`
-- `backend/crates/server/src/admin_routes.rs` 的 `APPS`
-- `apps/<module>/`
-- `deploy/nginx.conf` 和测试站 nginx 配置
+- 后端模块、数据库 schema 和 RBAC 权限。
+- 前端 app、路由子路径和构建配置。
+- 管理后台入口、上传路径、Nginx/部署配置。
+- 文档、测试和上线/回滚说明。
 
-`novel` 是当前最适合作为端到端参考的模块。
+具体步骤看 [docs/ADDING_MODULE.md](docs/ADDING_MODULE.md)，不要在贡献指南里重复维护操作清单。
 
-## 文档与安全
+## 安全
 
-- 文档和注释使用中文，写事实和操作步骤，少写口号。
-- 改 API、环境变量、部署脚本或数据库 schema 时同步更新 README 或 `docs/`。
-- 安全问题请按 [SECURITY.md](SECURITY.md) 私下披露。
+安全问题不要直接公开提交可利用细节。请按 [SECURITY.md](SECURITY.md) 私下披露或先联系维护者确认处理方式。

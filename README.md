@@ -162,7 +162,7 @@ HARUHI_DEPLOY_HOST=root@<server> bash deploy/deploy.sh
 
 ## 文档入口
 
-- [CONTRIBUTING.md](CONTRIBUTING.md)：本地开发、PR、提交规范、CI
+- [CONTRIBUTING.md](CONTRIBUTING.md)：协作流程、PR、提交规范、评审和 CI 门禁
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)：后端、前端、数据库和 RBAC 设计
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)：部署、环境变量、备份
 - [docs/ADDING_MODULE.md](docs/ADDING_MODULE.md)：新增业务模块
