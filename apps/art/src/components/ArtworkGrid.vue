@@ -109,6 +109,11 @@ import { reactive } from 'vue'
 
 const imgStyle = reactive({})
 
+// 与模板 :key 同一回退链：id 缺失时不让多个项落进同一个 undefined 桶串样式
+function itemKey(item) {
+  return item?.id ?? item?.file_path ?? item?.title ?? imgSrc(item)
+}
+
 function onImgLoad(item, e) {
   const el = e.target
   if (!el) return
@@ -129,7 +134,7 @@ function onImgLoad(item, e) {
   
   const isExtreme = ratio < 0.42 || ratio > 2.3
 
-  imgStyle[item.id] = {
+  imgStyle[itemKey(item)] = {
     objectFit: isExtreme ? 'cover' : 'contain',
     // 统一居中，对于 contain 模式会留白，对于 cover 模式会裁切
     objectPosition: 'center center'
@@ -194,7 +199,7 @@ onBeforeUnmount(() => {
               :alt="it.title || 'artwork'"
               loading="lazy"
               decoding="async"
-              :style="imgStyle[it.id] || { objectFit: 'cover' }"
+              :style="imgStyle[itemKey(it)] || { objectFit: 'cover' }"
               @load="onImgLoad(it, $event)"
             />
           </div>

@@ -193,7 +193,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { api, thumbUrl } from '../services/api.js'
 
 const props = defineProps({
@@ -609,6 +609,11 @@ function clickTag(t){
   close()
 }
 
+function restoreGlobalModalState() {
+  document.documentElement.style.overflow = ''
+  document.body.classList.remove('modal-open')
+}
+
 watch(visible, (v) => {
   if(v){
     loadComments()
@@ -616,10 +621,12 @@ watch(visible, (v) => {
     // 暂停背后卡片的浮动动画：被遮罩盖住看不见，却会让全屏 backdrop-filter 每帧重模糊
     document.body.classList.add('modal-open')
   }else{
-    document.documentElement.style.overflow = ''
-    document.body.classList.remove('modal-open')
+    restoreGlobalModalState()
   }
 })
+
+// 弹窗开着时组件被直接卸载（如切路由）也要回滚全局状态，防止滚动锁/暂停态泄漏
+onBeforeUnmount(restoreGlobalModalState)
 
 onMounted(() => {
   if(visible.value) loadComments()
