@@ -15,7 +15,7 @@
 | 生产 | `haruyuki.cn`      | `/var/www/haruhifanclub`      | `haruhifanclub.service`      | `/etc/haruhifanclub.env`           | `deploy/nginx.conf`                  |
 | 测试 | `test.haruyuki.cn` | `/var/www/haruhifanclub-test` | `haruhifanclub-test.service` | `/var/www/haruhifanclub-test/.env` | `deploy/test.haruyuki.cn.nginx.conf` |
 
-后端监听地址按部署模板固定为 `127.0.0.1:17777`。
+后端监听地址：生产固定 `127.0.0.1:17777`；测试站与生产同机共存，固定 `127.0.0.1:17778`（`deploy/deploy.sh` 部署测试站时传 `HARUHI_BACKEND_PORT=17778` 使健康门禁探测正确端口）。
 
 ## 服务器依赖
 
@@ -95,7 +95,7 @@ bash deploy/deploy.sh
 3. Docker 以 `linux/amd64` 编译 `haruhi-server`
 4. rsync 前端 `dist/` 到服务器
 5. 上传后端二进制，备份旧二进制为 `haruhi-server.bak`
-6. `systemctl restart <service>`
+6. `systemctl restart <service>` 并执行**健康门禁**：等待服务 active 且 `/api/health/ready` 返回 200（最多约 24 秒），未通过则输出状态与日志、给出回滚命令并以非零码退出——服务起不来时绝不会打印"部署完成"
 
 可选变量：
 
@@ -104,6 +104,7 @@ bash deploy/deploy.sh
 | `HARUHI_SKIP_FRONTEND=1`               | 只发后端         |
 | `HARUHI_SKIP_BACKEND=1`                | 只发前端         |
 | `HARUHI_RUST_IMAGE=rust:1.87-bookworm` | 修改交叉编译镜像 |
+| `HARUHI_BACKEND_PORT=17778`            | 健康门禁探测端口，默认 17777（生产）；部署测试站时传 17778 |
 
 本机手动构建命令：
 
