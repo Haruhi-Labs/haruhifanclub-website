@@ -9,8 +9,9 @@ export const UI = {
     /**
      * 自定义点击音效（可选）：
      * 1) 把音效文件放到 /public/sfx/click.mp3
-     * 2) 把这里改成 '/sfx/click.mp3'
-     * 留空则使用内置“轻量合成点击声”（不需要任何资源文件）
+     * 2) 把这里改成 `${import.meta.env.BASE_URL}sfx/click.mp3`
+     *    （app 部署在 /art/ 子路径下，写 '/sfx/...' 根路径会 404）
+     * 留空则使用内置“轻量合成点击声”（不需要任何资源文件，也不发起网络请求）
      */
     clickUrl: ''
   }

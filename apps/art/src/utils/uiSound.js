@@ -1,22 +1,30 @@
 // src/utils/uiSound.js
 
+import { UI } from '../config/ui.js'
+
 let _ctx = null
 let _lastAt = 0
 
-// 可选：如果你之后想自定义音效文件，把 mp3 放到 public/sfx/click.mp3
-// 这里会优先尝试播放它，失败就用 WebAudio “叮”一下的轻量音效兜底。
+// 可选音效文件取自 UI.sfx.clickUrl（见 config/ui.js）；留空则直接用 WebAudio
+// 合成点击声，不再发起注定 404 的文件请求（仓库从未携带 /sfx/click.mp3）。
 let _audio = null
 let _audioBroken = false
-const DEFAULT_URL = '/sfx/click.mp3'
+const CLICK_URL = String(UI?.sfx?.clickUrl || '').trim()
+const VOLUME = Number(UI?.sfx?.volume ?? 0.35)
 
 function nowMs(){ return Date.now() }
 
 function ensureAudio(){
   if(_audio || _audioBroken) return
+  if(!CLICK_URL){
+    // 未配置音效文件：标记不可用，直接走合成声兜底
+    _audioBroken = true
+    return
+  }
   try{
-    _audio = new Audio(DEFAULT_URL)
+    _audio = new Audio(CLICK_URL)
     _audio.preload = 'auto'
-    _audio.volume = 0.35
+    _audio.volume = VOLUME
   }catch{
     _audioBroken = true
     _audio = null
