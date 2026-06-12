@@ -87,6 +87,15 @@ reviews:
 
   # 针对不同代码区域的定向评审指引。
   path_instructions:
+    # 全局：聚焦本次 diff，控制「Outside diff range」类意见的噪音。
+    # 不一刀切禁掉 diff 外发现——存量代码中的高危问题仍值得召回，
+    # 但琐碎/风格类的存量问题不应淹没 PR 评论区。
+    - path: "**"
+      instructions: >-
+        评审聚焦本次 diff 内的改动。diff 范围之外的存量代码问题，仅在涉及真实高危风险
+        （安全漏洞、鉴权缺失、数据丢失或损坏、并发竞争、明显资源泄漏）时才提出，
+        并明确标注其为存量问题；其余 diff 之外的琐碎、风格或防御性建议一律不要报告。
+        对 diff 内的改动正常评审，不受此约束影响。
     - path: "backend/crates/**/*.rs"
       instructions: >-
         Rust 后端（Cargo workspace，haruhi-* crate）。重点检查：
