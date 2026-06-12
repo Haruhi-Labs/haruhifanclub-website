@@ -14,9 +14,9 @@ __pycache__/
 *.pyc
 
 # === 运行时数据（永不进 git，单独备份）===
-data/
-uploads/
-_legacy_dumps/
+/data/
+/uploads/
+/_legacy_dumps/
 
 # === 环境变量（含密钥）===
 .env
