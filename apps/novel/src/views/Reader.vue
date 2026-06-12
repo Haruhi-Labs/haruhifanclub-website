@@ -338,6 +338,21 @@ const currentChapterIndex = ref(0);
 const currentContent = ref('');
 // EPUB 章节是外部上传的 HTML，渲染前用 DOMPurify 净化，剥离 script/事件处理器等，
 // 保留正文排版标签；防止恶意 EPUB 对读者发起 XSS。
+//
+// 插图修复：processImages 把 epub 内的图片抽成 createObjectURL 的 blob: URL，
+// 而 DOMPurify 默认 URI 白名单不含 blob:（也不含 data:），会把这些 src 整个剥掉，
+// 导致全书插图/彩页裂图。此处精准放行——仅 <img> 的 src、且值为 blob: 或
+// data:image/ 时保留；图片上下文不执行脚本，不放宽其它标签/属性的协议限制。
+DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
+  if (
+    node.tagName === 'IMG' &&
+    data.attrName === 'src' &&
+    /^(?:blob:|data:image\/)/i.test(data.attrValue)
+  ) {
+    data.forceKeepAttr = true;
+  }
+});
+
 const safeContent = computed(() =>
   DOMPurify.sanitize(currentContent.value, { USE_PROFILES: { html: true } }),
 );
