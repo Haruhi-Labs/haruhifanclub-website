@@ -1,8 +1,8 @@
 # 多项目路径过滤 + 分层的协作级 CI。
 #
 # 分层（PR 求快、合入 main 后求全）：
-#   - PR：后端只跑 fmt + clippy(lib+bins) + 单测(`cargo test --lib`)，前端按改动 app 构建。快。
-#   - push 到 main：后端跑全量 clippy(--all-targets) + 完整测试(含 tests/ 集成)，外加依赖审计。全。
+#   - PR：后端只跑 fmt + clippy(lib+bins) + 单测(`cargo test --lib`)；前端 lint 一次并构建各 app。快。
+#   - push 到 main：后端跑全量 clippy(--all-targets) + 完整测试(含 tests/ 集成)。
 # 后端不再跑 `cargo build --release`（部署时用 Docker 交叉编译，CI 里冗余且慢）。
 #
 # branch protection（务必照做）：dorny/paths-filter 会让无关 job 被 skip，
@@ -14,6 +14,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 # 同一分支/PR 的新推送取消仍在跑的旧运行，省 runner。
 concurrency:
@@ -50,7 +51,22 @@ jobs:
               - 'Cargo.lock'
               - '.github/workflows/ci.yml'
 
-  # 前端：安装依赖 + JS lint + 用 matrix 对 6 个 app 各自 build（fail-fast:false 便于定位单 app 失败）。
+  # 前端 lint：全仓 ESLint 只跑一次，避免在 app matrix 中重复执行 6 次。
+  frontend-lint:
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint:js --quiet
+
+  # 前端构建：用 matrix 对 6 个 app 各自 build（fail-fast:false 便于定位单 app 失败）。
   frontend:
     needs: changes
     if: ${{ needs.changes.outputs.frontend == 'true' }}
@@ -67,7 +83,6 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint:js
       - run: pnpm --filter @haruhi/${{ matrix.app }} build
 
   # 前端单元测试（vitest，目前覆盖共享层 packages/api-client）。快，PR + main 都跑。
@@ -117,62 +132,38 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
 
-  # 依赖漏洞审计（信息性，continue-on-error）。较慢，**仅合入 main 后**跑，不拖慢 PR。
-  audit:
-    if: ${{ github.event_name == 'push' }}
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: pnpm
-      - name: pnpm install
-        run: pnpm install --frozen-lockfile
-      - name: pnpm audit (prod deps，重点)
-        run: pnpm audit --prod || true
-      - name: pnpm audit (含 dev 依赖，信息性)
-        run: pnpm audit || true
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.87.0
-      - uses: Swatinem/rust-cache@v2
-      - name: cargo audit
-        run: cargo install cargo-audit --locked && cargo audit || true
-
   # 聚合 gate：branch protection 唯一的 required check。
-  # audit 是信息性的，不纳入硬门禁。
   # 规则：changes 必须 success（路径过滤源头，坏了不能放行）；
-  #       frontend / backend / backend-full 允许 success 或 skipped（按事件/路径正常跳过），其余即失败。
+  #       frontend-lint / frontend / frontend-test / backend / backend-full 允许 success 或 skipped
+  #       （路径过滤 / 事件分层跳过）皆可，其余即失败。
   ci-ok:
-    needs: [changes, frontend, frontend-test, backend, backend-full]
+    needs: [changes, frontend-lint, frontend, frontend-test, backend, backend-full]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - name: 汇总各 job 结论
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
+          FRONTEND_LINT_RESULT: ${{ needs.frontend-lint.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           FRONTEND_TEST_RESULT: ${{ needs.frontend-test.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           BACKEND_FULL_RESULT: ${{ needs.backend-full.result }}
         run: |
-          echo "changes=$CHANGES_RESULT frontend=$FRONTEND_RESULT frontend-test=$FRONTEND_TEST_RESULT backend=$BACKEND_RESULT backend-full=$BACKEND_FULL_RESULT"
+          echo "changes=$CHANGES_RESULT frontend-lint=$FRONTEND_LINT_RESULT frontend=$FRONTEND_RESULT frontend-test=$FRONTEND_TEST_RESULT backend=$BACKEND_RESULT backend-full=$BACKEND_FULL_RESULT"
           ok=1
           # 源头 job：必须 success。
           if [ "$CHANGES_RESULT" != "success" ]; then
             ok=0
           fi
           # 业务 job：success 或 skipped（路径过滤 / 事件分层跳过）皆可，其余判失败。
-          for r in "$FRONTEND_RESULT" "$FRONTEND_TEST_RESULT" "$BACKEND_RESULT" "$BACKEND_FULL_RESULT"; do
+          for r in "$FRONTEND_LINT_RESULT" "$FRONTEND_RESULT" "$FRONTEND_TEST_RESULT" "$BACKEND_RESULT" "$BACKEND_FULL_RESULT"; do
             if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
               ok=0
             fi
           done
           if [ "$ok" -ne 1 ]; then
-            echo "::error::CI 门禁未通过（changes 必须 success；frontend/frontend-test/backend/backend-full 必须 success 或 skipped）"
+            echo "::error::CI 门禁未通过（changes 必须 success；frontend-lint/frontend/frontend-test/backend/backend-full 必须 success 或 skipped）"
             exit 1
           fi
           echo "全部必需 job 通过或被合理跳过，CI 门禁放行。"

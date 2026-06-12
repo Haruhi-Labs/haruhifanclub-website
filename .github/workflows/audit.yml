@@ -1,0 +1,30 @@
+name: Dependency Audit
+
+# 手动依赖审计：不参与 PR/push 门禁，也不会自动制造依赖升级 PR。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile
+      - name: pnpm audit
+        run: pnpm audit || true
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.87.0
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo audit
+        run: cargo install cargo-audit --locked && cargo audit || true
