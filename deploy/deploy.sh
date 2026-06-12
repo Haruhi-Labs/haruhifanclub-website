@@ -13,6 +13,7 @@
 #   HARUHI_DEPLOY_ROOT     部署根，默认 /var/www/haruhifanclub
 #   HARUHI_DEPLOY_SERVICE  systemd 单元名，默认 haruhifanclub
 #   HARUHI_RUST_IMAGE      交叉编译镜像，默认 rust:1.87-bookworm
+#   HARUHI_BACKEND_PORT    健康门禁探测端口，默认 17777（生产）；测试站传 17778
 #   HARUHI_SKIP_FRONTEND=1 跳过前端构建（只发后端）
 #   HARUHI_SKIP_BACKEND=1  跳过后端构建（只发前端）
 #
@@ -72,10 +73,29 @@ else
   echo "==> [4/5] 跳过前端推送"
 fi
 
-echo "==> [5/5] 重启服务并查看状态"
+echo "==> [5/5] 重启服务并执行健康门禁"
 # 数据库迁移在服务启动时自动执行（Pools::migrate）；env 取自 systemd EnvironmentFile。
-ssh "$HOST" "systemctl restart '$SERVICE' && sleep 1 && systemctl --no-pager --lines=12 status '$SERVICE' || true"
+ssh "$HOST" "systemctl restart '$SERVICE'"
 
-echo "✓ 部署完成：${SERVICE} @ ${HOST}:${ROOT}"
+# 健康门禁：服务必须 active 且 /api/health/ready 200，否则部署判定失败、退出非零。
+# 此前这里用 `|| true` 吞掉重启失败，服务崩溃循环时仍打印"✓ 部署完成"
+# （2026-06-12 迁移校验事故即因此漏过），门禁不可再弱化。
+PORT="${HARUHI_BACKEND_PORT:-17777}"
+echo "    等待 ${SERVICE} 就绪（127.0.0.1:${PORT}/api/health/ready，最多约 24s）"
+healthy=0
+for _ in $(seq 1 12); do
+  sleep 2
+  if ssh "$HOST" "systemctl is-active --quiet '$SERVICE' && curl -fsS -m 3 http://127.0.0.1:${PORT}/api/health/ready >/dev/null"; then
+    healthy=1
+    break
+  fi
+done
+if [ "$healthy" != "1" ]; then
+  echo "✗ 部署失败：${SERVICE} 未通过健康检查，最近状态与日志：" >&2
+  ssh "$HOST" "systemctl --no-pager --lines=8 status '$SERVICE'; journalctl -u '$SERVICE' -n 20 --no-pager" >&2 || true
+  echo "  回滚后端：ssh ${HOST} \"cd ${ROOT}/bin && mv -f haruhi-server.bak haruhi-server && systemctl restart ${SERVICE}\"" >&2
+  exit 1
+fi
+
+echo "✓ 部署完成并通过健康检查：${SERVICE} @ ${HOST}:${ROOT}（127.0.0.1:${PORT}）"
 echo "  回滚后端：ssh ${HOST} \"cd ${ROOT}/bin && mv -f haruhi-server.bak haruhi-server && systemctl restart ${SERVICE}\""
-echo "  健康检查：curl -fsS http://127.0.0.1:17777/api/health/ready （在服务器上）"
