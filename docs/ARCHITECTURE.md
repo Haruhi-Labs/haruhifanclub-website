@@ -206,6 +206,7 @@ scope_chain("news")          -> ["news"]
 | 不安全默认值 | JWT/ART_COOKIE 密钥、`admin/admin123` 超管仅「debug + 绑定回环」启用；否则要求显式配置  |
 | 邮件      | `haruhi-mail` 只发信；shop 模块维护 `email_jobs` 队列和重试                                 |
 | AI 审核   | 未配置 `DASHSCOPE_API_KEY` 或调用失败时放行，并返回原因                                     |
+| 图片缩略图 | `GET /api/art/thumb?path=&w=` 按需生成 WebP（宽度白名单 320/640/960），磁盘缓存于 `uploads/art/.thumbs/`（可整目录删除重建）；上传时预热、删除作品时清理 |
 
 ## 新模块入口
 

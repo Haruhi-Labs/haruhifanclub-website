@@ -193,8 +193,8 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue'
-import { api } from '../services/api.js'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { api, thumbUrl } from '../services/api.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: undefined },
@@ -235,27 +235,42 @@ const images = computed(() => {
 const currentImgSrc = computed(() => images.value[currentIndex.value]?.image_url || '')
 const currentOriginalUrl = computed(() => images.value[currentIndex.value]?.original_url || '')
 
-// --- 渐进式加载逻辑 ---
+// --- 渐进式加载逻辑：缩略图（网格已缓存，秒显）→ 展示图 → 原图 ---
 const displaySrc = ref('')
 
-watch([currentIndex, art], () => {
-  // 1. 立即显示缩略图/压缩图
-  const lowRes = currentImgSrc.value
-  displaySrc.value = lowRes
-  
-  // 2. 后台加载原图
-  const highRes = currentOriginalUrl.value
-  if (highRes && highRes !== lowRes) {
+watch([currentIndex, art, visible], () => {
+  // 弹窗未打开不预载（当前父组件隐藏时会清空 item，这里再兜一层防御）
+  if (!visible.value) return
+  // 1. 立即显示网格同款 640px 缩略图（命中浏览器缓存，无需等待）
+  const mid = currentImgSrc.value
+  displaySrc.value = thumbUrl(mid, 640)
+
+  // 2. 后台加载展示图，到位后无缝替换
+  //    每级替换前都校验“当前要显示的仍是这张图”，防止快速切换时旧图覆盖新图
+  const loadMid = () => new Promise((resolve) => {
+    if (!mid || mid === displaySrc.value) return resolve()
     const img = new Image()
-    img.src = highRes
+    img.src = mid
     img.onload = () => {
-      // 只有当当前应该显示的图片仍是这张原图时，才进行替换
-      // 防止快速切换时，上一张的原图加载完成覆盖了当前图
-      if (currentOriginalUrl.value === highRes) {
-        displaySrc.value = highRes
+      if (currentImgSrc.value === mid) displaySrc.value = mid
+      resolve()
+    }
+    img.onerror = () => resolve()
+  })
+
+  // 3. 最后后台加载原图
+  loadMid().then(() => {
+    const highRes = currentOriginalUrl.value
+    if (highRes && highRes !== displaySrc.value) {
+      const img = new Image()
+      img.src = highRes
+      img.onload = () => {
+        if (currentOriginalUrl.value === highRes) {
+          displaySrc.value = highRes
+        }
       }
     }
-  }
+  })
 }, { immediate: true })
 
 // 切换图片
@@ -594,14 +609,24 @@ function clickTag(t){
   close()
 }
 
+function restoreGlobalModalState() {
+  document.documentElement.style.overflow = ''
+  document.body.classList.remove('modal-open')
+}
+
 watch(visible, (v) => {
   if(v){
     loadComments()
     document.documentElement.style.overflow = 'hidden'
+    // 暂停背后卡片的浮动动画：被遮罩盖住看不见，却会让全屏 backdrop-filter 每帧重模糊
+    document.body.classList.add('modal-open')
   }else{
-    document.documentElement.style.overflow = ''
+    restoreGlobalModalState()
   }
 })
+
+// 弹窗开着时组件被直接卸载（如切路由）也要回滚全局状态，防止滚动锁/暂停态泄漏
+onBeforeUnmount(restoreGlobalModalState)
 
 onMounted(() => {
   if(visible.value) loadComments()

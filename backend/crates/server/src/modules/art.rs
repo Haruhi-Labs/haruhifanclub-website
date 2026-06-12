@@ -33,6 +33,7 @@ pub fn router() -> Router<AppState> {
         .route("/creators/verify", get(creators_verify))
         .route("/artworks", get(list_artworks).post(create_artwork))
         .route("/artworks/{id}", get(get_artwork))
+        .route("/thumb", get(get_thumb))
         .route("/comments", get(list_comments).post(create_comment))
         .route("/likes/artwork/{id}", post(like_artwork))
         .route("/likes/comment/{id}", post(like_comment))
@@ -643,6 +644,108 @@ async fn get_artwork(
     ))
 }
 
+// 6.5 缩略图：GET /thumb?path=art/2026-02/x.webp&w=640
+// 按需生成 + 磁盘缓存（uploads/art/.thumbs/<w>/<path>.webp），命中后等同静态文件。
+// 画廊网格原来直出 ~1MB 的展示图，是页面最大的性能瓶颈；本端点把网格请求降到 ~30KB。
+
+/// 允许的缩略宽度白名单（防御任意 w 撑爆缓存目录）。
+const THUMB_WIDTHS: &[u32] = &[320, 640, 960];
+/// 缩略图 WebP 质量。
+const THUMB_QUALITY: f32 = 82.0;
+
+#[derive(serde::Deserialize)]
+struct ThumbQuery {
+    path: String,
+    w: Option<u32>,
+}
+
+/// 校验并规范化 path：必须是 uploads 根下 art/ 内的相对路径，拒绝任何穿越成分。
+fn sanitize_thumb_path(raw: &str) -> Option<String> {
+    let p = raw.trim().trim_start_matches('/');
+    if !p.starts_with("art/") || p.contains('\\') || p.contains('\0') {
+        return None;
+    }
+    // 逐段校验：禁止 ".."、"."、空段（"a//b"）
+    if p.split('/')
+        .any(|seg| seg.is_empty() || seg == "." || seg == "..")
+    {
+        return None;
+    }
+    Some(p.to_string())
+}
+
+/// 源文件（art/ 相对路径）在宽度 w 下的缩略缓存磁盘路径。
+fn thumb_cache_path(state: &AppState, rel: &str, w: u32) -> std::path::PathBuf {
+    let ext = haruhi_media::ext_of(rel, "");
+    state
+        .cfg
+        .uploads_subdir("art")
+        .join(".thumbs")
+        .join(w.to_string())
+        .join(rel.trim_start_matches("art/"))
+        .with_extension(format!("{ext}.webp"))
+}
+
+/// 生成缩略图并原子落盘到缓存（tmp + rename，防并发读到半成品），返回编码字节。
+async fn build_thumb(input: Bytes, w: u32, cache: std::path::PathBuf) -> AppResult<Vec<u8>> {
+    // 编解码是 CPU 密集操作，放 blocking 线程池，避免拖慢异步 runtime
+    let out =
+        tokio::task::spawn_blocking(move || haruhi_media::thumbnail_webp(&input, w, THUMB_QUALITY))
+            .await
+            .map_err(|e| AppError::internal(format!("缩略图任务失败: {e}")))??;
+    if let Some(dir) = cache.parent() {
+        let _ = tokio::fs::create_dir_all(dir).await;
+    }
+    let tmp = cache.with_extension(format!("tmp-{:x}", rand_hex()));
+    if tokio::fs::write(&tmp, &out).await.is_ok() && tokio::fs::rename(&tmp, &cache).await.is_err()
+    {
+        // rename 失败（权限/跨文件系统等）时清掉临时文件，不留残渣
+        let _ = tokio::fs::remove_file(&tmp).await;
+    }
+    Ok(out)
+}
+
+async fn get_thumb(
+    State(state): State<AppState>,
+    Query(q): Query<ThumbQuery>,
+) -> AppResult<Response> {
+    let w = q.w.unwrap_or(640);
+    if !THUMB_WIDTHS.contains(&w) {
+        return Err(AppError::bad_request("不支持的缩略宽度"));
+    }
+    let rel = sanitize_thumb_path(&q.path).ok_or_else(|| AppError::bad_request("非法路径"))?;
+
+    // gif（动图）/ svg（矢量）不转码，直接交回静态服务，保留原始观感
+    let ext = haruhi_media::ext_of(&rel, "");
+    if ext == "gif" || ext == "svg" {
+        return Ok(axum::response::Redirect::permanent(&format!("/uploads/{rel}")).into_response());
+    }
+
+    let src = state.cfg.uploads_dir.join(&rel);
+    let cache = thumb_cache_path(&state, &rel, w);
+
+    let bytes = match tokio::fs::read(&cache).await {
+        Ok(b) => b,
+        Err(_) => {
+            let input = tokio::fs::read(&src)
+                .await
+                .map_err(|_| AppError::not_found("图片不存在"))?;
+            build_thumb(Bytes::from(input), w, cache).await?
+        }
+    };
+
+    Ok((
+        StatusCode::OK,
+        [
+            ("Content-Type", "image/webp"),
+            // 缩略图内容随源文件名唯一（文件名带时间戳+随机串），可放心 immutable
+            ("Cache-Control", "public, max-age=31536000, immutable"),
+        ],
+        bytes,
+    )
+        .into_response())
+}
+
 // 7. 创建作品（multipart：images[] + originals[] + 文本字段；公开匿名，按 IP 限流）
 async fn create_artwork(
     State(state): State<AppState>,
@@ -729,6 +832,19 @@ async fn create_artwork(
 
         haruhi_media::save_file(&month_dir, &disp_file, disp_bytes).await?;
         let rel_disp = format!("art/{folder}/{disp_file}");
+
+        // 后台预热画廊缩略图：新作品过审后首个访客无需等待现场生成。
+        // 失败无害（/thumb 端点按需兜底），gif/svg 本就不转码故跳过。
+        if disp_ext != "gif" && disp_ext != "svg" {
+            let warm = build_thumb(
+                disp_bytes.clone(),
+                640,
+                thumb_cache_path(&state, &rel_disp, 640),
+            );
+            tokio::spawn(async move {
+                let _ = warm.await;
+            });
+        }
         let rel_orig = if std::ptr::eq(orig_bytes, disp_bytes) {
             // originals 缺位时与 display 同文件（对齐旧 orig=disp）
             rel_disp.clone()
@@ -1413,6 +1529,10 @@ async fn admin_delete_artwork(
         for f in files {
             let p = uploads_root.join(&f);
             let _ = tokio::fs::remove_file(p).await;
+            // 同步清理缩略缓存，避免已删除内容仍可通过缓存访问
+            for &w in THUMB_WIDTHS {
+                let _ = tokio::fs::remove_file(thumb_cache_path(&state, &f, w)).await;
+            }
         }
     }
 

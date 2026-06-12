@@ -90,13 +90,15 @@ body {
 .gallery-bg {
   z-index: -2;
   /* --- 👇 背景图片链接 👇 --- */
-  background-image: url('/bg.webp');
+  /* bg-blur.webp 由 bg.webp 离线烘焙而来（缩到 1920 宽 + blur(8px) saturate(1.2) brightness(1.1)），
+     替代原来的运行时 CSS filter：观感一致，但省掉全屏实时滤镜与 4K 解码。
+     换背景图时重新生成：
+     ffmpeg -i bg.webp -vf "scale=1920:-1,gblur=sigma=8,eq=saturation=1.2,colorchannelmixer=rr=1.1:gg=1.1:bb=1.1" -c:v libwebp -q:v 82 bg-blur.webp */
+  background-image: url('/bg-blur.webp');
   /* ---------------------- */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  /* 视觉效果 */
-  filter: blur(8px) saturate(1.2) brightness(1.1);
   transform: scale(1.05);
   /* 微放大防止边缘模糊露白 */
 }
