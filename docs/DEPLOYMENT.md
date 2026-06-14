@@ -21,8 +21,10 @@
 
 ```bash
 apt-get update
-apt-get install -y nginx sqlite3 ffmpeg rsync certbot
+apt-get install -y nginx sqlite3 ffmpeg libvips-tools rsync certbot
 ```
+
+`libvips-tools` 提供 `vips` 命令，art 画廊缩略图由后端用它流式生成（shrink-on-load、内存有界），替代进程内全解码——避免巨图把小内存机器打爆。缺失时缩略图端点会回退原图（不裂图但失去压缩收益）。
 
 如果只用 `deploy/deploy.sh` 从本机构建并推送，服务器不需要 Node、pnpm 或 Rust。构建机需要：
 
@@ -163,6 +165,7 @@ systemctl reload nginx
 配置要点：
 
 - `/api/` 反代 `127.0.0.1:17777`。
+- `/uploads/art/.thumbs/` 静态直出画廊缩略图；未命中走 `@thumb_fallback` 回源 `/api/art/thumb` 现场生成并落盘，下次即静态命中（`^~` 前缀保证优先级高于 `/uploads/` 与任何正则 location）。
 - `/uploads/` alias 到部署根的 `uploads/`。
 - `/news/`、`/art/`、`/exam/`、`/library/`、`/shop/`、`/console/` alias 到各 app 的 `dist/`。
 - SPA 子路径使用 `try_files ... /<base>/index.html`。
@@ -175,6 +178,16 @@ systemctl reload nginx
 签发 HTTPS 证书后，把 `deploy/nginx.conf` 里的 `ssl_certificate` 和 `ssl_certificate_key` 两行改成实际证书路径并取消注释。配置已预置 TLS 加固（`ssl_protocols TLSv1.2 TLSv1.3`、现代 `ssl_ciphers`、`ssl_session_cache`），证书启用后即生效。
 
 > 全站 CSP 未默认开启：各前端用到的外部源（OpenCC、Live2D、字体等）需逐一允许，贸然加 `default-src 'self'` 会破坏页面；`deploy/nginx.conf` 给了注释示例，联调后按需启用。
+
+### 画廊缩略图预热（backfill）
+
+新部署或导入存量图后，一次性预生成缩略图，使 nginx 全程静态命中、后端零回源：
+
+```bash
+HARUHI_ROOT=/var/www/haruhifanclub bash deploy/backfill-thumbs.sh
+```
+
+幂等（已存在的跳过）、串行执行、用 `vips` 流式生成（内存有界），可对任意大图安全运行。缓存落在 `uploads/art/.thumbs/<w>/`，属可再生数据，备份可排除、可整目录删除重建。新上传的作品由后端自动预热 640 档，无需手动跑。
 
 测试站配置已经包含 `test.haruyuki.cn` 的 ACME webroot 和 HTTPS 路径：
 

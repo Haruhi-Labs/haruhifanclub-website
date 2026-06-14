@@ -22,6 +22,14 @@ TimeoutStopSec=30
 # 数据与上传目录需可写
 ReadWritePaths=/var/www/haruhifanclub/data /var/www/haruhifanclub/uploads
 
+# ---- 内存约束（1.6GB 小机，与 tts 等服务共存）----
+# 稳态后端 ~10-20MB；缩略图生成走 libvips 子进程且应用内信号量限并发=2，峰值约百 MB。
+# MemoryHigh 软限触发回收/限流，MemoryMax 硬限超出即 OOM-kill 本服务（不波及整机）。
+MemoryHigh=256M
+MemoryMax=512M
+# 降 glibc malloc arena 数（默认 8×核数），减少多线程释放后不还 OS 的 RSS 滞留
+Environment=MALLOC_ARENA_MAX=2
+
 # ---- 沙箱加固（纵深防御；与 ReadWritePaths 配合）----
 NoNewPrivileges=true
 ProtectSystem=strict

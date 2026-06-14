@@ -301,6 +301,10 @@ const uidHintClass = computed(() => uidHint.value.includes('✅') ? 'ok' : (uidH
 
 // --- 方法 ---
 
+// 单张原图大小上限（MB），与后端 MAX_IMAGE_BYTES 一致；超限当场提醒并跳过，
+// 避免到提交时才收到后端 400「文件过大」。
+const MAX_IMAGE_MB = 60
+
 // 多图添加
 async function onFilesAdded(e) {
   const addedFiles = Array.from(e.target.files || [])
@@ -309,13 +313,26 @@ async function onFilesAdded(e) {
   // 清空 value 允许重复添加同名文件
   e.target.value = ''
 
+  const tooBig = []
   for (const f of addedFiles) {
+    if (f.size > MAX_IMAGE_MB * 1024 * 1024) {
+      tooBig.push(`${f.name}（${(f.size / 1024 / 1024).toFixed(1)}MB）`)
+      continue
+    }
     const previewUrl = URL.createObjectURL(f)
     filesList.value.push({
       id: Date.now() + Math.random(),
       file: f,
       preview: previewUrl
     })
+  }
+
+  if (tooBig.length) {
+    msg.value = `以下图片超过 ${MAX_IMAGE_MB}MB 上限，已跳过：${tooBig.join('、')}。请压缩后再上传。`
+    isError.value = true
+  } else {
+    // 本次选择都合规：清掉可能残留的旧错误提示
+    if (isError.value) { msg.value = ''; isError.value = false }
   }
 }
 

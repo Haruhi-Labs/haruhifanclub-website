@@ -7,11 +7,16 @@ use base64::Engine;
 use md5::{Digest, Md5};
 
 /// 允许上传的图片扩展名（小写，不含点）。
-pub const IMAGE_EXTS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif", "svg", "bmp"];
+/// 含 heic/heif（iPhone 默认）、avif、tiff 等现代/相机格式：画廊 originals 字段
+/// 直传用户原始文件，手机照片多为 heic，若不放行这些扩展名会在上传时被拒（400
+/// "不支持的文件类型"）。白名单意在拦可执行/任意文件，不应把常见图片格式也挡掉。
+pub const IMAGE_EXTS: &[&str] = &[
+    "jpg", "jpeg", "png", "webp", "gif", "svg", "bmp", "heic", "heif", "avif", "tif", "tiff",
+];
 /// 允许上传的音频扩展名（小写，不含点）。
 pub const AUDIO_EXTS: &[&str] = &["mp3", "wav", "ogg", "m4a", "aac", "flac", "wma", "amr"];
-/// 单张图片大小上限（字节）。原图可能较大，给到 32MB。
-pub const MAX_IMAGE_BYTES: usize = 32 * 1024 * 1024;
+/// 单张图片大小上限（字节）。originals 直传用户原图，相机/高清图可能较大，给到 60MB。
+pub const MAX_IMAGE_BYTES: usize = 60 * 1024 * 1024;
 /// 单个音频大小上限（字节）。
 pub const MAX_AUDIO_BYTES: usize = 64 * 1024 * 1024;
 
@@ -123,6 +128,11 @@ mod tests {
     fn check_image_type_and_size() {
         assert!(check_image("png", 1024).is_ok());
         assert!(check_image("WEBP".to_lowercase().as_str(), 1024).is_ok());
+        // iPhone/相机格式放行（修复 originals 直传 heic 被拒的 400）
+        assert!(check_image("heic", 1024).is_ok());
+        assert!(check_image("heif", 1024).is_ok());
+        assert!(check_image("avif", 1024).is_ok());
+        assert!(check_image("tiff", 1024).is_ok());
         // 非图片类型拒绝
         assert_eq!(
             check_image("exe", 1024),

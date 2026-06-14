@@ -46,13 +46,14 @@ re-export：
 | API                                      | 说明                        |
 | ---------------------------------------- | --------------------------- |
 | `audio::transcode_to_mp3(input, output)` | 调系统 `ffmpeg` 转 192k MP3 |
+| `thumbnail_webp_vips(src, dst, max_w, q)` | 调系统 `vips` 流式生成限宽 WebP 缩略图（内存有界） |
 
 ## 约定
 
 - 入库的上传路径使用正斜杠，例如 `novel/covers/a.webp`。
 - `save_base64_image()` 返回相对 uploads 根的路径，例如 `news/<md5>.webp`。
 - EPUB 解析失败、音频转码失败都由调用方决定如何降级。
-- 音频转码在运行时调用系统 `ffmpeg`。
+- 音频转码在运行时调用系统 `ffmpeg`；缩略图生成调用系统 `vips`（`libvips-tools`）。两者均为子进程，缺失/失败由调用方降级。
 - art/exam 等公开匿名上传口在落盘前调用 `check_image`/`check_media`，把 `UploadReject` 转 400；art 仅收图片，exam 仅收图片/音频。
 
 ## 使用位置

@@ -65,15 +65,18 @@ async function request(method, path, { params, body, isForm, headers } = {}) {
 // 统一拼成 /uploads/<path>；已是绝对地址或站内绝对路径则原样保留。
 const fixPath = (p) => resolveUploadUrl(p, ASSET_BASE)
 
-// 站内 art 图片转缩略图端点（按需生成 + 磁盘缓存 + 长缓存头）。
-// 画廊网格的展示图平均 ~1MB，直接出图是页面最大瓶颈；网格/弹窗首屏统一走缩略图。
-// 外链、非 art 路径、gif/svg（后端不转码）原样返回。
+// 站内 art 图片转缩略图 URL。直接指向静态缓存路径
+//   /uploads/art/.thumbs/<w>/<sub>.<ext>.webp
+// 让 nginx 命中即静态直出（零后端开销）；未命中时 nginx @fallback 回源后端
+// /api/art/thumb 现场生成并落盘，下次即静态命中。缓存路径布局须与后端
+// thumb_cache_path 完全一致（art.rs）。外链、非 art 路径、gif/svg 原样返回。
 export function thumbUrl(url, w = 640) {
   if (!url || typeof url !== 'string') return url
   if (!url.startsWith(`${ASSET_BASE}/art/`)) return url
-  const rel = url.slice(ASSET_BASE.length + 1)
+  const rel = url.slice(ASSET_BASE.length + 1) // 例 art/2026-06/x.webp
   if (/\.(gif|svg)$/i.test(rel)) return url
-  return `${API_PREFIX}/thumb?path=${encodeURIComponent(rel)}&w=${w}`
+  const sub = rel.slice('art/'.length) // 2026-06/x.webp
+  return `${ASSET_BASE}/art/.thumbs/${w}/${sub}.webp`
 }
 
 function transformArtwork(a) {
