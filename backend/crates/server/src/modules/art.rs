@@ -645,13 +645,18 @@ async fn get_artwork(
 }
 
 // 6.5 缩略图：GET /thumb?path=art/2026-02/x.webp&w=640
-// 按需生成 + 磁盘缓存（uploads/art/.thumbs/<w>/<path>.webp），命中后等同静态文件。
-// 画廊网格原来直出 ~1MB 的展示图，是页面最大的性能瓶颈；本端点把网格请求降到 ~30KB。
+// 生成 + 磁盘缓存（uploads/art/.thumbs/<w>/<path>.<ext>.webp）。生产由 nginx 对
+// .thumbs/ 静态直出、未命中才回源本端点；缓存全量预热（deploy/backfill-thumbs.sh）
+// 后，本端点几乎只在新图首访时被命中。生成走 libvips 子进程（内存有界）。
 
 /// 允许的缩略宽度白名单（防御任意 w 撑爆缓存目录）。
 const THUMB_WIDTHS: &[u32] = &[320, 640, 960];
-/// 缩略图 WebP 质量。
-const THUMB_QUALITY: f32 = 82.0;
+/// 缩略图 WebP 质量（vips webpsave 的 Q 参数，0-100）。
+const THUMB_QUALITY: u8 = 82;
+/// 缩略图生成并发闸：libvips 子进程虽内存有界，但冷缓存下一页网格会同时回源
+/// 多张；限并发=2（对齐生产 2 核），杜绝突发把小内存机器叠爆。
+static THUMB_GATE: std::sync::LazyLock<tokio::sync::Semaphore> =
+    std::sync::LazyLock::new(|| tokio::sync::Semaphore::new(2));
 
 #[derive(serde::Deserialize)]
 struct ThumbQuery {
@@ -686,23 +691,30 @@ fn thumb_cache_path(state: &AppState, rel: &str, w: u32) -> std::path::PathBuf {
         .with_extension(format!("{ext}.webp"))
 }
 
-/// 生成缩略图并原子落盘到缓存（tmp + rename，防并发读到半成品），返回编码字节。
-async fn build_thumb(input: Bytes, w: u32, cache: std::path::PathBuf) -> AppResult<Vec<u8>> {
-    // 编解码是 CPU 密集操作，放 blocking 线程池，避免拖慢异步 runtime
-    let out =
-        tokio::task::spawn_blocking(move || haruhi_media::thumbnail_webp(&input, w, THUMB_QUALITY))
-            .await
-            .map_err(|e| AppError::internal(format!("缩略图任务失败: {e}")))??;
+/// 用 libvips 生成缩略图并原子落盘到缓存（tmp + rename，防并发读到半成品）。
+/// 受 THUMB_GATE 限并发；vips 内存有界，从根上避免进程内全解码的 RSS 膨胀。
+async fn build_thumb(src: &std::path::Path, w: u32, cache: &std::path::Path) -> AppResult<()> {
+    let _permit = THUMB_GATE
+        .acquire()
+        .await
+        .map_err(|e| AppError::internal(format!("缩略图限流器异常: {e}")))?;
     if let Some(dir) = cache.parent() {
         let _ = tokio::fs::create_dir_all(dir).await;
     }
-    let tmp = cache.with_extension(format!("tmp-{:x}", rand_hex()));
-    if tokio::fs::write(&tmp, &out).await.is_ok() && tokio::fs::rename(&tmp, &cache).await.is_err()
-    {
-        // rename 失败（权限/跨文件系统等）时清掉临时文件，不留残渣
-        let _ = tokio::fs::remove_file(&tmp).await;
+    let tmp = cache.with_extension(format!("tmp{:x}.webp", rand_hex()));
+    match haruhi_media::thumbnail_webp_vips(src, &tmp, w, THUMB_QUALITY).await {
+        Ok(()) => {
+            if tokio::fs::rename(&tmp, cache).await.is_err() {
+                let _ = tokio::fs::remove_file(&tmp).await;
+                return Err(AppError::internal("缩略图落盘失败"));
+            }
+            Ok(())
+        }
+        Err(e) => {
+            let _ = tokio::fs::remove_file(&tmp).await;
+            Err(AppError::internal(format!("缩略图生成失败: {e}")))
+        }
     }
-    Ok(out)
 }
 
 async fn get_thumb(
@@ -724,15 +736,23 @@ async fn get_thumb(
     let src = state.cfg.uploads_dir.join(&rel);
     let cache = thumb_cache_path(&state, &rel, w);
 
-    let bytes = match tokio::fs::read(&cache).await {
-        Ok(b) => b,
-        Err(_) => {
-            let input = tokio::fs::read(&src)
-                .await
-                .map_err(|_| AppError::not_found("图片不存在"))?;
-            build_thumb(Bytes::from(input), w, cache).await?
+    // 缓存未命中才生成。源不存在→404；生成失败（vips 缺失/坏图）→回退原图（302），
+    // 保证网格不裂，且 vips 修复后下次访问会重新生成。
+    if tokio::fs::metadata(&cache).await.is_err() {
+        if tokio::fs::metadata(&src).await.is_err() {
+            return Err(AppError::not_found("图片不存在"));
         }
-    };
+        if let Err(e) = build_thumb(&src, w, &cache).await {
+            tracing::warn!(rel = %rel, error = %e, "缩略图生成失败，回退原图");
+            return Ok(
+                axum::response::Redirect::temporary(&format!("/uploads/{rel}")).into_response(),
+            );
+        }
+    }
+
+    let bytes = tokio::fs::read(&cache)
+        .await
+        .map_err(|_| AppError::internal("缩略图读取失败"))?;
 
     Ok((
         StatusCode::OK,
@@ -836,13 +856,11 @@ async fn create_artwork(
         // 后台预热画廊缩略图：新作品过审后首个访客无需等待现场生成。
         // 失败无害（/thumb 端点按需兜底），gif/svg 本就不转码故跳过。
         if disp_ext != "gif" && disp_ext != "svg" {
-            let warm = build_thumb(
-                disp_bytes.clone(),
-                640,
-                thumb_cache_path(&state, &rel_disp, 640),
-            );
+            // 文件已落盘，按磁盘路径让 vips 生成（不再持有整段字节）
+            let src = state.cfg.uploads_dir.join(&rel_disp);
+            let cache = thumb_cache_path(&state, &rel_disp, 640);
             tokio::spawn(async move {
-                let _ = warm.await;
+                let _ = build_thumb(&src, 640, &cache).await;
             });
         }
         let rel_orig = if std::ptr::eq(orig_bytes, disp_bytes) {

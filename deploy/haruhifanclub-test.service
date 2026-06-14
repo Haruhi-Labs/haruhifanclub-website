@@ -17,6 +17,11 @@ TimeoutStopSec=30
 # 数据与上传目录需可写
 ReadWritePaths=/var/www/haruhifanclub-test/data /var/www/haruhifanclub-test/uploads
 
+# ---- 内存约束（与生产对等，详见 haruhifanclub.service）----
+MemoryHigh=256M
+MemoryMax=512M
+Environment=MALLOC_ARENA_MAX=2
+
 # ---- 沙箱加固（与生产对等）----
 NoNewPrivileges=true
 ProtectSystem=strict
