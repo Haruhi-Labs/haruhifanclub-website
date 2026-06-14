@@ -26,16 +26,21 @@ pub async fn thumbnail_webp_vips(
 ) -> anyhow::Result<()> {
     // dst 扩展名为 .webp → vips 自动用 webpsave；Q=质量，strip=去元数据
     let dst_spec = format!("{}[Q={},strip]", dst.to_string_lossy(), quality);
-    let status = tokio::process::Command::new("vips")
-        .arg("thumbnail")
+    let mut cmd = tokio::process::Command::new("vips");
+    cmd.arg("thumbnail")
         .arg(src)
         .arg(&dst_spec)
         .arg(max_w.to_string())
         // 仅缩小不放大：小图原样输出，避免把低清图拉糊还占体积
         .arg("--size")
         .arg("down")
-        .status()
+        // 请求取消 / 超时（future 被 drop）时连带杀掉子进程，避免孤儿 vips 堆积
+        .kill_on_drop(true);
+    // 硬超时：病态图或 IO 阻塞导致 vips 卡死时，不让它无期限占住调用方的并发许可
+    // （art 侧 THUMB_GATE 仅 2 个，卡死即拖垮整个缩略图服务）。30s 远超正常生成（毫秒级）。
+    let status = tokio::time::timeout(std::time::Duration::from_secs(30), cmd.status())
         .await
+        .map_err(|_| anyhow::anyhow!("vips 执行超时（>30s），已中止"))?
         .map_err(|e| anyhow::anyhow!("启动 vips 失败（是否已安装 libvips-tools?）: {e}"))?;
     if !status.success() {
         anyhow::bail!("vips 退出码非零: {status}");

@@ -38,9 +38,13 @@ while IFS= read -r -d '' src; do
       continue
     fi
     mkdir -p "$(dirname "$dst")"
-    if vips thumbnail "$src" "${dst}[Q=${QUALITY},strip]" "$w" --size down 2>/dev/null; then
+    # 原子落盘：先写临时文件再 mv，避免中断/失败留下半截 webp 被"存在即跳过"永久供损坏图
+    tmp="${dst}.tmp.$$"
+    if vips thumbnail "$src" "${tmp}[Q=${QUALITY},strip]" "$w" --size down 2>/dev/null \
+      && mv -f "$tmp" "$dst"; then
       made=$((made + 1))
     else
+      rm -f "$tmp"
       failed=$((failed + 1))
       echo "  ✗ 生成失败：$rel @ ${w}" >&2
     fi

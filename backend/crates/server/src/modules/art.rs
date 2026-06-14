@@ -699,7 +699,10 @@ async fn build_thumb(src: &std::path::Path, w: u32, cache: &std::path::Path) -> 
         .await
         .map_err(|e| AppError::internal(format!("缩略图限流器异常: {e}")))?;
     if let Some(dir) = cache.parent() {
-        let _ = tokio::fs::create_dir_all(dir).await;
+        // 不吞错：权限/磁盘故障应明确暴露，而非伪装成"生成失败"反复回源
+        tokio::fs::create_dir_all(dir)
+            .await
+            .map_err(|e| AppError::internal(format!("缩略图缓存目录创建失败: {e}")))?;
     }
     let tmp = cache.with_extension(format!("tmp{:x}.webp", rand_hex()));
     match haruhi_media::thumbnail_webp_vips(src, &tmp, w, THUMB_QUALITY).await {
