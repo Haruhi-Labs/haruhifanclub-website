@@ -3,11 +3,19 @@ import ShopLayout from '../layouts/ShopLayout.vue'
 import AdminLayout from '../layouts/AdminLayout.vue'
 import { trackEvent } from '@/utils/analytics'
 import { hasValidAdminToken, verifyShopAccess } from '@/utils/adminAuth'
+// 统一账号 UI（终端用户登录/资料/设置/邮件链接落地）
+import { LoginView, ProfileView, SettingsView, VerifyEmailView, ResetPasswordView } from '@haruhi/auth-ui'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/admin/login', name: 'admin-login', component: () => import('../views/admin/AdminLoginView.vue') },
+    // 终端用户账号系统（独立全页，不套商城布局）
+    { path: '/login', name: 'login', component: LoginView },
+    { path: '/account', name: 'account', component: ProfileView },
+    { path: '/account/settings', name: 'account-settings', component: SettingsView },
+    { path: '/verify-email', name: 'verify-email', component: VerifyEmailView },
+    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView },
     // 前台商城路由
     {
       path: '/',

@@ -815,17 +815,20 @@ async fn admin_list_articles(
 // POST /articles（公开投稿 → pending；后台 → published。对齐旧 token 分支，改 RBAC：登录且有 Write 权限则 published）
 async fn create_article(
     State(state): State<AppState>,
-    user: Option<AuthUser>,
+    user: AuthUser,
     Json(mut body): Json<Value>,
 ) -> AppResult<Json<Value>> {
-    // 是否后台：登录用户且具备 news Write 权限 → published；否则游客投稿 → pending
-    let is_admin = match &user {
-        Some(u) => authorize(&state.pools.core, u, "news.blog", Action::Write)
-            .await
-            .is_ok(),
-        None => false,
-    };
+    // 投稿改为必须登录（取代半匿名）：有 news.blog Write 权限 → published；普通会员投稿 → pending。
+    let is_admin = authorize(&state.pools.core, &user, "news.blog", Action::Write)
+        .await
+        .is_ok();
     let status = if is_admin { "published" } else { "pending" };
+    // 普通会员投稿：要求邮箱已验证，署名强制取账号昵称（忽略自报 author）。
+    if !is_admin {
+        let nickname =
+            crate::auth_routes::require_verified_member(&state.pools.core, &user).await?;
+        body["author"] = Value::String(nickname);
+    }
     let created_at = chrono::Utc::now().to_rfc3339();
     normalize_float_fields(&mut body, &["coverFocalX", "coverFocalY"], false);
 
@@ -866,8 +869,8 @@ async fn create_article(
     let mut q = sqlx::query_scalar::<_, i64>(
         "INSERT INTO articles \
          (title, subtitle, date, type, author, tags, image, originalImage, coverFocalX, coverFocalY, \
-          content, isPinned, pinOrder, participants, status, created_at, summary) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+          content, isPinned, pinOrder, participants, status, created_at, summary, author_user_id) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
     );
     q = bind_scalar(q, &g("title"));
     q = bind_scalar(q, &g("subtitle"));
@@ -886,6 +889,7 @@ async fn create_article(
     q = q.bind(status);
     q = q.bind(&created_at);
     q = bind_scalar(q, &g("summary"));
+    q = q.bind(user.id);
     let new_id: i64 = q.fetch_one(&state.pools.news).await?;
 
     // 响应：回显 newArticle（含已处理 image/content、规范化 isPinned/pinOrder/status/created_at）+ id

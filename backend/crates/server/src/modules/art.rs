@@ -37,6 +37,7 @@ pub fn router() -> Router<AppState> {
         .route("/comments", get(list_comments).post(create_comment))
         .route("/likes/artwork/{id}", post(like_artwork))
         .route("/likes/comment/{id}", post(like_comment))
+        .route("/claim", post(claim_anon))
         // ---- 后台接口（RBAC）----
         .route("/admin/pending-artworks", get(admin_pending_artworks))
         .route("/admin/audit-history", get(admin_audit_history))
@@ -159,6 +160,18 @@ fn resolve_anon(secret: &str, headers: &HeaderMap) -> (String, Option<[String; 2
             format!("{COOKIE_SIG}={sig}; {common}"),
         ];
         (new_id, Some(set))
+    }
+}
+
+/// 只解析、校验旧匿名 Cookie 的 anon_id（合法才返回 Some，绝不新发）。供登录用户「认领」历史匿名内容。
+fn parse_anon_cookie(secret: &str, headers: &HeaderMap) -> Option<String> {
+    let cookies = parse_cookies(headers.get("cookie").and_then(|v| v.to_str().ok()));
+    let id = cookies.get(COOKIE_NAME)?;
+    let sig = cookies.get(COOKIE_SIG)?;
+    if !id.is_empty() && sign(secret, id) == *sig {
+        Some(id.clone())
+    } else {
+        None
     }
 }
 
@@ -772,9 +785,12 @@ async fn get_thumb(
 // 7. 创建作品（multipart：images[] + originals[] + 文本字段；公开匿名，按 IP 限流）
 async fn create_artwork(
     State(state): State<AppState>,
+    user: AuthUser,
     headers: axum::http::HeaderMap,
     mut mp: Multipart,
 ) -> AppResult<Response> {
+    // 必须登录 + 邮箱已验证：取代过去客户端自报 uploader_uid/name 的半匿名上传
+    let member_name = crate::auth_routes::require_verified_member(&state.pools.core, &user).await?;
     let ip = crate::ratelimit::client_ip(&headers);
     if let Err(secs) = state.upload_limiter.check_and_record(&ip) {
         return Err(AppError::TooManyRequests(format!(
@@ -887,8 +903,9 @@ async fn create_artwork(
     let get = |k: &str| fields.get(k).map(|s| s.as_str());
     let title = safe_text(get("title"));
     let description = safe_text(get("description"));
-    let uploader_name = safe_text(get("uploader_name"));
-    let uploader_uid = safe_text(get("uploader_uid"));
+    // 署名与身份键一律取自登录账号，忽略客户端自报（uploader_uid = "u{id}" 沿用积分/创作者体系）
+    let uploader_name = member_name;
+    let uploader_uid = crate::auth_routes::member_uid(user.id);
     let source_type = {
         let s = safe_text(get("source_type"));
         if s.is_empty() {
@@ -981,14 +998,15 @@ async fn create_artwork(
 
     let last_id: i64 = sqlx::query_scalar(
         "INSERT INTO artworks \
-         (title, description, uploader_name, uploader_uid, source_type, content_type, tags_json, tags_norm, origin_url, \
+         (title, description, uploader_name, uploader_uid, author_user_id, source_type, content_type, tags_json, tags_norm, origin_url, \
           file_path, file_path_original, status, review_note, reviewed_at, created_at, licenses_json, ai_reason, images_json) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
     )
     .bind(&title)
     .bind(&description)
     .bind(opt(&uploader_name))
     .bind(opt(&uploader_uid))
+    .bind(user.id)
     .bind(&source_type)
     .bind(&content_type)
     .bind(&tags_json)
@@ -1103,13 +1121,15 @@ async fn list_comments(
 // 9. 创建评论
 async fn create_comment(
     State(state): State<AppState>,
-    headers: HeaderMap,
+    user: AuthUser,
     Json(body): Json<Value>,
 ) -> AppResult<Response> {
-    let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
+    // 必须登录 + 邮箱已验证；署名取账号昵称，身份键取 "u{id}"（不再读匿名 cookie）
+    let user_name = crate::auth_routes::require_verified_member(&state.pools.core, &user).await?;
+    let anon_id = crate::auth_routes::member_uid(user.id);
+    let set: Option<[String; 2]> = None;
 
     let artwork_id = body.get("artwork_id").and_then(json_num_i64);
-    let user_name = clamp_len(body.get("user_name").and_then(|v| v.as_str()), 24);
     let comment_body = clamp_len(body.get("body").and_then(|v| v.as_str()), 800);
 
     let artwork_id = match artwork_id {
@@ -1152,8 +1172,8 @@ async fn create_comment(
     let created_at = now_iso();
 
     let last_id: i64 = sqlx::query_scalar(
-        "INSERT INTO comments(artwork_id, anon_id, user_name, avatar_key, body, like_total, created_at, status, ai_reason) \
-         VALUES(?,?,?,?,?,0,?,?,?) RETURNING id",
+        "INSERT INTO comments(artwork_id, anon_id, user_name, avatar_key, body, like_total, created_at, status, ai_reason, author_user_id) \
+         VALUES(?,?,?,?,?,0,?,?,?,?) RETURNING id",
     )
     .bind(artwork_id)
     .bind(&anon_id)
@@ -1163,6 +1183,7 @@ async fn create_comment(
     .bind(&created_at)
     .bind(&status)
     .bind(&ai_reason)
+    .bind(user.id)
     .fetch_one(&state.pools.art)
     .await?;
 
@@ -1313,22 +1334,59 @@ async fn like_target(
 
 async fn like_artwork(
     State(state): State<AppState>,
+    user: AuthUser,
     Path(id): Path<i64>,
-    headers: HeaderMap,
 ) -> AppResult<Response> {
-    let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
+    // 点赞须登录：每日每目标限额按账号计（anon_id = "u{id}"）
+    let anon_id = crate::auth_routes::member_uid(user.id);
     let (status, body) = like_target(&state, &anon_id, "artwork", id).await;
-    Ok((status, json_with_cookie(body, set)).into_response())
+    Ok((status, Json(body)).into_response())
 }
 
 async fn like_comment(
     State(state): State<AppState>,
+    user: AuthUser,
     Path(id): Path<i64>,
-    headers: HeaderMap,
 ) -> AppResult<Response> {
-    let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
+    let anon_id = crate::auth_routes::member_uid(user.id);
     let (status, body) = like_target(&state, &anon_id, "comment", id).await;
-    Ok((status, json_with_cookie(body, set)).into_response())
+    Ok((status, Json(body)).into_response())
+}
+
+/// 认领历史匿名内容：用旧的已签名 `haruhi_anon` cookie，把该匿名身份名下尚未归属的
+/// 作品/评论绑定到当前登录账号（取代半匿名后的平滑迁移路径）。
+async fn claim_anon(
+    State(state): State<AppState>,
+    user: AuthUser,
+    headers: HeaderMap,
+) -> AppResult<Json<Value>> {
+    let anon_id = match parse_anon_cookie(&state.cfg.art_cookie_secret, &headers) {
+        Some(id) => id,
+        None => {
+            return Ok(Json(
+                json!({ "ok": false, "claimed": 0, "message": "未发现可认领的匿名身份" }),
+            ))
+        }
+    };
+    let aw = sqlx::query(
+        "UPDATE artworks SET author_user_id = ? WHERE uploader_uid = ? AND author_user_id IS NULL",
+    )
+    .bind(user.id)
+    .bind(&anon_id)
+    .execute(&state.pools.art)
+    .await?
+    .rows_affected();
+    let cm = sqlx::query(
+        "UPDATE comments SET author_user_id = ? WHERE anon_id = ? AND author_user_id IS NULL",
+    )
+    .bind(user.id)
+    .bind(&anon_id)
+    .execute(&state.pools.art)
+    .await?
+    .rows_affected();
+    Ok(Json(
+        json!({ "ok": true, "claimed": aw + cm, "artworks": aw, "comments": cm }),
+    ))
 }
 
 // ============================================================

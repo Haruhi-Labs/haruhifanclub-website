@@ -7,6 +7,16 @@ import { storeRoutes } from '@/features/store/routes';
 import { quizRoutes } from '@/features/quiz/routes';
 import { activityRoutes } from '@/features/activity/routes';
 import { adminRoutes } from '@/features/admin/routes';
+// 统一账号 UI（news 作主站，承载邮箱验证/找回密码邮件链接落地页）
+import { LoginView, ProfileView, SettingsView, VerifyEmailView, ResetPasswordView } from '@haruhi/auth-ui';
+
+const accountRoutes = [
+    { path: '/login', name: 'login', component: LoginView },
+    { path: '/account', name: 'account', component: ProfileView },
+    { path: '/account/settings', name: 'account-settings', component: SettingsView },
+    { path: '/verify-email', name: 'verify-email', component: VerifyEmailView },
+    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView }
+];
 
 const routes = [
     ...blogRoutes,
@@ -14,7 +24,8 @@ const routes = [
     ...storeRoutes,
     ...activityRoutes,
     ...quizRoutes,
-    ...adminRoutes
+    ...adminRoutes,
+    ...accountRoutes
 ];
 
 const router = createRouter({

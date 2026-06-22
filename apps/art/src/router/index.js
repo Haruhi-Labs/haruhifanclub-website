@@ -3,6 +3,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 // 首屏画廊保持同步加载（落地即用）；其余路由懒加载按需分包，
 // 尤其 AdminView 较大，避免拖累首屏体积。
 import GalleryView from '../views/GalleryView.vue'
+// 统一账号 UI（登录/资料/设置/邮件链接落地）
+import { LoginView, ProfileView, SettingsView, VerifyEmailView, ResetPasswordView } from '@haruhi/auth-ui'
 
 const UploadView = () => import('../views/UploadView.vue')
 const AdminView = () => import('../views/AdminView.vue')
@@ -18,6 +20,13 @@ const router = createRouter({
     { path: '/points', name: 'points', component: PointsView },
     // 新增：授权查询页
     { path: '/license', name: 'license', component: LicenseView },
+
+    // 统一账号系统
+    { path: '/login', name: 'login', component: LoginView },
+    { path: '/account', name: 'account', component: ProfileView },
+    { path: '/account/settings', name: 'account-settings', component: SettingsView },
+    { path: '/verify-email', name: 'verify-email', component: VerifyEmailView },
+    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView },
 
     // fallback
     { path: '/:pathMatch(.*)*', redirect: '/' }

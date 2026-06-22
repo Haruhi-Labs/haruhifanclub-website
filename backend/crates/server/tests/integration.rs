@@ -36,6 +36,8 @@ fn test_config(data_dir: PathBuf, uploads_dir: PathBuf) -> Config {
         uploads_dir,
         jwt_secret: "test-secret-please-change-32-chars-long".into(),
         jwt_ttl_seconds: 3600,
+        session_ttl_seconds: 3600,
+        cookie_secure: false,
         superadmin_user: Some(ADMIN_USER.into()),
         superadmin_password: Some(ADMIN_PASS.into()),
         dashscope_api_key: None,
@@ -59,6 +61,7 @@ fn test_config(data_dir: PathBuf, uploads_dir: PathBuf) -> Config {
             smtp_pass: None,
         },
         public_site_url: "http://localhost".into(),
+        account_web_base: "http://localhost/news".into(),
         cors_origins: vec![],
     }
 }
@@ -80,6 +83,8 @@ async fn setup() -> TestApp {
         pools,
         login_limiter: Arc::new(RateLimiter::new(10, 600)),
         upload_limiter: Arc::new(RateLimiter::new(60, 600)),
+        account_limiter: Arc::new(RateLimiter::new(5, 3600)),
+        mailer: None,
     };
     let router = routes::router(state.clone());
     TestApp {
@@ -490,31 +495,50 @@ async fn admin_lists_enforce_rbac_across_modules() {
 #[tokio::test]
 async fn art_upload_rejects_non_image() {
     let app = setup().await;
+    // 画廊上传已改为必须登录；超管 token 绕过邮箱验证，得以走到图片类型校验
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
     let req = multipart_req(
         "/api/art/artworks",
         &[
             ("images", Some("evil.txt"), "not an image"),
             ("title", None, "标题"),
         ],
-        None,
+        Some(&token),
     );
     let (s, _) = send(&app.router, req).await;
     assert_eq!(s, StatusCode::BAD_REQUEST, "非图片扩展名应被拒");
 }
 
 #[tokio::test]
+async fn art_upload_requires_login() {
+    let app = setup().await;
+    // 未登录上传 → 401（取代过去的匿名上传）
+    let req = multipart_req(
+        "/api/art/artworks",
+        &[
+            ("images", Some("ok.png"), "\u{89}PNG"),
+            ("title", None, "x"),
+        ],
+        None,
+    );
+    let (s, _) = send(&app.router, req).await;
+    assert_eq!(s, StatusCode::UNAUTHORIZED, "未登录上传应 401");
+}
+
+#[tokio::test]
 async fn art_upload_accepts_image_and_persists() {
     let app = setup().await;
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
     let req = multipart_req(
         "/api/art/artworks",
         &[
             ("images", Some("ok.png"), "\u{89}PNG-fake-bytes"),
             ("title", None, "我的作品"),
         ],
-        None,
+        Some(&token),
     );
     let (s, j) = send(&app.router, req).await;
-    assert_eq!(s, StatusCode::OK, "合法图片匿名上传应成功: {j:?}");
+    assert_eq!(s, StatusCode::OK, "合法图片登录上传应成功: {j:?}");
     assert_eq!(j["ok"], true);
     // 落库可验证（AI 离线 → 状态 pending，用 status=all 查得到）
     let (_, all) = send(&app.router, get("/api/art/artworks?status=all", None)).await;

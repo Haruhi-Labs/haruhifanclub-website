@@ -1,5 +1,6 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
+import { AccountMenu } from '@haruhi/auth-ui'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,6 +31,7 @@ function enterAdmin() {
       <RouterLink :class="linkClass('/')" to="/" data-sfx="click">画廊</RouterLink>
       <RouterLink :class="linkClass('/upload')" to="/upload" data-sfx="click">投稿</RouterLink>
       <RouterLink :class="linkClass('/points')" to="/points" data-sfx="click">积分</RouterLink>
+      <AccountMenu />
     </nav>
   </div>
 </template>

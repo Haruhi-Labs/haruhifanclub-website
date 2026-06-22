@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@haruhi/api-client": "workspace:*",
+    "@haruhi/auth-ui": "workspace:*",
     "axios": "^1.13.2",
     "dompurify": "^3.4.8",
     "epubjs": "^0.3.93",

@@ -1,0 +1,11 @@
+// @haruhi/auth-ui —— 全站共享账号 UI（可换肤 Vue 组件）+ 无头登录态组合式。
+// 组件用 vue + vue-router（均为各 app 已有的 peer 依赖，单例复用）。
+// 主题：在外层对 .hauth-root 设 CSS 变量（如 --hauth-accent）即可换肤。
+export { useSession } from './useSession.js'
+
+export { default as LoginView } from './LoginView.vue'
+export { default as ResetPasswordView } from './ResetPasswordView.vue'
+export { default as VerifyEmailView } from './VerifyEmailView.vue'
+export { default as ProfileView } from './ProfileView.vue'
+export { default as SettingsView } from './SettingsView.vue'
+export { default as AccountMenu } from './AccountMenu.vue'

@@ -71,6 +71,8 @@
              </svg>
            </button>
 
+           <AccountMenu />
+
            <button
              @click="toggleMobileMenu"
              class="mobile-menu-button"
@@ -123,6 +125,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMainStore } from '@/stores/main';
+import { AccountMenu } from '@haruhi/auth-ui';
 
 const props = defineProps({
   overlay: {

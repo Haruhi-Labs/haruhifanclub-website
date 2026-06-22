@@ -46,6 +46,7 @@
                 <i class="fa fa-shopping-cart mr-2"></i> 购物车
                 <div v-if="cartCount > 0" class="badge-count">{{ cartCount }}</div>
             </button>
+            <AccountMenu />
         </div>
 
         <!-- Title Section -->
@@ -263,6 +264,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useShopStore } from '@/stores/shopStore'
 import TheFooter from '@/components/TheFooter.vue'
 import { appBaseUrl } from '@/utils/runtimePaths'
+import { AccountMenu } from '@haruhi/auth-ui'
 import '@/assets/shop.css'
 
 const route = useRoute()

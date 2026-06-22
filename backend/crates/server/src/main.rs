@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use haruhi_core::Config;
 use haruhi_db::Pools;
+use haruhi_mail::Mailer;
 use haruhi_server::ratelimit::RateLimiter;
 use haruhi_server::state::AppState;
 use haruhi_server::{modules, routes, seed};
@@ -30,6 +31,10 @@ async fn main() -> anyhow::Result<()> {
         login_limiter: Arc::new(RateLimiter::new(10, 600)),
         // 匿名上传限流：单 IP 10 分钟内最多 60 次（足够正常创作，封堵刷量）
         upload_limiter: Arc::new(RateLimiter::new(60, 600)),
+        // 注册/找回/重发验证：单 IP 1 小时内最多 5 次，防刷邮件
+        account_limiter: Arc::new(RateLimiter::new(5, 3600)),
+        // 统一邮件发送器（未配置邮件时为 None）
+        mailer: Mailer::from_config(&cfg),
     };
     let app = routes::router(state);
 
