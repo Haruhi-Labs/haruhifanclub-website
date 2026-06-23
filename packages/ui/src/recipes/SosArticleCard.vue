@@ -54,22 +54,25 @@ const emit = defineEmits<{
       <p v-if="subtitle" class="sos-article-card__subtitle">{{ subtitle }}</p>
       <p v-if="excerpt" class="sos-card__excerpt sos-article-card__excerpt">{{ excerpt }}</p>
       <slot />
+      <footer
+        v-if="tags.length || date || author"
+        class="sos-card__footer sos-article-card__footer"
+      >
+        <div v-if="tags.length" class="sos-card__tags">
+          <button
+            v-for="tag in tags"
+            :key="tag"
+            type="button"
+            class="sos-card__tag"
+            @click.stop="emit('tag', tag)"
+          >
+            #{{ tag }}
+          </button>
+        </div>
+        <span v-if="date || author" class="sos-article-card__meta">
+          <template v-if="author">{{ author }} · </template>{{ date }}
+        </span>
+      </footer>
     </div>
-    <footer v-if="tags.length || date || author" class="sos-card__footer">
-      <div class="sos-card__tags">
-        <button
-          v-for="tag in tags"
-          :key="tag"
-          type="button"
-          class="sos-card__tag"
-          @click.stop="emit('tag', tag)"
-        >
-          #{{ tag }}
-        </button>
-      </div>
-      <span class="sos-article-card__meta">
-        <template v-if="author">{{ author }} · </template>{{ date }}
-      </span>
-    </footer>
   </article>
 </template>

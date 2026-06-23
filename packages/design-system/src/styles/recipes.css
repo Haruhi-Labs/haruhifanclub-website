@@ -167,10 +167,21 @@
   box-shadow: var(--sos-hover-shadow);
 }
 .sos-article-card .sos-card__body {
-  display: grid;
-  gap: var(--sos-space-3);
-  align-content: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sos-space-2);
   flex: 1;
+}
+/* 标题与副标题成组，正文摘要后留更大间距 */
+.sos-article-card__subtitle {
+  margin-bottom: var(--sos-space-1);
+}
+/* footer 置于 body 内并贴底，继承 body 横向内距，不再贴边 */
+.sos-article-card__footer {
+  margin-top: auto;
+  padding-top: var(--sos-space-4);
+  flex-wrap: wrap;
+  gap: var(--sos-space-2) var(--sos-space-3);
 }
 .sos-article-card__head {
   display: flex;
@@ -203,8 +214,9 @@
   transform: scale(1.03);
 }
 .sos-article-card__title {
-  font-size: 1.3rem;
-  -webkit-line-clamp: 3;
+  font-size: 1.2rem;
+  line-height: 1.28;
+  -webkit-line-clamp: 2;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
@@ -215,11 +227,15 @@
   font-size: var(--sos-text-sm);
   font-weight: var(--sos-weight-bold);
   line-height: 1.45;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 .sos-article-card__excerpt {
   font-family: var(--sos-reading-family);
-  line-height: 1.75;
-  --sos-clamp: 5;
+  line-height: 1.7;
+  --sos-clamp: 3;
 }
 .sos-article-card__meta {
   margin-left: auto;
@@ -306,10 +322,11 @@
 }
 .sos-product-card__price-row {
   display: flex;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: space-between;
   gap: var(--sos-space-3);
   margin-top: auto;
+  padding-top: var(--sos-space-1);
 }
 .sos-product-card__state {
   color: var(--sos-text-tertiary);
