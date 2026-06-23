@@ -1935,7 +1935,8 @@ textarea {
 }
 
 .ds-qa-evidence,
-.ds-qa-gates {
+.ds-qa-gates,
+.ds-validation-commands {
   display: grid;
   gap: var(--sos-space-4);
   min-width: 0;
@@ -1946,7 +1947,8 @@ textarea {
 }
 
 .ds-qa-evidence h3,
-.ds-qa-gates h3 {
+.ds-qa-gates h3,
+.ds-validation-commands h3 {
   margin: 0;
   font-size: var(--sos-text-lg);
   line-height: 1.3;
@@ -1959,7 +1961,8 @@ textarea {
 }
 
 .ds-qa-evidence-grid div,
-.ds-qa-gates div {
+.ds-qa-gates div,
+.ds-validation-commands div {
   display: grid;
   align-content: start;
   gap: var(--sos-space-2);
@@ -1986,18 +1989,31 @@ textarea {
 }
 
 .ds-qa-evidence-grid p,
-.ds-qa-gates p {
+.ds-qa-gates p,
+.ds-validation-commands p {
   margin: 0;
   color: var(--sos-text-secondary);
   font-size: var(--sos-text-xs);
   line-height: 1.58;
 }
 
-.ds-qa-evidence-grid code {
+.ds-qa-evidence-grid code,
+.ds-validation-commands code {
   color: var(--sos-text-tertiary);
   font-family: var(--sos-font-mono);
   font-size: var(--sos-text-xs);
   overflow-wrap: anywhere;
+}
+
+.ds-validation-commands div {
+  grid-template-columns: 7rem minmax(15rem, 0.95fr) minmax(0, 1.2fr);
+  align-items: baseline;
+}
+
+.ds-validation-commands strong {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
 }
 
 .ds-state-card-title {
@@ -2182,7 +2198,8 @@ textarea {
   .ds-contract-row--head,
   .ds-adoption-row,
   .ds-package-governance div,
-  .ds-bridge-rules div {
+  .ds-bridge-rules div,
+  .ds-validation-commands div {
     grid-template-columns: 1fr;
     gap: var(--sos-space-2);
   }

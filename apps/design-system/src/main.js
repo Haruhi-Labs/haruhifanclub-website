@@ -960,6 +960,24 @@ const qaGateLevels = [
   ],
 ]
 
+const validationCommands = [
+  [
+    '本地基线',
+    'pnpm check:design-system',
+    'Prettier、设计规范页 ESLint、规范页 build、@haruhi/ui typecheck。',
+  ],
+  [
+    '浏览器断点',
+    'pnpm check:design-system:browser',
+    '需先启动设计规范页 dev server；检查关键 section 在 390 / 768 / 1280 / 1440px 无横向溢出。',
+  ],
+  [
+    '预览服务',
+    'pnpm dev:design-system -- --host 127.0.0.1 --port 5206',
+    '本地预览地址为 /design-system/。',
+  ],
+]
+
 const pagePatterns = [
   [
     'AppShell',
@@ -2011,6 +2029,20 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
                 .join('')}
             </article>
           </div>
+          <article class="ds-validation-commands">
+            <h3>可运行检查</h3>
+            ${validationCommands
+              .map(
+                ([label, command, copy]) => `
+              <div>
+                <strong>${label}</strong>
+                <code>${command}</code>
+                <p>${copy}</p>
+              </div>
+            `
+              )
+              .join('')}
+          </article>
         </section>
 
         <section class="ds-section" id="migration">

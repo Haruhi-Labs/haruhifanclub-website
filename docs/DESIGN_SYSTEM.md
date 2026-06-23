@@ -762,6 +762,25 @@ Badge 不处理点击行为。需要点击、提交或导航时使用 Button、L
 | Review | 设计复核 | 存在轻微视觉差异，但不影响核心任务、状态证据、响应式和回滚边界。            |
 | Block  | 不得上线 | 核心路径断裂、移动端依赖 hover、状态只靠颜色、关键数据消失或新增 CSS 债务。 |
 
+### 18.3 自动化检查
+
+设计系统相关 PR 至少运行本地基线命令：
+
+```sh
+pnpm check:design-system
+```
+
+它会执行 Prettier、规范页 ESLint、规范页 build 和 `@haruhi/ui` typecheck。
+
+涉及规范页布局、断点、内容展示或组件状态的 PR，需要先启动本地预览，再运行浏览器断点检查：
+
+```sh
+pnpm dev:design-system -- --host 127.0.0.1 --port 5206
+pnpm check:design-system:browser
+```
+
+浏览器检查默认访问 `http://127.0.0.1:5206/design-system/`，并验证关键 section 在 `390 / 768 / 1280 / 1440px` 下没有横向溢出。
+
 ## 19. Do / Don’t
 
 Do：

@@ -118,6 +118,12 @@ API 规则：
 - 键盘路径和可访问名称说明。
 - 不新增视觉 props、不重定义 token 的说明。
 
+本地检查：
+
+```sh
+pnpm check:design-system
+```
+
 ## 版本规则
 
 - Minor：新增 wrapper、非破坏性 props、文档 section 或 recipe 示例。

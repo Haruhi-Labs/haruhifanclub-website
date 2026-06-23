@@ -135,6 +135,18 @@ import '@haruhi/design-system/bridges.css'
 - bridge 变量的 owner、使用范围和删除计划。
 - 移除入口 import 或 bridge 文件后的回滚边界。
 
+本地检查：
+
+```sh
+pnpm check:design-system
+```
+
+涉及规范页布局或断点时，先启动 `pnpm dev:design-system -- --host 127.0.0.1 --port 5206`，再运行：
+
+```sh
+pnpm check:design-system:browser
+```
+
 ## 和 @haruhi/ui 的关系
 
 `@haruhi/ui` 已启用 MVP，适合在 Vue app 中复用稳定基础件：Button、Badge、Field、Notice、Progress、Card、EmptyState、HeaderBrand、Stack、Inline、Cluster、Grid、Split、Surface、MediaFrame。
