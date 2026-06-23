@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { SosAvatar, SosBadge } from '@haruhi/ui'
 import { useSession } from './useSession.js'
 import './auth.css'
 
@@ -17,9 +18,6 @@ const router = useRouter()
 
 const open = ref(false)
 const user = computed(() => session.state.user)
-const initial = computed(() =>
-  (user.value?.nickname || user.value?.email || 'U').slice(0, 1).toUpperCase()
-)
 const accountLabel = computed(() => user.value?.nickname || user.value?.email || '')
 
 onMounted(() => {
@@ -44,35 +42,48 @@ async function logout() {
 </script>
 
 <template>
-  <div ref="rootEl" class="hauth-root hauth-menu">
+  <div ref="rootEl" class="hauth-menu">
     <!-- 未登录 -->
-    <button v-if="!user" class="hauth-account-action" @click="goLogin">登录 / 注册</button>
+    <button
+      v-if="!user"
+      type="button"
+      class="sos-button sos-button--secondary sos-button--sm"
+      @click="goLogin"
+    >
+      登录 / 注册
+    </button>
 
     <!-- 已登录 -->
     <template v-else>
       <button
+        type="button"
         class="hauth-trigger"
-        aria-haspopup="true"
+        aria-haspopup="menu"
         :aria-expanded="open"
         @click="open = !open"
       >
-        <img v-if="user.avatar" :src="user.avatar" class="hauth-avatar" alt="" />
-        <span v-else class="hauth-avatar">{{ initial }}</span>
-        <span v-if="accountLabel" class="hauth-trigger-name">{{ accountLabel }}</span>
+        <SosAvatar :src="user.avatar || undefined" :name="accountLabel || 'U'" size="sm" />
+        <span v-if="accountLabel" class="hauth-trigger__name">{{ accountLabel }}</span>
       </button>
-      <div v-if="open" class="hauth-dropdown">
-        <div class="hauth-dropdown-head">
-          <div class="hauth-dropdown-name">{{ user.nickname || '未命名' }}</div>
-          <div class="hauth-dropdown-mail">{{ user.email || user.username }}</div>
-          <span v-if="!user.emailVerified" class="hauth-badge hauth-badge--warn"> 邮箱未验证 </span>
+
+      <div v-if="open" class="hauth-menu__panel sos-menu sos-scope" role="menu">
+        <div class="hauth-menu-head">
+          <span class="hauth-menu-head__name">{{ user.nickname || '未命名' }}</span>
+          <span class="hauth-menu-head__mail">{{ user.email || user.username }}</span>
+          <SosBadge v-if="!user.emailVerified" variant="danger" style="margin-top: 0.25rem">
+            邮箱未验证
+          </SosBadge>
         </div>
-        <router-link class="hauth-item" :to="profilePath" @click="open = false">
+        <router-link class="sos-menu__item" :to="profilePath" @click="open = false">
           个人资料
         </router-link>
-        <router-link class="hauth-item" :to="settingsPath" @click="open = false">
+        <router-link class="sos-menu__item" :to="settingsPath" @click="open = false">
           账号设置
         </router-link>
-        <button class="hauth-item hauth-item--danger" @click="logout">退出登录</button>
+        <div class="sos-menu__sep"></div>
+        <button type="button" class="sos-menu__item sos-menu__item--danger" @click="logout">
+          退出登录
+        </button>
       </div>
     </template>
   </div>

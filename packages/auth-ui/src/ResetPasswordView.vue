@@ -1,12 +1,15 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { SosCard, SosField, SosInput, SosButton, SosNotice } from '@haruhi/ui'
 import { useSession } from './useSession.js'
 import './auth.css'
 
 const props = defineProps({
   apiBase: { type: String, default: '/api' },
   loginPath: { type: String, default: '/login' },
+  title: { type: String, default: '春日应援团' },
+  site: { type: String, default: undefined },
 })
 
 const session = useSession(props.apiBase)
@@ -19,6 +22,7 @@ const confirm = ref('')
 const loading = ref(false)
 const error = ref('')
 const done = ref(false)
+const showPw = ref(false)
 
 async function onSubmit() {
   error.value = ''
@@ -44,26 +48,56 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="hauth-root hauth-page">
-    <div class="hauth-card">
-      <h2 class="hauth-title">重置密码</h2>
-      <p class="hauth-sub">设置一个新密码，旧的登录会话将全部失效。</p>
+  <div class="hauth-root sos-scope hauth-shell" :data-sos-site="site">
+    <SosCard class="hauth-card" as="section">
+      <header class="hauth-brand">
+        <span class="hauth-brand__mark" aria-hidden="true">{{ title.slice(0, 1) }}</span>
+        <h1 class="sos-title" style="font-size: var(--sos-text-2xl)">重置密码</h1>
+        <p class="sos-copy sos-copy--small">设置一个新密码，旧的登录会话将全部失效。</p>
+      </header>
 
-      <div v-if="!token" class="hauth-msg hauth-msg--err">链接无效：缺少令牌。请重新发起“忘记密码”。</div>
-      <div v-else-if="done" class="hauth-msg hauth-msg--ok">密码已重置，正在跳转到登录…</div>
+      <SosNotice
+        v-if="!token"
+        tone="danger"
+        title="链接无效"
+        style="margin-top: var(--sos-space-4)"
+      >
+        缺少令牌，请重新发起“忘记密码”。
+      </SosNotice>
+      <SosNotice
+        v-else-if="done"
+        tone="success"
+        title="密码已重置"
+        style="margin-top: var(--sos-space-4)"
+      >
+        正在跳转到登录…
+      </SosNotice>
 
-      <form v-if="token && !done" @submit.prevent="onSubmit">
-        <div v-if="error" class="hauth-msg hauth-msg--err">{{ error }}</div>
-        <div class="hauth-field">
-          <label class="hauth-label">新密码（至少 8 位）</label>
-          <input class="hauth-input" type="password" v-model="password" autocomplete="new-password" required />
-        </div>
-        <div class="hauth-field">
-          <label class="hauth-label">确认新密码</label>
-          <input class="hauth-input" type="password" v-model="confirm" autocomplete="new-password" required />
-        </div>
-        <button class="hauth-btn" :disabled="loading">{{ loading ? '提交中…' : '重置密码' }}</button>
+      <form
+        v-if="token && !done"
+        class="sos-stack"
+        style="margin-top: var(--sos-space-5)"
+        @submit.prevent="onSubmit"
+      >
+        <SosNotice v-if="error" tone="danger">{{ error }}</SosNotice>
+        <SosField label="新密码" help="至少 8 位">
+          <div class="hauth-pw">
+            <SosInput
+              v-model="password"
+              :type="showPw ? 'text' : 'password'"
+              autocomplete="new-password"
+              required
+            />
+            <button type="button" class="hauth-pw__toggle" @click="showPw = !showPw">
+              {{ showPw ? '隐藏' : '显示' }}
+            </button>
+          </div>
+        </SosField>
+        <SosField label="确认新密码">
+          <SosInput v-model="confirm" type="password" autocomplete="new-password" required />
+        </SosField>
+        <SosButton type="submit" class="sos-button--block" :loading="loading">重置密码</SosButton>
       </form>
-    </div>
+    </SosCard>
   </div>
 </template>

@@ -1,427 +1,189 @@
-/* @haruhi/auth-ui 共享样式：中性、可换肤。各 app 可在外层设 CSS 变量覆盖主题色。
-   作用域统一收敛在 .hauth-root 下，避免污染各 app 全局样式。 */
-.hauth-root {
-  --hauth-accent: #d64d63;
-  --hauth-accent-hover: #c03e54;
-  --hauth-bg: #ffffff;
-  --hauth-fg: #1f2328;
-  --hauth-muted: #6b7280;
-  --hauth-border: #e5e7eb;
-  --hauth-field-bg: #f9fafb;
-  --hauth-danger: #dc2626;
-  --hauth-ok: #16a34a;
-  --hauth-radius: 14px;
-  --hauth-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-  --hauth-menu-bg: rgba(255, 255, 255, 0.9);
-  --hauth-menu-bg-hover: #ffffff;
-  --hauth-menu-fg: #1f2328;
-  --hauth-menu-border: rgba(17, 24, 39, 0.14);
-  --hauth-menu-border-hover: rgba(17, 24, 39, 0.22);
-  --hauth-menu-shadow: 0 8px 22px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.65);
-  --hauth-menu-shadow-hover:
-    0 10px 24px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.82);
-  --hauth-avatar-bg: #ffffff;
-  --hauth-avatar-fg: var(--hauth-accent);
-  --hauth-avatar-border: rgba(17, 24, 39, 0.12);
+/* @haruhi/auth-ui 样式：全部基于设计系统 token，随 data-sos-site 表达模式自适应。
+   只保留 SOS 组件未覆盖的布局细节；颜色 / 字体 / 阴影一律走 --sos-* token。 */
 
-  color: var(--hauth-fg);
-  font-family: inherit;
-  -webkit-font-smoothing: antialiased;
+.hauth-root {
+  color: var(--sos-text-primary);
+  font-family: var(--sos-font-sans);
 }
 
-/* 居中页布局（登录/重置/验证用） */
-.hauth-page {
-  min-height: 70vh;
+/* ---------- 居中页（登录 / 重置 / 验证） ---------- */
+.hauth-shell {
+  display: grid;
+  place-items: center;
+  min-height: min(100%, 86vh);
+  padding: var(--sos-space-12) var(--sos-page-gutter);
+}
+.hauth-card {
+  width: min(27rem, 100%);
+}
+
+/* ---------- 账号页（资料 / 设置）外层 ---------- */
+.hauth-account {
+  width: min(var(--sos-container-reading), calc(100% - var(--sos-page-gutter) * 2));
+  margin-inline: auto;
+  padding-block: var(--sos-space-10);
+  display: grid;
+  gap: var(--sos-space-6);
+}
+
+/* ---------- 品牌锁头 ---------- */
+.hauth-brand {
+  display: grid;
+  justify-items: center;
+  gap: var(--sos-space-3);
+  text-align: center;
+  margin-bottom: var(--sos-space-2);
+}
+.hauth-brand__mark {
+  width: 3rem;
+  height: 3rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
+  font-family: var(--sos-display-family);
+  font-weight: var(--sos-weight-black);
+  font-size: var(--sos-text-lg);
+}
+
+/* ---------- 密码字段 + 显示切换 ---------- */
+.hauth-pw {
+  position: relative;
+}
+.hauth-pw > .sos-input {
+  padding-right: 3.25rem;
+}
+.hauth-pw__toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 3rem;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-bold);
+  cursor: pointer;
+}
+.hauth-pw__toggle:hover {
+  color: var(--sos-text-primary);
+}
+
+/* ---------- 头像 / 身份信息 ---------- */
+.hauth-identity {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 32px 16px;
-  box-sizing: border-box;
+  gap: var(--sos-space-4);
+  min-width: 0;
+}
+.hauth-identity__main {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.hauth-identity__name {
+  margin: 0;
+  font-size: var(--sos-text-lg);
+  font-weight: var(--sos-weight-heavy);
+  line-height: 1.2;
+}
+.hauth-identity__mail {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.hauth-card {
-  width: 100%;
-  max-width: 420px;
-  background: var(--hauth-bg);
-  border: 1px solid var(--hauth-border);
-  border-radius: var(--hauth-radius);
-  box-shadow: var(--hauth-shadow);
-  padding: 28px 26px;
-  box-sizing: border-box;
-}
-.hauth-card--wide {
-  max-width: 560px;
-}
-
-.hauth-title {
-  margin: 0 0 4px;
-  font-size: 1.4rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-.hauth-sub {
-  margin: 0 0 22px;
-  font-size: 0.86rem;
-  color: var(--hauth-muted);
-}
-
-.hauth-tabs {
-  display: flex;
-  gap: 4px;
-  background: var(--hauth-field-bg);
-  border-radius: 10px;
-  padding: 4px;
-  margin-bottom: 22px;
-}
-.hauth-tab {
-  flex: 1;
-  border: 0;
-  background: transparent;
-  padding: 9px 8px;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  color: var(--hauth-muted);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.hauth-tab.is-active {
-  background: var(--hauth-bg);
-  color: var(--hauth-fg);
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-.hauth-field {
-  margin-bottom: 14px;
-}
-.hauth-label {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--hauth-muted);
-  margin-bottom: 6px;
-}
-.hauth-input,
-.hauth-textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--hauth-border);
-  background: var(--hauth-field-bg);
-  border-radius: 10px;
-  padding: 11px 13px;
-  font-size: 0.95rem;
-  color: var(--hauth-fg);
-  outline: none;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
-  font-family: inherit;
-}
-.hauth-input:focus,
-.hauth-textarea:focus {
-  border-color: var(--hauth-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hauth-accent) 18%, transparent);
-}
-.hauth-textarea {
-  resize: vertical;
-  min-height: 84px;
-}
-
-.hauth-btn {
-  width: 100%;
-  border: 0;
-  background: var(--hauth-accent);
-  color: #fff;
-  font-size: 0.98rem;
-  font-weight: 600;
-  padding: 12px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    opacity 0.15s;
-}
-.hauth-btn:hover:not(:disabled) {
-  background: var(--hauth-accent-hover);
-}
-.hauth-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-.hauth-btn--ghost {
-  background: transparent;
-  color: var(--hauth-accent);
-  border: 1px solid var(--hauth-border);
-}
-.hauth-btn--ghost:hover:not(:disabled) {
-  background: var(--hauth-field-bg);
-}
-.hauth-btn--danger {
-  background: var(--hauth-danger);
-}
-.hauth-btn--danger:hover:not(:disabled) {
-  background: #b91c1c;
-}
-.hauth-btn--sm {
-  width: auto;
-  padding: 7px 14px;
-  font-size: 0.85rem;
-}
-
-.hauth-link {
-  background: 0;
-  border: 0;
-  color: var(--hauth-accent);
-  cursor: pointer;
-  font-size: 0.84rem;
-  padding: 0;
-}
-.hauth-link:hover {
-  text-decoration: underline;
-}
-
-.hauth-row {
+/* ---------- 登录设备行 ---------- */
+.hauth-session {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--sos-space-3);
+  padding: var(--sos-space-3) 0;
+  border-top: 1px solid var(--sos-border-subtle);
 }
-.hauth-foot {
-  margin-top: 16px;
-  text-align: center;
-  font-size: 0.84rem;
-  color: var(--hauth-muted);
+.hauth-session:first-child {
+  border-top: 0;
 }
-
-.hauth-msg {
-  font-size: 0.84rem;
-  padding: 10px 12px;
-  border-radius: 9px;
-  margin-bottom: 14px;
+.hauth-session__main {
+  min-width: 0;
 }
-.hauth-msg--err {
-  background: color-mix(in srgb, var(--hauth-danger) 10%, transparent);
-  color: var(--hauth-danger);
-}
-.hauth-msg--ok {
-  background: color-mix(in srgb, var(--hauth-ok) 12%, transparent);
-  color: var(--hauth-ok);
-}
-
-.hauth-badge {
-  display: inline-flex;
+.hauth-session__ua {
+  display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.74rem;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-weight: 600;
+  gap: var(--sos-space-2);
+  font-size: var(--sos-text-sm);
+  font-weight: var(--sos-weight-semibold);
 }
-.hauth-badge--ok {
-  background: color-mix(in srgb, var(--hauth-ok) 14%, transparent);
-  color: var(--hauth-ok);
-}
-.hauth-badge--warn {
-  background: color-mix(in srgb, #d97706 16%, transparent);
-  color: #b45309;
+.hauth-session__meta {
+  margin-top: 0.15rem;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-variant-numeric: var(--sos-numeric-tabular);
 }
 
-/* 头部账号菜单 */
+/* ---------- 账号菜单（AccountMenu） ---------- */
 .hauth-menu {
   position: relative;
   display: inline-flex;
-  align-items: center;
-  font-family: inherit;
 }
-
-.hauth-account-action,
 .hauth-trigger {
-  min-height: 36px;
-  border: 1px solid var(--hauth-menu-border);
-  border-radius: 999px;
-  background: var(--hauth-menu-bg);
-  box-shadow: var(--hauth-menu-shadow);
-  color: var(--hauth-menu-fg);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  border: 1px solid var(--sos-border-default);
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-primary);
+  padding: 0.28rem 0.7rem 0.28rem 0.32rem;
   cursor: pointer;
+  font-size: var(--sos-text-sm);
+  font-weight: var(--sos-weight-semibold);
+  box-shadow: var(--sos-shadow-xs);
   transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.15s ease;
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
+    border-color var(--sos-duration-base),
+    box-shadow var(--sos-duration-base);
 }
-
-.hauth-account-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 14px;
-  font-family: inherit;
-  font-size: 0.84rem;
-  font-weight: 750;
-  line-height: 1;
-  letter-spacing: 0;
-  white-space: nowrap;
-}
-
-.hauth-account-action:hover,
 .hauth-trigger:hover {
-  border-color: var(--hauth-menu-border-hover);
-  background: var(--hauth-menu-bg-hover);
-  box-shadow: var(--hauth-menu-shadow-hover);
-  transform: translateY(-1px);
+  border-color: var(--sos-border-strong);
 }
-
-.hauth-account-action:focus-visible,
 .hauth-trigger:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--hauth-accent) 52%, transparent);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--sos-ring);
 }
-
-.hauth-account-action:active,
-.hauth-trigger:active {
-  transform: translateY(0);
-}
-
-.hauth-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid var(--hauth-avatar-border);
-  background: var(--hauth-avatar-bg);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  color: var(--hauth-avatar-fg);
-  cursor: pointer;
-  user-select: none;
-}
-.hauth-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 3px 10px 3px 4px;
-  font-family: inherit;
-  font-size: 0.86rem;
-  font-weight: 750;
-  line-height: 1;
-}
-.hauth-trigger-name {
-  font-size: 0.84rem;
-  max-width: 8em;
+.hauth-trigger__name {
+  max-width: 9rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-@media (max-width: 520px) {
-  .hauth-account-action {
-    min-height: 34px;
-    padding-inline: 12px;
-    font-size: 0.78rem;
-  }
-
-  .hauth-trigger {
-    min-height: 34px;
-    padding-right: 4px;
-  }
-
-  .hauth-trigger-name {
-    display: none;
-  }
-}
-.hauth-dropdown {
+.hauth-menu__panel {
   position: absolute;
+  top: calc(100% + 0.4rem);
   right: 0;
-  top: calc(100% + 8px);
-  min-width: 190px;
-  background: var(--hauth-bg);
-  border: 1px solid var(--hauth-border);
-  border-radius: 12px;
-  box-shadow: var(--hauth-shadow);
-  padding: 6px;
-  z-index: 1000;
+  z-index: var(--sos-z-dropdown);
+  min-width: 14rem;
 }
-.hauth-dropdown-head {
-  padding: 10px 12px 8px;
-  border-bottom: 1px solid var(--hauth-border);
-  margin-bottom: 6px;
+.hauth-menu-head {
+  display: grid;
+  gap: 0.25rem;
+  padding: var(--sos-space-3);
+  border-bottom: 1px solid var(--sos-border-subtle);
+  margin-bottom: var(--sos-space-1);
 }
-.hauth-dropdown-name {
-  font-weight: 600;
-  font-size: 0.92rem;
+.hauth-menu-head__name {
+  font-weight: var(--sos-weight-heavy);
 }
-.hauth-dropdown-mail {
-  font-size: 0.76rem;
-  color: var(--hauth-muted);
+.hauth-menu-head__mail {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.hauth-dropdown-head .hauth-badge {
-  margin-top: 6px;
-}
-.hauth-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 9px 12px;
-  border: 0;
-  background: 0;
-  border-radius: 8px;
-  font-size: 0.88rem;
-  color: var(--hauth-fg);
-  cursor: pointer;
-  text-decoration: none;
-}
-.hauth-item:hover {
-  background: var(--hauth-field-bg);
-}
-.hauth-item--danger {
-  color: var(--hauth-danger);
-}
-
-.hauth-section {
-  border: 1px solid var(--hauth-border);
-  border-radius: var(--hauth-radius);
-  padding: 20px 22px;
-  margin-bottom: 18px;
-  background: var(--hauth-bg);
-}
-.hauth-section h3 {
-  margin: 0 0 4px;
-  font-size: 1.05rem;
-}
-.hauth-section .hauth-sub {
-  margin-bottom: 16px;
-}
-
-.hauth-sessions {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.hauth-sess {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--hauth-border);
-  font-size: 0.85rem;
-}
-.hauth-sess:last-child {
-  border-bottom: 0;
-}
-.hauth-sess-meta {
-  color: var(--hauth-muted);
-  font-size: 0.78rem;
-}
-
-.hauth-spin {
-  text-align: center;
-  color: var(--hauth-muted);
-  padding: 40px 0;
 }

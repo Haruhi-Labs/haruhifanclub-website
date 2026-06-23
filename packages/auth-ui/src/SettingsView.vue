@@ -1,6 +1,17 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import {
+  SosCard,
+  SosField,
+  SosInput,
+  SosButton,
+  SosNotice,
+  SosBadge,
+  SosSpinner,
+  SosEyebrow,
+  SosTitle,
+} from '@haruhi/ui'
 import { useSession } from './useSession.js'
 import './auth.css'
 
@@ -8,6 +19,7 @@ const props = defineProps({
   apiBase: { type: String, default: '/api' },
   loginPath: { type: String, default: '/login' },
   home: { type: String, default: '/' },
+  site: { type: String, default: undefined },
 })
 
 const session = useSession(props.apiBase)
@@ -95,59 +107,90 @@ function shortUa(ua) {
 </script>
 
 <template>
-  <div class="hauth-root hauth-page">
-    <div class="hauth-card hauth-card--wide" v-if="user">
-      <h2 class="hauth-title">账号设置</h2>
-      <p class="hauth-sub">{{ user.email || user.username }}</p>
+  <div class="hauth-root sos-scope" :data-sos-site="site">
+    <div v-if="user" class="hauth-account">
+      <header class="sos-stack sos-stack--tight">
+        <SosEyebrow>账号</SosEyebrow>
+        <SosTitle as="h1" size="xl">账号设置</SosTitle>
+        <p class="sos-copy">{{ user.email || user.username }}</p>
+      </header>
 
       <!-- 修改密码 -->
-      <section class="hauth-section">
-        <h3>修改密码</h3>
-        <p class="hauth-sub">修改后，除当前设备外的所有登录都会被退出。</p>
-        <div v-if="pwError" class="hauth-msg hauth-msg--err">{{ pwError }}</div>
-        <div v-if="pwOk" class="hauth-msg hauth-msg--ok">{{ pwOk }}</div>
-        <form @submit.prevent="changePassword">
-          <div class="hauth-field">
-            <label class="hauth-label">当前密码</label>
-            <input class="hauth-input" type="password" v-model="pw.old" autocomplete="current-password" required />
+      <SosCard as="section">
+        <SosTitle as="h2" style="font-size: var(--sos-text-lg)">修改密码</SosTitle>
+        <p class="sos-copy sos-copy--small" style="margin-top: var(--sos-space-1)">
+          修改后，除当前设备外的所有登录都会被退出。
+        </p>
+        <SosNotice v-if="pwError" tone="danger" style="margin-top: var(--sos-space-4)">
+          {{ pwError }}
+        </SosNotice>
+        <SosNotice v-if="pwOk" tone="success" style="margin-top: var(--sos-space-4)">
+          {{ pwOk }}
+        </SosNotice>
+        <form
+          class="sos-stack"
+          style="margin-top: var(--sos-space-5)"
+          @submit.prevent="changePassword"
+        >
+          <SosField label="当前密码">
+            <SosInput v-model="pw.old" type="password" autocomplete="current-password" required />
+          </SosField>
+          <div class="sos-form-row">
+            <SosField label="新密码" help="至少 8 位">
+              <SosInput v-model="pw.neu" type="password" autocomplete="new-password" required />
+            </SosField>
+            <SosField label="确认新密码">
+              <SosInput v-model="pw.confirm" type="password" autocomplete="new-password" required />
+            </SosField>
           </div>
-          <div class="hauth-field">
-            <label class="hauth-label">新密码（至少 8 位）</label>
-            <input class="hauth-input" type="password" v-model="pw.neu" autocomplete="new-password" required />
+          <div>
+            <SosButton type="submit" :loading="pwSaving">修改密码</SosButton>
           </div>
-          <div class="hauth-field">
-            <label class="hauth-label">确认新密码</label>
-            <input class="hauth-input" type="password" v-model="pw.confirm" autocomplete="new-password" required />
-          </div>
-          <button class="hauth-btn" :disabled="pwSaving">{{ pwSaving ? '提交中…' : '修改密码' }}</button>
         </form>
-      </section>
+      </SosCard>
 
       <!-- 登录设备 -->
-      <section class="hauth-section">
-        <h3>登录设备</h3>
-        <p class="hauth-sub">这是你当前所有有效的登录会话，可远程下线可疑设备。</p>
-        <div v-if="sessLoading" class="hauth-spin">加载中…</div>
-        <ul v-else class="hauth-sessions">
-          <li v-for="s in sessions" :key="s.id" class="hauth-sess">
-            <div>
-              <div>
+      <SosCard as="section">
+        <SosTitle as="h2" style="font-size: var(--sos-text-lg)">登录设备</SosTitle>
+        <p class="sos-copy sos-copy--small" style="margin-top: var(--sos-space-1)">
+          你当前所有有效的登录会话，可远程下线可疑设备。
+        </p>
+        <div
+          v-if="sessLoading"
+          class="sos-inline"
+          style="justify-content: center; margin-top: var(--sos-space-5)"
+        >
+          <SosSpinner />
+          <span class="sos-copy sos-copy--small">加载中…</span>
+        </div>
+        <div v-else style="margin-top: var(--sos-space-4)">
+          <div v-for="s in sessions" :key="s.id" class="hauth-session">
+            <div class="hauth-session__main">
+              <div class="hauth-session__ua">
                 {{ shortUa(s.userAgent) }}
-                <span v-if="s.current" class="hauth-badge hauth-badge--ok" style="margin-left:6px">当前设备</span>
+                <SosBadge v-if="s.current" variant="success">当前设备</SosBadge>
               </div>
-              <div class="hauth-sess-meta">IP {{ s.ip || '—' }} · 最近活跃 {{ fmt(s.lastSeenAt) }}</div>
+              <div class="hauth-session__meta">
+                IP {{ s.ip || '—' }} · 最近活跃 {{ fmt(s.lastSeenAt) }}
+              </div>
             </div>
-            <button v-if="!s.current" class="hauth-btn hauth-btn--sm hauth-btn--ghost" @click="revoke(s.id)">下线</button>
-          </li>
-        </ul>
-      </section>
+            <SosButton v-if="!s.current" variant="ghost" size="sm" @click="revoke(s.id)">
+              下线
+            </SosButton>
+          </div>
+        </div>
+      </SosCard>
 
       <!-- 退出 -->
-      <section class="hauth-section">
-        <h3>退出登录</h3>
-        <p class="hauth-sub">退出当前设备的登录。</p>
-        <button class="hauth-btn hauth-btn--danger" @click="doLogout">退出登录</button>
-      </section>
+      <SosCard as="section">
+        <div class="sos-cluster">
+          <div class="sos-stack sos-stack--tight">
+            <SosTitle as="h2" style="font-size: var(--sos-text-lg)">退出登录</SosTitle>
+            <p class="sos-copy sos-copy--small">退出当前设备的登录。</p>
+          </div>
+          <SosButton variant="danger" @click="doLogout">退出登录</SosButton>
+        </div>
+      </SosCard>
     </div>
   </div>
 </template>

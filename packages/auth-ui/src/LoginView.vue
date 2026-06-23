@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { SosCard, SosField, SosInput, SosButton, SosNotice, SosTabs } from '@haruhi/ui'
 import { useSession } from './useSession.js'
 import './auth.css'
 
@@ -9,6 +10,8 @@ const props = defineProps({
   // 登录/注册成功后跳转目标（未给则用 ?redirect 查询，再退回 '/'）
   home: { type: String, default: '/' },
   title: { type: String, default: '春日应援团' },
+  // 可选：站点表达模式（news/shop/art/library/exam），令账号页融入所在站气质
+  site: { type: String, default: undefined },
 })
 
 const session = useSession(props.apiBase)
@@ -19,8 +22,14 @@ const tab = ref('login') // login | register | forgot
 const loading = ref(false)
 const error = ref('')
 const okMsg = ref('')
+const showPw = ref(false)
 
 const form = reactive({ account: '', email: '', nickname: '', password: '' })
+
+const tabItems = [
+  { value: 'login', label: '登录' },
+  { value: 'register', label: '注册' },
+]
 
 function go() {
   const target = (route.query && route.query.redirect) || props.home || '/'
@@ -83,65 +92,112 @@ async function onForgot() {
 </script>
 
 <template>
-  <div class="hauth-root hauth-page">
-    <div class="hauth-card">
-      <h2 class="hauth-title">{{ title }}</h2>
-      <p class="hauth-sub">
-        {{ tab === 'login' ? '登录你的账号' : tab === 'register' ? '创建新账号' : '找回密码' }}
-      </p>
+  <div class="hauth-root sos-scope hauth-shell" :data-sos-site="site">
+    <SosCard class="hauth-card" as="section">
+      <header class="hauth-brand">
+        <span class="hauth-brand__mark" aria-hidden="true">{{ title.slice(0, 1) }}</span>
+        <h1 class="sos-title" style="font-size: var(--sos-text-2xl)">{{ title }}</h1>
+        <p class="sos-copy sos-copy--small">
+          {{
+            tab === 'login'
+              ? '登录你的账号'
+              : tab === 'register'
+                ? '创建一个新账号'
+                : '找回你的密码'
+          }}
+        </p>
+      </header>
 
-      <div class="hauth-tabs" v-if="tab !== 'forgot'">
-        <button class="hauth-tab" :class="{ 'is-active': tab === 'login' }" @click="switchTab('login')">登录</button>
-        <button class="hauth-tab" :class="{ 'is-active': tab === 'register' }" @click="switchTab('register')">注册</button>
+      <div v-if="tab !== 'forgot'" style="display: flex; justify-content: center">
+        <SosTabs :model-value="tab" :items="tabItems" @update:model-value="switchTab" />
       </div>
 
-      <div v-if="error" class="hauth-msg hauth-msg--err">{{ error }}</div>
-      <div v-if="okMsg" class="hauth-msg hauth-msg--ok">{{ okMsg }}</div>
+      <SosNotice v-if="error" tone="danger" style="margin-top: var(--sos-space-4)">
+        {{ error }}
+      </SosNotice>
+      <SosNotice v-if="okMsg" tone="success" style="margin-top: var(--sos-space-4)">
+        {{ okMsg }}
+      </SosNotice>
 
       <!-- 登录 -->
-      <form v-if="tab === 'login'" @submit.prevent="onLogin">
-        <div class="hauth-field">
-          <label class="hauth-label">邮箱或用户名</label>
-          <input class="hauth-input" v-model="form.account" autocomplete="username" required />
-        </div>
-        <div class="hauth-field">
-          <label class="hauth-label">密码</label>
-          <input class="hauth-input" type="password" v-model="form.password" autocomplete="current-password" required />
-        </div>
-        <button class="hauth-btn" :disabled="loading">{{ loading ? '登录中…' : '登录' }}</button>
-        <div class="hauth-foot">
-          <button type="button" class="hauth-link" @click="switchTab('forgot')">忘记密码？</button>
+      <form
+        v-if="tab === 'login'"
+        class="sos-stack"
+        style="margin-top: var(--sos-space-5)"
+        @submit.prevent="onLogin"
+      >
+        <SosField label="邮箱或用户名">
+          <SosInput v-model="form.account" autocomplete="username" required />
+        </SosField>
+        <SosField label="密码">
+          <div class="hauth-pw">
+            <SosInput
+              v-model="form.password"
+              :type="showPw ? 'text' : 'password'"
+              autocomplete="current-password"
+              required
+            />
+            <button type="button" class="hauth-pw__toggle" @click="showPw = !showPw">
+              {{ showPw ? '隐藏' : '显示' }}
+            </button>
+          </div>
+        </SosField>
+        <SosButton type="submit" class="sos-button--block" :loading="loading">登录</SosButton>
+        <div style="text-align: center">
+          <SosButton variant="link" type="button" @click="switchTab('forgot')">
+            忘记密码？
+          </SosButton>
         </div>
       </form>
 
       <!-- 注册 -->
-      <form v-else-if="tab === 'register'" @submit.prevent="onRegister">
-        <div class="hauth-field">
-          <label class="hauth-label">邮箱</label>
-          <input class="hauth-input" type="email" v-model="form.email" autocomplete="email" required />
-        </div>
-        <div class="hauth-field">
-          <label class="hauth-label">昵称（可选）</label>
-          <input class="hauth-input" v-model="form.nickname" maxlength="32" placeholder="留空则用邮箱前缀" />
-        </div>
-        <div class="hauth-field">
-          <label class="hauth-label">密码（至少 8 位）</label>
-          <input class="hauth-input" type="password" v-model="form.password" autocomplete="new-password" required />
-        </div>
-        <button class="hauth-btn" :disabled="loading">{{ loading ? '注册中…' : '注册并登录' }}</button>
+      <form
+        v-else-if="tab === 'register'"
+        class="sos-stack"
+        style="margin-top: var(--sos-space-5)"
+        @submit.prevent="onRegister"
+      >
+        <SosField label="邮箱">
+          <SosInput v-model="form.email" type="email" autocomplete="email" required />
+        </SosField>
+        <SosField label="昵称" help="留空则用邮箱前缀">
+          <SosInput v-model="form.nickname" maxlength="32" placeholder="你希望别人怎么称呼你" />
+        </SosField>
+        <SosField label="密码" help="至少 8 位">
+          <div class="hauth-pw">
+            <SosInput
+              v-model="form.password"
+              :type="showPw ? 'text' : 'password'"
+              autocomplete="new-password"
+              required
+            />
+            <button type="button" class="hauth-pw__toggle" @click="showPw = !showPw">
+              {{ showPw ? '隐藏' : '显示' }}
+            </button>
+          </div>
+        </SosField>
+        <SosButton type="submit" class="sos-button--block" :loading="loading">
+          注册并登录
+        </SosButton>
       </form>
 
       <!-- 找回密码 -->
-      <form v-else @submit.prevent="onForgot">
-        <div class="hauth-field">
-          <label class="hauth-label">注册邮箱</label>
-          <input class="hauth-input" type="email" v-model="form.email" autocomplete="email" required />
-        </div>
-        <button class="hauth-btn" :disabled="loading">{{ loading ? '发送中…' : '发送重置链接' }}</button>
-        <div class="hauth-foot">
-          <button type="button" class="hauth-link" @click="switchTab('login')">返回登录</button>
+      <form
+        v-else
+        class="sos-stack"
+        style="margin-top: var(--sos-space-5)"
+        @submit.prevent="onForgot"
+      >
+        <SosField label="注册邮箱" help="我们会向该邮箱发送重置链接">
+          <SosInput v-model="form.email" type="email" autocomplete="email" required />
+        </SosField>
+        <SosButton type="submit" class="sos-button--block" :loading="loading">
+          发送重置链接
+        </SosButton>
+        <div style="text-align: center">
+          <SosButton variant="link" type="button" @click="switchTab('login')">返回登录</SosButton>
         </div>
       </form>
-    </div>
+    </SosCard>
   </div>
 </template>
