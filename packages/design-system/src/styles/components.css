@@ -1,10 +1,12 @@
 @import './tokens.css';
+@import './recipes.css';
 
 /* SOS / Parallel Design System — Components
  *
  * 框架无关的 class contract。React / Vue 封装只输出这些 class，不重定义视觉。
  * 组织：Scope → Layout → Surface/Media → Typography → Controls → Feedback
- *       → Navigation → Overlay → Brand → Site compositions → Responsive。
+ *       → Navigation → Overlay → Brand → Responsive。
+ * 业务卡片 recipe（article/product/artwork/book/exam）见 recipes.css。
  */
 
 /* ============================================================
@@ -14,6 +16,10 @@
   color: var(--sos-text-primary);
   background-color: var(--sos-bg-page);
   background-image: var(--sos-page-texture);
+  background-size: var(--sos-page-texture-size, auto);
+  background-position: var(--sos-page-texture-position, top center);
+  background-repeat: var(--sos-page-texture-repeat, no-repeat);
+  background-attachment: var(--sos-page-texture-attachment, scroll);
   font-family: var(--sos-font-sans);
   font-size: var(--sos-text-md);
   line-height: var(--sos-leading-body);
@@ -1837,300 +1843,10 @@
 }
 
 /* ============================================================
- *  SITE COMPOSITIONS — L2 recipe（业务卡片，按表达模式呈现）
- * ============================================================ */
-
-/* news 阅读卡 */
-.sos-news-card .sos-card__body {
-  padding: var(--sos-space-5);
-}
-@media (min-width: 768px) {
-  .sos-news-card .sos-card__body {
-    padding: var(--sos-space-8);
-  }
-}
-.sos-news-card__type {
-  display: inline-block;
-  margin-bottom: var(--sos-space-4);
-  border-left: 0.35rem solid var(--sos-signal);
-  background: var(--sos-ink-950);
-  color: var(--sos-white);
-  padding: 0.32rem 0.62rem;
-  font-size: var(--sos-text-2xs);
-  font-weight: var(--sos-weight-black);
-  letter-spacing: var(--sos-tracking-wide);
-}
-.sos-news-card__title {
-  margin: 0;
-  font-family: var(--sos-display-family);
-  font-size: 1.35rem;
-  font-weight: var(--sos-weight-heavy);
-  line-height: 1.24;
-  letter-spacing: var(--sos-tracking-snug);
-}
-.sos-news-card__summary {
-  margin: var(--sos-space-3) 0 var(--sos-space-6);
-  color: var(--sos-text-secondary);
-  font-family: var(--sos-reading-family);
-  line-height: 1.75;
-}
-.sos-news-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--sos-space-3);
-}
-
-/* shop 商品卡 */
-.sos-product-card {
-  height: 100%;
-}
-.sos-product-card__media {
-  position: relative;
-  aspect-ratio: 1 / 1;
-  overflow: hidden;
-  background: var(--sos-bg-subtle);
-}
-.sos-product-card__media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform var(--sos-duration-slow) var(--sos-ease-out);
-}
-.sos-product-card:hover .sos-product-card__media img {
-  transform: scale(1.04);
-}
-.sos-product-card__actions {
-  position: absolute;
-  inset: auto var(--sos-space-4) var(--sos-space-4);
-  display: flex;
-  justify-content: center;
-  opacity: 0;
-  transform: translateY(0.5rem);
-  transition:
-    opacity var(--sos-duration-base),
-    transform var(--sos-duration-base) var(--sos-ease-out);
-}
-.sos-product-card:hover .sos-product-card__actions,
-.sos-product-card:focus-within .sos-product-card__actions {
-  opacity: 1;
-  transform: translateY(0);
-}
-.sos-product-card__title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: start;
-  gap: var(--sos-space-3);
-}
-.sos-product-card__title {
-  margin: 0;
-  font-size: var(--sos-text-md);
-  font-weight: var(--sos-weight-bold);
-  line-height: 1.35;
-}
-.sos-product-card__price {
-  color: var(--sos-link);
-  font-size: var(--sos-text-lg);
-  font-weight: var(--sos-weight-black);
-  font-variant-numeric: var(--sos-numeric-tabular);
-  white-space: nowrap;
-}
-.sos-product-card__description {
-  margin: var(--sos-space-2) 0 var(--sos-space-4);
-  color: var(--sos-text-secondary);
-  font-size: var(--sos-text-sm);
-  line-height: 1.55;
-}
-
-/* art 作品卡 */
-.sos-art-card {
-  overflow: visible;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-}
-.sos-art-card__frame {
-  position: relative;
-  overflow: hidden;
-  aspect-ratio: 4 / 3;
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  border-radius: var(--sos-media-radius);
-  background: var(--sos-bg-surface);
-  box-shadow: var(--sos-card-shadow);
-  transition:
-    transform var(--sos-duration-base) var(--sos-ease-out),
-    box-shadow var(--sos-duration-base) var(--sos-ease-out);
-}
-.sos-art-card:hover .sos-art-card__frame {
-  transform: translateY(-4px);
-  box-shadow: var(--sos-hover-shadow);
-}
-.sos-art-card__frame img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.sos-art-card__veil {
-  position: absolute;
-  inset: auto 0 0;
-  padding: 3.5rem var(--sos-space-4) var(--sos-space-4);
-  background: linear-gradient(transparent, rgba(9, 34, 32, 0.78));
-  color: white;
-}
-.sos-art-card__title {
-  margin: 0;
-  font-size: var(--sos-text-md);
-  font-weight: var(--sos-weight-bold);
-}
-.sos-art-card__meta {
-  margin: var(--sos-space-3) var(--sos-space-1) 0;
-  display: flex;
-  justify-content: space-between;
-  color: var(--sos-text-secondary);
-  font-size: var(--sos-text-xs);
-}
-
-/* library 书封卡 */
-.sos-book-card {
-  display: grid;
-  gap: var(--sos-space-3);
-  text-align: center;
-}
-.sos-book-card__cover {
-  position: relative;
-  width: min(100%, 11rem);
-  aspect-ratio: 2 / 3;
-  margin-inline: auto;
-  overflow: hidden;
-  border-radius: var(--sos-media-radius);
-  border: 1px solid rgba(88, 58, 28, 0.16);
-  background: var(--book-color, #dfeaf4);
-  box-shadow: var(--sos-card-shadow);
-  transform-origin: 50% 100%;
-  transition:
-    transform var(--sos-duration-base) var(--sos-ease-out),
-    box-shadow var(--sos-duration-base);
-}
-.sos-book-card:hover .sos-book-card__cover {
-  transform: translateY(-4px);
-  box-shadow: var(--sos-hover-shadow);
-}
-.sos-book-card__cover::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 0.75rem;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.16), transparent);
-}
-.sos-book-card__cover::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(105deg, rgba(255, 255, 255, 0.3), transparent 28%);
-  pointer-events: none;
-}
-.sos-book-card__vertical {
-  position: absolute;
-  inset: var(--sos-space-4);
-  display: grid;
-  place-items: center;
-  writing-mode: vertical-rl;
-  color: color-mix(in srgb, var(--sos-text-primary) 86%, transparent);
-  font-family: var(--sos-font-reading);
-  font-size: 1.2rem;
-  font-weight: var(--sos-weight-heavy);
-}
-.sos-book-card__title {
-  margin: 0;
-  font-family: var(--sos-font-reading);
-  font-size: var(--sos-text-sm);
-  font-weight: var(--sos-weight-heavy);
-}
-.sos-book-card__author {
-  margin: 0.2rem 0 0;
-  color: var(--sos-text-secondary);
-  font-size: var(--sos-text-xs);
-}
-
-/* exam 试卷卡 */
-.sos-exam-card {
-  overflow: visible;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-.sos-exam-card__paper {
-  position: relative;
-  min-height: 18rem;
-  overflow: hidden;
-  border: 1px solid rgba(66, 44, 23, 0.13);
-  border-radius: var(--sos-card-radius);
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.025), transparent 18%), var(--sos-bg-surface);
-  box-shadow: var(--sos-card-shadow);
-  padding: var(--sos-space-6);
-  transition:
-    transform var(--sos-duration-base) var(--sos-ease-out),
-    box-shadow var(--sos-duration-base);
-}
-.sos-exam-card:hover .sos-exam-card__paper {
-  transform: translateY(-4px);
-  box-shadow: var(--sos-hover-shadow);
-}
-.sos-exam-card__paper::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0.18;
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent 0 27px,
-    rgba(50, 85, 120, 0.14) 28px
-  );
-  pointer-events: none;
-}
-.sos-exam-card__content {
-  position: relative;
-  z-index: 1;
-}
-.sos-exam-card__score {
-  position: absolute;
-  top: var(--sos-space-4);
-  right: var(--sos-space-4);
-  color: var(--sos-danger);
-  font-family: var(--sos-font-reading);
-  font-size: 2.4rem;
-  font-weight: var(--sos-weight-black);
-}
-.sos-exam-card__title {
-  max-width: 80%;
-  margin: var(--sos-space-5) 0 var(--sos-space-2);
-  font-family: var(--sos-reading-family);
-  font-size: var(--sos-text-xl);
-  font-weight: var(--sos-weight-bold);
-  line-height: 1.35;
-}
-.sos-exam-card__meta {
-  color: var(--sos-text-secondary);
-  font-size: var(--sos-text-xs);
-}
-.sos-exam-card__rule {
-  margin: var(--sos-space-5) 0;
-  border: 0;
-  border-top: 2px solid var(--sos-student-navy);
-}
-
-/* ============================================================
  *  RESPONSIVE / ACCESSIBILITY
  * ============================================================ */
 @media (hover: none) {
-  .sos-product-card__actions {
-    opacity: 1;
-    transform: none;
-  }
-  .sos-card--interactive:hover,
-  .sos-art-card:hover .sos-art-card__frame,
-  .sos-book-card:hover .sos-book-card__cover,
-  .sos-exam-card:hover .sos-exam-card__paper {
+  .sos-card--interactive:hover {
     transform: none;
   }
 }
@@ -2141,11 +1857,6 @@
   .sos-card,
   .sos-card[aria-busy='true']::after,
   .sos-progress__fill,
-  .sos-product-card__actions,
-  .sos-product-card__media img,
-  .sos-art-card__frame,
-  .sos-book-card__cover,
-  .sos-exam-card__paper,
   .sos-skeleton,
   .sos-spinner,
   .sos-overlay,
@@ -2156,10 +1867,7 @@
     animation-duration: 1ms !important;
   }
   .sos-button:hover:not(:disabled),
-  .sos-card--interactive:hover,
-  .sos-art-card:hover .sos-art-card__frame,
-  .sos-book-card:hover .sos-book-card__cover,
-  .sos-exam-card:hover .sos-exam-card__paper {
+  .sos-card--interactive:hover {
     transform: none;
   }
 }
