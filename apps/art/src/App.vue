@@ -185,39 +185,6 @@ onBeforeUnmount(() => {
   transform: translateX(1px);
 }
 
-html.art-home-route:not(.art-lights-out) .topbar__inner {
-  z-index: 2147483000 !important;
-  background:
-    linear-gradient(180deg, rgba(6, 14, 30, 0.82), rgba(6, 14, 30, 0.58)) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.22) !important;
-  box-shadow: 0 14px 38px rgba(20, 35, 55, 0.22) !important;
-  backdrop-filter: blur(18px) !important;
-  -webkit-backdrop-filter: blur(18px) !important;
-}
-
-html.art-home-route:not(.art-lights-out) .secret-toolbar {
-  z-index: 2147483001 !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  transform: translateX(0) !important;
-  pointer-events: auto !important;
-  filter: saturate(1) !important;
-}
-
-html.art-home-route:not(.art-lights-out) .brand {
-  color: rgba(255, 255, 255, 0.96) !important;
-}
-
-html.art-home-route:not(.art-lights-out) .nav {
-  border-color: rgba(255, 255, 255, 0.48) !important;
-  background: rgba(255, 255, 255, 0.76) !important;
-  box-shadow: 0 12px 28px rgba(20, 35, 55, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.52) !important;
-}
-
-html.art-home-route:not(.art-lights-out) .navlink {
-  color: rgba(8, 54, 68, 0.92) !important;
-}
-
 .lights-toggle__text {
   font-size: 13px;
   font-weight: 900;

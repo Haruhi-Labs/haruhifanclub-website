@@ -664,25 +664,6 @@ html.art-home-route .gallery-mask::after {
   mix-blend-mode: screen;
 }
 
-html.art-home-route:not(.art-lights-out),
-html.art-home-route:not(.art-lights-out) body,
-html.art-home-route:not(.art-lights-out) #app {
-  background: #dfe8f3;
-}
-
-html.art-home-route:not(.art-lights-out) .gallery-bg {
-  background: #dfe8f3;
-}
-
-html.art-home-route:not(.art-lights-out) .gallery-mask {
-  background: transparent;
-}
-
-html.art-home-route:not(.art-lights-out) .gallery-mask::before,
-html.art-home-route:not(.art-lights-out) .gallery-mask::after {
-  display: none;
-}
-
 html.art-home-route.art-lights-out .gallery-bg {
   background:
     radial-gradient(ellipse at 50% 18%, rgba(86, 175, 255, 0.15), transparent 34%),

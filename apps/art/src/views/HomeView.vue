@@ -1,22 +1,5 @@
 <template>
   <section class="container-card art-home">
-    <div class="light-collage" aria-hidden="true">
-      <div class="light-collage__plane">
-        <span
-          v-for="tile in lightCollageTiles"
-          :key="tile.key"
-          class="light-collage__tile"
-          :style="{
-            '--tile-x': `${tile.x}%`,
-            '--tile-y': `${tile.y}%`,
-            '--tile-size': `${tile.size}vmin`,
-          }"
-        >
-          <img :src="tile.imageUrl" :alt="tile.title" draggable="false" />
-        </span>
-      </div>
-    </div>
-
     <div class="endless-screen" :style="stageStyle">
       <div class="space-field" aria-hidden="true">
         <span class="star-dust"></span>
@@ -281,7 +264,6 @@ const SHIFT_DRAG_SPEED = 0.34
 const SHIFT_MAX_VELOCITY = 1.25
 const SHIFT_INERTIA_DECAY = 0.94
 const SHIFT_STOP_VELOCITY = 0.012
-const LIGHT_COLLAGE_REPEAT = 36
 
 function makeVisitorNumber() {
   const fallback = 5200 + seedArtworks.length * 31 + seedCreators.length * 17
@@ -327,47 +309,6 @@ const otherCount = Math.max(artworkCount - haruhiCount, 0)
 const haruhiRatio = artworkCount ? Math.round((haruhiCount / artworkCount) * 100) : 0
 const otherRatio = Math.max(0, 100 - haruhiRatio)
 const totalLikes = approvedArtworks.reduce((sum, item) => sum + Number(item.like_total || 0), 0)
-
-function getTileNoise(seed) {
-  const value = Math.sin(seed * 12.9898) * 43758.5453
-  return value - Math.floor(value)
-}
-
-function makeLightCollageTiles() {
-  const source = approvedArtworks.length ? approvedArtworks : seedArtworks
-  if (!source.length) return []
-
-  const pool = Array.from({ length: LIGHT_COLLAGE_REPEAT }, (_, copyIndex) =>
-    source.map((artwork, artworkIndex) => ({
-      artwork,
-      artworkIndex,
-      copyIndex,
-      sortKey: getTileNoise((copyIndex + 1) * 97 + (artworkIndex + 1) * 193),
-    }))
-  ).flat()
-
-  const shuffled = pool.slice().sort((a, b) => a.sortKey - b.sortKey)
-  const columns = Math.ceil(Math.sqrt(shuffled.length * 1.08))
-  const rows = Math.ceil(shuffled.length / columns)
-
-  return shuffled.map((item, index) => {
-    const column = index % columns
-    const row = Math.floor(index / columns)
-    const jitterX = (getTileNoise(index * 17 + 3) - 0.5) * 2.6
-    const jitterY = (getTileNoise(index * 19 + 7) - 0.5) * 2.4
-
-    return {
-      key: `light-collage-${item.artwork.id}-${item.copyIndex}`,
-      imageUrl: item.artwork.image_url,
-      title: item.artwork.title,
-      x: Number((((column + 0.5) / columns) * 100 + jitterX).toFixed(2)),
-      y: Number((((row + 0.5) / rows) * 100 + jitterY).toFixed(2)),
-      size: Number((22.4 + getTileNoise(index * 23 + 11) * 2.6).toFixed(2)),
-    }
-  })
-}
-
-const lightCollageTiles = makeLightCollageTiles()
 
 const latestArtwork = approvedArtworks
   .slice()
@@ -906,10 +847,6 @@ const stageStyle = {
   pointer-events: none;
 }
 
-.art-home .light-collage {
-  display: none;
-}
-
 .art-home::before {
   inset: -80px -90px -60px;
   z-index: -2;
@@ -949,109 +886,6 @@ const stageStyle = {
     0 0 56px rgba(80, 174, 255, 0.13),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   color: var(--hud-text);
-}
-
-:global(html:not(.art-lights-out)) .art-home {
-  width: 100%;
-  min-height: calc(100dvh - 96px);
-  margin-bottom: 0;
-  padding: 0 24px 40px;
-  color: #111827;
-}
-
-:global(html:not(.art-lights-out)) .art-home::before,
-:global(html:not(.art-lights-out)) .art-home::after {
-  display: none;
-}
-
-:global(html:not(.art-lights-out)) .art-home .light-collage {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  display: block;
-  overflow: hidden;
-  pointer-events: none;
-  background: #dfe8f3;
-}
-
-:global(html:not(.art-lights-out)) .art-home .light-collage::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse at 50% 14%, rgba(255, 255, 255, 0.12), transparent 36%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.16));
-}
-
-:global(html:not(.art-lights-out)) .art-home .light-collage__plane {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 136vw;
-  height: 136vh;
-  transform: translate(-50%, -50%) rotate(-15deg);
-  transform-origin: center;
-}
-
-:global(html:not(.art-lights-out)) .art-home .light-collage__tile {
-  position: absolute;
-  left: var(--tile-x);
-  top: var(--tile-y);
-  width: var(--tile-size);
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 10px 22px rgba(20, 35, 55, 0.16), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
-  transform: translate(-50%, -50%);
-}
-
-:global(html:not(.art-lights-out)) .art-home .light-collage__tile img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-:global(html:not(.art-lights-out)) .art-home .endless-screen {
-  position: relative;
-  z-index: 1;
-  min-height: calc(100dvh - 136px);
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: #f8fafc;
-}
-
-:global(html:not(.art-lights-out)) .art-home .endless-screen::before,
-:global(html:not(.art-lights-out)) .art-home .endless-screen::after,
-:global(html:not(.art-lights-out)) .art-home .space-field,
-:global(html:not(.art-lights-out)) .art-home .visual-stage,
-:global(html:not(.art-lights-out)) .art-home .bottom-grid {
-  display: none;
-}
-
-:global(html:not(.art-lights-out)) .art-home .screen-header {
-  z-index: 2;
-  min-height: 220px;
-  align-items: flex-start;
-  padding: 54px 30px 0;
-}
-
-:global(html:not(.art-lights-out)) .art-home .screen-header .eyebrow,
-:global(html:not(.art-lights-out)) .art-home .status-chip {
-  display: none;
-}
-
-:global(html:not(.art-lights-out)) .art-home .screen-header h1 {
-  max-width: min(760px, 72vw);
-  color: rgba(255, 255, 255, 0.96);
-  text-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.42),
-    0 16px 44px rgba(0, 0, 0, 0.34);
 }
 
 .art-home .endless-screen::before,
