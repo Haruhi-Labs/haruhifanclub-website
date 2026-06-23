@@ -60,6 +60,9 @@
             <span>TIME JUMP</span>
             <strong>{{ shiftStateText }}</strong>
           </div>
+          <div class="shift-module-shell" aria-hidden="true">
+            <span class="shift-module-shell__edge"></span>
+          </div>
           <div class="shift-window">
             <div class="shift-track">
               <span
@@ -913,11 +916,90 @@ const stageStyle = {
   filter: saturate(1.16) brightness(1.08);
 }
 
+.art-home .shift-module-shell {
+  position: absolute;
+  left: 472px;
+  top: 50%;
+  z-index: 0;
+  width: 470px;
+  height: min(108dvh, 1040px);
+  min-height: 830px;
+  transform: translate3d(-50%, -50%, -260px) rotateY(-18deg);
+  transform-origin: left center;
+  pointer-events: none;
+  opacity: 0.32;
+  border-radius: 0 999px 999px 0;
+  background:
+    radial-gradient(ellipse at 102% 50%, rgba(116, 231, 255, 0.12), transparent 42%),
+    radial-gradient(ellipse at 84% 22%, rgba(177, 140, 255, 0.12), transparent 34%),
+    linear-gradient(90deg, rgba(68, 74, 86, 0.1), rgba(128, 135, 148, 0.22), rgba(52, 60, 76, 0.16));
+  box-shadow:
+    inset -28px 0 58px rgba(232, 240, 255, 0.08),
+    inset 28px 0 78px rgba(0, 0, 0, 0.36),
+    0 0 42px rgba(116, 231, 255, 0.06);
+  backdrop-filter: blur(13px);
+  clip-path: ellipse(68% 50% at 100% 50%);
+  transition:
+    opacity 0.3s ease,
+    filter 0.3s ease,
+    transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.art-home .shift-module-shell::before,
+.art-home .shift-module-shell::after,
+.art-home .shift-module-shell__edge {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.art-home .shift-module-shell::before {
+  inset: 18px -4px 18px 40px;
+  border-right: 1px solid rgba(116, 231, 255, 0.42);
+  box-shadow:
+    18px 0 28px rgba(116, 231, 255, 0.16),
+    26px 0 42px rgba(177, 140, 255, 0.12);
+  clip-path: ellipse(66% 50% at 100% 50%);
+}
+
+.art-home .shift-module-shell::after {
+  inset: 52px 12px 52px 96px;
+  border-right: 1px solid rgba(255, 99, 125, 0.2);
+  opacity: 0.6;
+  clip-path: ellipse(62% 50% at 100% 50%);
+}
+
+.art-home .shift-module-shell__edge {
+  inset: -1px -2px -1px auto;
+  width: 126px;
+  background:
+    radial-gradient(ellipse at 100% 18%, rgba(255, 99, 125, 0.38), transparent 32%),
+    radial-gradient(ellipse at 100% 50%, rgba(116, 231, 255, 0.58), transparent 46%),
+    radial-gradient(ellipse at 100% 82%, rgba(177, 140, 255, 0.42), transparent 36%);
+  filter: blur(0.2px);
+  mix-blend-mode: screen;
+  opacity: 0.72;
+  clip-path: ellipse(76% 50% at 100% 50%);
+}
+
+.art-home .time-shift-stack.is-hovering .shift-module-shell {
+  opacity: 0.78;
+  filter: saturate(1.1) brightness(1.04);
+  transform: translate3d(-50%, -50%, -260px) rotateY(-10deg);
+}
+
+.art-home .time-shift-stack.is-dragging .shift-module-shell,
+.art-home .time-shift-stack.is-spinning .shift-module-shell {
+  opacity: 0.88;
+  filter: saturate(1.18) brightness(1.08);
+}
+
 .art-home .shift-label {
   position: absolute;
   left: 556px;
   top: 26px;
-  z-index: 3;
+  z-index: 4;
   display: grid;
   gap: 2px;
   padding: 10px 12px;
@@ -945,6 +1027,7 @@ const stageStyle = {
 .art-home .shift-window {
   position: absolute;
   inset: 18px 0;
+  z-index: 2;
   overflow: visible;
   transform-style: preserve-3d;
   mask-image: none;
@@ -1615,6 +1698,28 @@ const stageStyle = {
 :global(html.art-lights-out) .art-home .time-shift-stack.is-dragging {
   opacity: 1;
   filter: saturate(1.24) brightness(1.12);
+}
+
+:global(html.art-lights-out) .art-home .shift-module-shell {
+  background:
+    radial-gradient(ellipse at 102% 50%, rgba(141, 240, 255, 0.16), transparent 42%),
+    radial-gradient(ellipse at 84% 22%, rgba(199, 166, 255, 0.16), transparent 34%),
+    linear-gradient(90deg, rgba(38, 46, 64, 0.08), rgba(112, 124, 144, 0.18), rgba(14, 24, 42, 0.28));
+  box-shadow:
+    inset -30px 0 64px rgba(235, 246, 255, 0.09),
+    inset 32px 0 88px rgba(0, 0, 0, 0.48),
+    0 0 56px rgba(141, 240, 255, 0.08);
+}
+
+:global(html.art-lights-out) .art-home .shift-module-shell::before {
+  border-right-color: rgba(141, 240, 255, 0.58);
+  box-shadow:
+    20px 0 34px rgba(141, 240, 255, 0.2),
+    30px 0 54px rgba(199, 166, 255, 0.16);
+}
+
+:global(html.art-lights-out) .art-home .shift-module-shell__edge {
+  opacity: 0.84;
 }
 
 :global(html.art-lights-out) .art-home .shift-layer {
