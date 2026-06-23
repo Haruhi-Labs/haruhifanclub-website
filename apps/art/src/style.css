@@ -70,6 +70,13 @@ body {
   position: relative;
 }
 
+/* 设计系统接入修正：.sos-scope 会强加 DS 字体，但美术部应保留自身系统字体气质。
+   data-sos-site=art 仅用于经 bridges 提供配色/阴影，不应同化字体。 */
+.app-shell.sos-scope {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui,
+    sans-serif;
+}
+
 /* =========================
    Background Layers
    ========================= */
