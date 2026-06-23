@@ -144,8 +144,8 @@ const scrollToTop = () => {
 .site-footer {
   width: 100%;
   margin-top: 60px;
-  background-color: #ffffff;
-  border-top: 1px solid #eaeaea;
+  background-color: var(--sos-bg-surface);
+  border-top: 1px solid var(--sos-border-subtle);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   position: relative;
   z-index: 10;
@@ -193,19 +193,19 @@ const scrollToTop = () => {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #f5f5f5;
-  border: 1px solid #e5e5e5;
+  background: var(--sos-bg-muted);
+  border: 1px solid var(--sos-border-default);
   overflow: hidden;
   flex-shrink: 0;
 }
 .logo-img { width: 100%; height: 100%; object-fit: cover; }
 
-.brand-name { font-size: 15px; font-weight: 700; color: #111; margin: 0; line-height: 1.2; }
-.brand-slug { font-size: 11px; color: #888; margin: 0; font-weight: 500; letter-spacing: 0.5px; }
+.brand-name { font-size: 15px; font-weight: 700; color: var(--sos-text-primary); margin: 0; line-height: 1.2; }
+.brand-slug { font-size: 11px; color: var(--sos-text-tertiary); margin: 0; font-weight: 500; letter-spacing: 0.5px; }
 
 .brand-desc {
   font-size: 13px;
-  color: #666;
+  color: var(--sos-text-secondary);
   line-height: 1.6;
   margin: 8px 0;
 }
@@ -217,13 +217,13 @@ const scrollToTop = () => {
   /* 改为自适应宽度的胶囊样式 */
   padding: 8px 12px;
   border-radius: 99px;
-  background: #f9f9f9;
-  border: 1px solid #e5e5e5;
+  background: var(--sos-bg-subtle);
+  border: 1px solid var(--sos-border-default);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  color: #666;
+  color: var(--sos-text-secondary);
   transition: all 0.2s ease;
   text-decoration: none;
   font-size: 13px;
@@ -232,10 +232,10 @@ const scrollToTop = () => {
 .social-text-icon { font-size: 13px; font-weight: 800; }
 
 .social-btn:hover {
-  border-color: #d4d4d4;
+  border-color: var(--sos-border-default);
   transform: translateY(-2px);
-  color: #111;
-  background: #fff;
+  color: var(--sos-text-primary);
+  background: var(--sos-bg-surface);
   box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
 .social-btn.bilibili:hover { color: #FB7299; border-color: #fbcce0; background: #fff5f8; }
@@ -267,7 +267,7 @@ const scrollToTop = () => {
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  color: #999;
+  color: var(--sos-text-tertiary);
   letter-spacing: 0.8px;
   margin: 0 0 4px 0;
 }
@@ -284,8 +284,8 @@ const scrollToTop = () => {
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  background: #fbfbfb;
-  border: 1px solid #f0f0f0;
+  background: var(--sos-bg-subtle);
+  border: 1px solid var(--sos-border-subtle);
   border-radius: 8px;
   text-decoration: none;
   transition: all 0.2s ease;
@@ -293,8 +293,8 @@ const scrollToTop = () => {
 }
 
 .nav-card:hover {
-  background: #fff;
-  border-color: #e0e0e0;
+  background: var(--sos-bg-surface);
+  border-color: var(--sos-border-default);
   box-shadow: 0 2px 8px rgba(0,0,0,0.03);
   transform: translateX(2px);
 }
@@ -313,12 +313,12 @@ const scrollToTop = () => {
 .nav-text {
   font-size: 13px;
   font-weight: 500;
-  color: #444;
+  color: var(--sos-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.nav-card:hover .nav-text { color: #111; }
+.nav-card:hover .nav-text { color: var(--sos-text-primary); }
 
 /* Style B: Capsule Buttons (Community) */
 .capsule-list {
@@ -366,14 +366,14 @@ const scrollToTop = () => {
    Footer Bottom
    ========================================= */
 .footer-bottom {
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--sos-border-subtle);
   padding: 24px 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
   align-items: center;
   font-size: 12px;
-  color: #888;
+  color: var(--sos-text-tertiary);
 }
 
 @media (min-width: 640px) {
@@ -389,8 +389,8 @@ const scrollToTop = () => {
   gap: 12px;
 }
 
-.copyright { font-weight: 600; color: #333; }
-.divider { width: 1px; height: 12px; background: #ddd; }
+.copyright { font-weight: 600; color: var(--sos-text-secondary); }
+.divider { width: 1px; height: 12px; background: var(--sos-border-default); }
 .dot-sep { font-weight: bold; }
 
 /* =========================================
@@ -402,22 +402,22 @@ const scrollToTop = () => {
   right: 32px;
   width: 48px;
   height: 48px;
-  background: #fff;
-  border: 1px solid #eaeaea;
+  background: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-subtle);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #888;
+  color: var(--sos-text-tertiary);
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .elevator-btn:hover {
   transform: translateY(-6px);
-  color: #111;
-  border-color: #ccc;
+  color: var(--sos-text-primary);
+  border-color: var(--sos-border-default);
   box-shadow: 0 10px 20px rgba(0,0,0,0.1);
 }
 </style>
