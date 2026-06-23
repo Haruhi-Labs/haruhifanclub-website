@@ -1,101 +1,1033 @@
 <template>
   <section class="container-card art-home">
-    <div class="home-hero panel">
-      <div class="hero-copy">
-        <p class="eyebrow">SOS Brigade Art Club</p>
-        <h1>应援团绘画部</h1>
-        <p class="hero-text">
-          这里是画廊首页。顶部导航已经接入画廊、投稿、积分、公告和兑换等功能入口。
-        </p>
+    <div class="endless-screen" :style="stageStyle">
+      <div class="space-field" aria-hidden="true">
+        <span class="star-layer star-layer-a"></span>
+        <span class="star-layer star-layer-b"></span>
+        <span class="nebula nebula-a"></span>
+        <span class="nebula nebula-b"></span>
       </div>
-      <div class="hero-mark" aria-hidden="true">
-        <span>画</span>
+
+      <div class="screen-header">
+        <div>
+          <p class="eyebrow">Endless Eight Observatory</p>
+          <h1>八月循环观测中枢</h1>
+        </div>
+        <div class="status-chip">
+          <span></span>
+          本地 seed 同步
+        </div>
       </div>
+
+      <div class="visual-stage">
+        <div class="summer-strip" aria-label="暑假倒计时">
+          <span>暑假倒计时</span>
+          <strong>{{ summerCountdown }}</strong>
+          <span>days</span>
+        </div>
+
+        <div class="time-device" aria-label="画廊数据时间环">
+          <div class="orbit orbit-outer"></div>
+          <div class="orbit orbit-middle"></div>
+          <div class="orbit orbit-inner"></div>
+          <div class="ratio-orbit"></div>
+          <div class="tick-ring"></div>
+          <div class="scan-sweep"></div>
+
+          <div class="ratio-note note-haruhi">
+            <strong>{{ haruhiRatio }}%</strong>
+            <span>凉宫画作</span>
+          </div>
+          <div class="ratio-note note-other">
+            <strong>{{ otherRatio }}%</strong>
+            <span>非凉宫画作</span>
+          </div>
+
+          <div class="observer-core">
+            <span class="loop-stamp">LOOP {{ loopCode }}</span>
+            <p>
+              画廊的第 <strong>{{ visitorNumberText }}</strong> 位访问者，你好
+            </p>
+            <div class="core-split">
+              <span>{{ haruhiCount }} Haruhi</span>
+              <span>{{ otherCount }} Other</span>
+            </div>
+          </div>
+        </div>
+
+        <article
+          v-for="metric in satelliteMetrics"
+          :key="metric.key"
+          :class="['satellite-node', `node-${metric.key}`]"
+        >
+          <span>{{ metric.label }}</span>
+          <strong>{{ metric.value }}</strong>
+          <small>{{ metric.note }}</small>
+        </article>
+      </div>
+    </div>
+
+    <div class="bottom-grid">
+      <article class="endless-panel repeat-panel">
+        <div class="panel-head">
+          <p class="eyebrow">Repeated Observation Log</p>
+          <h2>重复观测记录</h2>
+        </div>
+        <div class="record-list">
+          <div class="record-row" v-for="record in repeatRecords" :key="record.code">
+            <span class="record-code">{{ record.code }}</span>
+            <div>
+              <strong>{{ record.title }}</strong>
+              <small>{{ record.meta }}</small>
+            </div>
+            <span class="record-time">{{ record.time }}</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="endless-panel tag-panel">
+        <div class="panel-head">
+          <p class="eyebrow">Tag Loop Spectrum</p>
+          <h2>标签循环频谱</h2>
+        </div>
+        <div class="tag-radar">
+          <div class="tag-row" v-for="tag in topTags" :key="tag.name">
+            <div class="tag-label">
+              <span>#{{ tag.name }}</span>
+              <strong>{{ tag.count }}</strong>
+            </div>
+            <div class="tag-track">
+              <span :style="{ width: `${tag.percent}%` }"></span>
+            </div>
+          </div>
+        </div>
+      </article>
     </div>
   </section>
 </template>
 
+<script setup>
+import { seedArtworks, seedCreators } from '../mock/seedData'
+
+const VISITOR_KEY = 'haruhi-art-visitor-number'
+const DAY_MS = 24 * 60 * 60 * 1000
+
+function makeVisitorNumber() {
+  const fallback = 5200 + seedArtworks.length * 31 + seedCreators.length * 17
+
+  if (typeof window === 'undefined') return fallback
+
+  const saved = window.localStorage.getItem(VISITOR_KEY)
+  const parsed = Number(saved)
+  if (Number.isFinite(parsed) && parsed > 0) return parsed
+
+  const daySeed = Math.floor(Date.now() / DAY_MS)
+  const generated = 5200 + (daySeed % 1000) * 9 + Math.floor(Math.random() * 180)
+  window.localStorage.setItem(VISITOR_KEY, String(generated))
+  return generated
+}
+
+function formatShortTime(value) {
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value))
+}
+
+function getSummerCountdown() {
+  const nowDate = new Date()
+  const year = nowDate.getFullYear()
+  let end = new Date(year, 7, 31, 23, 59, 59)
+  if (nowDate > end) end = new Date(year + 1, 7, 31, 23, 59, 59)
+  return Math.max(0, Math.ceil((end.getTime() - nowDate.getTime()) / DAY_MS))
+}
+
+const visitorNumber = makeVisitorNumber()
+const visitorNumberText = visitorNumber.toLocaleString('zh-CN')
+const loopCode = String(15000 + (visitorNumber % 532)).padStart(5, '0')
+
+const approvedArtworks = seedArtworks.filter((item) => item.status === 'approved')
+const artworkCount = approvedArtworks.length
+const creatorCount = seedCreators.length
+const haruhiCount = approvedArtworks.filter((item) => item.content_type === 'haruhi').length
+const otherCount = Math.max(artworkCount - haruhiCount, 0)
+const haruhiRatio = artworkCount ? Math.round((haruhiCount / artworkCount) * 100) : 0
+const otherRatio = Math.max(0, 100 - haruhiRatio)
+const totalLikes = approvedArtworks.reduce((sum, item) => sum + Number(item.like_total || 0), 0)
+
+const latestArtwork = approvedArtworks
+  .slice()
+  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+
+const latestUploadText = latestArtwork ? formatShortTime(latestArtwork.created_at) : '暂无'
+const summerCountdown = getSummerCountdown()
+
+const now = Date.now()
+const todayCount = Math.max(
+  1,
+  approvedArtworks.filter((item) => now - new Date(item.created_at).getTime() <= DAY_MS * 1.2).length
+)
+const weekCount = approvedArtworks.filter((item) => now - new Date(item.created_at).getTime() <= DAY_MS * 7.2).length
+const heatScore = Math.min(99, Math.round(totalLikes * 2 + (visitorNumber % 23)))
+
+const satelliteMetrics = [
+  { key: 'artworks', label: '当前画作', value: artworkCount, note: 'approved seed' },
+  { key: 'creators', label: '创作者', value: creatorCount, note: '本地观测对象' },
+  { key: 'latest', label: '最近上传', value: latestUploadText, note: latestArtwork?.title || '暂无作品' },
+  { key: 'likes', label: '应援热度', value: `${heatScore}%`, note: `${totalLikes} 次点赞` },
+  { key: 'week', label: '本周入库', value: weekCount, note: `今日新增 ${todayCount}` },
+]
+
+const tagCounts = approvedArtworks.reduce((map, item) => {
+  for (const tag of item.tags || []) {
+    map.set(tag, (map.get(tag) || 0) + 1)
+  }
+  return map
+}, new Map())
+
+const maxTagCount = Math.max(...tagCounts.values(), 1)
+const topTags = Array.from(tagCounts.entries())
+  .map(([name, count]) => ({
+    name,
+    count,
+    percent: Math.max(14, Math.round((count / maxTagCount) * 100)),
+  }))
+  .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'zh-CN'))
+  .slice(0, 6)
+
+const repeatRecords = approvedArtworks
+  .slice()
+  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  .slice(0, 4)
+  .map((item, index) => ({
+    code: `OBS-${String(index + 1).padStart(2, '0')}`,
+    title: item.title,
+    meta: `${item.content_type === 'haruhi' ? '凉宫线' : '支线'} / ${(item.tags || []).slice(0, 2).join(' · ') || '未标记'}`,
+    time: formatShortTime(item.created_at),
+  }))
+
+const stageStyle = {
+  '--haruhi-angle': `${haruhiRatio * 3.6}deg`,
+  '--heat-level': `${heatScore}%`,
+  '--week-level': `${Math.min(100, weekCount * 18)}%`,
+  '--loop-offset': `${visitorNumber % 360}deg`,
+}
+</script>
+
 <style scoped>
 .art-home {
-  max-width: 1120px;
+  width: min(1500px, calc(100% - 32px));
+  padding-top: 8px;
+  --space-bg: #050814;
+  --space-bg-2: #091427;
+  --space-bg-3: #150d2a;
+  --hud-panel: rgba(8, 18, 38, 0.72);
+  --hud-panel-strong: rgba(10, 24, 50, 0.88);
+  --hud-line: rgba(122, 211, 255, 0.24);
+  --hud-line-strong: rgba(126, 227, 255, 0.58);
+  --hud-text: rgba(239, 247, 255, 0.96);
+  --hud-muted: rgba(183, 204, 232, 0.72);
+  --hud-cyan: #74e7ff;
+  --hud-blue: #5d8cff;
+  --hud-violet: #b18cff;
+  --hud-red: #ff637d;
 }
 
-.home-hero {
+.art-home .endless-screen {
   position: relative;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 24px;
-  align-items: center;
-  padding: 34px;
+  min-height: 720px;
   overflow: hidden;
+  border: 1px solid var(--hud-line);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(71, 165, 255, 0.16), transparent 30%),
+    radial-gradient(circle at 18% 16%, rgba(116, 231, 255, 0.13), transparent 28%),
+    radial-gradient(circle at 82% 16%, rgba(177, 140, 255, 0.17), transparent 31%),
+    linear-gradient(135deg, var(--space-bg), var(--space-bg-2) 54%, var(--space-bg-3));
+  box-shadow:
+    0 34px 120px rgba(0, 0, 0, 0.44),
+    0 0 56px rgba(80, 174, 255, 0.13),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: var(--hud-text);
 }
 
-.home-hero::before {
+.art-home .endless-screen::before,
+.art-home .endless-screen::after {
   content: "";
   position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 12% 18%, rgba(20, 184, 166, 0.16), transparent 32%),
-    radial-gradient(circle at 88% 20%, rgba(236, 72, 153, 0.14), transparent 30%);
   pointer-events: none;
 }
 
-.hero-copy,
-.hero-mark {
-  position: relative;
+.art-home .endless-screen::before {
+  inset: 18px;
+  z-index: 1;
+  border: 1px solid rgba(122, 211, 255, 0.12);
+  border-radius: 16px;
+  background:
+    linear-gradient(rgba(116, 231, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(116, 231, 255, 0.06) 1px, transparent 1px);
+  background-size: 34px 34px;
+  clip-path: polygon(0 18px, 18px 0, calc(100% - 18px) 0, 100% 18px, 100% calc(100% - 18px), calc(100% - 18px) 100%, 18px 100%, 0 calc(100% - 18px));
+  mask-image: radial-gradient(circle at center, black 0 61%, transparent 80%);
 }
 
-.eyebrow {
+.art-home .endless-screen::after {
+  inset: 0;
+  z-index: 1;
+  background:
+    repeating-linear-gradient(0deg, rgba(150, 220, 255, 0.07) 0 1px, transparent 1px 8px),
+    linear-gradient(110deg, transparent 18%, rgba(116, 231, 255, 0.12) 48%, transparent 72%);
+  opacity: 0.76;
+  mix-blend-mode: screen;
+}
+
+.art-home .space-field,
+.art-home .space-field span {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.art-home .space-field {
+  z-index: 0;
+}
+
+.art-home .star-layer {
+  background-repeat: repeat;
+  opacity: 0.8;
+}
+
+.art-home .star-layer-a {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.92) 0 1px, transparent 1.4px),
+    radial-gradient(circle, rgba(116, 231, 255, 0.76) 0 1px, transparent 1.5px);
+  background-position: 0 0, 60px 38px;
+  background-size: 118px 92px, 174px 136px;
+}
+
+.art-home .star-layer-b {
+  background-image:
+    radial-gradient(circle, rgba(177, 140, 255, 0.58) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgba(255, 99, 125, 0.42) 0 1px, transparent 1.5px);
+  background-position: 32px 20px, 20px 70px;
+  background-size: 214px 188px, 290px 220px;
+  opacity: 0.55;
+}
+
+.art-home .nebula {
+  filter: blur(2px);
+  opacity: 0.9;
+}
+
+.art-home .nebula-a {
+  width: 56%;
+  height: 56%;
+  right: -16%;
+  top: -20%;
+  background: radial-gradient(circle, rgba(119, 85, 255, 0.25), transparent 62%);
+}
+
+.art-home .nebula-b {
+  width: 46%;
+  height: 46%;
+  left: -15%;
+  bottom: -18%;
+  background: radial-gradient(circle, rgba(0, 196, 255, 0.18), transparent 64%);
+}
+
+.art-home .screen-header {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 28px 32px 0;
+}
+
+.art-home .eyebrow {
   margin: 0 0 8px;
-  color: var(--accent);
+  color: var(--hud-cyan);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0;
   text-transform: uppercase;
+  text-shadow: 0 0 18px rgba(116, 231, 255, 0.48);
 }
 
-.home-hero h1 {
+.art-home h1,
+.art-home h2,
+.art-home p {
   margin: 0;
-  color: var(--text);
-  font-size: clamp(32px, 5vw, 56px);
-  line-height: 1;
+}
+
+.art-home h1 {
+  color: var(--hud-text);
+  font-size: 34px;
+  line-height: 1.1;
   font-weight: 950;
+  text-shadow: 0 0 28px rgba(116, 231, 255, 0.2);
 }
 
-.hero-text {
-  max-width: 620px;
-  margin: 16px 0 0;
-  color: var(--muted);
-  font-size: 16px;
-  line-height: 1.7;
-  font-weight: 700;
+.art-home .status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--hud-line);
+  border-radius: 999px;
+  background: rgba(8, 18, 38, 0.58);
+  color: var(--hud-muted);
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 22px rgba(116, 231, 255, 0.08);
+  backdrop-filter: blur(14px);
 }
 
-.hero-mark {
-  width: 128px;
-  height: 128px;
-  border-radius: 32px;
+.art-home .status-chip span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hud-cyan);
+  box-shadow: 0 0 14px rgba(116, 231, 255, 0.86);
+}
+
+.art-home .visual-stage {
+  position: relative;
+  z-index: 2;
+  min-height: 630px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #fef3c7, #d9f99d 48%, #bae6fd);
-  box-shadow: var(--shadow-2), inset 0 1px 0 rgba(255, 255, 255, 0.85);
-  transform: rotate(5deg);
+  padding: 10px 32px 42px;
 }
 
-.hero-mark span {
-  color: #155e75;
-  font-size: 54px;
+.art-home .summer-strip {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  z-index: 5;
+  display: inline-grid;
+  grid-template-columns: auto auto auto;
+  align-items: baseline;
+  gap: 8px;
+  transform: translateX(-50%);
+  padding: 9px 16px;
+  border: 1px solid rgba(116, 231, 255, 0.3);
+  border-radius: 999px;
+  background: rgba(5, 13, 28, 0.72);
+  color: var(--hud-muted);
+  font-weight: 950;
+  box-shadow: 0 0 24px rgba(116, 231, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.art-home .summer-strip strong {
+  color: var(--hud-red);
+  font-size: 30px;
+  line-height: 1;
+  text-shadow: 0 0 18px rgba(255, 99, 125, 0.45);
+}
+
+.art-home .time-device {
+  position: relative;
+  width: 560px;
+  height: 560px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  isolation: isolate;
+}
+
+.art-home .time-device::before,
+.art-home .time-device::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.art-home .time-device::before {
+  inset: 0;
+  background:
+    radial-gradient(circle, transparent 0 50%, rgba(116, 231, 255, 0.08) 51% 54%, transparent 55%),
+    repeating-conic-gradient(from var(--loop-offset), rgba(206, 238, 255, 0.48) 0 1.4deg, transparent 1.4deg 9deg);
+  box-shadow: 0 0 94px rgba(116, 231, 255, 0.15);
+}
+
+.art-home .time-device::after {
+  inset: 54px;
+  border: 1px solid rgba(255, 99, 125, 0.18);
+  box-shadow: inset 0 0 26px rgba(255, 99, 125, 0.08), 0 0 36px rgba(116, 231, 255, 0.08);
+}
+
+.art-home .orbit,
+.art-home .ratio-orbit,
+.art-home .tick-ring,
+.art-home .scan-sweep {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.art-home .orbit-outer {
+  inset: 8px;
+  border: 1px solid rgba(116, 231, 255, 0.24);
+  box-shadow: 0 0 28px rgba(116, 231, 255, 0.09);
+  animation: homeOrbit 30s linear infinite;
+}
+
+.art-home .orbit-middle {
+  inset: 62px;
+  border: 1px dashed rgba(177, 140, 255, 0.34);
+  animation: homeOrbitReverse 22s linear infinite;
+}
+
+.art-home .orbit-inner {
+  inset: 116px;
+  border: 1px solid rgba(116, 231, 255, 0.18);
+  box-shadow: inset 0 0 34px rgba(116, 231, 255, 0.12);
+  animation: homeOrbit 18s linear infinite;
+}
+
+.art-home .ratio-orbit {
+  inset: 28px;
+  background:
+    conic-gradient(from -90deg, var(--hud-cyan) 0 var(--haruhi-angle), rgba(177, 140, 255, 0.34) var(--haruhi-angle) 360deg);
+  mask-image: radial-gradient(circle, transparent 0 41%, black 42% 49%, transparent 50%);
+  box-shadow: 0 0 58px rgba(116, 231, 255, 0.22);
+}
+
+.art-home .tick-ring {
+  inset: 86px;
+  background:
+    repeating-conic-gradient(from 4deg, rgba(232, 246, 255, 0.5) 0 2deg, transparent 2deg 15deg);
+  mask-image: radial-gradient(circle, transparent 0 47%, black 48% 51%, transparent 52%);
+}
+
+.art-home .scan-sweep {
+  inset: 0;
+  background: conic-gradient(from 0deg, transparent 0 286deg, rgba(116, 231, 255, 0.22) 318deg, transparent 350deg);
+  animation: homeOrbit 11s linear infinite;
+  mix-blend-mode: screen;
+}
+
+.art-home .observer-core {
+  position: relative;
+  z-index: 2;
+  width: 268px;
+  min-height: 268px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 14px;
+  padding: 28px;
+  border: 1px solid rgba(116, 231, 255, 0.28);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(93, 140, 255, 0.28), rgba(5, 13, 28, 0.9)),
+    linear-gradient(135deg, rgba(8, 18, 38, 0.94), rgba(16, 18, 42, 0.88));
+  color: var(--hud-text);
+  text-align: center;
+  box-shadow:
+    0 24px 72px rgba(0, 0, 0, 0.38),
+    0 0 42px rgba(116, 231, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+.art-home .observer-core::before {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 99, 125, 0.18);
+  pointer-events: none;
+}
+
+.art-home .loop-stamp {
+  display: inline-flex;
+  padding: 6px 12px;
+  border: 1px solid rgba(116, 231, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(10, 28, 58, 0.74);
+  color: var(--hud-cyan);
+  font-size: 12px;
+  font-weight: 950;
+  box-shadow: 0 0 18px rgba(116, 231, 255, 0.1);
+}
+
+.art-home .observer-core p {
+  color: var(--hud-text);
+  font-size: 17px;
+  line-height: 1.55;
+  font-weight: 900;
+}
+
+.art-home .observer-core p strong {
+  display: block;
+  color: var(--hud-cyan);
+  font-size: 40px;
+  line-height: 1.05;
+  font-weight: 950;
+  text-shadow: 0 0 24px rgba(116, 231, 255, 0.42);
+}
+
+.art-home .core-split {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.art-home .core-split span {
+  padding: 5px 9px;
+  border: 1px solid rgba(116, 231, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(9, 24, 50, 0.72);
+  color: var(--hud-muted);
+  font-size: 11px;
   font-weight: 950;
 }
 
-@media (max-width: 640px) {
-  .home-hero {
-    grid-template-columns: 1fr;
-    padding: 24px;
+.art-home .ratio-note {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  min-width: 104px;
+  padding: 10px 14px;
+  border: 1px solid rgba(116, 231, 255, 0.24);
+  border-radius: 12px;
+  background: rgba(7, 17, 36, 0.72);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.26), 0 0 22px rgba(116, 231, 255, 0.08);
+  backdrop-filter: blur(14px);
+  clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+}
+
+.art-home .ratio-note strong {
+  color: var(--hud-cyan);
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 950;
+  text-shadow: 0 0 18px rgba(116, 231, 255, 0.36);
+}
+
+.art-home .ratio-note span {
+  margin-top: 4px;
+  color: var(--hud-muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.art-home .note-haruhi {
+  top: 100px;
+  left: 54px;
+}
+
+.art-home .note-other {
+  right: 54px;
+  bottom: 108px;
+}
+
+.art-home .satellite-node {
+  position: absolute;
+  z-index: 4;
+  width: 172px;
+  min-height: 108px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--hud-line);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(10, 28, 58, 0.82), rgba(12, 18, 44, 0.7)),
+    radial-gradient(circle at top right, rgba(116, 231, 255, 0.12), transparent 48%);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+  clip-path: polygon(0 12px, 12px 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.art-home .satellite-node:hover {
+  border-color: var(--hud-line-strong);
+  box-shadow: 0 20px 52px rgba(0, 0, 0, 0.32), 0 0 24px rgba(116, 231, 255, 0.18);
+  transform: translateY(-2px);
+}
+
+.art-home .satellite-node::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  width: 32px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--hud-cyan), transparent);
+  pointer-events: none;
+}
+
+.art-home .satellite-node span {
+  color: var(--hud-muted);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.art-home .satellite-node strong {
+  color: var(--hud-text);
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 950;
+  text-shadow: 0 0 20px rgba(116, 231, 255, 0.16);
+}
+
+.art-home .satellite-node small {
+  color: rgba(197, 216, 244, 0.66);
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 850;
+}
+
+.art-home .node-artworks {
+  top: 120px;
+  left: 7%;
+}
+
+.art-home .node-creators {
+  top: 120px;
+  right: 7%;
+}
+
+.art-home .node-latest {
+  left: 9%;
+  bottom: 92px;
+}
+
+.art-home .node-likes {
+  right: 10%;
+  bottom: 86px;
+}
+
+.art-home .node-week {
+  right: 3%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.art-home .node-week:hover {
+  transform: translateY(calc(-50% - 2px));
+}
+
+.art-home .bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.art-home .endless-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--hud-line);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(8, 18, 38, 0.8), rgba(13, 17, 44, 0.72)),
+    radial-gradient(circle at top right, rgba(116, 231, 255, 0.1), transparent 42%);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: var(--hud-text);
+  clip-path: polygon(0 16px, 16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%);
+}
+
+.art-home .endless-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(116, 231, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(116, 231, 255, 0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+
+.art-home .panel-head {
+  position: relative;
+  padding: 22px 24px 0;
+}
+
+.art-home .panel-head h2 {
+  color: var(--hud-text);
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.art-home .record-list,
+.art-home .tag-radar {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  padding: 20px 24px 24px;
+}
+
+.art-home .record-row {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid rgba(116, 231, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(6, 16, 34, 0.56);
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.art-home .record-row:hover {
+  border-color: rgba(116, 231, 255, 0.36);
+  background: rgba(11, 28, 58, 0.7);
+  box-shadow: 0 0 22px rgba(116, 231, 255, 0.08);
+}
+
+.art-home .record-code {
+  color: var(--hud-cyan);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.art-home .record-row strong {
+  display: block;
+  color: var(--hud-text);
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.art-home .record-row small {
+  display: block;
+  margin-top: 4px;
+  color: var(--hud-muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.art-home .record-time {
+  color: rgba(197, 216, 244, 0.76);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.art-home .tag-row {
+  display: grid;
+  gap: 8px;
+}
+
+.art-home .tag-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--hud-muted);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.art-home .tag-label strong {
+  color: var(--hud-text);
+  font-weight: 950;
+}
+
+.art-home .tag-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(4, 10, 23, 0.72);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.34);
+}
+
+.art-home .tag-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--hud-cyan), var(--hud-blue), var(--hud-violet));
+  box-shadow: 0 0 20px rgba(116, 231, 255, 0.22);
+}
+
+:global(html.art-lights-out) .art-home {
+  --space-bg: #01040d;
+  --space-bg-2: #050d1d;
+  --space-bg-3: #10071f;
+  --hud-panel: rgba(3, 9, 22, 0.78);
+  --hud-panel-strong: rgba(5, 14, 32, 0.94);
+  --hud-line: rgba(126, 227, 255, 0.28);
+  --hud-line-strong: rgba(141, 236, 255, 0.68);
+  --hud-text: rgba(247, 251, 255, 0.98);
+  --hud-muted: rgba(196, 218, 245, 0.76);
+  --hud-cyan: #8df0ff;
+  --hud-blue: #6d94ff;
+  --hud-violet: #c7a6ff;
+  --hud-red: #ff6f89;
+}
+
+:global(html.art-lights-out) .art-home .endless-screen {
+  box-shadow:
+    0 36px 130px rgba(0, 0, 0, 0.58),
+    0 0 74px rgba(116, 231, 255, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+:global(html.art-lights-out) .art-home .star-layer-a {
+  opacity: 0.96;
+}
+
+:global(html.art-lights-out) .art-home .star-layer-b {
+  opacity: 0.72;
+}
+
+:global(html.art-lights-out) .art-home .nebula-a {
+  background: radial-gradient(circle, rgba(105, 80, 255, 0.32), transparent 62%);
+}
+
+:global(html.art-lights-out) .art-home .nebula-b {
+  background: radial-gradient(circle, rgba(0, 216, 255, 0.24), transparent 64%);
+}
+
+:global(html.art-lights-out) .art-home .time-device::before {
+  box-shadow: 0 0 116px rgba(141, 240, 255, 0.2);
+}
+
+:global(html.art-lights-out) .art-home .observer-core,
+:global(html.art-lights-out) .art-home .satellite-node,
+:global(html.art-lights-out) .art-home .endless-panel,
+:global(html.art-lights-out) .art-home .ratio-note,
+:global(html.art-lights-out) .art-home .summer-strip,
+:global(html.art-lights-out) .art-home .status-chip {
+  background-color: rgba(3, 10, 24, 0.78);
+}
+
+:global(html.art-lights-out) .art-home .scan-sweep {
+  background: conic-gradient(from 0deg, transparent 0 284deg, rgba(141, 240, 255, 0.3) 318deg, transparent 350deg);
+}
+
+@keyframes homeOrbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes homeOrbitReverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@media (max-width: 1180px) {
+  .art-home .endless-screen {
+    min-height: auto;
   }
 
-  .hero-mark {
-    display: none;
+  .art-home .visual-stage {
+    min-height: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    padding-top: 88px;
+  }
+
+  .art-home .time-device {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: 500px;
+    height: 500px;
+  }
+
+  .art-home .satellite-node {
+    position: relative;
+    inset: auto;
+    transform: none;
+    width: 100%;
+  }
+
+  .art-home .satellite-node:hover,
+  .art-home .node-week:hover {
+    transform: translateY(-2px);
+  }
+
+  .art-home .summer-strip {
+    top: 24px;
+  }
+}
+
+@media (max-width: 820px) {
+  .art-home {
+    width: min(100% - 20px, 1500px);
+    padding: 0;
+  }
+
+  .art-home .screen-header {
+    display: grid;
+    padding: 22px 20px 0;
+  }
+
+  .art-home h1 {
+    font-size: 28px;
+  }
+
+  .art-home .visual-stage {
+    grid-template-columns: 1fr;
+    padding: 86px 18px 24px;
+  }
+
+  .art-home .time-device {
+    width: 320px;
+    height: 320px;
+  }
+
+  .art-home .observer-core {
+    width: 184px;
+    min-height: 184px;
+    padding: 18px;
+    gap: 8px;
+  }
+
+  .art-home .observer-core p {
+    font-size: 14px;
+  }
+
+  .art-home .observer-core p strong {
+    font-size: 28px;
+  }
+
+  .art-home .loop-stamp {
+    font-size: 11px;
+  }
+
+  .art-home .ratio-note {
+    min-width: 82px;
+    padding: 8px 10px;
+    border-radius: 10px;
+  }
+
+  .art-home .ratio-note strong {
+    font-size: 22px;
+  }
+
+  .art-home .ratio-note span {
+    font-size: 11px;
+  }
+
+  .art-home .note-haruhi {
+    top: 36px;
+    left: 18px;
+  }
+
+  .art-home .note-other {
+    right: 18px;
+    bottom: 36px;
+  }
+
+  .art-home .bottom-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .art-home .record-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 }
 </style>
