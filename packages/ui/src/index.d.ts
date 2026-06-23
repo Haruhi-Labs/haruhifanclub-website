@@ -11,6 +11,8 @@ export type SosProgressTone = 'default' | 'success' | 'danger'
 export type SosClusterAlign = 'start' | 'center' | 'end' | 'stretch'
 export type SosClusterJustify = 'start' | 'center' | 'end' | 'between'
 export type SosSplitAlign = 'start' | 'center' | 'end' | 'stretch'
+export type SosPageContained = 'none' | 'content' | 'wide' | 'reading'
+export type SosPageGap = 'default' | 'tight' | 'loose'
 
 export const SosBadge: DefineComponent<{
   variant?: SosBadgeVariant
@@ -75,6 +77,21 @@ export const SosNotice: DefineComponent<{
   title?: string
   tone?: SosNoticeTone
 }>
+export const SosPage: DefineComponent<{
+  as?: string
+  site?: string
+  density?: string
+  contained?: SosPageContained
+  gap?: SosPageGap
+  scoped?: boolean
+}>
+export const SosPageHeader: DefineComponent<{
+  as?: string
+  eyebrow?: string
+  title?: string
+  copy?: string
+  meta?: string
+}>
 export const SosProgress: DefineComponent<{
   value: number
   max?: number
@@ -97,4 +114,8 @@ export const SosSurface: DefineComponent<{
   as?: string
   variant?: SosSurfaceVariant
   padded?: boolean
+}>
+export const SosToolbar: DefineComponent<{
+  as?: string
+  surface?: boolean
 }>

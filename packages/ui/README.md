@@ -19,22 +19,25 @@ import {
   SosInline,
   SosMediaFrame,
   SosNotice,
+  SosPage,
+  SosPageHeader,
   SosProgress,
   SosSplit,
   SosStack,
   SosSurface,
+  SosToolbar,
 } from '@haruhi/ui'
 ```
 
 `@haruhi/ui` 会自动引入 `@haruhi/design-system/components.css`。如果页面已经在入口处引入该 CSS，也可以继续保留，重复导入由构建器去重。
 
-使用 wrapper 前，页面根节点仍需要明确表达模式：
+使用 `SosPage` 时可以由 wrapper 输出 scope 和站点模式；如果页面暂不使用 `SosPage`，根节点仍需要明确表达模式：
 
 ```vue
 <template>
-  <main class="sos-scope" data-sos-site="shop">
+  <SosPage site="shop">
     <RouterView />
-  </main>
+  </SosPage>
 </template>
 ```
 
@@ -46,6 +49,8 @@ import {
 | `SosBadge`       | 状态、分类、短标签                                      |
 | `SosField`       | Label、Control、Help / Error anatomy                    |
 | `SosNotice`      | 系统提示，支持 info / success / warning / danger        |
+| `SosPage`        | 页面根容器、scope、宽度和整体纵向节奏                   |
+| `SosPageHeader`  | 页面/频道标题、说明、meta 和动作区 anatomy              |
 | `SosProgress`    | 常驻数值的进度反馈                                      |
 | `SosCard`        | 基础卡片 anatomy，不封装业务卡片                        |
 | `SosEmptyState`  | 空状态说明和下一步动作                                  |
@@ -56,6 +61,7 @@ import {
 | `SosGrid`        | 自适应卡片网格                                          |
 | `SosSplit`       | 稳定双栏布局                                            |
 | `SosSurface`     | 有边界的承载面                                          |
+| `SosToolbar`     | 筛选、批量动作和工具组的可换行布局                      |
 | `SosMediaFrame`  | 固定媒体比例容器                                        |
 
 ## 使用示例
@@ -79,6 +85,7 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'
 
 - 不封装 `NewsArticleCard`、`ShopProductCard`、`ArtworkCard`、`LibraryBookCard`、`ExamPaperCard` 等业务卡片。
 - `SosEmptyState` 是系统状态模式，不是营销卡片或落地页模块。
+- `SosPage`、`SosPageHeader`、`SosToolbar` 用于新界面重构时统一页面骨架，不负责生成业务内容。
 - 不新增独立主题变量；表达模式仍由外层 `data-sos-site` 和 `@haruhi/design-system` token 控制。
 - 不把页面特例做成组件 variant。新增 variant 前必须先更新规范页和状态矩阵。
 - 不替代 `@haruhi/auth-ui`。鉴权 UI 仍由 `packages/auth-ui` 维护，后续可逐步消费本包基础件。
@@ -92,15 +99,18 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'
 - EmptyState 必须说明为空原因和下一步，不能只传“暂无数据”。
 - Progress 的 `label` 和 `valueLabel` 应保留当前值、目标值或百分比。
 - Card wrapper 不决定标题、价格、库存、日期、作者等业务字段。
+- PageHeader 的 title、copy、meta 和 actions 必须来自当前页面任务，不能写成泛营销口号。
+- Toolbar 只组织筛选、排序、结果数和批量动作，不决定具体筛选语义。
 
 ## 准入分级
 
-| Level | 名称                   | 落点                    | 说明                                                   |
-| ----- | ---------------------- | ----------------------- | ------------------------------------------------------ |
-| L0    | Token / Class Contract | `@haruhi/design-system` | 颜色、间距、圆角、布局原语和基础 class。               |
-| L1    | Primitive Wrapper      | `@haruhi/ui`            | 本包只接收跨站重复、语义稳定、状态明确的基础 wrapper。 |
-| L2    | Composition Recipe     | 规范页 + 业务 app       | 业务卡片和页面组合先用真实数据验证，不进入本包。       |
-| L3    | Product Component      | 未来评估                | 多页面共享同一信息结构、状态机和数据契约后再评估。     |
+| Level | 名称                   | 落点                    | 说明                                                 |
+| ----- | ---------------------- | ----------------------- | ---------------------------------------------------- |
+| L0    | Token / Class Contract | `@haruhi/design-system` | 颜色、间距、圆角、布局原语和基础 class。             |
+| L1    | Primitive Wrapper      | `@haruhi/ui`            | 本包接收跨站重复、语义稳定、状态明确的基础 wrapper。 |
+| L1.5  | Page Structure Wrapper | `@haruhi/ui`            | Page、PageHeader、Toolbar 等帮助应用按统一骨架重构。 |
+| L2    | Composition Recipe     | 规范页 + 业务 app       | 业务卡片和页面组合先用真实数据验证，不进入本包。     |
+| L3    | Product Component      | 未来评估                | 多页面共享同一信息结构、状态机和数据契约后再评估。   |
 
 API 规则：
 

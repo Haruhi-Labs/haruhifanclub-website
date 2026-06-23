@@ -46,12 +46,12 @@ import '@haruhi/design-system/bridges.css'
 | `--sos-text-primary`                      | 标题、强数字、主要操作文本      |
 | `--sos-text-secondary`                    | 摘要、说明、meta、help text     |
 | `--sos-border-subtle/default/strong`      | 分隔和承载面边界                |
-| `--sos-accent`                            | 当前表达模式的主行动            |
+| `--sos-accent`                            | 当前表达模式的局部强调/行动     |
 | `--sos-signal`                            | 少量品牌线索和重点标签          |
 | `--sos-danger` / `--sos-success`          | 跨站点一致的错误和成功状态      |
 | `--sos-card-radius` / `--sos-card-shadow` | 卡片几何与深度                  |
 
-需要站点气质时调整 Expression Mapping，不在业务组件里新增 hex、临时阴影、13px 圆角或非 4px 网格间距。
+需要站点气质时先定义局部强调语言，不把 `data-sos-site` 当成整站换肤开关；业务组件里也不新增 hex、临时阴影、13px 圆角或非 4px 网格间距。
 
 ## 内容与数据
 
@@ -67,16 +67,19 @@ import '@haruhi/design-system/bridges.css'
 
 `components.css` 提供一组框架无关布局原语，供业务页面和未来 Vue wrapper 复用：
 
-| Class              | 用途                     |
-| ------------------ | ------------------------ |
-| `.sos-stack`       | 纵向内容节奏             |
-| `.sos-inline`      | 可换行同行操作           |
-| `.sos-cluster`     | 两端或多组对齐           |
-| `.sos-grid`        | 自适应卡片网格           |
-| `.sos-split`       | 稳定双栏布局             |
-| `.sos-surface`     | 有边界的承载面           |
-| `.sos-media-frame` | 媒体比例容器             |
-| `.sos-state-row`   | 数值、进度、库存等状态行 |
+| Class              | 用途                        |
+| ------------------ | --------------------------- |
+| `.sos-page`        | 页面根容器、宽度和纵向节奏  |
+| `.sos-page-header` | 页面/频道标题、说明和动作区 |
+| `.sos-toolbar`     | 筛选、批量动作和工具组      |
+| `.sos-stack`       | 纵向内容节奏                |
+| `.sos-inline`      | 可换行同行操作              |
+| `.sos-cluster`     | 两端或多组对齐              |
+| `.sos-grid`        | 自适应卡片网格              |
+| `.sos-split`       | 稳定双栏布局                |
+| `.sos-surface`     | 有边界的承载面              |
+| `.sos-media-frame` | 媒体比例容器                |
+| `.sos-state-row`   | 数值、进度、库存等状态行    |
 
 媒体比例通过属性声明：
 

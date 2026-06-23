@@ -203,9 +203,9 @@
 }
 
 [data-sos-site='shop'] {
-  --sos-bg-page: #f4f7fb;
+  --sos-bg-page: var(--sos-warm-50);
   --sos-bg-surface: var(--sos-white);
-  --sos-bg-subtle: var(--sos-blue-50);
+  --sos-bg-subtle: var(--sos-ink-50);
   --sos-accent: var(--sos-blue-500);
   --sos-accent-hover: var(--sos-blue-600);
   --sos-accent-soft: var(--sos-blue-50);
@@ -220,9 +220,9 @@
 }
 
 [data-sos-site='art'] {
-  --sos-bg-page: #e9f5f2;
-  --sos-bg-surface: rgba(255, 255, 255, 0.82);
-  --sos-bg-subtle: var(--sos-teal-50);
+  --sos-bg-page: var(--sos-warm-50);
+  --sos-bg-surface: var(--sos-white);
+  --sos-bg-subtle: var(--sos-ink-50);
   --sos-accent: var(--sos-teal-500);
   --sos-accent-hover: var(--sos-teal-600);
   --sos-accent-soft: var(--sos-teal-50);
@@ -237,9 +237,9 @@
 }
 
 [data-sos-site='library'] {
-  --sos-bg-page: var(--sos-paper-50);
-  --sos-bg-surface: rgba(255, 253, 247, 0.72);
-  --sos-bg-subtle: var(--sos-paper-100);
+  --sos-bg-page: var(--sos-warm-50);
+  --sos-bg-surface: var(--sos-white);
+  --sos-bg-subtle: var(--sos-paper-50);
   --sos-accent: var(--sos-amber-600);
   --sos-accent-hover: var(--sos-amber-700);
   --sos-accent-soft: var(--sos-amber-50);
@@ -252,15 +252,13 @@
   --sos-card-shadow: var(--sos-shadow-paper);
   --sos-hover-shadow: 4px 16px 36px rgba(88, 58, 28, 0.22);
   --sos-reading-family: var(--sos-font-reading);
-  --sos-page-texture:
-    radial-gradient(circle at 20% 15%, rgba(140, 103, 52, 0.045) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 72% 63%, rgba(140, 103, 52, 0.035) 0 1px, transparent 1.5px);
+  --sos-page-texture: none;
 }
 
 [data-sos-site='exam'] {
-  --sos-bg-page: #efe1ca;
-  --sos-bg-surface: #f8f4eb;
-  --sos-bg-subtle: #eee4d4;
+  --sos-bg-page: var(--sos-warm-50);
+  --sos-bg-surface: var(--sos-white);
+  --sos-bg-subtle: var(--sos-red-50);
   --sos-bg-strong: var(--sos-student-navy);
   --sos-accent: var(--sos-red-600);
   --sos-accent-hover: var(--sos-red-700);
@@ -275,9 +273,7 @@
   --sos-card-shadow: 0 18px 44px rgba(79, 53, 29, 0.2);
   --sos-hover-shadow: 0 24px 56px rgba(79, 53, 29, 0.26);
   --sos-reading-family: var(--sos-font-reading);
-  --sos-page-texture:
-    repeating-linear-gradient(8deg, rgba(119, 76, 39, 0.035) 0 1px, transparent 1px 16px),
-    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.34), transparent 40%);
+  --sos-page-texture: none;
 }
 
 /* Density only changes rhythm—not color or component anatomy. */

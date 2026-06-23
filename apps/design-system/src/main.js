@@ -56,7 +56,7 @@ const modes = [
     label: 'shop',
     name: '春日商城',
     color: '#3478f6',
-    note: '蓝灰浅底、行动蓝主 CTA。交易数字必须清晰，品牌黄只作标签。',
+    note: '中性页面基底、行动蓝只用于购买和进度。交易数字必须清晰，品牌黄只作标签。',
     sample: `
       <article class="sos-card sos-product-card sos-card--interactive">
         <div class="sos-product-card__media"><img alt="团长推荐商品示意" src="${productImage}"></div>
@@ -82,7 +82,7 @@ const modes = [
     label: 'art',
     name: '春日美术部',
     color: '#159a90',
-    note: '作品是主角。允许一层磨砂和柔和悬浮，禁止背景抢作品。',
+    note: '作品是主角。青绿只用于筛选、标签和成功反馈，禁止把画廊背景染成青绿。',
     sample: `
       <article class="sos-art-card sos-card--interactive">
         <div class="sos-art-card__frame">
@@ -144,6 +144,7 @@ const modes = [
 const navItems = [
   ['overview', '总览'],
   ['manual', '设计手册'],
+  ['tone', '设计调性'],
   ['foundations', '基础规范'],
   ['tokens', 'Token 映射'],
   ['content', '内容数据'],
@@ -191,6 +192,49 @@ const benchmarkRows = [
     '当前修正方向',
     '压缩纯架构说明，增加真实组件、真实字段、真实页面模式和真实响应式行为。',
   ],
+]
+
+const tonePrinciples = [
+  [
+    '清醒的社团运营感',
+    '界面像一个认真运行的社团工作台：信息明确、动作可靠、页面有温度，但不过度二次元化或装饰化。',
+  ],
+  [
+    '轻角色化，不主题公园化',
+    '五个站点可以有不同声线，但共同骨架必须稳定；角色气质通过色彩比例、媒体处理和文案节奏表达，不靠贴纸、异形和满屏图案。',
+  ],
+  [
+    '真实内容优先',
+    '商品、作品、文章、题目和书目是第一视觉对象。装饰只能帮助识别和分组，不能抢走业务内容。',
+  ],
+  [
+    '紧而不挤',
+    '商城、后台、投稿和答题都需要高效率。使用清楚的分组、稳定行高和 4px 网格，不用大面积留白制造空洞高级感。',
+  ],
+]
+
+const toneGrammarRows = [
+  [
+    '色彩',
+    '暖白纸面 + 深墨文本 + 行动蓝 + 少量 Signal Yellow',
+    '黄只做线索和高亮信号，不做大面积主题底色。',
+  ],
+  [
+    '排版',
+    '系统 sans 为主，阅读/品牌场景少量 serif',
+    '不使用负字距，不靠大标题撑页面；信息页标题按容器尺度收敛。',
+  ],
+  ['形状', '卡片 8-18px，媒体可更圆，但不新增异形', '禁止不规则几何图案、任意胶囊拉伸和临时半径。'],
+  ['材质', '真实媒体、轻边框、少量阴影', '材质只在组件或局部场景出现，不作为整站纹理。'],
+  ['动效', '短、稳、可预期', 'hover 只增强可点击感，不显隐价格、库存、题目、作者等关键信息。'],
+]
+
+const siteToneRows = [
+  ['news', '清晰团报', '平面、墨色、标题层级强，像可长期阅读的社团公告板。'],
+  ['shop', '可信交易', '整体保持明亮中性；蓝色只承担购买、链接和交易进度的强调。'],
+  ['art', '作品主位', '整体不铺青绿色；青绿色只用于筛选、标签或成功反馈，作品和作者信息优先。'],
+  ['library', '安静阅读', '整体不靠纸纹铺底；纸张感用于书封、摘录和阅读局部。'],
+  ['exam', '稳定考试', '整体不靠木桌舞台铺底；批改红只用于考试状态、分数和危险反馈。'],
 ]
 
 const siteReadinessRows = [
@@ -254,11 +298,11 @@ const visualBaselineRows = [
 const palette = [
   ['Signal Yellow', '--sos-yellow-500', '#ffc83d', '品牌信号、重点标签、全局提示'],
   ['Sky', '--sos-sky-500', '#4b9fe8', '导航、轻快链接、默认焦点'],
-  ['Action Blue', '--sos-blue-500', '#3478f6', '商城主行动、交易链接'],
-  ['Gallery Teal', '--sos-teal-500', '#159a90', '美术部主行动、成功语义'],
+  ['Action Blue', '--sos-blue-500', '#3478f6', '商城购买动作、交易链接'],
+  ['Gallery Teal', '--sos-teal-500', '#159a90', '美术部筛选、标签和成功语义'],
   ['Book Amber', '--sos-amber-600', '#9d5d16', '书架、档案、历史内容'],
   ['Teacher Red', '--sos-red-600', '#c8171e', '考试、危险、强提醒'],
-  ['Ink', '--sos-ink-950', '#171a22', '标题、深色表面、团报主行动'],
+  ['Ink', '--sos-ink-950', '#171a22', '标题、深色表面、团报主要操作'],
   ['Paper', '--sos-paper-100', '#f4ecdc', '书籍、便签、试卷纸张'],
 ]
 
@@ -418,22 +462,27 @@ const semanticTokens = [
     '边界',
     '分隔信息关系；焦点态不能只靠边框变浅。',
   ],
-  ['Accent', '--sos-accent', '主行动', '每个表达模式只有一个主行动色。'],
+  [
+    'Accent',
+    '--sos-accent',
+    '局部强调/行动',
+    '强调色只用于操作、选中、进度和状态，不等于整站主色。',
+  ],
   ['Signal', '--sos-signal', '品牌信号', '少量 Badge、编号和重点标记，不承担主 CTA。'],
   ['State', '--sos-danger / --sos-success', '状态语义', '错误和成功跨站点保持意义一致。'],
 ]
 
 const expressionTokenMap = [
-  ['news', '墨色主行动', '8px', 'none', '列表、长文和后台审核优先清晰扫读。'],
-  ['shop', '行动蓝 CTA', '18px', '柔和交易卡片阴影', '商品图 1:1，价格和库存常驻。'],
-  ['art', '画廊青主行动', '24px', '轻磨砂悬浮', '作品占视觉主位，界面只做承载。'],
-  ['library', '书脊琥珀', '8px', '纸张阴影', '阅读栈、书封比例和目录连续性优先。'],
-  ['exam', '批改红', '12px', '试卷纸张阴影', '题目、选择、倒计时和批阅状态稳定。'],
+  ['news', '墨色 + 明黄线索', '8px', '平面为主', '列表、长文和后台审核优先清晰扫读。'],
+  ['shop', '行动蓝强调', '18px', '柔和交易卡片阴影', '商品图 1:1，价格和库存常驻。'],
+  ['art', '青绿局部强调', '24px', '作品局部可轻磨砂', '作品占视觉主位，界面只做承载。'],
+  ['library', '琥珀局部强调', '8px', '书封和摘录可有纸张感', '阅读栈、书封比例和目录连续性优先。'],
+  ['exam', '批改红局部强调', '12px', '试卷组件可有纸张感', '题目、选择、倒计时和批阅状态稳定。'],
 ]
 
 const tokenBoundaries = [
-  ['Do', '业务 CSS 使用 Semantic Token：背景、文字、边框、主行动和状态都从语义变量读取。'],
-  ['Do', '需要站点气质时改 Expression Mapping，不在组件里按站点写选择器覆盖物理色值。'],
+  ['Do', '业务 CSS 使用 Semantic Token：背景、文字、边框、局部强调和状态都从语义变量读取。'],
+  ['Do', '需要站点气质时先定义局部强调语言，不用 Expression Mapping 给整站换肤。'],
   ['Don’t', '不要在业务卡片里新增 hex、临时阴影、13px 圆角或非 4px 网格间距。'],
   ['Don’t', '不要把 Signal Yellow 当主按钮色、价格色或错误色；它只负责品牌线索。'],
 ]
@@ -549,6 +598,13 @@ const layoutPrimitives = [
 
 const componentContracts = [
   [
+    'Page / PageHeader / Toolbar',
+    '.sos-page + header/toolbar slots',
+    'contained · wide · reading · tight · loose',
+    'responsive wrap · scoped mode · action overflow',
+    '统一页面骨架、标题区和工具条 anatomy，不生成业务内容或营销文案。',
+  ],
+  [
     'Button',
     'button / a.sos-button',
     'primary · secondary · ghost · danger · sm · lg',
@@ -613,6 +669,12 @@ const uiMaturityLevels = [
     'Button、Badge、Field、Notice、Progress、Card anatomy 和布局 wrapper。只封装稳定 props、slot、状态和可访问性。',
   ],
   [
+    'L1.5',
+    'Page Structure Wrapper',
+    '@haruhi/ui',
+    'Page、PageHeader、Toolbar 统一页面根容器、频道标题和工具区，让重设计切片先有稳定骨架。',
+  ],
+  [
     'L2',
     'Composition Recipe',
     '规范页 + 业务 app',
@@ -628,6 +690,7 @@ const uiMaturityLevels = [
 
 const uiApiRules = [
   ['Props', '只暴露稳定语义：variant、size、tone、ratio、gap、selected、loading。'],
+  ['Page', '页面级 wrapper 只暴露 site、density、contained、gap 等结构语义，不接收视觉色值。'],
   ['Slots', 'Slot 对应 anatomy 槽位；不能用任意 slot 绕过结构约束。'],
   ['Styling', '组件不接受 color、shadow、radius 等视觉 props；这些由 Semantic Token 决定。'],
   ['State', '状态 props 必须同步 aria、disabled、aria-busy、aria-invalid 等可访问性证据。'],
@@ -635,6 +698,11 @@ const uiApiRules = [
 ]
 
 const uiDecisionMatrix = [
+  [
+    'SosPage / SosPageHeader / SosToolbar',
+    'L1.5 · Page Structure',
+    '统一页面骨架、频道标题和筛选工具条；帮助应用做深度重设计，但不决定业务卡片和数据字段。',
+  ],
   [
     'SosButton / SosBadge / SosField',
     'L1 · UI Wrapper',
@@ -818,6 +886,62 @@ const businessRecipes = [
 ]
 
 const componentGuides = [
+  {
+    id: 'page',
+    label: 'Page',
+    title: 'Page Structure 页面骨架',
+    role: '用于新页面和重设计切片的根容器、频道标题和工具条。',
+    summary:
+      'Page、PageHeader 和 Toolbar 解决的是页面节奏、宽度、标题区和工具区 anatomy，不替业务页面生成内容。它们让后续 shop、art、news 重构能从同一骨架开始，而不是继续散落写布局。',
+    anatomy: [
+      'Root：SosPage / .sos-page',
+      'Header：SosPageHeader / .sos-page-header',
+      'Toolbar：SosToolbar / .sos-toolbar',
+      'Mode：site、density、contained、gap',
+    ],
+    do: [
+      '标题、说明、meta 和动作来自当前页面任务。',
+      'Toolbar 中筛选、排序、结果数和批量动作分组。',
+      '窄屏允许标题动作换行，不压缩文字。',
+    ],
+    dont: [
+      '不要把 PageHeader 写成泛营销口号。',
+      '不要用 Toolbar 决定业务筛选语义。',
+      '不要为了等高给页面骨架塞空白。',
+    ],
+    sample: `
+      <section class="sos-page sos-page--contained sos-page--tight" data-sos-site="shop">
+        <header class="sos-page-header">
+          <div class="sos-page-header__content">
+            <p class="sos-eyebrow sos-page-header__eyebrow">Shop</p>
+            <h3 class="sos-page-header__title">预售商品管理</h3>
+            <p class="sos-page-header__copy">价格、库存、进度和审核状态必须常驻可见。</p>
+          </div>
+          <div class="sos-page-header__actions">
+            <button class="sos-button sos-button--primary sos-button--sm">新增商品</button>
+          </div>
+        </header>
+        <div class="sos-toolbar sos-toolbar--surface">
+          <div class="sos-toolbar__group">
+            <input class="sos-input" value="朝比奈" aria-label="搜索商品">
+            <span class="sos-badge sos-badge--outline">12 件商品</span>
+          </div>
+          <div class="sos-toolbar__group">
+            <button class="sos-button sos-button--secondary sos-button--sm">批量审核</button>
+          </div>
+        </div>
+      </section>
+    `,
+    code: `<SosPage site="shop" contained="content" gap="tight">
+  <SosPageHeader title="预售商品管理" copy="价格、库存、进度和审核状态必须常驻可见。">
+    <template #actions><SosButton>新增商品</SosButton></template>
+  </SosPageHeader>
+  <SosToolbar surface>
+    <SosField><input class="sos-input" /></SosField>
+    <template #actions><SosButton variant="secondary">批量审核</SosButton></template>
+  </SosToolbar>
+</SosPage>`,
+  },
   {
     id: 'button',
     label: 'Button',
@@ -1440,6 +1564,71 @@ app.innerHTML = `
           </div>
         </section>
 
+        <section class="ds-section" id="tone">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">Design Tone</p>
+            <h2>先定调性，再研究业务组件</h2>
+            <p>这套系统的目标不是把现有站点套成同一张皮，也不是追求泛用 SaaS 感。它应该像一个认真运行的社团工作台：明亮、可信、信息清楚，有少量角色气质，但不让装饰压过真实内容。</p>
+          </div>
+          <div class="ds-tone-grid">
+            ${tonePrinciples
+              .map(
+                ([title, copy]) => `
+              <article class="ds-tone-card">
+                <h3>${title}</h3>
+                <p>${copy}</p>
+              </article>
+            `
+              )
+              .join('')}
+          </div>
+          <div class="ds-tone-board">
+            <div class="ds-tone-board__panel">
+              <span class="sos-badge sos-badge--signal">North Star</span>
+              <h3>明亮、可靠、有社团感，但不幼稚。</h3>
+              <p>用真实图片和真实字段建立信任；用 Signal Yellow、局部强调色和克制材质建立识别；用稳定间距和状态文案保证效率。</p>
+              <div class="ds-tone-swatches" aria-label="设计调性色板">
+                <span style="--tone-color:#fffaf2"></span>
+                <span style="--tone-color:#ffffff"></span>
+                <span style="--tone-color:#171a22"></span>
+                <span style="--tone-color:#3478f6"></span>
+                <span style="--tone-color:#ffc83d"></span>
+              </div>
+            </div>
+            <div class="ds-tone-board__rules">
+              ${toneGrammarRows
+                .map(
+                  ([label, rule, boundary]) => `
+                <div>
+                  <strong>${label}</strong>
+                  <p>${rule}</p>
+                  <span>${boundary}</span>
+                </div>
+              `
+                )
+                .join('')}
+            </div>
+          </div>
+          <div class="ds-site-tone-table" role="table" aria-label="五个站点的设计调性映射">
+            <div class="ds-site-tone-row ds-site-tone-row--head" role="row">
+              <span>Mode</span>
+              <span>调性</span>
+              <span>业务表达边界</span>
+            </div>
+            ${siteToneRows
+              .map(
+                ([mode, tone, copy]) => `
+              <div class="ds-site-tone-row" role="row">
+                <strong>${mode}</strong>
+                <span>${tone}</span>
+                <p>${copy}</p>
+              </div>
+            `
+              )
+              .join('')}
+          </div>
+        </section>
+
         <section class="ds-section" id="architecture">
           <div class="ds-section__header">
             <p class="sos-eyebrow">Engineering Appendix</p>
@@ -1465,7 +1654,7 @@ app.innerHTML = `
             <article>
               <span>Vue MVP</span>
               <h3>packages/ui</h3>
-              <p>导出 Button、Badge、Field、Notice、Progress、Card、EmptyState、HeaderBrand 和布局 wrapper。它只输出既有 class，不重新定义视觉。</p>
+              <p>导出 Page、PageHeader、Toolbar、Button、Badge、Field、Notice、Progress、Card、EmptyState、HeaderBrand 和布局 wrapper。它只输出既有 class，不重新定义视觉。</p>
             </article>
           </div>
           <pre class="ds-code"><code>// CSS-first 接入
@@ -1687,7 +1876,7 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
           <div class="ds-section__header">
             <p class="sos-eyebrow">Token Map</p>
             <h2>语义 Token 先于组件抽象</h2>
-            <p>成熟 UI 库不能建立在散落的颜色、阴影和间距上。v0.2 先把业务可消费的语义变量固定下来，组件只读取语义变量，站点差异只通过 Expression Mapping 变声。</p>
+            <p>成熟 UI 库不能建立在散落的颜色、阴影和间距上。v0.2 先把业务可消费的语义变量固定下来，组件只读取语义变量；站点差异通过局部强调语言变声，不做整站换肤。</p>
           </div>
           <div class="ds-token-map">
             ${semanticTokens
@@ -1993,7 +2182,7 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
             <div>
               <span class="sos-badge sos-badge--signal">UI MVP</span>
               <h3>先抽基础件，不抽业务卡片</h3>
-              <p>Button、Badge、Field、Notice、Progress、Card、EmptyState、HeaderBrand、Stack、Inline、Surface 和 MediaFrame 已进入 <code>@haruhi/ui</code>。每个 wrapper 只负责 props、slot、可访问性和 class 组合。</p>
+            <p>Page、PageHeader、Toolbar、Button、Badge、Field、Notice、Progress、Card、EmptyState、HeaderBrand、Stack、Inline、Cluster、Grid、Split、Surface 和 MediaFrame 已进入 <code>@haruhi/ui</code>。每个 wrapper 只负责 props、slot、可访问性和 class 组合。</p>
             </div>
             <pre class="ds-code ds-code--compact"><code>&lt;SosStack gap="loose" data-sos-site="shop"&gt;
   &lt;SosField label="商品标题" help="Label 不被 placeholder 替代"&gt;
@@ -2030,7 +2219,7 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
           <div class="ds-section__header">
             <p class="sos-eyebrow">UI Library Roadmap</p>
             <h2>组件进入 UI 库前先分级</h2>
-            <p>UI 库不是把所有重复 UI 都收进去。v0.2 用四个成熟度层级管理抽象边界：先稳定 CSS 契约，再封装基础 wrapper，业务组合继续作为 recipe 验证，最后才评估产品组件。</p>
+            <p>UI 库不是把所有重复 UI 都收进去。v0.2 用五个成熟度层级管理抽象边界：先稳定 CSS 契约，再封装基础 wrapper 和页面骨架，业务组合继续作为 recipe 验证，最后才评估产品组件。</p>
           </div>
           <div class="ds-maturity-grid">
             ${uiMaturityLevels
@@ -2130,7 +2319,7 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
           <div class="ds-section__header">
             <p class="sos-eyebrow">Expression Modes</p>
             <h2>五个平行世界</h2>
-            <p>同一组件在不同 <code>data-sos-site</code> 下切换语义映射。变化范围被限制在颜色、材质、圆角、媒体比例和阅读字体。</p>
+            <p>同一组件在不同 <code>data-sos-site</code> 下切换语义映射。变化范围限制在局部强调色、圆角、媒体比例和阅读字体；页面底色和整站纹理保持谨慎。</p>
           </div>
           <div class="ds-mode-picker" role="list">
             ${modes

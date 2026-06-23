@@ -38,6 +38,111 @@
   width: min(var(--sos-container-reading), calc(100% - 2rem));
 }
 
+/* Page structure primitives */
+.sos-page {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-page-gap, var(--sos-space-8));
+  min-height: 100%;
+}
+
+.sos-page--contained {
+  width: min(var(--sos-container-content), calc(100% - 2rem));
+  margin-inline: auto;
+}
+
+.sos-page--wide {
+  width: min(var(--sos-container-wide), calc(100% - 2rem));
+  margin-inline: auto;
+}
+
+.sos-page--reading {
+  width: min(var(--sos-container-reading), calc(100% - 2rem));
+  margin-inline: auto;
+}
+
+.sos-page--tight {
+  --sos-page-gap: var(--sos-space-5);
+}
+
+.sos-page--loose {
+  --sos-page-gap: var(--sos-space-12);
+}
+
+.sos-page-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sos-space-4) var(--sos-space-6);
+  align-items: end;
+  padding-block: var(--sos-space-4);
+}
+
+.sos-page-header__content {
+  display: grid;
+  justify-items: start;
+  gap: var(--sos-space-3);
+  min-width: 0;
+}
+
+.sos-page-header__eyebrow {
+  margin: 0;
+}
+
+.sos-page-header__title {
+  margin: 0;
+  color: var(--sos-text-primary);
+  font-family: var(--sos-display-family);
+  font-size: var(--sos-text-3xl);
+  font-weight: 850;
+  line-height: var(--sos-leading-tight);
+  letter-spacing: 0;
+}
+
+.sos-page-header__copy {
+  max-width: 44rem;
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-md);
+  line-height: var(--sos-leading-body);
+}
+
+.sos-page-header__meta {
+  margin: 0;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.5;
+}
+
+.sos-page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sos-space-3);
+}
+
+.sos-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+}
+
+.sos-toolbar--surface {
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-3);
+}
+
+.sos-toolbar__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sos-space-2);
+  min-width: 0;
+}
+
 /* Layout primitives */
 .sos-stack {
   display: grid;
@@ -1061,8 +1166,18 @@
 @media (max-width: 640px) {
   .sos-container,
   .sos-container--wide,
-  .sos-container--reading {
+  .sos-container--reading,
+  .sos-page--contained,
+  .sos-page--wide,
+  .sos-page--reading {
     width: min(100% - 1.25rem, var(--sos-container-content));
+  }
+  .sos-page-header {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+  .sos-page-header__actions {
+    justify-content: flex-start;
   }
   .sos-card__body {
     padding: var(--sos-space-5);

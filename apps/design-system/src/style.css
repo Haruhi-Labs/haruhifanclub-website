@@ -231,80 +231,84 @@ textarea {
   order: 2;
 }
 
-#foundations {
+#tone {
   order: 3;
 }
 
-#tokens {
+#foundations {
   order: 4;
 }
 
-#content {
+#tokens {
   order: 5;
 }
 
-#objects {
+#content {
   order: 6;
 }
 
-#layout {
+#objects {
   order: 7;
 }
 
-#components {
+#layout {
   order: 8;
 }
 
-#usage {
+#components {
   order: 9;
 }
 
-#recipes {
+#usage {
   order: 10;
 }
 
-#expressions {
+#recipes {
   order: 11;
 }
 
-#voice {
+#expressions {
   order: 12;
 }
 
-#patterns {
+#voice {
   order: 13;
 }
 
-#a11y {
+#patterns {
   order: 14;
 }
 
-#quality {
+#a11y {
   order: 15;
 }
 
-#architecture {
+#quality {
   order: 16;
 }
 
-#adoption {
+#architecture {
   order: 17;
 }
 
-#playbook {
+#adoption {
   order: 18;
 }
 
-#contracts {
+#playbook {
   order: 19;
 }
 
-#api {
+#contracts {
   order: 20;
 }
 
-#migration {
+#api {
   order: 21;
+}
+
+#migration {
+  order: 22;
 }
 
 .ds-section__header {
@@ -429,6 +433,175 @@ textarea {
   color: var(--sos-text-primary);
   font-size: var(--sos-text-xl);
   line-height: 1.15;
+}
+
+.ds-tone-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sos-space-4);
+}
+
+.ds-tone-card,
+.ds-tone-board,
+.ds-site-tone-table {
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+}
+
+.ds-tone-card {
+  padding: var(--sos-space-5);
+}
+
+.ds-tone-card h3,
+.ds-tone-card p {
+  margin: 0;
+}
+
+.ds-tone-card h3 {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-lg);
+  line-height: 1.25;
+}
+
+.ds-tone-card p {
+  margin-top: var(--sos-space-3);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.65;
+}
+
+.ds-tone-board {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr);
+  gap: var(--sos-space-6);
+  padding: var(--sos-space-6);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--sos-yellow-50) 45%, transparent), transparent),
+    var(--sos-bg-surface);
+}
+
+.ds-tone-board__panel {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: var(--sos-space-4);
+}
+
+.ds-tone-board__panel h3,
+.ds-tone-board__panel p {
+  margin: 0;
+}
+
+.ds-tone-board__panel h3 {
+  max-width: 18rem;
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-2xl);
+  line-height: 1.12;
+}
+
+.ds-tone-board__panel p {
+  color: var(--sos-text-secondary);
+  line-height: 1.7;
+}
+
+.ds-tone-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sos-space-2);
+}
+
+.ds-tone-swatches span {
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--tone-color);
+}
+
+.ds-tone-board__rules {
+  display: grid;
+  gap: var(--sos-space-3);
+}
+
+.ds-tone-board__rules div {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: var(--sos-space-3) var(--sos-space-4);
+  align-items: baseline;
+  border-bottom: 1px solid var(--sos-border-subtle);
+  padding-bottom: var(--sos-space-3);
+}
+
+.ds-tone-board__rules div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.ds-tone-board__rules strong {
+  color: var(--sos-link);
+  font-size: var(--sos-text-sm);
+}
+
+.ds-tone-board__rules p,
+.ds-tone-board__rules span {
+  margin: 0;
+  font-size: var(--sos-text-sm);
+  line-height: 1.55;
+}
+
+.ds-tone-board__rules p {
+  color: var(--sos-text-primary);
+  font-weight: 750;
+}
+
+.ds-tone-board__rules span {
+  grid-column: 2;
+  color: var(--sos-text-secondary);
+}
+
+.ds-site-tone-table {
+  display: grid;
+  overflow: hidden;
+}
+
+.ds-site-tone-row {
+  display: grid;
+  grid-template-columns: 7rem 10rem minmax(0, 1fr);
+  gap: var(--sos-space-4);
+  align-items: baseline;
+  border-top: 1px solid var(--sos-border-subtle);
+  padding: var(--sos-space-4);
+}
+
+.ds-site-tone-row:first-child {
+  border-top: 0;
+}
+
+.ds-site-tone-row--head {
+  background: var(--sos-bg-subtle);
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ds-site-tone-row strong {
+  color: var(--sos-link);
+  font-size: var(--sos-text-sm);
+}
+
+.ds-site-tone-row > span {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-sm);
+  font-weight: 800;
+}
+
+.ds-site-tone-row p {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.6;
 }
 
 .ds-readiness-table {
@@ -2672,6 +2845,7 @@ textarea {
   .ds-architecture,
   .ds-manual-grid,
   .ds-benchmark-grid,
+  .ds-tone-grid,
   .ds-token-grid,
   .ds-token-workbench,
   .ds-content-rule-grid,
@@ -2718,6 +2892,8 @@ textarea {
   .ds-metrics,
   .ds-manual-grid,
   .ds-benchmark-grid,
+  .ds-tone-grid,
+  .ds-tone-board,
   .ds-foundation-grid,
   .ds-component-grid,
   .ds-content-lab,
@@ -2744,6 +2920,7 @@ textarea {
   .ds-contract-row--head,
   .ds-adoption-row,
   .ds-readiness-row,
+  .ds-site-tone-row,
   .ds-package-governance div,
   .ds-bridge-rules div,
   .ds-validation-commands div {
@@ -2753,6 +2930,7 @@ textarea {
 
   .ds-token-row,
   .ds-expression-row,
+  .ds-tone-board__rules div,
   .ds-data-format div,
   .ds-world-content div,
   .ds-object-card dl div {
