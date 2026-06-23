@@ -719,11 +719,12 @@ onBeforeUnmount(() => observer?.disconnect())
                 </SosProductCard>
                 <SosArtworkCard
                   v-else-if="card.site === 'art'"
+                  category="个人作品"
                   title="夏日的长门"
                   author="@kimidori"
-                  :image="ph('ART', '#e3f1ee', '#3a8f84')"
+                  :image="ph('ART', '#cdeee7', '#2f8f84')"
+                  :tags="['京阿尼', '插画']"
                   :likes="128"
-                  :views="2400"
                 />
                 <SosBookCard
                   v-else-if="card.site === 'library'"
