@@ -1,13 +1,22 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import TopBar from './components/TopBar.vue'
 
 const LIGHTS_OUT_KEY = 'haruhi-art-lights-out'
 const lightsOut = ref(false)
+const route = useRoute()
+const isHomeRoute = computed(() => route.path === '/')
 
 function applyLightsOut(value) {
   if (typeof document === 'undefined') return
   document.documentElement.classList.toggle('art-lights-out', value)
+}
+
+function applyHomeRoute(value) {
+  if (typeof document === 'undefined') return
+  document.documentElement.classList.toggle('art-home-route', value)
+  document.body?.classList.toggle('art-home-route', value)
 }
 
 function toggleLightsOut() {
@@ -26,8 +35,13 @@ watch(lightsOut, (value) => {
   }
 })
 
+watch(isHomeRoute, (value) => {
+  applyHomeRoute(value)
+}, { immediate: true })
+
 onBeforeUnmount(() => {
   applyLightsOut(false)
+  applyHomeRoute(false)
 })
 </script>
 
@@ -35,12 +49,12 @@ onBeforeUnmount(() => {
   <div class="bg-layer gallery-bg"></div>
   <div class="bg-layer gallery-mask"></div>
   
-  <div class="app-shell">
-    <header class="topbar">
+  <div class="app-shell" :class="{ 'is-home-route': isHomeRoute }">
+    <header class="topbar" :class="{ 'is-home-route': isHomeRoute }">
       <TopBar />
     </header>
 
-    <main class="main">
+    <main class="main" :class="{ 'is-home-route': isHomeRoute }">
       <router-view v-slot="{ Component }">
         <transition name="page" mode="out-in">
           <component :is="Component" />
