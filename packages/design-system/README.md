@@ -108,6 +108,21 @@ import '@haruhi/design-system/bridges.css'
 5. 按 Button、Badge、Input、Tabs、Notice、Progress 的顺序迁移基础组件。
 6. 再迁移业务卡片和页面骨架。
 
+最小入口片段：
+
+```js
+import '@haruhi/design-system/tokens.css'
+import '@haruhi/design-system/components.css'
+// 仅渐进迁移旧变量时加载
+import '@haruhi/design-system/bridges.css'
+```
+
+业务页面根节点：
+
+```html
+<main class="sos-scope" data-sos-site="shop">...</main>
+```
+
 不要在未盘点旧变量前扩大 bridge。bridge 是过渡层，不是新变量命名空间。
 
 ## PR 证据

@@ -108,6 +108,52 @@ import '@haruhi/design-system/bridges.css'
 - Patch：修复样式 bug、补状态、补文档、修响应式和 a11y 问题。
 - Breaking：删除 token/class、改变 anatomy、改变 variant 语义；必须给迁移步骤和回滚边界。
 
+### 3.3 接入 Playbook
+
+最小迁移切片按以下顺序执行：
+
+1. 入口导入：在目标 app 入口样式或 main 文件导入 `tokens.css` 和 `components.css`；旧变量多的页面才临时导入 `bridges.css`。
+2. 根节点加 scope：给页面根容器加 `class="sos-scope"` 和对应 `data-sos-site`；`console` 可只用 `sos-scope` 加 `data-sos-density="compact"`。
+3. 先换布局原语：用 `Stack / Inline / Cluster / Grid / Surface / MediaFrame` 处理间距、对齐和媒体比例。
+4. 再换基础控件：按 `Button -> Badge -> Field -> Notice -> Progress -> EmptyState -> Card anatomy` 的顺序替换。
+5. 保留业务 recipe：商品卡、作品卡、书封卡、试卷卡先留在业务 app，用真实数据验证后再评估抽象。
+6. 提交证据：PR 附 390 / 768 / 1280px 截图、状态矩阵、a11y 检查、bridge 删除计划和回滚步骤。
+
+入口 import 顺序：
+
+```js
+import '@haruhi/design-system/tokens.css'
+import '@haruhi/design-system/components.css'
+// 仅渐进迁移旧变量时加载
+import '@haruhi/design-system/bridges.css'
+```
+
+业务站点根 scope：
+
+```vue
+<template>
+  <main class="sos-scope" data-sos-site="shop">
+    <RouterView />
+  </main>
+</template>
+```
+
+管理后台：
+
+```vue
+<template>
+  <main class="sos-scope" data-sos-density="compact">
+    <RouterView />
+  </main>
+</template>
+```
+
+Bridge 规则：
+
+- 允许：旧页面变量多、需要先接入 token 但不改变外观；必须记录 owner、范围和删除计划。
+- 禁止：新页面、新组件和新 wrapper 不能把 bridge 变量当成正式接口。
+- 回滚：移除 app 入口 import 或 bridge 文件即可回退视觉接入，不改 API 和数据结构。
+
 ## 4. Token 架构
 
 ### 4.1 三层模型

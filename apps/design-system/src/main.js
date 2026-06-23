@@ -145,6 +145,7 @@ const navItems = [
   ['overview', '总览'],
   ['architecture', '接入结构'],
   ['adoption', '接入矩阵'],
+  ['playbook', '接入步骤'],
   ['foundations', '基础规范'],
   ['tokens', 'Token 映射'],
   ['content', '内容数据'],
@@ -253,6 +254,70 @@ const releaseRules = [
   ['Minor', '新增 token、class、wrapper、文档 section 或非破坏性 recipe。'],
   ['Patch', '修复样式 bug、补状态、补文档、修响应式和 a11y 问题。'],
   ['Breaking', '删除 token/class、改变 anatomy、改变 variant 语义；必须给迁移步骤和回滚边界。'],
+]
+
+const implementationSteps = [
+  [
+    '1',
+    '入口导入',
+    '在目标 app 入口样式或 main 文件导入 tokens/components；旧变量多的页面才临时导入 bridges。',
+  ],
+  [
+    '2',
+    '根节点加 scope',
+    '给页面根容器加 sos-scope 和 data-sos-site；console 可只用 sos-scope + compact density。',
+  ],
+  [
+    '3',
+    '先换布局原语',
+    '用 Stack、Inline、Cluster、Grid、Surface、MediaFrame 处理间距、对齐和媒体比例。',
+  ],
+  [
+    '4',
+    '再换基础控件',
+    '按 Button、Badge、Field、Notice、Progress、EmptyState、Card anatomy 的顺序替换。',
+  ],
+  [
+    '5',
+    '保留业务 recipe',
+    '商品卡、作品卡、书封卡、试卷卡先留在业务 app，用真实数据验证后再评估抽象。',
+  ],
+  ['6', '提交证据', 'PR 附 390/768/1280 截图、状态矩阵、a11y 检查、bridge 删除计划和回滚步骤。'],
+]
+
+const playbookSnippets = [
+  [
+    'CSS-first',
+    '入口 import 顺序',
+    `import '@haruhi/design-system/tokens.css'
+import '@haruhi/design-system/components.css'
+// 仅渐进迁移旧变量时加载
+import '@haruhi/design-system/bridges.css'`,
+  ],
+  [
+    'Vue root',
+    '业务站点根 scope',
+    `<template>
+  <main class="sos-scope" data-sos-site="shop">
+    <RouterView />
+  </main>
+</template>`,
+  ],
+  [
+    'Console',
+    '管理后台密度',
+    `<template>
+  <main class="sos-scope" data-sos-density="compact">
+    <RouterView />
+  </main>
+</template>`,
+  ],
+]
+
+const bridgeRules = [
+  ['允许', '旧页面变量多、需要先接入 token 但不改变外观；必须记录 owner、范围和删除计划。'],
+  ['禁止', '新页面、新组件和新 wrapper 不能把 bridge 变量当成正式接口。'],
+  ['回滚', '移除 app 入口 import 或 bridge 文件即可回退视觉接入，不改 API 和数据结构。'],
 ]
 
 const semanticTokens = [
@@ -1085,6 +1150,56 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
                 .join('')}
             </article>
           </div>
+        </section>
+
+        <section class="ds-section" id="playbook">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">Implementation Playbook</p>
+            <h2>最小接入步骤必须可复制</h2>
+            <p>迁移从最小可验证切片开始：先让一个页面读到 token 和 scope，再替换布局原语和基础控件，最后补齐截图、状态和回滚证据。</p>
+          </div>
+          <div class="ds-playbook-steps">
+            ${implementationSteps
+              .map(
+                ([step, title, copy]) => `
+              <article>
+                <span>${step}</span>
+                <h3>${title}</h3>
+                <p>${copy}</p>
+              </article>
+            `
+              )
+              .join('')}
+          </div>
+          <div class="ds-snippet-grid">
+            ${playbookSnippets
+              .map(
+                ([label, title, code]) => `
+              <article class="ds-snippet-card">
+                <span>${label}</span>
+                <h3>${title}</h3>
+                <pre class="ds-code ds-code--compact"><code>${code
+                  .replaceAll('&', '&amp;')
+                  .replaceAll('<', '&lt;')
+                  .replaceAll('>', '&gt;')}</code></pre>
+              </article>
+            `
+              )
+              .join('')}
+          </div>
+          <article class="ds-bridge-rules">
+            <h3>Bridge 只服务过渡</h3>
+            ${bridgeRules
+              .map(
+                ([title, rule]) => `
+              <div>
+                <strong>${title}</strong>
+                <p>${rule}</p>
+              </div>
+            `
+              )
+              .join('')}
+          </article>
         </section>
 
         <section class="ds-section" id="foundations">

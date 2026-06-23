@@ -28,6 +28,16 @@ import {
 
 `@haruhi/ui` 会自动引入 `@haruhi/design-system/components.css`。如果页面已经在入口处引入该 CSS，也可以继续保留，重复导入由构建器去重。
 
+使用 wrapper 前，页面根节点仍需要明确表达模式：
+
+```vue
+<template>
+  <main class="sos-scope" data-sos-site="shop">
+    <RouterView />
+  </main>
+</template>
+```
+
 ## 当前组件
 
 | 组件             | 用途                                                    |

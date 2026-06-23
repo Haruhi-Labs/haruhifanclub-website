@@ -409,6 +409,117 @@ textarea {
   line-height: 1.58;
 }
 
+.ds-playbook-steps {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--sos-space-3);
+}
+
+.ds-playbook-steps article,
+.ds-snippet-card,
+.ds-bridge-rules {
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-5);
+}
+
+.ds-playbook-steps article {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-3);
+}
+
+.ds-playbook-steps span {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+}
+
+.ds-playbook-steps h3,
+.ds-playbook-steps p,
+.ds-snippet-card h3,
+.ds-bridge-rules h3,
+.ds-bridge-rules p {
+  margin: 0;
+}
+
+.ds-playbook-steps h3,
+.ds-snippet-card h3,
+.ds-bridge-rules h3 {
+  font-size: var(--sos-text-md);
+  line-height: 1.3;
+}
+
+.ds-playbook-steps p {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.6;
+}
+
+.ds-snippet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sos-space-4);
+}
+
+.ds-snippet-card {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-3);
+}
+
+.ds-snippet-card > span {
+  color: var(--sos-link);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ds-snippet-card .ds-code {
+  margin: 0;
+}
+
+.ds-snippet-card .ds-code code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ds-bridge-rules {
+  display: grid;
+  gap: var(--sos-space-3);
+}
+
+.ds-bridge-rules div {
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  gap: var(--sos-space-3);
+  align-items: baseline;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-subtle);
+  padding: var(--sos-space-4);
+}
+
+.ds-bridge-rules strong {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+}
+
+.ds-bridge-rules p {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.58;
+}
+
 .ds-code {
   min-width: 0;
   max-width: 100%;
@@ -2007,6 +2118,7 @@ textarea {
   .ds-token-grid,
   .ds-token-workbench,
   .ds-content-rule-grid,
+  .ds-playbook-steps,
   .ds-maturity-grid,
   .ds-primitive-grid,
   .ds-mode-picker {
@@ -2049,6 +2161,7 @@ textarea {
   .ds-foundation-grid,
   .ds-component-grid,
   .ds-content-lab,
+  .ds-snippet-grid,
   .ds-layout-lab,
   .ds-quality-grid,
   .ds-ui-mvp,
@@ -2068,7 +2181,8 @@ textarea {
   .ds-contract-row,
   .ds-contract-row--head,
   .ds-adoption-row,
-  .ds-package-governance div {
+  .ds-package-governance div,
+  .ds-bridge-rules div {
     grid-template-columns: 1fr;
     gap: var(--sos-space-2);
   }
@@ -2121,6 +2235,7 @@ textarea {
   .ds-token-grid,
   .ds-token-workbench,
   .ds-content-rule-grid,
+  .ds-playbook-steps,
   .ds-maturity-grid,
   .ds-primitive-grid,
   .ds-mode-picker {
