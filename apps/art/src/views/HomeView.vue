@@ -306,7 +306,7 @@ const timeShiftLayers = computed(() =>
       y: Math.round(Math.sin(radians) * SHIFT_WHEEL_RADIUS_Y),
       depth: Math.round(Math.cos(radians) * SHIFT_WHEEL_DEPTH),
       scale: Number((0.72 + depthWeight * 0.3).toFixed(3)),
-      alpha: Number((inVisibleSide ? 0.24 + edgeWeight * 0.72 : 0).toFixed(3)),
+      alpha: Number((inVisibleSide ? 0.34 + edgeWeight * 0.64 : 0).toFixed(3)),
       width: Math.round(306 + depthWeight * 74),
       z: Math.round(20 + depthWeight * 120),
       hitEvents: shiftHovering.value && inVisibleSide ? 'auto' : 'none',
@@ -913,14 +913,14 @@ const stageStyle = {
 }
 
 .art-home .time-shift-stack.is-hovering {
-  opacity: 0.9;
-  filter: saturate(1.08) brightness(1.02);
+  opacity: 0.98;
+  filter: saturate(1.18) brightness(1.1) contrast(1.08);
   transform: translate3d(-732px, -50%, 0) rotateY(-22deg);
 }
 
 .art-home .time-shift-stack.is-dragging {
   opacity: 0.98;
-  filter: saturate(1.16) brightness(1.08);
+  filter: saturate(1.22) brightness(1.12) contrast(1.1);
 }
 
 .art-home .shift-module-shell {
@@ -991,15 +991,15 @@ const stageStyle = {
 }
 
 .art-home .time-shift-stack.is-hovering .shift-module-shell {
-  opacity: 0.78;
-  filter: saturate(1.1) brightness(1.04);
+  opacity: 0.86;
+  filter: saturate(1.16) brightness(1.08) contrast(1.06);
   transform: translate3d(-50%, -50%, -260px) rotateY(-10deg);
 }
 
 .art-home .time-shift-stack.is-dragging .shift-module-shell,
 .art-home .time-shift-stack.is-spinning .shift-module-shell {
-  opacity: 0.88;
-  filter: saturate(1.18) brightness(1.08);
+  opacity: 0.94;
+  filter: saturate(1.24) brightness(1.12) contrast(1.08);
 }
 
 .art-home .shift-label {
@@ -1010,25 +1010,28 @@ const stageStyle = {
   display: grid;
   gap: 2px;
   padding: 10px 12px;
-  border: 1px solid rgba(116, 231, 255, 0.16);
+  border: 1px solid rgba(116, 231, 255, 0.28);
   border-radius: 12px;
-  background: rgba(3, 12, 28, 0.62);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(14px);
+  background: rgba(3, 12, 28, 0.78);
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.26),
+    0 0 22px rgba(116, 231, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
   clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
 }
 
 .art-home .shift-label span {
-  color: rgba(183, 204, 232, 0.76);
+  color: rgba(219, 235, 255, 0.86);
   font-size: 10px;
   font-weight: 950;
 }
 
 .art-home .shift-label strong {
   color: var(--hud-cyan);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 950;
-  text-shadow: 0 0 16px rgba(116, 231, 255, 0.28);
+  text-shadow: 0 0 18px rgba(116, 231, 255, 0.42);
 }
 
 .art-home .shift-window {
@@ -1085,22 +1088,22 @@ const stageStyle = {
   opacity: var(--alpha);
   cursor: grab;
   user-select: none;
-  border: 1px solid rgba(116, 231, 255, 0.18);
+  border: 1px solid rgba(116, 231, 255, 0.3);
   border-radius: 14px;
   background:
-    linear-gradient(90deg, rgba(5, 13, 28, 0.28), rgba(20, 52, 92, 0.7), rgba(17, 16, 52, 0.42)),
-    radial-gradient(circle at 18% 50%, rgba(116, 231, 255, 0.18), transparent 38%);
+    linear-gradient(90deg, rgba(4, 12, 27, 0.62), rgba(22, 58, 104, 0.86), rgba(18, 18, 55, 0.64)),
+    radial-gradient(circle at 18% 50%, rgba(116, 231, 255, 0.24), transparent 38%);
   box-shadow:
-    0 14px 30px rgba(0, 0, 0, 0.24),
-    0 0 20px rgba(116, 231, 255, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 16px 34px rgba(0, 0, 0, 0.3),
+    0 0 26px rgba(116, 231, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
   transform:
     translate3d(calc(-50% + var(--panel-x)), calc(-50% + var(--panel-y)), var(--depth))
     rotateY(-22deg)
     rotateZ(-2deg)
     scale(var(--scale));
   transform-style: preserve-3d;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(7px);
   clip-path: polygon(0 12px, 12px 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
   transition:
     opacity 0.28s ease,
@@ -1133,32 +1136,32 @@ const stageStyle = {
 }
 
 .art-home .time-shift-stack.is-hovering .shift-layer::before {
-  opacity: 0.16;
+  opacity: 0.24;
 }
 
 .art-home .time-shift-stack.is-hovering .shift-layer {
-  border-color: rgba(116, 231, 255, 0.28);
+  border-color: rgba(116, 231, 255, 0.48);
   box-shadow:
-    0 18px 38px rgba(0, 0, 0, 0.3),
-    0 0 26px rgba(116, 231, 255, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 18px 38px rgba(0, 0, 0, 0.34),
+    0 0 32px rgba(116, 231, 255, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .art-home .shift-layer__line {
-  height: 2px;
+  height: 3px;
   border-radius: 999px;
   background:
     linear-gradient(90deg, transparent, rgba(116, 231, 255, 0.92), rgba(177, 140, 255, 0.64), transparent);
-  box-shadow: 0 0 16px rgba(116, 231, 255, 0.3);
+  box-shadow: 0 0 18px rgba(116, 231, 255, 0.44);
 }
 
 .art-home .shift-layer__meta {
-  color: rgba(229, 242, 255, 0.84);
-  font-size: 10px;
+  color: rgba(244, 250, 255, 0.96);
+  font-size: 11px;
   font-weight: 950;
   letter-spacing: 0;
   white-space: nowrap;
-  text-shadow: 0 0 10px rgba(116, 231, 255, 0.2);
+  text-shadow: 0 0 12px rgba(116, 231, 255, 0.34);
 }
 
 .art-home .time-shift-stack.is-hovering .shift-layer__line {
@@ -1703,13 +1706,13 @@ const stageStyle = {
 }
 
 :global(html.art-lights-out) .art-home .time-shift-stack.is-hovering {
-  opacity: 0.92;
-  filter: saturate(1.16) brightness(1.06);
+  opacity: 0.98;
+  filter: saturate(1.22) brightness(1.12) contrast(1.1);
 }
 
 :global(html.art-lights-out) .art-home .time-shift-stack.is-dragging {
   opacity: 1;
-  filter: saturate(1.24) brightness(1.12);
+  filter: saturate(1.3) brightness(1.16) contrast(1.12);
 }
 
 :global(html.art-lights-out) .art-home .shift-module-shell {
@@ -1735,19 +1738,19 @@ const stageStyle = {
 }
 
 :global(html.art-lights-out) .art-home .shift-layer {
-  border-color: rgba(141, 240, 255, 0.2);
+  border-color: rgba(141, 240, 255, 0.38);
   background:
-    linear-gradient(90deg, rgba(3, 10, 24, 0.34), rgba(24, 58, 104, 0.72), rgba(18, 14, 54, 0.46)),
-    radial-gradient(circle at 18% 50%, rgba(141, 240, 255, 0.2), transparent 38%);
+    linear-gradient(90deg, rgba(3, 10, 24, 0.68), rgba(24, 65, 112, 0.9), rgba(18, 14, 54, 0.68)),
+    radial-gradient(circle at 18% 50%, rgba(141, 240, 255, 0.28), transparent 38%);
   box-shadow:
-    0 16px 34px rgba(0, 0, 0, 0.3),
-    0 0 22px rgba(141, 240, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 16px 34px rgba(0, 0, 0, 0.36),
+    0 0 30px rgba(141, 240, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 :global(html.art-lights-out) .art-home .shift-label {
-  border-color: rgba(141, 240, 255, 0.18);
-  background: rgba(3, 10, 24, 0.72);
+  border-color: rgba(141, 240, 255, 0.32);
+  background: rgba(3, 10, 24, 0.84);
 }
 
 :global(html.art-lights-out) .art-home .observer-core,
