@@ -12,7 +12,7 @@
       </header>
 
       <!-- 表单主体 -->
-      <form class="main-form" @submit.prevent="submit">
+      <form class="main-form sos-surface" @submit.prevent="submit">
         
         <!-- 区块 1: 基础信息 -->
         <section class="form-section">
@@ -22,15 +22,15 @@
           </div>
 
           <div class="form-grid">
-            <div class="form-group" style="grid-column: span 2;">
-              <label class="form-label">作品名称 <span class="req">*</span></label>
-              <input class="form-input" v-model="title" placeholder="请输入作品名称" required />
+            <div class="form-group sos-field" style="grid-column: span 2;">
+              <label class="form-label sos-field__label">作品名称 <span class="req sos-field__required">*</span></label>
+              <input class="form-input sos-input" v-model="title" placeholder="请输入作品名称" required />
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">作品描述 <span class="opt">（选填）</span></label>
-            <textarea class="form-textarea" v-model="description" placeholder="请描述作品内容、创作思路或来源说明…"></textarea>
+          <div class="form-group sos-field">
+            <label class="form-label sos-field__label">作品描述 <span class="opt">（选填）</span></label>
+            <textarea class="form-textarea sos-textarea" v-model="description" placeholder="请描述作品内容、创作思路或来源说明…"></textarea>
           </div>
         </section>
 
@@ -42,25 +42,25 @@
           </div>
 
           <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">图片来源 <span class="req">*</span></label>
+            <div class="form-group sos-field">
+              <label class="form-label sos-field__label">图片来源 <span class="req sos-field__required">*</span></label>
               <div class="segment-control">
-                <button type="button" :class="['segment-btn', sourceType==='personal' && 'active']" @click="sourceType='personal'" data-sfx="click">
+                <button type="button" :class="['segment-btn', 'sos-button', sourceType==='personal' && 'active']" @click="sourceType='personal'" data-sfx="click">
                   <span class="icon">🎨</span> 个人作品
                 </button>
-                <button type="button" :class="['segment-btn', sourceType==='network' && 'active']" @click="sourceType='network'" data-sfx="click">
+                <button type="button" :class="['segment-btn', 'sos-button', sourceType==='network' && 'active']" @click="sourceType='network'" data-sfx="click">
                   <span class="icon">🌐</span> 网络转载&其它
                 </button>
               </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">内容划分 <span class="req">*</span></label>
+            <div class="form-group sos-field">
+              <label class="form-label sos-field__label">内容划分 <span class="req sos-field__required">*</span></label>
               <div class="segment-control">
-                <button type="button" :class="['segment-btn', contentType==='haruhi' && 'active']" @click="contentType='haruhi'" data-sfx="click">
+                <button type="button" :class="['segment-btn', 'sos-button', contentType==='haruhi' && 'active']" @click="contentType='haruhi'" data-sfx="click">
                   凉宫内容
                 </button>
-                <button type="button" :class="['segment-btn', contentType==='other' && 'active']" @click="contentType='other'" data-sfx="click">
+                <button type="button" :class="['segment-btn', 'sos-button', contentType==='other' && 'active']" @click="contentType='other'" data-sfx="click">
                   非凉宫内容
                 </button>
               </div>
@@ -70,26 +70,29 @@
           <!-- 个人作品专属逻辑 -->
           <transition name="fade-slide">
             <div v-if="sourceType==='personal'" class="conditional-block">
-              <div class="form-group">
-                <label class="form-label">创作者唯一ID <span class="req">*</span></label>
+              <div class="form-group sos-field">
+                <label class="form-label sos-field__label">创作者唯一ID <span class="req sos-field__required">*</span></label>
                 <div class="input-with-action">
-                  <input class="form-input" v-model="uid" placeholder="请输入你的唯一ID" />
-                  <button class="action-btn" type="button" @click="checkUid" :disabled="checkingUid || !uid.trim()" data-sfx="click">
+                  <input class="form-input sos-input" v-model="uid" placeholder="请输入你的唯一ID" />
+                  <button class="action-btn sos-button sos-button--primary" type="button" @click="checkUid" :disabled="checkingUid || !uid.trim()" data-sfx="click">
                     {{ checkingUid ? '检测中…' : '检测' }}
                   </button>
                 </div>
                 
                 <!-- UID 状态反馈 -->
                 <div class="uid-feedback" v-if="uidHint">
-                  <div class="status-badge" :class="uidHintClass">
+                  <div class="status-badge sos-badge" :class="uidHintClass">
                     {{ uidHint }}
                   </div>
                   <img v-if="uidAvatar" class="creator-avatar" :src="uidAvatar" alt="Avatar" />
                 </div>
 
-                <div class="info-card">
-                  <p>进行创作者注册才能获取唯一ID，并允许上传个人作品哦！</p>
-                  <p class="sub-info">可加入绘画部联系 <strong>律纪</strong> 或 <strong>阿笑</strong> 成为创作者🥰～<br>绘画部群号：627992968，阿笑QQ：2452812504，律纪QQ：3105285630<br>进行创作者注册主要是为了避免冒领身份和过滤AI作品</p>
+                <div class="info-card sos-notice">
+                  <span class="sos-notice__icon">i</span>
+                  <div>
+                    <p class="sos-notice__title">进行创作者注册才能获取唯一ID，并允许上传个人作品哦！</p>
+                    <p class="sub-info sos-notice__copy">可加入绘画部联系 <strong>律纪</strong> 或 <strong>阿笑</strong> 成为创作者🥰～<br>绘画部群号：627992968，阿笑QQ：2452812504，律纪QQ：3105285630<br>进行创作者注册主要是为了避免冒领身份和过滤AI作品</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -98,16 +101,16 @@
           <!-- 网络图片专属逻辑 -->
           <transition name="fade-slide">
             <div v-if="sourceType==='network'" class="conditional-block">
-              <div class="form-group" style="margin-bottom: 24px;">
-                <label class="form-label">上传者显示名 <span class="opt">（可选）</span></label>
-                <input class="form-input" v-model="uploaderName" placeholder="例如：昵称 / 匿名" />
-                <p class="form-hint">仅用于展示，不填写则显示为默认名称。</p>
+              <div class="form-group sos-field" style="margin-bottom: 24px;">
+                <label class="form-label sos-field__label">上传者显示名 <span class="opt">（可选）</span></label>
+                <input class="form-input sos-input" v-model="uploaderName" placeholder="例如：昵称 / 匿名" />
+                <p class="form-hint sos-field__help">仅用于展示，不填写则显示为默认名称。</p>
               </div>
 
-              <div class="form-group">
-                <label class="form-label">网络图片来源链接 <span class="opt">（可选）</span></label>
-                <input class="form-input" v-model="originUrl" placeholder="https://..." />
-                <p class="form-hint warning">⚠️ 上传他人作品必须取得原作者授权并标注来源！</p>
+              <div class="form-group sos-field">
+                <label class="form-label sos-field__label">网络图片来源链接 <span class="opt">（可选）</span></label>
+                <input class="form-input sos-input" v-model="originUrl" placeholder="https://..." />
+                <p class="form-hint warning sos-field__help">⚠️ 上传他人作品必须取得原作者授权并标注来源！</p>
               </div>
             </div>
           </transition>
@@ -120,21 +123,21 @@
           </div>
 
           <div class="form-grid">
-            <div class="form-group" style="grid-column: span 2;">
-              <label class="form-label">标签 <span class="opt">（可选）</span></label>
+            <div class="form-group sos-field" style="grid-column: span 2;">
+              <label class="form-label sos-field__label">标签 <span class="opt">（可选）</span></label>
               <div class="input-with-action">
                 <input
-                  class="form-input"
+                  class="form-input sos-input"
                   v-model="tagDraft"
                   placeholder="输入标签后按回车或点击添加"
                   @keydown.enter.prevent="addTag"
                 />
-                <button class="action-btn secondary" type="button" @click="addTag" :disabled="!tagDraft.trim()" data-sfx="click">添加</button>
+                <button class="action-btn secondary sos-button sos-button--secondary" type="button" @click="addTag" :disabled="!tagDraft.trim()" data-sfx="click">添加</button>
               </div>
               
               <div class="tags-container" v-if="tags.length">
                 <transition-group name="list">
-                  <span class="tag-pill" v-for="t in tags" :key="t">
+                  <span class="tag-pill sos-badge sos-badge--outline" v-for="t in tags" :key="t">
                     <span class="tag-text">#{{ t }}</span>
                     <button class="tag-remove" type="button" title="删除" @click="removeTag(t)" data-sfx="click">×</button>
                   </span>
@@ -146,8 +149,8 @@
             </div>
 
             <transition name="fade-slide">
-              <div class="form-group" v-if="sourceType==='personal'" style="grid-column: span 2;">
-                <label class="form-label">授权许可设置</label>
+              <div class="form-group sos-field" v-if="sourceType==='personal'" style="grid-column: span 2;">
+                <label class="form-label sos-field__label">授权许可设置</label>
                 
                 <div class="license-split-layout">
                   <div class="license-col">
@@ -163,7 +166,7 @@
                   </div>
 
                   <div class="license-col">
-                    <div class="license-header">对应援团的特别授权 <span class="badge-private">后台可见</span></div>
+                    <div class="license-header">对应援团的特别授权 <span class="badge-private sos-badge sos-badge--outline">后台可见</span></div>
                     <p class="form-hint" style="margin-bottom: 12px;">这些信息仅在后台可见，用于社团内部企划或周边制作参考。</p>
                     <div class="checkbox-list">
                       <label class="checkbox-card" v-for="opt in GROUP_LICENSE_OPTIONS" :key="opt">
@@ -193,7 +196,7 @@
               <div 
                 v-for="(item, index) in filesList" 
                 :key="item.id" 
-                class="file-card"
+                class="file-card sos-card"
                 :class="{ 'is-cover': index === 0 }"
                 draggable="true"
                 @dragstart="onDragStart($event, index)"
@@ -203,7 +206,7 @@
               >
                 <div class="file-thumb">
                   <img :src="item.preview" />
-                  <div class="cover-badge" v-if="index === 0">封面</div>
+                  <div class="cover-badge sos-badge sos-badge--solid" v-if="index === 0">封面</div>
                   <button type="button" class="remove-btn" @click="removeFile(index)">✕</button>
                 </div>
                 <div class="file-meta">
@@ -216,7 +219,7 @@
 
           <!-- 上传区域 -->
           <div class="file-upload-wrapper">
-             <div class="file-drop-area" :class="{ 'has-file': filesList.length > 0 }">
+             <div class="file-drop-area sos-empty-state" :class="{ 'has-file': filesList.length > 0 }">
                 <!-- 注意：开启了 multiple -->
                 <input class="file-input-hidden" type="file" accept="image/*" multiple @change="onFilesAdded" id="fileUpload" />
                 <label for="fileUpload" class="file-drop-label">
@@ -237,7 +240,7 @@
             <div v-if="msg" class="message-box" :class="{ error: isError, success: !isError }">
               {{ msg }}
             </div>
-            <button class="submit-btn" :disabled="submitting || filesList.length === 0" data-sfx="click">
+            <button class="submit-btn sos-button sos-button--primary sos-button--lg" :disabled="submitting || filesList.length === 0" data-sfx="click">
               <span v-if="submitting" class="spinner"></span>
               {{ submitting ? statusMsg : '🚀 确认并提交' }}
             </button>
@@ -518,17 +521,17 @@ async function submit(){
 <style scoped>
 /* 变量映射：适配现代风格 CSS 变量 */
 .upload-page {
-  --primary: hsl(172, 78%, 42%);
-  --primary-soft: hsl(172, 65%, 92%);
-  --primary-hover: hsl(172, 80%, 38%);
-  --text-main: hsl(210, 20%, 14%);
-  --text-sub: hsl(210, 10%, 45%);
-  --bg-input: rgba(255, 255, 255, 0.6);
-  --border: rgba(0, 0, 0, 0.08);
-  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
-  --radius-lg: 18px;
-  --radius-md: 12px;
+  --primary: var(--sos-accent, hsl(172, 78%, 42%));
+  --primary-soft: var(--sos-accent-soft, hsl(172, 65%, 92%));
+  --primary-hover: var(--sos-accent-hover, hsl(172, 80%, 38%));
+  --text-main: var(--sos-text-primary, hsl(210, 20%, 14%));
+  --text-sub: var(--sos-text-secondary, hsl(210, 10%, 45%));
+  --bg-input: color-mix(in srgb, var(--sos-bg-surface, #fff) 72%, transparent);
+  --border: var(--sos-border-subtle, rgba(0, 0, 0, 0.08));
+  --shadow-sm: var(--sos-shadow-hairline, 0 4px 6px -1px rgba(0, 0, 0, 0.05));
+  --shadow-md: var(--sos-card-shadow, 0 10px 15px -3px rgba(0, 0, 0, 0.08));
+  --radius-lg: var(--sos-card-radius, 18px);
+  --radius-md: var(--sos-radius-md, 12px);
 }
 
 /* 容器布局 */
@@ -581,13 +584,13 @@ async function submit(){
 
 /* 表单主体 */
 .main-form {
-  background: rgba(255, 255, 255, 0.55);
+  background: color-mix(in srgb, var(--sos-bg-surface, #fff) 62%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--sos-bg-surface, #fff) 80%, var(--sos-border-subtle, transparent));
   box-shadow: 
-    0 20px 40px rgba(0,0,0,0.05),
+    var(--sos-hover-shadow, 0 20px 40px rgba(0,0,0,0.05)),
     inset 0 1px 0 rgba(255,255,255,0.8);
   padding: 8px; /* Inner padding for sections */
 }
@@ -595,7 +598,7 @@ async function submit(){
 /* 表单区块 Section */
 .form-section {
   padding: 32px;
-  border-bottom: 1px solid rgba(0,0,0,0.04);
+  border-bottom: 1px solid var(--sos-border-subtle, rgba(0,0,0,0.04));
 }
 .form-section:last-child {
   border-bottom: none;
@@ -656,15 +659,16 @@ async function submit(){
   align-items: center;
   gap: 4px;
 }
-.form-label .req { color: #ef4444; }
+.form-label .req { color: var(--sos-danger, #ef4444); }
 .form-label .opt { color: var(--text-sub); font-weight: 400; font-size: 12px; }
 
 /* 输入框样式 */
 .form-input, .form-textarea {
   width: 100%;
+  min-height: var(--sos-control-lg, 48px);
   padding: 12px 16px;
   border-radius: var(--radius-md);
-  border: 1px solid transparent;
+  border: 1px solid var(--sos-border-subtle, transparent);
   background: var(--bg-input);
   color: var(--text-main);
   font-size: 15px;
@@ -678,7 +682,7 @@ async function submit(){
 }
 
 .form-input:focus, .form-textarea:focus {
-  background: #fff;
+  background: var(--sos-bg-surface, #fff);
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-soft);
   outline: none;
@@ -695,13 +699,13 @@ async function submit(){
   color: var(--text-sub);
   margin-top: 4px;
 }
-.form-hint.warning { color: #d97706; }
+.form-hint.warning { color: var(--sos-amber-600, #d97706); }
 .form-hint.center { text-align: center; }
 
 /* Segment Control */
 .segment-control {
   display: flex;
-  background: rgba(0,0,0,0.04);
+  background: color-mix(in srgb, var(--sos-bg-subtle, #f5f5f5) 80%, transparent);
   padding: 4px;
   border-radius: 14px;
   gap: 4px;
@@ -722,12 +726,13 @@ async function submit(){
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-height: 42px;
 }
 .segment-btn:hover { color: var(--text-main); }
 .segment-btn.active {
-  background: #fff;
+  background: var(--sos-bg-surface, #fff);
   color: var(--primary);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: var(--sos-shadow-hairline, 0 2px 8px rgba(0,0,0,0.08));
 }
 .segment-btn .icon { font-size: 16px; }
 
@@ -739,7 +744,6 @@ async function submit(){
 .action-btn {
   padding: 0 20px;
   border-radius: var(--radius-md);
-  border: none;
   background: var(--text-main);
   color: #fff;
   font-weight: 700;
@@ -748,13 +752,13 @@ async function submit(){
   white-space: nowrap;
 }
 .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.action-btn:hover:not(:disabled) { transform: translateY(-1px); background: #000; }
+.action-btn:hover:not(:disabled) { transform: translateY(-1px); background: var(--sos-accent-hover, #000); }
 
 .action-btn.secondary {
-  background: rgba(0,0,0,0.05);
+  background: color-mix(in srgb, var(--sos-bg-subtle, #f5f5f5) 84%, transparent);
   color: var(--text-main);
 }
-.action-btn.secondary:hover:not(:disabled) { background: rgba(0,0,0,0.1); }
+.action-btn.secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--sos-bg-subtle, #f5f5f5) 64%, var(--sos-border-default, #ddd)); }
 
 /* UID 验证反馈 */
 .uid-feedback {
@@ -763,12 +767,12 @@ async function submit(){
   gap: 12px;
   margin-top: 8px;
   padding: 10px 14px;
-  background: rgba(255,255,255,0.5);
+  background: color-mix(in srgb, var(--sos-bg-surface, #fff) 70%, transparent);
   border-radius: 12px;
 }
 .status-badge { font-size: 14px; font-weight: 700; }
-.status-badge.ok { color: #10b981; }
-.status-badge.bad { color: #ef4444; }
+.status-badge.ok { color: var(--sos-success, #10b981); }
+.status-badge.bad { color: var(--sos-danger, #ef4444); }
 .creator-avatar {
   width: 32px; height: 32px;
   border-radius: 50%;
@@ -779,10 +783,10 @@ async function submit(){
 .info-card {
   margin-top: 12px;
   padding: 16px;
-  background: #eff6ff;
+  background: color-mix(in srgb, var(--sos-accent-soft, #eff6ff) 70%, var(--sos-bg-surface, #fff));
   border-radius: 12px;
   font-size: 13px;
-  color: #1e40af;
+  color: var(--sos-link, #1e40af);
   line-height: 1.5;
 }
 .info-card p { margin: 0; }
@@ -799,10 +803,6 @@ async function submit(){
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  background: #fff;
-  border: 1px solid rgba(0,0,0,0.06);
-  border-radius: 20px;
   font-size: 13px;
   color: var(--primary);
   font-weight: 700;
@@ -818,7 +818,7 @@ async function submit(){
   padding: 0 2px;
   border-radius: 4px;
 }
-.tag-remove:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+.tag-remove:hover { color: var(--sos-danger, #ef4444); background: color-mix(in srgb, var(--sos-danger, #ef4444) 10%, transparent); }
 .text-btn {
   margin-top: 8px;
   background: none;
@@ -853,10 +853,7 @@ async function submit(){
 }
 .badge-private {
   font-size: 10px;
-  background: #f3f4f6;
   padding: 2px 6px;
-  border-radius: 4px;
-  color: #6b7280;
 }
 
 .checkbox-list {
@@ -876,21 +873,21 @@ async function submit(){
   transition: all 0.2s;
   border: 1px solid transparent;
 }
-.checkbox-card:hover { background: #fff; box-shadow: var(--shadow-sm); }
+.checkbox-card:hover { background: var(--sos-bg-surface, #fff); box-shadow: var(--shadow-sm); }
 .checkbox-card:has(.chk-input:checked) {
-  background: #f0fdfa; /* Teal-50 */
+  background: color-mix(in srgb, var(--sos-accent-soft, #f0fdfa) 80%, var(--sos-bg-surface, #fff));
   border-color: var(--primary);
 }
 
 .chk-input { display: none; }
 .chk-custom {
   width: 18px; height: 18px;
-  border: 2px solid #d1d5db;
+  border: 2px solid var(--sos-border-default, #d1d5db);
   border-radius: 5px;
   position: relative;
   transition: all 0.2s;
   flex-shrink: 0;
-  background: #fff;
+  background: var(--sos-bg-surface, #fff);
 }
 .chk-input:checked + .chk-custom {
   background: var(--primary);
@@ -916,20 +913,21 @@ async function submit(){
 
 .file-drop-area {
   position: relative;
-  border: 2px dashed #cbd5e1;
+  border: 2px dashed var(--sos-border-default, #cbd5e1);
   border-radius: 20px;
-  background: rgba(255,255,255,0.5);
+  background: color-mix(in srgb, var(--sos-bg-surface, #fff) 58%, transparent);
+  padding: 0;
   transition: all 0.3s ease;
   overflow: hidden;
 }
 .file-drop-area:hover {
   border-color: var(--primary);
-  background: rgba(255,255,255,0.8);
+  background: color-mix(in srgb, var(--sos-bg-surface, #fff) 86%, transparent);
 }
 .file-drop-area.has-file {
   border-style: solid;
   border-color: var(--primary);
-  background: #f0fdfa;
+  background: color-mix(in srgb, var(--sos-accent-soft, #f0fdfa) 80%, var(--sos-bg-surface, #fff));
 }
 
 .file-input-hidden {
@@ -990,17 +988,16 @@ async function submit(){
   width: 100%;
   animation: fadeIn 0.3s;
 }
-.message-box.error { background: #fee2e2; color: #b91c1c; }
-.message-box.success { background: #d1fae5; color: #047857; }
+.message-box.error { background: var(--sos-red-50, #fee2e2); color: var(--sos-danger, #b91c1c); }
+.message-box.success { background: var(--sos-mint-50, #d1fae5); color: var(--sos-success, #047857); }
 
 .submit-btn {
   position: relative;
   width: 100%;
   max-width: 320px;
   padding: 16px;
-  border: none;
   border-radius: 16px;
-  background: linear-gradient(135deg, var(--text-main) 0%, #111827 100%);
+  background: var(--sos-accent, var(--text-main));
   color: #fff;
   font-size: 18px;
   font-weight: 800;
@@ -1016,7 +1013,7 @@ async function submit(){
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 15px 30px -5px rgba(0,0,0,0.3);
-  background: linear-gradient(135deg, #000 0%, #1f2937 100%);
+  background: var(--sos-accent-hover, #000);
 }
 .submit-btn:active:not(:disabled) { transform: translateY(0); }
 .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(1); }
@@ -1048,7 +1045,7 @@ async function submit(){
   margin-bottom: 24px;
 }
 .file-card {
-  background: #fff;
+  background: var(--sos-bg-surface, #fff);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 10px rgba(0,0,0,0.05);
@@ -1062,7 +1059,7 @@ async function submit(){
   outline-offset: 2px;
 }
 
-.file-thumb { height: 120px; position: relative; background: #eee; }
+.file-thumb { height: 120px; position: relative; background: var(--sos-bg-subtle, #eee); }
 .file-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
 .remove-btn {
