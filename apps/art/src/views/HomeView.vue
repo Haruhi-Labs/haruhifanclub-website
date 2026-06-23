@@ -281,7 +281,7 @@ const SHIFT_DRAG_SPEED = 0.34
 const SHIFT_MAX_VELOCITY = 1.25
 const SHIFT_INERTIA_DECAY = 0.94
 const SHIFT_STOP_VELOCITY = 0.012
-const LIGHT_COLLAGE_REPEAT = 12
+const LIGHT_COLLAGE_REPEAT = 36
 
 function makeVisitorNumber() {
   const fallback = 5200 + seedArtworks.length * 31 + seedCreators.length * 17
@@ -347,14 +347,14 @@ function makeLightCollageTiles() {
   ).flat()
 
   const shuffled = pool.slice().sort((a, b) => a.sortKey - b.sortKey)
-  const columns = Math.ceil(Math.sqrt(shuffled.length * 1.45))
+  const columns = Math.ceil(Math.sqrt(shuffled.length * 1.08))
   const rows = Math.ceil(shuffled.length / columns)
 
   return shuffled.map((item, index) => {
     const column = index % columns
     const row = Math.floor(index / columns)
-    const jitterX = (getTileNoise(index * 17 + 3) - 0.5) * 3.4
-    const jitterY = (getTileNoise(index * 19 + 7) - 0.5) * 3.2
+    const jitterX = (getTileNoise(index * 17 + 3) - 0.5) * 2.6
+    const jitterY = (getTileNoise(index * 19 + 7) - 0.5) * 2.4
 
     return {
       key: `light-collage-${item.artwork.id}-${item.copyIndex}`,
@@ -362,7 +362,7 @@ function makeLightCollageTiles() {
       title: item.artwork.title,
       x: Number((((column + 0.5) / columns) * 100 + jitterX).toFixed(2)),
       y: Number((((row + 0.5) / rows) * 100 + jitterY).toFixed(2)),
-      size: Number((15.4 + getTileNoise(index * 23 + 11) * 2.8).toFixed(2)),
+      size: Number((22.4 + getTileNoise(index * 23 + 11) * 2.6).toFixed(2)),
     }
   })
 }
@@ -967,11 +967,11 @@ const stageStyle = {
 :global(html:not(.art-lights-out)) .art-home .light-collage {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   display: block;
   overflow: hidden;
   pointer-events: none;
-  background: #f7fbff;
+  background: #dfe8f3;
 }
 
 :global(html:not(.art-lights-out)) .art-home .light-collage::after {
@@ -988,8 +988,8 @@ const stageStyle = {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 154vw;
-  height: 154vh;
+  width: 136vw;
+  height: 136vh;
   transform: translate(-50%, -50%) rotate(-15deg);
   transform-origin: center;
 }

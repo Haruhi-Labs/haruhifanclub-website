@@ -667,11 +667,11 @@ html.art-home-route .gallery-mask::after {
 html.art-home-route:not(.art-lights-out),
 html.art-home-route:not(.art-lights-out) body,
 html.art-home-route:not(.art-lights-out) #app {
-  background: #f7fbff;
+  background: #dfe8f3;
 }
 
 html.art-home-route:not(.art-lights-out) .gallery-bg {
-  background: #f7fbff;
+  background: #dfe8f3;
 }
 
 html.art-home-route:not(.art-lights-out) .gallery-mask {
