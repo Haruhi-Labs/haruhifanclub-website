@@ -601,6 +601,173 @@ textarea {
   line-height: 1.65;
 }
 
+.ds-guide-shell {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+  gap: var(--sos-space-4);
+  align-items: start;
+}
+
+.ds-guide-picker {
+  display: grid;
+  gap: var(--sos-space-2);
+}
+
+.ds-guide-option {
+  display: grid;
+  justify-items: start;
+  gap: var(--sos-space-1);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-primary);
+  padding: var(--sos-space-3);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ds-guide-option strong,
+.ds-guide-option span {
+  display: block;
+}
+
+.ds-guide-option strong {
+  font-size: var(--sos-text-sm);
+  line-height: 1.25;
+}
+
+.ds-guide-option span {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.45;
+}
+
+.ds-guide-option[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--sos-accent) 50%, var(--sos-border-strong));
+  background: color-mix(in srgb, var(--sos-accent-soft) 70%, var(--sos-bg-surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sos-focus) 14%, transparent);
+}
+
+.ds-guide-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.95fr);
+  gap: var(--sos-space-5);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-lg);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-5);
+}
+
+.ds-guide-content,
+.ds-guide-live,
+.ds-guide-anatomy,
+.ds-guide-rules > div {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-3);
+}
+
+.ds-guide-content .sos-badge {
+  width: fit-content;
+}
+
+.ds-guide-content h3,
+.ds-guide-content p,
+.ds-guide-anatomy ul,
+.ds-guide-rules ul {
+  margin: 0;
+}
+
+.ds-guide-content h3 {
+  font-size: var(--sos-text-xl);
+  line-height: 1.18;
+}
+
+.ds-guide-content p {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.7;
+}
+
+.ds-guide-anatomy,
+.ds-guide-rules > div {
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-subtle);
+  padding: var(--sos-space-4);
+}
+
+.ds-guide-anatomy strong,
+.ds-guide-rules strong {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+}
+
+.ds-guide-anatomy ul,
+.ds-guide-rules ul {
+  display: grid;
+  gap: var(--sos-space-2);
+  padding-left: var(--sos-space-4);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.55;
+}
+
+.ds-guide-rules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sos-space-3);
+}
+
+.ds-guide-live {
+  min-width: 0;
+}
+
+.ds-guide-sample {
+  display: grid;
+  justify-items: start;
+  align-items: start;
+  min-height: 15rem;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-subtle);
+  padding: var(--sos-space-5);
+}
+
+.ds-guide-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sos-space-3);
+}
+
+.ds-guide-sample .sos-inline {
+  align-items: flex-start;
+}
+
+.ds-guide-sample .sos-field,
+.ds-guide-sample .sos-progress,
+.ds-guide-sample .sos-notice,
+.ds-guide-sample .sos-card,
+.ds-guide-sample .sos-empty-state {
+  width: 100%;
+}
+
+.ds-guide-sample .sos-badge {
+  width: fit-content;
+}
+
+.ds-guide-sample .sos-card__body,
+.ds-guide-sample .sos-empty-state,
+.ds-guide-sample .sos-notice {
+  padding: var(--sos-space-4);
+}
+
+.ds-guide-live .ds-code {
+  margin: 0;
+}
+
 .ds-mode-picker {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1056,6 +1223,8 @@ textarea {
   .ds-layout-lab,
   .ds-quality-grid,
   .ds-ui-mvp,
+  .ds-guide-shell,
+  .ds-guide-panel,
   .ds-mode-stage,
   .ds-acceptance {
     grid-template-columns: 1fr;
@@ -1109,6 +1278,24 @@ textarea {
 
   .ds-radius-row {
     grid-template-columns: repeat(3, minmax(44px, 1fr));
+  }
+
+  .ds-guide-picker {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: var(--sos-space-2);
+  }
+
+  .ds-guide-option {
+    min-width: 12rem;
+  }
+
+  .ds-guide-panel {
+    padding: var(--sos-space-4);
+  }
+
+  .ds-guide-rules {
+    grid-template-columns: 1fr;
   }
 }
 

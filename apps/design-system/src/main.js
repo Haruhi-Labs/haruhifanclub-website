@@ -148,6 +148,7 @@ const navItems = [
   ['layout', '布局原语'],
   ['components', '基础组件'],
   ['contracts', '组件契约'],
+  ['usage', '组件用法'],
   ['expressions', '表达模式'],
   ['voice', '组件变声'],
   ['quality', '状态响应式'],
@@ -237,6 +238,242 @@ const componentContracts = [
     'empty · no-result · permission-missing',
     '必须说明为空原因，并提供清晰下一步。',
   ],
+]
+
+const componentGuides = [
+  {
+    id: 'button',
+    label: 'Button',
+    title: 'Button 命令按钮',
+    role: '用于提交、保存、购买、删除等明确命令。',
+    summary:
+      'Button 的责任是让用户完成一个动作。它不承担状态标签、普通导航或长段说明；状态必须通过 disabled、aria-busy、focus-visible 等可复查线索呈现。',
+    anatomy: [
+      'Root：button / a.sos-button',
+      'Variant：primary / secondary / ghost / danger',
+      'Size：sm / md / lg',
+      'State：hover / active / focus / loading / disabled',
+    ],
+    do: [
+      '按钮文案用动词开头。',
+      'Loading 保留当前标签和尺寸。',
+      '同一视口只保留一个最高行动层级。',
+    ],
+    dont: [
+      '不要用 Badge 或 Card 替代按钮。',
+      '不要让关键动作只在 hover 出现。',
+      '不要把危险操作做成普通 primary。',
+    ],
+    sample: `
+      <div class="ds-guide-button-row">
+        <button class="sos-button sos-button--primary">提交审核</button>
+        <button class="sos-button sos-button--secondary">保存草稿</button>
+        <button class="sos-button sos-button--danger">删除</button>
+      </div>
+    `,
+    code: `<SosButton variant="primary">提交审核</SosButton>
+<SosButton variant="secondary">保存草稿</SosButton>`,
+  },
+  {
+    id: 'badge',
+    label: 'Badge',
+    title: 'Badge 短状态',
+    role: '用于分类、筛选命中、短状态和少量品牌信号。',
+    summary:
+      'Badge 是短标签，不是标题也不是按钮。它必须保持小面积、短文案和明确语义；selected 和 disabled 只能作为当前上下文状态，不制造新交互模式。',
+    anatomy: [
+      'Root：span.sos-badge',
+      'Variant：default / accent / solid / outline / signal',
+      'State：selected / disabled by parent',
+      'Content：1-6 个字优先',
+    ],
+    do: [
+      '一屏内 Signal Badge 控制数量。',
+      '用 selected 表示当前筛选或选择。',
+      '用 outline 表示低强调分类。',
+    ],
+    dont: ['不要承载句子或段落标题。', '不要把 Badge 当按钮用。', '不要让彩色 Badge 铺满卡片。'],
+    sample: `
+      <div class="sos-inline">
+        <span class="sos-badge">普通</span>
+        <span class="sos-badge sos-badge--accent">分类</span>
+        <span class="sos-badge" aria-selected="true">已选</span>
+        <span class="sos-badge sos-badge--signal">重点</span>
+      </div>
+    `,
+    code: `<SosBadge variant="accent">分类</SosBadge>
+<SosBadge selected>已选</SosBadge>`,
+  },
+  {
+    id: 'field',
+    label: 'Field',
+    title: 'Field 表单字段',
+    role: '用于把 label、control、help/error 绑定成稳定输入单元。',
+    summary:
+      'Field 先保证信息关系，再讨论视觉。Label 不被 placeholder 替代；错误态必须给出文字证据，帮助文字不能在错误时消失。',
+    anatomy: [
+      'Root：.sos-field',
+      'Label：.sos-field__label',
+      'Control：.sos-input / .sos-textarea / .sos-select',
+      'Evidence：.sos-field__help / error text',
+    ],
+    do: ['Label 永远可见。', 'Error 同时使用文字和边界。', '移动端使用合适 input type。'],
+    dont: [
+      '不要只用 placeholder 说明字段。',
+      '不要只把边框改红。',
+      '不要把多个无关控件塞进一个 Field。',
+    ],
+    sample: `
+      <label class="sos-field">
+        <span class="sos-field__label">页面标题</span>
+        <input class="sos-input" value="北高校园祭专题">
+        <span class="sos-field__help">标题会显示在列表、分享卡片和详情页。</span>
+      </label>
+    `,
+    code: `<SosField label="页面标题" help="标题会显示在列表、分享卡片和详情页。">
+  <input class="sos-input" v-model="title" />
+</SosField>`,
+  },
+  {
+    id: 'notice',
+    label: 'Notice',
+    title: 'Notice 系统提示',
+    role: '用于页面内常驻提示、流程反馈和可复查的系统状态。',
+    summary:
+      'Notice 保留上下文，不抢走用户当前任务。它和 Toast、Dialog 分工不同：需要长期阅读或比较的信息不能放进自动消失的 Toast。',
+    anatomy: [
+      'Root：.sos-notice',
+      'Icon：.sos-notice__icon',
+      'Title：.sos-notice__title',
+      'Copy：.sos-notice__copy',
+      'Optional action slot',
+    ],
+    do: [
+      '标题先说明结果或风险。',
+      '正文给出影响和下一步。',
+      'Tone 使用 info / success / warning / danger。',
+    ],
+    dont: [
+      '不要用 Notice 写普通营销文案。',
+      '不要只用颜色表达风险。',
+      '不要用 Toast 承载需要复制的信息。',
+    ],
+    sample: `
+      <div class="sos-notice sos-notice--warning">
+        <span class="sos-notice__icon">!</span>
+        <div>
+          <h4 class="sos-notice__title">库存偏低</h4>
+          <p class="sos-notice__copy">继续售卖前请确认补货计划。</p>
+        </div>
+      </div>
+    `,
+    code: `<SosNotice tone="warning" title="库存偏低">
+  继续售卖前请确认补货计划。
+</SosNotice>`,
+  },
+  {
+    id: 'progress',
+    label: 'Progress',
+    title: 'Progress 进度反馈',
+    role: '用于预售、上传、答题完成度等可量化流程。',
+    summary:
+      'Progress 必须让用户知道当前进度、单位和结果。颜色可以增强语义，但完成、错误、零进度都要有文字或数字证据。',
+    anatomy: [
+      'Root：.sos-progress',
+      'Meta：label + value',
+      'Track：.sos-progress__track',
+      'Fill：.sos-progress__fill',
+      'Tone：default / success / danger',
+    ],
+    do: ['常驻显示数字或可读描述。', '错误进度说明失败位置。', '预售类数字使用等宽数字。'],
+    dont: [
+      '不要只有一条彩色线。',
+      '不要让颜色含义随站点变化。',
+      '不要把不可估算加载伪装成精确百分比。',
+    ],
+    sample: `
+      <div class="sos-progress">
+        <div class="sos-progress__meta"><span>预售进度</span><strong>126/200</strong></div>
+        <div class="sos-progress__track"><span class="sos-progress__fill" style="width:63%"></span></div>
+      </div>
+    `,
+    code: `<SosProgress :value="126" :max="200" label="预售进度" value-label="126/200" />`,
+  },
+  {
+    id: 'card',
+    label: 'Card',
+    title: 'Card 内容容器',
+    role: '用于承载一组可扫读内容、状态和操作。',
+    summary:
+      'Card 只负责边界、层级和 anatomy，不决定业务结构。新闻、商品、作品、书籍、试卷卡片先作为 recipe 验证，不直接抽成统一业务组件。',
+    anatomy: [
+      'Root：.sos-card',
+      'Media slot：image / frame / cover',
+      'Body：.sos-card__body',
+      'Footer：.sos-card__footer',
+      'State：interactive / selected / loading',
+    ],
+    do: [
+      '标题、状态和主信息常驻。',
+      '媒体比例交给 MediaFrame。',
+      'Footer 用 Cluster 思路处理操作。',
+    ],
+    dont: [
+      '不要靠 hover 才显示价格或库存。',
+      '不要在页面临时改内部 padding。',
+      '不要把所有业务卡片强行做成同一比例。',
+    ],
+    sample: `
+      <article class="sos-card sos-card--interactive">
+        <div class="sos-card__body">
+          <h4 class="ds-state-card-title">待审核稿件</h4>
+          <p class="ds-state-card-copy">标题、摘要、日期和状态常驻显示。</p>
+          <footer class="sos-card__footer">
+            <span class="sos-badge sos-badge--outline">待处理</span>
+            <button class="sos-button sos-button--secondary sos-button--sm">查看</button>
+          </footer>
+        </div>
+      </article>
+    `,
+    code: `<SosCard interactive>
+  <h3>待审核稿件</h3>
+  <template #footer>
+    <SosBadge variant="outline">待处理</SosBadge>
+  </template>
+</SosCard>`,
+  },
+  {
+    id: 'empty',
+    label: 'EmptyState',
+    title: 'EmptyState 空状态',
+    role: '用于无数据、无结果、权限缺失等系统状态。',
+    summary:
+      '空状态不是插画展位。它要解释为什么为空、用户还能做什么，以及下一步是否会改变当前状态。',
+    anatomy: [
+      'Root：.sos-empty-state',
+      'Icon：optional status mark',
+      'Title：原因',
+      'Copy：解释和影响',
+      'Actions：一个主行动优先',
+    ],
+    do: ['说明为空原因。', '给出清除筛选、登录、返回全部等真实动作。', '保持语气具体，避免口号。'],
+    dont: ['不要只放插画和“暂无数据”。', '不要塞多个竞争 CTA。', '不要把空状态做成营销首页。'],
+    sample: `
+      <section class="sos-empty-state">
+        <span class="sos-empty-state__icon">0</span>
+        <h4 class="sos-empty-state__title">暂无投稿</h4>
+        <p class="sos-empty-state__copy">当前筛选条件下没有作品。</p>
+        <div class="sos-empty-state__actions">
+          <button class="sos-button sos-button--secondary sos-button--sm">清除筛选</button>
+        </div>
+      </section>
+    `,
+    code: `<SosEmptyState title="暂无投稿" copy="当前筛选条件下没有作品。">
+  <template #actions>
+    <SosButton variant="secondary" size="sm">清除筛选</SosButton>
+  </template>
+</SosEmptyState>`,
+  },
 ]
 
 const stateRows = [
@@ -706,6 +943,55 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
           </div>
         </section>
 
+        <section class="ds-section" id="usage">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">Component Usage</p>
+            <h2>基础组件必须能被说明和复用</h2>
+            <p>成熟设计系统不只展示默认态，还要说明组件边界、Anatomy、使用条件和禁止用法。这里的示例直接对应 <code>@haruhi/ui</code> MVP，不把业务卡片提前抽象。</p>
+          </div>
+          <div class="ds-guide-shell">
+            <div class="ds-guide-picker" role="list" aria-label="基础组件用法目录">
+              ${componentGuides
+                .map(
+                  (guide) => `
+                <button class="ds-guide-option" data-guide="${guide.id}" role="listitem">
+                  <strong>${guide.label}</strong>
+                  <span>${guide.role}</span>
+                </button>
+              `
+                )
+                .join('')}
+            </div>
+            <article class="ds-guide-panel">
+              <div class="ds-guide-content">
+                <span class="sos-badge sos-badge--signal" id="guide-label">${componentGuides[0].label}</span>
+                <h3 id="guide-title">${componentGuides[0].title}</h3>
+                <p id="guide-summary">${componentGuides[0].summary}</p>
+                <div class="ds-guide-anatomy">
+                  <strong>Anatomy</strong>
+                  <ul id="guide-anatomy">
+                    ${componentGuides[0].anatomy.map((item) => `<li>${item}</li>`).join('')}
+                  </ul>
+                </div>
+                <div class="ds-guide-rules">
+                  <div>
+                    <strong>Do</strong>
+                    <ul id="guide-do">${componentGuides[0].do.map((item) => `<li>${item}</li>`).join('')}</ul>
+                  </div>
+                  <div>
+                    <strong>Don't</strong>
+                    <ul id="guide-dont">${componentGuides[0].dont.map((item) => `<li>${item}</li>`).join('')}</ul>
+                  </div>
+                </div>
+              </div>
+              <div class="ds-guide-live">
+                <div class="ds-guide-sample" id="guide-sample">${componentGuides[0].sample}</div>
+                <pre class="ds-code ds-code--compact"><code id="guide-code">${componentGuides[0].code}</code></pre>
+              </div>
+            </article>
+          </div>
+        </section>
+
         <section class="ds-section" id="expressions">
           <div class="ds-section__header">
             <p class="sos-eyebrow">Expression Modes</p>
@@ -913,6 +1199,15 @@ const modeName = document.querySelector('#mode-name')
 const modeNote = document.querySelector('#mode-note')
 const modeSample = document.querySelector('#mode-sample')
 const modeButtons = [...document.querySelectorAll('.ds-mode-option[data-mode]')]
+const guideButtons = [...document.querySelectorAll('.ds-guide-option')]
+const guideLabel = document.querySelector('#guide-label')
+const guideTitle = document.querySelector('#guide-title')
+const guideSummary = document.querySelector('#guide-summary')
+const guideAnatomy = document.querySelector('#guide-anatomy')
+const guideDo = document.querySelector('#guide-do')
+const guideDont = document.querySelector('#guide-dont')
+const guideSample = document.querySelector('#guide-sample')
+const guideCode = document.querySelector('#guide-code')
 const voiceStage = document.querySelector('.ds-voice-stage')
 const voiceLabel = document.querySelector('#voice-label')
 const voiceTitle = document.querySelector('#voice-title')
@@ -936,6 +1231,29 @@ modeButtons.forEach((button) => {
 })
 
 setMode('news')
+
+function setGuide(id) {
+  const guide = componentGuides.find((item) => item.id === id) || componentGuides[0]
+  guideLabel.textContent = guide.label
+  guideTitle.textContent = guide.title
+  guideSummary.textContent = guide.summary
+  guideAnatomy.innerHTML = guide.anatomy.map((item) => `<li>${item}</li>`).join('')
+  guideDo.innerHTML = guide.do.map((item) => `<li>${item}</li>`).join('')
+  guideDont.innerHTML = guide.dont.map((item) => `<li>${item}</li>`).join('')
+  guideSample.innerHTML = guide.sample
+  guideCode.textContent = guide.code
+  guideButtons.forEach((button) => {
+    const isActive = button.dataset.guide === guide.id
+    button.setAttribute('aria-pressed', String(isActive))
+    if (isActive) button.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  })
+}
+
+guideButtons.forEach((button) => {
+  button.addEventListener('click', () => setGuide(button.dataset.guide))
+})
+
+setGuide('button')
 
 function setVoice(id) {
   const mode = modes.find((entry) => entry.id === id) || modes[0]
