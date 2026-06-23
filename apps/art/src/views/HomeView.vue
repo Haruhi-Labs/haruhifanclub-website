@@ -37,7 +37,9 @@
           :class="['time-shift-stack', { 'is-hovering': shiftHovering }]"
           aria-label="时间跃迁层"
           @pointerenter="onShiftEnter"
+          @pointermove="onShiftMove"
           @pointerleave="onShiftLeave"
+          @pointercancel="onShiftLeave"
         >
           <div class="shift-label">
             <span>TIME JUMP</span>
@@ -50,11 +52,11 @@
                 :key="layer.id"
                 class="shift-layer"
                 :style="{
-                  '--spread': `${layer.spread}px`,
+                  '--panel-x': `${layer.x}px`,
+                  '--panel-y': `${layer.y}px`,
                   '--depth': `${layer.depth}px`,
                   '--scale': layer.scale,
                   '--alpha': layer.alpha,
-                  '--tilt': `${layer.tilt}deg`,
                   '--layer-width': `${layer.width}px`,
                   '--z': layer.z,
                 }"
@@ -147,11 +149,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { seedArtworks, seedCreators } from '../mock/seedData'
 
 const VISITOR_KEY = 'haruhi-art-visitor-number'
 const DAY_MS = 24 * 60 * 60 * 1000
+const SHIFT_LAYER_COUNT = 32
+const SHIFT_VISIBLE_SIDE = 5.35
+const SHIFT_ANGLE_STEP = 360 / SHIFT_LAYER_COUNT
+const SHIFT_WHEEL_RADIUS_Y = 388
+const SHIFT_WHEEL_RADIUS_X = 244
+const SHIFT_WHEEL_DEPTH = 210
+const SHIFT_ROTATE_SPEED = 0.42
 
 function makeVisitorNumber() {
   const fallback = 5200 + seedArtworks.length * 31 + seedCreators.length * 17
@@ -221,26 +230,68 @@ const satelliteMetrics = [
   { key: 'week', label: '本周入库', value: weekCount, note: `今日新增 ${todayCount}` },
 ]
 
-const timeShiftLayers = [
-  { id: 'n4', code: 'T-32', spread: -240, depth: -18, scale: 0.78, alpha: 0.42, tilt: 18, width: 260, z: 5 },
-  { id: 'n3', code: 'T-24', spread: -180, depth: 0, scale: 0.84, alpha: 0.52, tilt: 14, width: 276, z: 6 },
-  { id: 'n2', code: 'T-16', spread: -120, depth: 18, scale: 0.9, alpha: 0.64, tilt: 10, width: 292, z: 7 },
-  { id: 'n1', code: 'T-08', spread: -60, depth: 40, scale: 0.96, alpha: 0.78, tilt: 6, width: 308, z: 8 },
-  { id: 'c', code: 'PHASE-00', spread: 0, depth: 68, scale: 1, alpha: 0.94, tilt: 0, width: 326, z: 9 },
-  { id: 'p1', code: 'T+08', spread: 60, depth: 40, scale: 0.96, alpha: 0.78, tilt: -6, width: 308, z: 8 },
-  { id: 'p2', code: 'T+16', spread: 120, depth: 18, scale: 0.9, alpha: 0.64, tilt: -10, width: 292, z: 7 },
-  { id: 'p3', code: 'T+24', spread: 180, depth: 0, scale: 0.84, alpha: 0.52, tilt: -14, width: 276, z: 6 },
-  { id: 'p4', code: 'T+32', spread: 240, depth: -18, scale: 0.78, alpha: 0.42, tilt: -18, width: 260, z: 5 },
-]
-
 const shiftHovering = ref(false)
+const shiftRotation = ref(0)
+let shiftLastY = null
 
-function onShiftEnter() {
+function normalizeShiftAngle(value) {
+  let next = value % 360
+  if (next > 180) next -= 360
+  if (next < -180) next += 360
+  return next
+}
+
+function normalizeShiftRotation(value) {
+  let next = value % 360
+  if (next < 0) next += 360
+  return next
+}
+
+const timeShiftLayers = computed(() =>
+  Array.from({ length: SHIFT_LAYER_COUNT }, (_, index) => {
+    const angle = normalizeShiftAngle(index * SHIFT_ANGLE_STEP + shiftRotation.value)
+    const radians = (angle * Math.PI) / 180
+    const sideDistance = Math.abs(angle) / SHIFT_ANGLE_STEP
+    const inVisibleSide = sideDistance <= SHIFT_VISIBLE_SIDE
+    const edgeWeight = inVisibleSide ? Math.max(0, 1 - sideDistance / SHIFT_VISIBLE_SIDE) : 0
+    const depthWeight = Math.max(0, Math.cos(radians))
+    const codeNumber = String(index + 1).padStart(2, '0')
+
+    return {
+      id: `shift-${index}`,
+      code: index === 0 ? 'PHASE-00' : `LAYER-${codeNumber}`,
+      x: Math.round(Math.cos(radians) * SHIFT_WHEEL_RADIUS_X),
+      y: Math.round(Math.sin(radians) * SHIFT_WHEEL_RADIUS_Y),
+      depth: Math.round(Math.cos(radians) * SHIFT_WHEEL_DEPTH),
+      scale: Number((0.72 + depthWeight * 0.3).toFixed(3)),
+      alpha: Number((inVisibleSide ? 0.24 + edgeWeight * 0.72 : 0).toFixed(3)),
+      width: Math.round(306 + depthWeight * 74),
+      z: Math.round(20 + depthWeight * 120),
+    }
+  })
+)
+
+function onShiftEnter(event) {
   shiftHovering.value = true
+  shiftLastY = event.clientY
+}
+
+function onShiftMove(event) {
+  if (shiftLastY === null) {
+    shiftLastY = event.clientY
+    return
+  }
+
+  const diff = event.clientY - shiftLastY
+  if (Math.abs(diff) >= 1) {
+    shiftRotation.value = normalizeShiftRotation(shiftRotation.value + diff * SHIFT_ROTATE_SPEED)
+    shiftLastY = event.clientY
+  }
 }
 
 function onShiftLeave() {
   shiftHovering.value = false
+  shiftLastY = null
 }
 
 const tagCounts = approvedArtworks.reduce((map, item) => {
@@ -631,17 +682,17 @@ const stageStyle = {
 .art-home .time-shift-stack {
   position: fixed;
   left: 0;
-  top: 56dvh;
+  top: 52dvh;
   z-index: 8;
-  width: 520px;
-  height: min(78dvh, 680px);
-  min-height: 560px;
-  transform: translate3d(-410px, -50%, 0) rotateY(-24deg);
+  width: 760px;
+  height: min(96dvh, 940px);
+  min-height: 760px;
+  transform: translate3d(-628px, -50%, 0) rotateY(-31deg);
   transform-origin: left center;
   transform-style: preserve-3d;
-  perspective: 1100px;
+  perspective: 1400px;
   pointer-events: auto;
-  opacity: 0.36;
+  opacity: 0.34;
   filter: saturate(0.74) brightness(0.86);
   isolation: isolate;
   transition:
@@ -653,13 +704,13 @@ const stageStyle = {
 .art-home .time-shift-stack.is-hovering {
   opacity: 0.96;
   filter: saturate(1.18) brightness(1.08);
-  transform: translate3d(-230px, -50%, 0) rotateY(-10deg);
+  transform: translate3d(-462px, -50%, 0) rotateY(-14deg);
 }
 
 .art-home .shift-label {
   position: absolute;
-  left: 330px;
-  top: 16px;
+  left: 556px;
+  top: 26px;
   z-index: 3;
   display: grid;
   gap: 2px;
@@ -687,7 +738,7 @@ const stageStyle = {
 
 .art-home .shift-window {
   position: absolute;
-  inset: 56px 0 0;
+  inset: 18px 0;
   overflow: visible;
   transform-style: preserve-3d;
   mask-image: none;
@@ -711,7 +762,7 @@ const stageStyle = {
 }
 
 .art-home .shift-window::after {
-  top: calc(50% + 34px);
+  top: calc(50% + 44px);
   opacity: 0.42;
 }
 
@@ -725,11 +776,11 @@ const stageStyle = {
 
 .art-home .shift-layer {
   position: absolute;
-  left: 59%;
-  top: calc(50% + var(--spread));
+  left: 72%;
+  top: 50%;
   z-index: var(--z);
   width: var(--layer-width);
-  height: 42px;
+  height: 40px;
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
@@ -746,9 +797,9 @@ const stageStyle = {
     0 0 20px rgba(116, 231, 255, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transform:
-    translate3d(-50%, -50%, var(--depth))
-    rotateX(var(--tilt))
-    rotateY(-20deg)
+    translate3d(calc(-50% + var(--panel-x)), calc(-50% + var(--panel-y)), var(--depth))
+    rotateY(-22deg)
+    rotateZ(-2deg)
     scale(var(--scale));
   transform-style: preserve-3d;
   backdrop-filter: blur(12px);
