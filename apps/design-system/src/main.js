@@ -146,6 +146,7 @@ const navItems = [
   ['architecture', '接入结构'],
   ['foundations', '基础规范'],
   ['tokens', 'Token 映射'],
+  ['content', '内容数据'],
   ['layout', '布局原语'],
   ['components', '基础组件'],
   ['contracts', '组件契约'],
@@ -209,6 +210,43 @@ const tokenBoundaries = [
   ['Do', '需要站点气质时改 Expression Mapping，不在组件里按站点写选择器覆盖物理色值。'],
   ['Don’t', '不要在业务卡片里新增 hex、临时阴影、13px 圆角或非 4px 网格间距。'],
   ['Don’t', '不要把 Signal Yellow 当主按钮色、价格色或错误色；它只负责品牌线索。'],
+]
+
+const contentRules = [
+  [
+    '真实对象先于装饰',
+    '标题、日期、价格、进度、作者、状态必须来自业务字段，不用虚造站点或口号占位提交。',
+  ],
+  ['一条信息一个职责', '标题负责识别对象，摘要解释差异，状态说明当前阶段，操作只指向下一步。'],
+  ['关键数据常驻', '价格、库存、倒计时、审核状态、答题进度不能只在 hover、浮层或图片上出现。'],
+  ['语气具体克制', '错误、空状态和成功反馈说清原因与下一步，不写“发生了未知异常”或营销化空话。'],
+]
+
+const dataFormatRules = [
+  ['日期', '2026-06-23', '列表、审核、订单默认使用稳定日期；相对时间只用于动态流。'],
+  ['价格', '¥ 147', '金额使用等宽数字；品牌黄不作为价格色，折扣和总价必须可比较。'],
+  ['进度', '126/200 · 63%', '预售、答题、迁移进度同时保留当前值、目标值或百分比。'],
+  ['库存', '现货 12 / 预售中', '库存状态用文字常驻，不只显示色点或图标。'],
+  ['作者', '显示名 / 匿名投稿', '投稿、审核和系统内容要区分来源；匿名不是空字段。'],
+]
+
+const fallbackContentRules = [
+  ['Loading', '保留原布局骨架和上下文标题；不要用大面积转场替代关键数据位置。'],
+  ['Empty', '说明为空原因，例如筛选无结果、权限不足或尚未创建，并提供一个真实下一步。'],
+  ['Error', '说明失败原因、当前内容是否已保留，以及重试、返回或联系支持的动作。'],
+  ['Unavailable', '下架、维护、暂停售卖和审核中必须有不同文案，不能统一写“暂无”。'],
+]
+
+const worldContentRules = [
+  ['news', '标题 / 摘要 / 来源 / 日期 / 专题', '阅读流先证明信息来源和发布时间，再考虑专题视觉。'],
+  [
+    'shop',
+    '商品名 / 价格 / 库存 / 进度 / 订单状态',
+    '交易信息必须可比较、可追踪，不能被装饰和 hover 隐藏。',
+  ],
+  ['art', '作品 / 作者 / 版权状态 / 审核状态', '作品是主语，界面只补充作者、筛选、审核和操作。'],
+  ['library', '书名 / 作者 / 目录 / 阅读位置', '长文和书目需要连续阅读线索，不能只展示封面。'],
+  ['exam', '题目 / 选项 / 倒计时 / 分数 / 恢复状态', '考试信息不可延迟出现，移动端优先答题效率。'],
 ]
 
 const layoutPrimitives = [
@@ -1074,6 +1112,69 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
               </div>
             </article>
           </div>
+        </section>
+
+        <section class="ds-section" id="content">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">Content & Data</p>
+            <h2>真实信息结构优先于视觉包装</h2>
+            <p>设计系统要约束的不只是颜色和组件，也包括页面到底承载什么信息。v0.2 要求标题、状态、价格、日期、进度和空状态都来自真实业务字段，并在移动端、加载态和错误态保持可读。</p>
+          </div>
+          <div class="ds-content-rule-grid">
+            ${contentRules
+              .map(
+                ([title, copy]) => `
+              <article>
+                <h3>${title}</h3>
+                <p>${copy}</p>
+              </article>
+            `
+              )
+              .join('')}
+          </div>
+          <div class="ds-content-lab">
+            <article class="ds-data-format">
+              <h3>数据格式</h3>
+              ${dataFormatRules
+                .map(
+                  ([label, example, rule]) => `
+                <div>
+                  <strong>${label}</strong>
+                  <code>${example}</code>
+                  <p>${rule}</p>
+                </div>
+              `
+                )
+                .join('')}
+            </article>
+            <article class="ds-fallback-copy">
+              <h3>状态文案</h3>
+              ${fallbackContentRules
+                .map(
+                  ([state, rule]) => `
+                <div>
+                  <span>${state}</span>
+                  <p>${rule}</p>
+                </div>
+              `
+                )
+                .join('')}
+            </article>
+          </div>
+          <article class="ds-world-content">
+            <h3>五个站点的真实信息主语</h3>
+            ${worldContentRules
+              .map(
+                ([mode, fields, rule]) => `
+              <div data-sos-site="${mode}">
+                <span class="sos-badge sos-badge--solid">${mode}</span>
+                <code>${fields}</code>
+                <p>${rule}</p>
+              </div>
+            `
+              )
+              .join('')}
+          </article>
         </section>
 
         <section class="ds-section" id="layout">

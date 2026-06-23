@@ -73,6 +73,16 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'
 - 不把页面特例做成组件 variant。新增 variant 前必须先更新规范页和状态矩阵。
 - 不替代 `@haruhi/auth-ui`。鉴权 UI 仍由 `packages/auth-ui` 维护，后续可逐步消费本包基础件。
 
+## 内容职责
+
+`@haruhi/ui` 只封装 anatomy、状态和可访问性，不生成业务内容：
+
+- Button 文案由调用方传入，必须指向明确动作。
+- Field 的 label、help、error 来自具体表单语义，不能只靠 placeholder。
+- EmptyState 必须说明为空原因和下一步，不能只传“暂无数据”。
+- Progress 的 `label` 和 `valueLabel` 应保留当前值、目标值或百分比。
+- Card wrapper 不决定标题、价格、库存、日期、作者等业务字段。
+
 ## 准入分级
 
 | Level | 名称                   | 落点                    | 说明                                                   |

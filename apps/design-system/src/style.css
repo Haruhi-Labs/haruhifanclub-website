@@ -479,6 +479,111 @@ textarea {
   line-height: 1.55;
 }
 
+.ds-content-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sos-space-4);
+}
+
+.ds-content-rule-grid article,
+.ds-data-format,
+.ds-fallback-copy,
+.ds-world-content {
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-5);
+}
+
+.ds-content-rule-grid h3,
+.ds-content-rule-grid p,
+.ds-data-format h3,
+.ds-fallback-copy h3,
+.ds-world-content h3 {
+  margin: 0;
+}
+
+.ds-content-rule-grid h3,
+.ds-data-format h3,
+.ds-fallback-copy h3,
+.ds-world-content h3 {
+  font-size: var(--sos-text-lg);
+  line-height: 1.3;
+}
+
+.ds-content-rule-grid p {
+  margin-top: var(--sos-space-3);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.65;
+}
+
+.ds-content-lab {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(20rem, 0.88fr);
+  gap: var(--sos-space-4);
+}
+
+.ds-data-format,
+.ds-fallback-copy,
+.ds-world-content {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-3);
+}
+
+.ds-data-format div,
+.ds-fallback-copy div,
+.ds-world-content div {
+  display: grid;
+  gap: var(--sos-space-2);
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-subtle);
+  padding: var(--sos-space-4);
+}
+
+.ds-data-format div {
+  grid-template-columns: 4.5rem 8rem minmax(0, 1fr);
+  align-items: baseline;
+}
+
+.ds-data-format strong,
+.ds-fallback-copy span {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+}
+
+.ds-data-format code,
+.ds-world-content code {
+  color: var(--sos-link);
+  font-family: var(--sos-font-mono);
+  font-size: var(--sos-text-xs);
+  overflow-wrap: anywhere;
+}
+
+.ds-data-format p,
+.ds-fallback-copy p,
+.ds-world-content p {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.6;
+}
+
+.ds-world-content div {
+  grid-template-columns: 5rem minmax(13rem, 0.95fr) minmax(0, 1.2fr);
+  align-items: center;
+}
+
+.ds-world-content .sos-badge {
+  justify-self: start;
+  width: fit-content;
+}
+
 .ds-component-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1787,6 +1892,7 @@ textarea {
   .ds-architecture,
   .ds-token-grid,
   .ds-token-workbench,
+  .ds-content-rule-grid,
   .ds-maturity-grid,
   .ds-primitive-grid,
   .ds-mode-picker {
@@ -1828,6 +1934,7 @@ textarea {
   .ds-metrics,
   .ds-foundation-grid,
   .ds-component-grid,
+  .ds-content-lab,
   .ds-layout-lab,
   .ds-quality-grid,
   .ds-ui-mvp,
@@ -1850,7 +1957,9 @@ textarea {
   }
 
   .ds-token-row,
-  .ds-expression-row {
+  .ds-expression-row,
+  .ds-data-format div,
+  .ds-world-content div {
     grid-template-columns: 1fr;
     gap: var(--sos-space-2);
   }
@@ -1893,6 +2002,7 @@ textarea {
   .ds-architecture,
   .ds-token-grid,
   .ds-token-workbench,
+  .ds-content-rule-grid,
   .ds-maturity-grid,
   .ds-primitive-grid,
   .ds-mode-picker {
