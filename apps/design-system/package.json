@@ -1,6 +1,6 @@
 {
   "name": "@haruhi/design-system-docs",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,9 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@haruhi/design-system": "workspace:*"
+    "@haruhi/design-system": "workspace:*",
+    "@haruhi/ui": "workspace:*",
+    "vue": "^3.5.22"
   },
   "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
     "vite": "^7.1.11"
   }
 }
