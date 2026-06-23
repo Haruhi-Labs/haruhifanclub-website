@@ -34,12 +34,17 @@
         </div>
 
         <div
-          :class="['time-shift-stack', { 'is-hovering': shiftHovering }]"
-          aria-label="时间跃迁层"
+          :class="['shift-hover-field', { 'is-hovering': shiftHovering }]"
+          aria-hidden="true"
           @pointerenter="onShiftEnter"
           @pointermove="onShiftMove"
           @pointerleave="onShiftLeave"
           @pointercancel="onShiftLeave"
+        ></div>
+
+        <div
+          :class="['time-shift-stack', { 'is-hovering': shiftHovering }]"
+          aria-label="时间跃迁层"
         >
           <div class="shift-label">
             <span>TIME JUMP</span>
@@ -679,6 +684,23 @@ const stageStyle = {
   text-shadow: 0 0 18px rgba(255, 99, 125, 0.45);
 }
 
+.art-home .shift-hover-field {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 9;
+  width: 190px;
+  height: 100dvh;
+  pointer-events: auto;
+  background: transparent;
+  touch-action: none;
+  transition: width 0.28s ease;
+}
+
+.art-home .shift-hover-field.is-hovering {
+  width: 390px;
+}
+
 .art-home .time-shift-stack {
   position: fixed;
   left: 0;
@@ -691,7 +713,7 @@ const stageStyle = {
   transform-origin: left center;
   transform-style: preserve-3d;
   perspective: 1400px;
-  pointer-events: auto;
+  pointer-events: none;
   opacity: 0.34;
   filter: saturate(0.74) brightness(0.86);
   isolation: isolate;
@@ -771,7 +793,7 @@ const stageStyle = {
   inset: 0;
   height: 100%;
   transform-style: preserve-3d;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .art-home .shift-layer {
