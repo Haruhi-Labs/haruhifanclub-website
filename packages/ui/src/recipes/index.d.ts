@@ -38,11 +38,12 @@ export const SosProductCard: DefineComponent<{
 export const SosArtworkCard: DefineComponent<{
   title: string
   author?: string
+  category?: string
   image?: string
   imageAlt?: string
   ratio?: '4:3' | '1:1' | '3:4' | '16:9'
+  tags?: string[]
   likes?: number
-  views?: number
 }>
 export const SosBookCard: DefineComponent<{
   title: string

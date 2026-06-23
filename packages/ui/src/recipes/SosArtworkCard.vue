@@ -5,19 +5,21 @@ const props = withDefaults(
   defineProps<{
     title: string
     author?: string
+    category?: string
     image?: string
     imageAlt?: string
     ratio?: '4:3' | '1:1' | '3:4' | '16:9'
+    tags?: string[]
     likes?: number
-    views?: number
   }>(),
   {
     author: undefined,
+    category: undefined,
     image: undefined,
     imageAlt: '',
     ratio: '4:3',
+    tags: () => [],
     likes: undefined,
-    views: undefined,
   }
 )
 
@@ -30,7 +32,7 @@ const ratioValue = computed(() => props.ratio.replace(':', ' / '))
 
 <template>
   <article
-    class="sos-card sos-artwork-card"
+    class="sos-card sos-artwork-card sos-card--interactive"
     role="button"
     tabindex="0"
     @click="emit('click')"
@@ -38,20 +40,17 @@ const ratioValue = computed(() => props.ratio.replace(':', ' / '))
   >
     <div class="sos-artwork-card__frame" :style="{ '--sos-artwork-ratio': ratioValue }">
       <img v-if="image" :src="image" :alt="imageAlt || title" />
-      <div class="sos-artwork-card__veil">
-        <h3 class="sos-artwork-card__veil-title">{{ title }}</h3>
-        <span v-if="author" class="sos-artwork-card__veil-author">{{ author }}</span>
-      </div>
     </div>
-    <div class="sos-artwork-card__caption">
-      <div>
+    <div class="sos-artwork-card__bar">
+      <div class="sos-artwork-card__bar-main">
+        <span v-if="category" class="sos-artwork-card__cat">{{ category }}</span>
         <h3 class="sos-artwork-card__title">{{ title }}</h3>
         <p v-if="author" class="sos-artwork-card__author">{{ author }}</p>
+        <div v-if="tags.length" class="sos-artwork-card__tags">
+          <span v-for="tag in tags" :key="tag" class="sos-artwork-card__tag">#{{ tag }}</span>
+        </div>
       </div>
-      <div v-if="likes !== undefined || views !== undefined" class="sos-artwork-card__stats">
-        <span v-if="likes !== undefined" class="sos-stat">♥ {{ likes }}</span>
-        <span v-if="views !== undefined" class="sos-stat">◉ {{ views }}</span>
-      </div>
+      <span v-if="likes !== undefined" class="sos-artwork-card__like">♥ {{ likes }}</span>
     </div>
   </article>
 </template>
