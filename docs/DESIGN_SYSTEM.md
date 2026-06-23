@@ -512,16 +512,20 @@ Badge 不处理点击行为。需要点击、提交或导航时使用 Button、L
 
 ## 16. 可访问性
 
-- 普通文本达到 WCAG AA。
-- 可点击元素最小 44px，核心 CTA 48px。
-- 全流程可键盘操作。
-- `focus-visible` 明确。
-- Modal 正确管理焦点、关闭与背景 inert。
-- Toast 使用适当 `aria-live`。
-- 图片提供有意义的 alt，装饰图使用空 alt。
-- 状态不只靠颜色。
-- Reduced Motion、Forced Colors、200% 缩放均需验收。
-- 中文页面设置正确 `lang="zh-CN"`。
+可访问性是上线门槛，不是发布前最后修饰。涉及 UI MVP、页面模式或业务 recipe 的 PR 必须提供可复查证据。
+
+| Gate           | 验收要求                                                       |
+| -------------- | -------------------------------------------------------------- |
+| Text Contrast  | 普通文本达到 WCAG AA；弱文本不承担唯一状态证据                 |
+| Keyboard       | 全流程可键盘操作；Tab 顺序与视觉顺序一致；`focus-visible` 明确 |
+| Touch Target   | 可点击元素最小 44px；核心 CTA 48px；相邻目标有足够间距         |
+| State Evidence | 状态不只靠颜色，必须有文字、图标、位置或形状证据               |
+| Dialog / Toast | Dialog 管理焦点、关闭与背景 inert；Toast 使用适当 `aria-live`  |
+| Media          | 图片提供有意义的 alt；装饰图使用空 alt                         |
+| Reduced Motion | 位移、旋转和视差降级；信息时序和操作反馈不改变                 |
+| Forced Colors  | 边框、文字、焦点和可点击区域仍可辨认                           |
+| Zoom           | 200% 缩放不遮挡正文、表单、按钮和关键状态                      |
+| Locale         | 中文页面设置正确 `lang="zh-CN"`                                |
 
 ## 17. 迁移策略
 

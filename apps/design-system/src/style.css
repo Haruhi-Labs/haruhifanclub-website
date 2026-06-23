@@ -1052,6 +1052,122 @@ textarea {
   box-shadow: var(--sos-shadow-card);
 }
 
+.ds-a11y-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--sos-space-4);
+}
+
+.ds-a11y-card {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-2);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-5);
+}
+
+.ds-a11y-card strong {
+  color: var(--sos-link);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+}
+
+.ds-a11y-card p {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.65;
+}
+
+.ds-a11y-lab {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sos-space-4);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-lg);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-5);
+}
+
+.ds-a11y-lab > section {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: var(--sos-space-3);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-subtle);
+  padding: var(--sos-space-4);
+}
+
+.ds-a11y-lab h3,
+.ds-a11y-lab p {
+  margin: 0;
+}
+
+.ds-a11y-lab h3 {
+  font-size: var(--sos-text-lg);
+  line-height: 1.25;
+}
+
+.ds-a11y-focus-row,
+.ds-touch-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sos-space-3);
+  align-items: center;
+}
+
+.ds-touch-targets .sos-button {
+  min-width: 8rem;
+}
+
+.ds-live-region {
+  display: grid;
+  gap: var(--sos-space-2);
+  border: 1px solid color-mix(in srgb, var(--sos-success) 36%, var(--sos-border-subtle));
+  border-radius: var(--sos-radius-md);
+  background: color-mix(in srgb, var(--sos-mint-50) 66%, var(--sos-bg-surface));
+  padding: var(--sos-space-4);
+}
+
+.ds-live-region strong {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-sm);
+}
+
+.ds-live-region span,
+.ds-fallback-grid p {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.6;
+}
+
+.ds-a11y-wide {
+  grid-column: 1 / -1;
+}
+
+.ds-fallback-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sos-space-3);
+}
+
+.ds-fallback-grid > div {
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-4);
+}
+
+.ds-fallback-grid strong {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-xs);
+}
+
 .ds-quality-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1369,6 +1485,8 @@ textarea {
   .ds-guide-shell,
   .ds-guide-panel,
   .ds-page-lab__body,
+  .ds-a11y-lab,
+  .ds-fallback-grid,
   .ds-mode-stage,
   .ds-acceptance {
     grid-template-columns: 1fr;

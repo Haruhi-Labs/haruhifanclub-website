@@ -152,6 +152,7 @@ const navItems = [
   ['expressions', '表达模式'],
   ['voice', '组件变声'],
   ['patterns', '页面模式'],
+  ['a11y', '可访问性'],
   ['quality', '状态响应式'],
   ['migration', '迁移验收'],
 ]
@@ -671,6 +672,16 @@ const pagePatterns = [
     'Notice / EmptyState / Progress / Error',
     '系统状态跨站统一体验，只让 tone 和上下文文案变化。',
   ],
+]
+
+const a11yGates = [
+  ['Keyboard', 'Tab 顺序与视觉顺序一致；focus-visible 明确且不被 sticky 或浮层遮挡。'],
+  ['Touch', '核心点击目标不小于 44px；主 CTA 建议 48px；相邻按钮保留 8px 以上距离。'],
+  ['State Evidence', '错误、成功、禁用和加载状态不能只靠颜色，必须有文字、图标、位置或形状证据。'],
+  ['ARIA', 'Toast 使用 aria-live；Dialog 管理焦点；状态变化有可读名称。'],
+  ['Reduced Motion', '位移、旋转、视差降级；信息时序和操作反馈不改变。'],
+  ['Forced Colors', '边框、文字、焦点和可点击区域在强制颜色模式仍可辨认。'],
+  ['Zoom', '200% 缩放不遮挡正文、表单、按钮和关键状态。'],
 ]
 
 const app = document.querySelector('#app')
@@ -1208,6 +1219,83 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
               <span>已选 3 件商品</span>
               <button class="sos-button sos-button--primary sos-button--sm">继续处理</button>
             </footer>
+          </article>
+        </section>
+
+        <section class="ds-section" id="a11y">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">Accessibility Gates</p>
+            <h2>可访问性是上线门槛，不是最后修饰</h2>
+            <p>设计系统接入必须证明键盘、触控、状态证据、读屏公告、Reduced Motion、Forced Colors 和 200% 缩放都可用。这里的验收样例用于 PR 截图和回归检查。</p>
+          </div>
+          <div class="ds-a11y-grid">
+            ${a11yGates
+              .map(
+                ([name, rule]) => `
+              <article class="ds-a11y-card">
+                <strong>${name}</strong>
+                <p>${rule}</p>
+              </article>
+            `
+              )
+              .join('')}
+          </div>
+          <article class="ds-a11y-lab">
+            <section>
+              <span class="sos-badge sos-badge--signal">Keyboard</span>
+              <h3>焦点路径清楚</h3>
+              <div class="ds-a11y-focus-row" aria-label="焦点路径示例">
+                <button class="sos-button sos-button--secondary" data-state="focus">1 保存草稿</button>
+                <button class="sos-button sos-button--primary">2 提交审核</button>
+                <a class="sos-button sos-button--ghost" href="#migration">3 查看迁移门槛</a>
+              </div>
+            </section>
+            <section>
+              <span class="sos-badge sos-badge--signal">Touch</span>
+              <h3>触控目标稳定</h3>
+              <div class="ds-touch-targets">
+                <button class="sos-button sos-button--sm">36px 次要</button>
+                <button class="sos-button sos-button--secondary">44px 默认</button>
+                <button class="sos-button sos-button--primary sos-button--lg">48px 主行动</button>
+              </div>
+            </section>
+            <section>
+              <span class="sos-badge sos-badge--signal">Evidence</span>
+              <h3>状态不只靠颜色</h3>
+              <div class="sos-notice sos-notice--danger">
+                <span class="sos-notice__icon">!</span>
+                <div>
+                  <h4 class="sos-notice__title">提交失败</h4>
+                  <p class="sos-notice__copy">网络超时，请保留当前内容后重试。错误有图标、标题、正文和边框证据。</p>
+                </div>
+              </div>
+            </section>
+            <section>
+              <span class="sos-badge sos-badge--signal">Live Region</span>
+              <h3>读屏公告有语义</h3>
+              <div class="ds-live-region" aria-live="polite">
+                <strong>草稿已保存</strong>
+                <span>aria-live="polite" 用于非阻断结果；需要决策时改用 Dialog。</span>
+              </div>
+            </section>
+            <section class="ds-a11y-wide">
+              <span class="sos-badge sos-badge--signal">Fallback</span>
+              <h3>降级模式要保留信息</h3>
+              <div class="ds-fallback-grid">
+                <div>
+                  <strong>Reduced Motion</strong>
+                  <p>去掉位移和旋转，保留加载、完成、错误文案。</p>
+                </div>
+                <div>
+                  <strong>Forced Colors</strong>
+                  <p>边框和焦点仍可见，不依赖背景渐变。</p>
+                </div>
+                <div>
+                  <strong>200% Zoom</strong>
+                  <p>文本换行后不遮挡按钮、输入框和状态区域。</p>
+                </div>
+              </div>
+            </section>
           </article>
         </section>
 
