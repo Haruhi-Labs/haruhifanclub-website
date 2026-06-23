@@ -2,7 +2,7 @@
 
 SOS / Parallel Design System 的 CSS-first 共享包。
 
-这个包只提供框架无关样式契约，不提供 Vue 或 React 组件。现阶段它和 `packages/ui` 分开：前者负责 token、基础 class contract 和旧变量 bridge；后者仍预留给未来真正稳定的组件封装。
+这个包只提供框架无关样式契约，不提供 Vue 或 React 组件。它和 `@haruhi/ui` 分开：本包负责 token、基础 class contract 和旧变量 bridge；`@haruhi/ui` 只做 Vue wrapper，输出同一套 class，不重新定义视觉。
 
 ## 导出
 
@@ -71,3 +71,13 @@ import '@haruhi/design-system/bridges.css'
 6. 再迁移业务卡片和页面骨架。
 
 不要在未盘点旧变量前扩大 bridge。bridge 是过渡层，不是新变量命名空间。
+
+## 和 @haruhi/ui 的关系
+
+`@haruhi/ui` 已启用 MVP，适合在 Vue app 中复用稳定基础件：Button、Badge、Field、Notice、Progress、Card、HeaderBrand、Stack、Inline、Surface、MediaFrame。
+
+业务 app 不必须立刻引入 `@haruhi/ui`。迁移优先级仍是：
+
+1. 先接入本包 token 和 class contract。
+2. 再把重复出现的基础控件替换为 `@haruhi/ui` wrapper。
+3. 最后才评估业务卡片是否可以抽成共享 recipe 或组件。

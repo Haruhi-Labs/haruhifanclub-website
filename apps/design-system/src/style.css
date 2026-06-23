@@ -295,6 +295,12 @@ textarea {
   line-height: 1.7;
 }
 
+.ds-code--compact {
+  margin: 0;
+  padding: var(--sos-space-4);
+  font-size: var(--sos-text-xs);
+}
+
 .ds-token-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -569,6 +575,30 @@ textarea {
 
 .ds-contract-row p {
   margin: 0;
+}
+
+.ds-ui-mvp {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: var(--sos-space-5);
+  align-items: start;
+}
+
+.ds-ui-mvp .sos-badge {
+  margin-bottom: var(--sos-space-3);
+}
+
+.ds-ui-mvp h3 {
+  margin: 0 0 var(--sos-space-2);
+  font-size: var(--sos-text-lg);
+  line-height: 1.25;
+}
+
+.ds-ui-mvp p {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.65;
 }
 
 .ds-mode-picker {
@@ -921,6 +951,7 @@ textarea {
   .ds-layout-lab,
   .ds-quality-grid,
   .ds-state-demo,
+  .ds-ui-mvp,
   .ds-mode-stage,
   .ds-acceptance {
     grid-template-columns: 1fr;

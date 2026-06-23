@@ -258,9 +258,9 @@ const markdownUrl = URL.createObjectURL(
 app.innerHTML = `
   <main class="sos-scope ds-app">
     <header class="ds-topbar">
-      <a class="ds-brand" href="#overview" aria-label="返回设计规范总览">
-        <span class="ds-brand__mark"><img src="${logoUrl}" alt="" aria-hidden="true"></span>
-        <span>
+      <a class="ds-brand sos-brand-lockup sos-brand-lockup--compact" href="#overview" aria-label="返回设计规范总览">
+        <span class="ds-brand__mark sos-brand-lockup__mark"><img src="${logoUrl}" alt="" aria-hidden="true"></span>
+        <span class="sos-brand-lockup__text">
           <strong>SOS / Parallel Design System</strong>
           <small>项目内正式设计规范 · v0.2.0</small>
         </span>
@@ -299,7 +299,7 @@ app.innerHTML = `
           <div class="ds-section__header">
             <p class="sos-eyebrow">Monorepo Contract</p>
             <h2>接入结构</h2>
-            <p>规范页和共享样式是新增能力，不把现有业务 app 立即改造成同一套组件库。<code>packages/ui</code> 继续保留给未来稳定组件，当前设计系统先以 CSS-first 方式落地。</p>
+            <p>规范页和共享样式是新增能力，不把现有业务 app 立即改造成同一套组件库。v0.2 先稳定 CSS 契约，并启动 <code>@haruhi/ui</code> 的 Vue 基础组件 MVP。</p>
           </div>
           <div class="ds-architecture">
             <article>
@@ -318,17 +318,21 @@ app.innerHTML = `
               <p>正式文字规范，记录项目约束、Do / Don't、迁移阶段和上线检查项。</p>
             </article>
             <article>
-              <span>Reserved</span>
+              <span>Vue MVP</span>
               <h3>packages/ui</h3>
-              <p>仍作为未来组件封装位置。只有跨 app 形态稳定后，才把 Vue 组件从业务 app 抽到这里。</p>
+              <p>导出 Button、Badge、Field、Notice、Progress、Card、HeaderBrand 和布局 wrapper。它只输出既有 class，不重新定义视觉。</p>
             </article>
           </div>
-          <pre class="ds-code"><code>import '@haruhi/design-system/tokens.css'
+          <pre class="ds-code"><code>// CSS-first 接入
+import '@haruhi/design-system/tokens.css'
 import '@haruhi/design-system/components.css'
 
 &lt;section class="sos-scope" data-sos-site="shop"&gt;
   &lt;button class="sos-button sos-button--primary"&gt;加入购物车&lt;/button&gt;
-&lt;/section&gt;</code></pre>
+&lt;/section&gt;
+
+// Vue wrapper MVP
+import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
         </section>
 
         <section class="ds-section" id="foundations">
@@ -400,22 +404,22 @@ import '@haruhi/design-system/components.css'
               <h3>Header 标识组合</h3>
               <p>Header 使用 <code>haruhi-logo-192.png</code> 加标题文字。图形保持一致，文字可以按站点气质调整，但尺寸、间距和行高要稳定。</p>
               <div class="ds-lockup-demo">
-                <div class="ds-lockup">
+                <div class="ds-lockup sos-brand-lockup">
                   <img src="${logoUrl}" alt="">
-                  <div>
+                  <div class="sos-brand-lockup__text">
                     <strong>Haruhi Fan Club</strong>
                     <span>统一站群入口</span>
                   </div>
                 </div>
-                <div class="ds-lockup ds-lockup--compact">
+                <div class="ds-lockup ds-lockup--compact sos-brand-lockup sos-brand-lockup--compact">
                   <img src="${logoUrl}" alt="">
-                  <div>
+                  <div class="sos-brand-lockup__text">
                     <strong>春日团报</strong>
                   </div>
                 </div>
-                <div class="ds-lockup ds-lockup--site" data-sos-site="shop">
+                <div class="ds-lockup ds-lockup--site sos-brand-lockup" data-sos-site="shop">
                   <img src="${logoUrl}" alt="">
-                  <div>
+                  <div class="sos-brand-lockup__text">
                     <strong>春日商城</strong>
                     <span>预售、订单与周边</span>
                   </div>
@@ -516,7 +520,20 @@ import '@haruhi/design-system/components.css'
           <div class="ds-section__header">
             <p class="sos-eyebrow">Component Contract</p>
             <h2>UI 库先封装稳定 anatomy</h2>
-            <p>后续 <code>packages/ui</code> 只封装这些已经稳定的基础组件。业务卡片先作为 recipe 验证，不急着抽成跨站组件。</p>
+            <p><code>@haruhi/ui</code> 已启用 Vue MVP，只封装这些已经稳定的基础组件。业务卡片先作为 recipe 验证，不急着抽成跨站组件。</p>
+          </div>
+          <div class="ds-ui-mvp sos-surface sos-surface--padded">
+            <div>
+              <span class="sos-badge sos-badge--signal">UI MVP</span>
+              <h3>先抽基础件，不抽业务卡片</h3>
+              <p>Button、Badge、Field、Notice、Progress、Card、HeaderBrand、Stack、Inline、Surface 和 MediaFrame 已进入 <code>@haruhi/ui</code>。每个 wrapper 只负责 props、slot、可访问性和 class 组合。</p>
+            </div>
+            <pre class="ds-code ds-code--compact"><code>&lt;SosStack gap="loose" data-sos-site="shop"&gt;
+  &lt;SosField label="商品标题" help="Label 不被 placeholder 替代"&gt;
+    &lt;input class="sos-input" value="SOS 团限定徽章" /&gt;
+  &lt;/SosField&gt;
+  &lt;SosButton&gt;保存商品&lt;/SosButton&gt;
+&lt;/SosStack&gt;</code></pre>
           </div>
           <div class="ds-contract-table" role="table" aria-label="Component contract matrix">
             <div role="row" class="ds-contract-row ds-contract-row--head">
