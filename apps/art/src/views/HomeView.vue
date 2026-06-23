@@ -876,7 +876,7 @@ const stageStyle = {
 }
 
 .art-home .shift-hover-field.is-hovering {
-  width: 128px;
+  width: min(30vw, 268px);
 }
 
 .art-home .shift-hover-field.is-dragging {
