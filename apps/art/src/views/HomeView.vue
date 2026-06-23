@@ -967,7 +967,7 @@ const stageStyle = {
 :global(html:not(.art-lights-out)) .art-home .light-collage {
   position: fixed;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   display: block;
   overflow: hidden;
   pointer-events: none;

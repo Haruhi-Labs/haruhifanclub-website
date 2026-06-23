@@ -185,6 +185,15 @@ onBeforeUnmount(() => {
   transform: translateX(1px);
 }
 
+html.art-home-route:not(.art-lights-out) .topbar__inner {
+  z-index: 1200;
+}
+
+html.art-home-route:not(.art-lights-out) .secret-toolbar {
+  z-index: 1300;
+  pointer-events: auto;
+}
+
 .lights-toggle__text {
   font-size: 13px;
   font-weight: 900;
