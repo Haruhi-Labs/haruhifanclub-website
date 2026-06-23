@@ -344,6 +344,10 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.ds-manual-grid--baseline {
+  margin-top: var(--sos-space-6);
+}
+
 .ds-benchmark-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }

@@ -197,20 +197,20 @@ const siteReadinessRows = [
   [
     '@haruhi/shop',
     '商品卡 / 筛选 / 购物车 / 订单 / 后台表单',
-    '旧变量完整，bridge 命中高；raw color、椭圆按钮、临时阴影和间距较多。',
-    '已接入 CSS-first scope：shop 前台与后台。',
+    '旧变量完整，bridge 命中高；但部分接入后卡片节奏和交易质感退化。',
+    '已接入但需视觉复核，暂不作为成功样板。',
   ],
   [
     '@haruhi/art',
     '作品网格 / 筛选 / 上传 / 审核 / 弹窗',
-    '媒体比例和磨砂质感成熟；颜色、状态、上传表单样式分散。',
-    '已接入 CSS-first scope：art 画廊壳层。',
+    '媒体比例和磨砂质感原本较成熟；部分接入后作品主位和层级变弱。',
+    '已接入但需视觉复核，暂不作为成功样板。',
   ],
   [
     '@haruhi/news',
     '导航 / 文章卡 / 搜索 / 发布后台',
-    '内容结构清楚，但模块跨度大；适合第二批迁移 NavBar 与 NewsCard recipe。',
-    '待做：先建立截图基线。',
+    '内容结构清楚且已有强报纸风格；直接套基础卡片会破坏节奏。',
+    '冻结直接接入；先建立截图基线和保护清单。',
   ],
   [
     '@haruhi/exam',
@@ -229,6 +229,25 @@ const siteReadinessRows = [
     '控制台 / 表格 / 审核 / 通知',
     '中性后台，不需要角色化 expression；适合 compact density。',
     '待做：表格和表单基础件替换。',
+  ],
+]
+
+const visualBaselineRows = [
+  [
+    '基线先行',
+    '接入前保存 390 / 768 / 1280px 当前截图，记录首屏识别、信息密度、卡片节奏和关键动作位置。',
+  ],
+  [
+    '保护优秀部分',
+    'news 的报纸感、art 的作品主位、shop 的交易信息密度都必须作为保护项，不因统一 class 被抹平。',
+  ],
+  [
+    '双轨接入',
+    '基线接入不改 UI；视觉接入必须进入完整流程重设计切片，不能把旧布局局部套上 sos-* class。',
+  ],
+  [
+    '完整重设计',
+    '新的界面要同时处理 Header、内容对象、表单、状态、响应式和交互反馈，形成完整设计语言。',
   ],
 ]
 
@@ -327,6 +346,7 @@ const releaseRules = [
 ]
 
 const implementationSteps = [
+  ['0', '视觉基线', '保存原页面截图，列出必须保留的视觉和信息结构；接入后不能比原页面退化。'],
   [
     '1',
     '入口导入',
@@ -337,20 +357,16 @@ const implementationSteps = [
     '根节点加 scope',
     '给页面根容器加 sos-scope 和 data-sos-site；console 可只用 sos-scope + compact density。',
   ],
-  [
-    '3',
-    '先换布局原语',
-    '用 Stack、Inline、Cluster、Grid、Surface、MediaFrame 处理间距、对齐和媒体比例。',
-  ],
+  ['3', '选择接入模式', '基线接入不改 UI；视觉接入必须进入完整流程重设计切片。'],
   [
     '4',
-    '再换基础控件',
-    '按 Button、Badge、Field、Notice、Progress、EmptyState、Card anatomy 的顺序替换。',
+    '重设计完整对象',
+    '同时处理 Header、内容卡片或数据行、表单、状态、响应式和交互反馈，禁止浅层套壳。',
   ],
   [
     '5',
     '保留业务 recipe',
-    '商品卡、作品卡、书封卡、试卷卡先留在业务 app，用真实数据验证后再评估抽象。',
+    '商品卡、作品卡、书封卡、试卷卡先作为业务 recipe 完整设计，用真实数据验证后再评估抽象。',
   ],
   ['6', '提交证据', 'PR 附 390/768/1280 截图、状态矩阵、a11y 检查、bridge 删除计划和回滚步骤。'],
 ]
@@ -1236,11 +1252,15 @@ const qaEvidenceGroups = [
 
 const qaGateLevels = [
   ['Pass', '可以合并', '所有核心路径可完成；无横向溢出；截图、状态、a11y 和 token 证据齐全。'],
-  ['Review', '需要设计复核', '存在轻微视觉差异，但不影响核心任务、状态证据、响应式和回滚边界。'],
+  [
+    'Review',
+    '需要设计复核',
+    '存在轻微视觉差异，但不影响核心任务、原有优秀部分、状态证据、响应式和回滚边界。',
+  ],
   [
     'Block',
     '不得上线',
-    '核心路径断裂、移动端依赖 hover、状态只靠颜色、关键数据消失或新增 CSS 债务。',
+    '核心路径断裂、视觉比原站点明显退化、移动端依赖 hover、状态只靠颜色、关键数据消失或新增 CSS 债务。',
   ],
 ]
 
@@ -1402,6 +1422,18 @@ app.innerHTML = `
                 <p>${finding}</p>
                 <p>${action}</p>
               </div>
+            `
+              )
+              .join('')}
+          </div>
+          <div class="ds-manual-grid ds-manual-grid--baseline">
+            ${visualBaselineRows
+              .map(
+                ([title, copy]) => `
+              <article>
+                <h3>${title}</h3>
+                <p>${copy}</p>
+              </article>
             `
               )
               .join('')}

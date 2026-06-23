@@ -101,12 +101,13 @@ import '@haruhi/design-system/bridges.css'
 | `@haruhi/exam`    | `exam`           | `apps/exam/src/style.css`        |
 | `@haruhi/console` | `base + compact` | `apps/console/src/style.css`     |
 
+0. 先保存原页面 390 / 768 / 1280px 截图，并列出必须保留的视觉和信息结构。
 1. 在目标 app 的入口样式中引入 `tokens.css`。
 2. 给页面根节点补 `class="sos-scope"` 和对应 `data-sos-site`。
 3. 如果旧 CSS 变量较多，短期加载 `bridges.css`，把旧变量指向新语义 token。
-4. 先使用 `Stack / Inline / Surface / MediaFrame` 统一布局和媒体比例。
-5. 按 Button、Badge、Input、Tabs、Notice、Progress 的顺序迁移基础组件。
-6. 再迁移业务卡片和页面骨架。
+4. 选择接入模式：基线接入不改 UI；视觉接入必须进入完整流程重设计切片。
+5. 重设计切片要同时处理 Header、内容对象、表单、状态、响应式和交互反馈，不把现有布局局部套上 `sos-*` class。
+6. 再迁移页面骨架，并用接入前后截图证明新界面形成完整设计语言且没有视觉退化。
 
 最小入口片段：
 
@@ -130,7 +131,7 @@ import '@haruhi/design-system/bridges.css'
 涉及本包 token、component class 或 bridge 的变更，需要在 PR 中说明：
 
 - 影响的 app、路由、旧变量和未迁移项。
-- 390 / 768 / 1280px 截图，证明无横向溢出且关键数据没有丢失。
+- 接入前后 390 / 768 / 1280px 截图，证明无横向溢出、关键数据没有丢失，且视觉质量没有比原页面退化。
 - 新增样式没有 raw hex、临时阴影、临时圆角或非 4px 网格间距。
 - bridge 变量的 owner、使用范围和删除计划。
 - 移除入口 import 或 bridge 文件后的回滚边界。
