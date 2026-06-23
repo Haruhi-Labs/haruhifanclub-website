@@ -143,6 +143,7 @@ const modes = [
 
 const navItems = [
   ['overview', '总览'],
+  ['manual', '设计手册'],
   ['architecture', '接入结构'],
   ['adoption', '接入矩阵'],
   ['playbook', '接入步骤'],
@@ -160,6 +161,73 @@ const navItems = [
   ['a11y', '可访问性'],
   ['quality', '状态响应式'],
   ['migration', '迁移验收'],
+]
+
+const manualPositioningRows = [
+  ['设计对象前置', '颜色、排版、按钮、导航、卡片、表单、间距、圆角、深度、动效和响应式先讲清楚。'],
+  [
+    '真实业务优先',
+    '示例来自商品、订单、作品、上传、文章、阅读、答题等真实路径，不再用虚构站点占位。',
+  ],
+  ['工程治理后置', '包结构、bridge、版本规则和迁移证据仍保留，但它们服务设计规范，不抢占主线。'],
+  ['UI 库谨慎扩张', '基础组件进入 @haruhi/ui；商品卡、作品卡、试卷卡继续作为 recipe 验证。'],
+]
+
+const benchmarkRows = [
+  [
+    'Airbnb',
+    '18 sections',
+    '颜色、排版、按钮、导航、搜索、分类、房源卡、体验卡、评分、设施、预订栏、日期、表单、城市链接、间距、圆角、深度、响应式。',
+  ],
+  [
+    'Apple / Lumora',
+    '12 sections',
+    '颜色、排版、按钮、产品 tile、商店卡片、配置器、搜索、粘性栏、导航、表单、间距、圆角、深度、响应式。',
+  ],
+  [
+    'Haruhi v0.2.1',
+    '当前修正方向',
+    '压缩纯架构说明，增加真实组件、真实字段、真实页面模式和真实响应式行为。',
+  ],
+]
+
+const siteReadinessRows = [
+  [
+    '@haruhi/shop',
+    '商品卡 / 筛选 / 购物车 / 订单 / 后台表单',
+    '旧变量完整，bridge 命中高；raw color、椭圆按钮、临时阴影和间距较多。',
+    '已接入 CSS-first scope：shop 前台与后台。',
+  ],
+  [
+    '@haruhi/art',
+    '作品网格 / 筛选 / 上传 / 审核 / 弹窗',
+    '媒体比例和磨砂质感成熟；颜色、状态、上传表单样式分散。',
+    '已接入 CSS-first scope：art 画廊壳层。',
+  ],
+  [
+    '@haruhi/news',
+    '导航 / 文章卡 / 搜索 / 发布后台',
+    '内容结构清楚，但模块跨度大；适合第二批迁移 NavBar 与 NewsCard recipe。',
+    '待做：先建立截图基线。',
+  ],
+  [
+    '@haruhi/exam',
+    '试卷 / 题目 / 批阅 / 音频 / 编辑后台',
+    '表达强、状态复杂；适合基础规范稳定后验证动效和状态矩阵。',
+    '待做：答题页状态审计。',
+  ],
+  [
+    '@haruhi/novel',
+    '书架 / 阅读页 / 反馈',
+    '阅读节奏独立，适合验证长文排版、目录和阅读位置 token。',
+    '待做：阅读 token 接入。',
+  ],
+  [
+    '@haruhi/console',
+    '控制台 / 表格 / 审核 / 通知',
+    '中性后台，不需要角色化 expression；适合 compact density。',
+    '待做：表格和表单基础件替换。',
+  ],
 ]
 
 const palette = [
@@ -1059,16 +1127,69 @@ app.innerHTML = `
         <section class="ds-hero" id="overview">
           <p class="sos-eyebrow">One Spine, Five Worlds</p>
           <h1>一套骨架，五个平行世界。</h1>
-          <p class="ds-hero__lead">v0.2 把设计系统从“可看的规范页”推进到“可执行的工程契约”：Token、布局原语、组件 anatomy、状态矩阵和响应式规则先稳定，再进入 Vue UI 库。</p>
+          <p class="ds-hero__lead">设计系统首先要是好的设计，然后才是系统性。v0.2.1 开始把主线从“工程接入说明”压回“项目内设计手册”：设计对象、真实组件、真实页面模式和真实响应式行为先讲清楚。</p>
           <div class="ds-hero__actions">
-            <a class="sos-button sos-button--primary sos-button--lg" href="#architecture">查看接入结构</a>
+            <a class="sos-button sos-button--primary sos-button--lg" href="#manual">查看设计手册定位</a>
             <a class="sos-button sos-button--secondary sos-button--lg" href="#expressions">浏览表达模式</a>
           </div>
           <dl class="ds-metrics" aria-label="设计系统关键数字">
-            <div><dt>3</dt><dd>Primitive / Semantic / Expression</dd></div>
+            <div><dt>2</dt><dd>真实站点已开始接入</dd></div>
             <div><dt>5</dt><dd>业务表达模式</dd></div>
-            <div><dt>6</dt><dd>layout primitives</dd></div>
+            <div><dt>18</dt><dd>成熟案例内容密度参照</dd></div>
           </dl>
+        </section>
+
+        <section class="ds-section" id="manual">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">Design Manual First</p>
+            <h2>这份规范先解决设计质量，再解决接入结构</h2>
+            <p>成熟案例的共同点不是组件多，而是每个组件都放在真实产品语境里说明：颜色为什么这样用、卡片如何承载信息、表单和导航如何响应、移动端怎样折叠。Haruhi 的设计系统也必须先把这些设计对象讲厚。</p>
+          </div>
+          <div class="ds-manual-grid">
+            ${manualPositioningRows
+              .map(
+                ([title, copy]) => `
+              <article>
+                <h3>${title}</h3>
+                <p>${copy}</p>
+              </article>
+            `
+              )
+              .join('')}
+          </div>
+          <div class="ds-benchmark-grid">
+            ${benchmarkRows
+              .map(
+                ([name, count, copy]) => `
+              <article>
+                <span>${name}</span>
+                <strong>${count}</strong>
+                <p>${copy}</p>
+              </article>
+            `
+              )
+              .join('')}
+          </div>
+          <div class="ds-readiness-table" role="table" aria-label="站点设计系统接入审计">
+            <div class="ds-readiness-row ds-readiness-row--head" role="row">
+              <span>App</span>
+              <span>真实 UI 主语</span>
+              <span>审计判断</span>
+              <span>当前动作</span>
+            </div>
+            ${siteReadinessRows
+              .map(
+                ([appName, subject, finding, action]) => `
+              <div class="ds-readiness-row" role="row">
+                <strong>${appName}</strong>
+                <p>${subject}</p>
+                <p>${finding}</p>
+                <p>${action}</p>
+              </div>
+            `
+              )
+              .join('')}
+          </div>
         </section>
 
         <section class="ds-section" id="architecture">

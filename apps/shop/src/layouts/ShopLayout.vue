@@ -1,5 +1,5 @@
 <template>
-  <div class="shop-app">
+  <div class="shop-app sos-scope" data-sos-site="shop">
     <!-- Header: 标准版 (首页/其他) -->
     <header v-if="!isDetailPage" :class="['app-header', 'header-bg', isHomePage ? 'header-expanded' : 'header-collapsed']">
         <div ref="mobileMenuWrapRef" class="mobile-menu-wrap standard-menu-wrap">

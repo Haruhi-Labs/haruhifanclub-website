@@ -41,6 +41,9 @@ importers:
       '@haruhi/auth-ui':
         specifier: workspace:*
         version: link:../../packages/auth-ui
+      '@haruhi/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.6.3)(vue@3.5.35(typescript@5.6.3))
@@ -236,6 +239,9 @@ importers:
       '@haruhi/auth-ui':
         specifier: workspace:*
         version: link:../../packages/auth-ui
+      '@haruhi/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       chart.js:
         specifier: ^4.4.0
         version: 4.5.1

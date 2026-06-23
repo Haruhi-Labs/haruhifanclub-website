@@ -241,6 +241,8 @@ textarea {
 }
 
 .ds-architecture,
+.ds-manual-grid,
+.ds-benchmark-grid,
 .ds-token-grid,
 .ds-foundation-grid,
 .ds-component-grid,
@@ -254,7 +256,17 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.ds-manual-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ds-benchmark-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .ds-architecture article,
+.ds-manual-grid article,
+.ds-benchmark-grid article,
 .ds-token,
 .ds-foundation-grid article,
 .ds-component-grid article,
@@ -273,6 +285,7 @@ textarea {
 }
 
 .ds-architecture h3,
+.ds-manual-grid h3,
 .ds-token h3,
 .ds-foundation-grid h3,
 .ds-component-grid h3,
@@ -285,6 +298,8 @@ textarea {
 }
 
 .ds-architecture p,
+.ds-manual-grid p,
+.ds-benchmark-grid p,
 .ds-token p,
 .ds-foundation-grid p,
 .ds-primitive-card p,
@@ -293,6 +308,80 @@ textarea {
   color: var(--sos-text-secondary);
   font-size: var(--sos-text-sm);
   line-height: 1.65;
+}
+
+.ds-manual-grid article {
+  min-height: 160px;
+}
+
+.ds-manual-grid h3,
+.ds-manual-grid p,
+.ds-benchmark-grid p {
+  margin: 0;
+}
+
+.ds-manual-grid p {
+  margin-top: var(--sos-space-3);
+}
+
+.ds-benchmark-grid article {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-3);
+}
+
+.ds-benchmark-grid span {
+  color: var(--sos-link);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ds-benchmark-grid strong {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-xl);
+  line-height: 1.15;
+}
+
+.ds-readiness-table {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+}
+
+.ds-readiness-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.75fr) minmax(12rem, 1fr) minmax(0, 1.35fr) minmax(0, 1.05fr);
+  gap: var(--sos-space-4);
+  align-items: baseline;
+  border-top: 1px solid var(--sos-border-subtle);
+  padding: var(--sos-space-4);
+}
+
+.ds-readiness-row:first-child {
+  border-top: 0;
+}
+
+.ds-readiness-row--head {
+  background: var(--sos-bg-subtle);
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ds-readiness-row strong {
+  color: var(--sos-link);
+  font-size: var(--sos-text-sm);
+}
+
+.ds-readiness-row p {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.6;
 }
 
 .ds-adoption-table {
@@ -2131,6 +2220,8 @@ textarea {
   }
 
   .ds-architecture,
+  .ds-manual-grid,
+  .ds-benchmark-grid,
   .ds-token-grid,
   .ds-token-workbench,
   .ds-content-rule-grid,
@@ -2174,6 +2265,8 @@ textarea {
   }
 
   .ds-metrics,
+  .ds-manual-grid,
+  .ds-benchmark-grid,
   .ds-foundation-grid,
   .ds-component-grid,
   .ds-content-lab,
@@ -2197,6 +2290,7 @@ textarea {
   .ds-contract-row,
   .ds-contract-row--head,
   .ds-adoption-row,
+  .ds-readiness-row,
   .ds-package-governance div,
   .ds-bridge-rules div,
   .ds-validation-commands div {
@@ -2233,7 +2327,8 @@ textarea {
   }
 
   .ds-contract-row--head,
-  .ds-adoption-row--head {
+  .ds-adoption-row--head,
+  .ds-readiness-row--head {
     display: none;
   }
 }
