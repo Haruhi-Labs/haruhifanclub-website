@@ -124,11 +124,13 @@
           </div>
           <div class="gallery-orbit-window">
             <div class="gallery-orbit-track">
-              <RouterLink
+              <button
                 v-for="layer in galleryOrbitLayers"
                 :key="layer.id"
+                type="button"
                 class="gallery-orbit-layer"
-                :to="layer.to"
+                :aria-label="`双击跳转到画作：${layer.title}`"
+                :title="`${layer.title} / 双击打开`"
                 :style="{
                   '--panel-x': `${layer.x}px`,
                   '--panel-y': `${layer.y}px`,
@@ -140,6 +142,7 @@
                   pointerEvents: layer.hitEvents,
                 }"
                 @click="onGalleryOrbitLayerClick"
+                @dblclick="openGalleryOrbitArtwork(layer.to, $event)"
                 @pointerdown="onGalleryOrbitPointerDown"
                 @pointermove="onGalleryOrbitDrag"
                 @pointerup="onGalleryOrbitGrabEnd"
@@ -148,7 +151,7 @@
                 <img :src="layer.imageUrl" :alt="layer.title" draggable="false" />
                 <span class="gallery-orbit-layer__glow"></span>
                 <span class="gallery-orbit-layer__title">{{ layer.title }}</span>
-              </RouterLink>
+              </button>
             </div>
           </div>
         </div>
@@ -240,8 +243,10 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { seedArtworks, seedCreators } from '../mock/seedData'
 
+const router = useRouter()
 const VISITOR_KEY = 'haruhi-art-visitor-number'
 const DAY_MS = 24 * 60 * 60 * 1000
 const SHIFT_LAYER_COUNT = 32
@@ -413,7 +418,7 @@ const galleryOrbitLayers = computed(() => {
       depth: Number((Math.cos(radians) * SHIFT_WHEEL_DEPTH).toFixed(2)),
       scale: Number((0.72 + depthWeight * 0.32).toFixed(3)),
       alpha: Number((inVisibleSide ? 0.36 + edgeWeight * 0.62 : 0).toFixed(3)),
-      width: Number((220 + depthWeight * 74).toFixed(2)),
+      width: Number((252 + depthWeight * 96).toFixed(2)),
       z: Math.round(20 + depthWeight * 120),
       hitEvents: galleryOrbitVisible.value && inVisibleSide ? 'auto' : 'none',
     }
@@ -718,6 +723,19 @@ function onGalleryOrbitLayerClick(event) {
     event.preventDefault()
     event.stopPropagation()
   }
+}
+
+function openGalleryOrbitArtwork(to, event) {
+  const nowTime = event?.timeStamp || performance.now()
+  if (nowTime < galleryOrbitSuppressClickUntil || galleryOrbitDragging.value) {
+    event?.preventDefault()
+    event?.stopPropagation()
+    return
+  }
+
+  event?.preventDefault()
+  event?.stopPropagation()
+  router.push(to)
 }
 
 function onGlobalShiftContextMenu(event) {
@@ -1684,16 +1702,21 @@ const stageStyle = {
   top: 50%;
   z-index: var(--z);
   width: var(--layer-width);
-  height: 72px;
+  height: 118px;
   display: block;
   overflow: hidden;
+  padding: 0;
   opacity: var(--alpha);
   cursor: pointer;
   user-select: none;
+  appearance: none;
+  font: inherit;
   text-decoration: none;
   border: 1px solid rgba(255, 99, 125, 0.34);
   border-radius: 16px;
-  background: rgba(4, 12, 27, 0.72);
+  background:
+    radial-gradient(circle at 50% 42%, rgba(116, 231, 255, 0.1), transparent 56%),
+    rgba(4, 12, 27, 0.76);
   box-shadow:
     0 16px 34px rgba(0, 0, 0, 0.34),
     0 0 26px rgba(255, 99, 125, 0.14),
@@ -1738,11 +1761,11 @@ const stageStyle = {
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: cover;
-  transform: translateZ(0.02px) scale(1.02);
+  object-fit: contain;
+  transform: translateZ(0.02px) scale(0.96);
   backface-visibility: hidden;
   -webkit-font-smoothing: antialiased;
-  filter: saturate(1.08) contrast(1.06) brightness(0.92);
+  filter: saturate(1.08) contrast(1.06) brightness(0.94);
   pointer-events: none;
 }
 
@@ -1757,8 +1780,8 @@ const stageStyle = {
 .art-home .gallery-orbit-layer__glow {
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(2, 8, 20, 0.72), rgba(2, 8, 20, 0.12) 48%, rgba(255, 99, 125, 0.18)),
-    linear-gradient(0deg, rgba(2, 8, 20, 0.62), transparent 62%);
+    linear-gradient(90deg, rgba(2, 8, 20, 0.34), rgba(2, 8, 20, 0.06) 48%, rgba(255, 99, 125, 0.14)),
+    linear-gradient(0deg, rgba(2, 8, 20, 0.74), rgba(2, 8, 20, 0.22) 34%, transparent 68%);
   mix-blend-mode: multiply;
 }
 
