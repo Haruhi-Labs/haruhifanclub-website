@@ -15,7 +15,13 @@
         <span class="viewport-glass"></span>
       </div>
 
-      <div class="screen-header">
+      <div
+        ref="screenHeaderRef"
+        class="screen-header"
+        @pointerenter="keepShiftVisible"
+        @pointermove="keepShiftVisible"
+        @pointerleave="onShiftLeave"
+      >
         <div>
           <p class="eyebrow">Endless Eight Observatory</p>
           <h1>八月循环观测中枢</h1>
@@ -34,6 +40,7 @@
         </div>
 
         <div
+          ref="shiftHoverFieldRef"
           :class="['shift-hover-field', { 'is-hovering': shiftHovering }]"
           aria-hidden="true"
           @pointerenter="onShiftEnter"
@@ -43,6 +50,7 @@
         ></div>
 
         <div
+          ref="shiftStackRef"
           :class="['time-shift-stack', { 'is-hovering': shiftHovering }]"
           aria-label="时间跃迁层"
         >
@@ -64,7 +72,11 @@
                   '--alpha': layer.alpha,
                   '--layer-width': `${layer.width}px`,
                   '--z': layer.z,
+                  pointerEvents: layer.hitEvents,
                 }"
+                @pointerenter="onShiftEnter"
+                @pointermove="onShiftMove"
+                @pointerleave="onShiftLeave"
               >
                 <span class="shift-layer__line"></span>
                 <span class="shift-layer__meta">{{ layer.code }}</span>
@@ -73,7 +85,14 @@
           </div>
         </div>
 
-        <div class="time-device" aria-label="画廊数据时间环">
+        <div
+          ref="timeDeviceRef"
+          class="time-device"
+          aria-label="画廊数据时间环"
+          @pointerenter="keepShiftVisible"
+          @pointermove="keepShiftVisible"
+          @pointerleave="onShiftLeave"
+        >
           <div class="orbit orbit-outer"></div>
           <div class="orbit orbit-middle"></div>
           <div class="orbit orbit-inner"></div>
@@ -154,7 +173,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { seedArtworks, seedCreators } from '../mock/seedData'
 
 const VISITOR_KEY = 'haruhi-art-visitor-number'
@@ -237,7 +256,13 @@ const satelliteMetrics = [
 
 const shiftHovering = ref(false)
 const shiftRotation = ref(0)
+const shiftHoverFieldRef = ref(null)
+const shiftStackRef = ref(null)
+const screenHeaderRef = ref(null)
+const timeDeviceRef = ref(null)
 let shiftLastY = null
+let shiftLastX = 0
+let shiftHideFrame = 0
 
 function normalizeShiftAngle(value) {
   let next = value % 360
@@ -272,32 +297,94 @@ const timeShiftLayers = computed(() =>
       alpha: Number((inVisibleSide ? 0.24 + edgeWeight * 0.72 : 0).toFixed(3)),
       width: Math.round(306 + depthWeight * 74),
       z: Math.round(20 + depthWeight * 120),
+      hitEvents: inVisibleSide ? 'auto' : 'none',
     }
   })
 )
 
-function onShiftEnter(event) {
-  shiftHovering.value = true
+function cancelShiftHide() {
+  if (shiftHideFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(shiftHideFrame)
+  }
+  shiftHideFrame = 0
+}
+
+function rememberShiftPointer(event) {
+  shiftLastX = event.clientX
   shiftLastY = event.clientY
 }
 
+function isPointInsideElement(element, x, y, padding = 0) {
+  if (!element) return false
+  const rect = element.getBoundingClientRect()
+  return (
+    x >= rect.left - padding
+    && x <= rect.right + padding
+    && y >= rect.top - padding
+    && y <= rect.bottom + padding
+  )
+}
+
+function isPointerInShiftKeepZone() {
+  return (
+    isPointInsideElement(shiftHoverFieldRef.value, shiftLastX, shiftLastY, 2)
+    || isPointInsideElement(shiftStackRef.value, shiftLastX, shiftLastY, 2)
+    || isPointInsideElement(screenHeaderRef.value, shiftLastX, shiftLastY, 8)
+    || isPointInsideElement(timeDeviceRef.value, shiftLastX, shiftLastY, 8)
+  )
+}
+
+function onShiftEnter(event) {
+  cancelShiftHide()
+  shiftHovering.value = true
+  rememberShiftPointer(event)
+}
+
+function keepShiftVisible(event) {
+  if (!shiftHovering.value) return
+  cancelShiftHide()
+  rememberShiftPointer(event)
+}
+
 function onShiftMove(event) {
+  cancelShiftHide()
+  shiftHovering.value = true
   if (shiftLastY === null) {
-    shiftLastY = event.clientY
+    rememberShiftPointer(event)
     return
   }
 
   const diff = event.clientY - shiftLastY
   if (Math.abs(diff) >= 1) {
     shiftRotation.value = normalizeShiftRotation(shiftRotation.value + diff * SHIFT_ROTATE_SPEED)
-    shiftLastY = event.clientY
   }
+  rememberShiftPointer(event)
 }
 
-function onShiftLeave() {
+function hideShiftWheel() {
   shiftHovering.value = false
   shiftLastY = null
 }
+
+function onShiftLeave(event) {
+  rememberShiftPointer(event)
+  cancelShiftHide()
+  if (typeof window === 'undefined') {
+    hideShiftWheel()
+    return
+  }
+
+  shiftHideFrame = window.requestAnimationFrame(() => {
+    shiftHideFrame = 0
+    if (!isPointerInShiftKeepZone()) {
+      hideShiftWheel()
+    }
+  })
+}
+
+onBeforeUnmount(() => {
+  cancelShiftHide()
+})
 
 const tagCounts = approvedArtworks.reduce((map, item) => {
   for (const tag of item.tags || []) {
