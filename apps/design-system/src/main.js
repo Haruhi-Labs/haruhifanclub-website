@@ -733,6 +733,55 @@ const responsiveRules = [
   ['1440+', 'Wide', '只增加留白和列数，不放大字体或卡片内部 padding。'],
 ]
 
+const qaEvidenceGroups = [
+  [
+    'Scope',
+    '变更范围',
+    '列出 app、路由、组件、旧变量 bridge、未迁移项和回滚入口。',
+    'PR 描述 + diff 链接',
+  ],
+  [
+    'Visual',
+    '视觉回归',
+    '保存 390 / 768 / 1280px 前后截图，检查首屏主操作、关键数据和信息层级。',
+    'Playwright 截图',
+  ],
+  [
+    'Interaction',
+    '交互状态',
+    '键盘路径、hover、focus-visible、loading、disabled、empty、error 都有可见证据。',
+    '状态矩阵截图',
+  ],
+  [
+    'A11y',
+    '可访问性',
+    '验证触控目标、读屏名称、aria-live、Reduced Motion、Forced Colors 和 200% Zoom。',
+    '检查记录 + 截图',
+  ],
+  [
+    'CSS Debt',
+    '样式债务',
+    '新增样式不写 raw hex、临时阴影、临时圆角；bridge 变量有 owner 和删除计划。',
+    'rg 输出 + 说明',
+  ],
+  [
+    'Rollback',
+    '回滚边界',
+    '说明如何移除入口 import 或 bridge 文件回滚视觉接入，不影响 API 和数据结构。',
+    '回滚步骤',
+  ],
+]
+
+const qaGateLevels = [
+  ['Pass', '可以合并', '所有核心路径可完成；无横向溢出；截图、状态、a11y 和 token 证据齐全。'],
+  ['Review', '需要设计复核', '存在轻微视觉差异，但不影响核心任务、状态证据、响应式和回滚边界。'],
+  [
+    'Block',
+    '不得上线',
+    '核心路径断裂、移动端依赖 hover、状态只靠颜色、关键数据消失或新增 CSS 债务。',
+  ],
+]
+
 const pagePatterns = [
   [
     'AppShell',
@@ -1578,6 +1627,39 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
             `
               )
               .join('')}
+          </div>
+          <div class="ds-qa-board">
+            <article class="ds-qa-evidence">
+              <h3>PR 证据包</h3>
+              <div class="ds-qa-evidence-grid">
+                ${qaEvidenceGroups
+                  .map(
+                    ([label, title, copy, proof]) => `
+                  <div>
+                    <span>${label}</span>
+                    <strong>${title}</strong>
+                    <p>${copy}</p>
+                    <code>${proof}</code>
+                  </div>
+                `
+                  )
+                  .join('')}
+              </div>
+            </article>
+            <article class="ds-qa-gates">
+              <h3>合并门槛</h3>
+              ${qaGateLevels
+                .map(
+                  ([level, title, copy]) => `
+                <div>
+                  <span>${level}</span>
+                  <strong>${title}</strong>
+                  <p>${copy}</p>
+                </div>
+              `
+                )
+                .join('')}
+            </article>
           </div>
         </section>
 

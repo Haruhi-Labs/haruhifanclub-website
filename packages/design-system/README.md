@@ -89,6 +89,16 @@ import '@haruhi/design-system/bridges.css'
 
 不要在未盘点旧变量前扩大 bridge。bridge 是过渡层，不是新变量命名空间。
 
+## PR 证据
+
+涉及本包 token、component class 或 bridge 的变更，需要在 PR 中说明：
+
+- 影响的 app、路由、旧变量和未迁移项。
+- 390 / 768 / 1280px 截图，证明无横向溢出且关键数据没有丢失。
+- 新增样式没有 raw hex、临时阴影、临时圆角或非 4px 网格间距。
+- bridge 变量的 owner、使用范围和删除计划。
+- 移除入口 import 或 bridge 文件后的回滚边界。
+
 ## 和 @haruhi/ui 的关系
 
 `@haruhi/ui` 已启用 MVP，适合在 Vue app 中复用稳定基础件：Button、Badge、Field、Notice、Progress、Card、EmptyState、HeaderBrand、Stack、Inline、Cluster、Grid、Split、Surface、MediaFrame。

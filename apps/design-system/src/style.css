@@ -1597,6 +1597,79 @@ textarea {
   height: 1.75rem;
 }
 
+.ds-qa-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.75fr);
+  gap: var(--sos-space-4);
+  align-items: start;
+}
+
+.ds-qa-evidence,
+.ds-qa-gates {
+  display: grid;
+  gap: var(--sos-space-4);
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-5);
+}
+
+.ds-qa-evidence h3,
+.ds-qa-gates h3 {
+  margin: 0;
+  font-size: var(--sos-text-lg);
+  line-height: 1.3;
+}
+
+.ds-qa-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sos-space-3);
+}
+
+.ds-qa-evidence-grid div,
+.ds-qa-gates div {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-2);
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-subtle);
+  padding: var(--sos-space-4);
+}
+
+.ds-qa-evidence-grid span,
+.ds-qa-gates span {
+  color: var(--sos-link);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ds-qa-evidence-grid strong,
+.ds-qa-gates strong {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.3;
+}
+
+.ds-qa-evidence-grid p,
+.ds-qa-gates p {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.58;
+}
+
+.ds-qa-evidence-grid code {
+  color: var(--sos-text-tertiary);
+  font-family: var(--sos-font-mono);
+  font-size: var(--sos-text-xs);
+  overflow-wrap: anywhere;
+}
+
 .ds-state-card-title {
   margin: 0 0 var(--sos-space-2);
   font-size: var(--sos-text-sm);
@@ -1759,6 +1832,7 @@ textarea {
   .ds-quality-grid,
   .ds-ui-mvp,
   .ds-api-lab,
+  .ds-qa-board,
   .ds-guide-shell,
   .ds-guide-panel,
   .ds-page-lab__body,
@@ -1789,6 +1863,10 @@ textarea {
   .ds-ui-decision div {
     grid-template-columns: 1fr;
     gap: var(--sos-space-2);
+  }
+
+  .ds-qa-evidence-grid {
+    grid-template-columns: 1fr;
   }
 
   .ds-expression-row .sos-badge,

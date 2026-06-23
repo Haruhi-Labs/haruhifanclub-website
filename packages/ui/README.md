@@ -88,3 +88,12 @@ API 规则：
 - 不提供 `color`、`shadow`、`radius` 等视觉 props；表达由外层 token 和 `data-sos-site` 决定。
 - Slot 对应稳定 anatomy 槽位，不用任意 slot 绕过结构。
 - 状态 props 必须同步可访问性证据，例如 `aria-busy`、`aria-invalid`、`disabled`。
+
+## 变更证据
+
+新增 wrapper、props 或 variant 前，先更新规范页和状态矩阵。PR 至少提供：
+
+- 默认、hover、focus-visible、loading、disabled、error/empty 中受影响状态的截图。
+- 390 / 768 / 1280px 响应式截图。
+- 键盘路径和可访问名称说明。
+- 不新增视觉 props、不重定义 token 的说明。
