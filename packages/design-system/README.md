@@ -12,11 +12,12 @@ import '@haruhi/design-system/components.css'
 import '@haruhi/design-system/bridges.css'
 ```
 
-| 入口             | 用途                                                              |
-| ---------------- | ----------------------------------------------------------------- |
-| `tokens.css`     | Primitive、Semantic、Expression token。适合先接入页面上下文。     |
-| `components.css` | Layout primitives、基础组件 class contract，已包含 `tokens.css`。 |
-| `bridges.css`    | 旧站点变量兼容桥，只在渐进迁移时加载。                            |
+| 入口             | 用途                                                                               |
+| ---------------- | ---------------------------------------------------------------------------------- |
+| `tokens.css`     | Primitive、Semantic、Expression token。适合先接入页面上下文。                      |
+| `components.css` | Layout primitives、基础组件 class contract，已包含 `tokens.css` 和 `recipes.css`。 |
+| `recipes.css`    | 业务卡片 recipe（article/product/artwork/book/exam）的共享解剖与特化样式。         |
+| `bridges.css`    | 旧站点变量兼容桥，只在渐进迁移时加载。                                             |
 
 ## 使用约定
 
@@ -60,6 +61,23 @@ import '@haruhi/design-system/bridges.css'
 - 密度：`data-sos-density="compact" | "spacious"` 只调整控件高度节奏，不改颜色与组件解剖。
 - 焦点：统一用 `--sos-ring` 表达 focus-visible；不要在业务里自定义 outline。
 - 浮层叠放：弹层 / 浮层使用 `--sos-z-*` 层级体系（dropdown < overlay < modal < popover < toast < tooltip）。
+- 站点肌理：表达模式可声明 `--sos-page-texture`（如 news 墨点网格、exam 答题横格、art/library 顶部柔光），
+  并通过 `--sos-display-family` 区分标题字（library/exam 用衬线）。这些都只是语义层覆盖，组件解剖不变。
+
+## 业务卡片 recipe
+
+`recipes.css` 把"共享卡片解剖 + 五个内容类型特化 recipe"沉淀为 class contract：
+
+| Recipe class        | 站点    | 母题                                     |
+| ------------------- | ------- | ---------------------------------------- |
+| `.sos-article-card` | news    | 顶部信号条、墨色标签、衬线摘要、硬阴影   |
+| `.sos-product-card` | shop    | 方形媒体、角标、预售进度、价格、悬浮动作 |
+| `.sos-artwork-card` | art     | passe-partout 画框、悬停题注、点赞浏览   |
+| `.sos-book-card`    | library | 书脊高光、竖排书名、卷册角标             |
+| `.sos-exam-card`    | exam    | 答题横格、阅卷红印章、折角、藏蓝分割线   |
+
+共享解剖（`.sos-card__media/kicker/heading/excerpt/tags`、`.sos-price`、`.sos-ribbon`、`.sos-stat`）
+可跨 recipe 复用。Vue 封装见 `@haruhi/ui/recipes`。
 
 ## 内容与数据
 
@@ -165,10 +183,12 @@ pnpm check:design-system:browser
 （含 `SosModal` / `SosDropdown` / `SosToastRegion` + `useToast`）。可在 `pnpm dev:design-system`
 的活规范页里交互预览全部组件、状态与五个表达模式，并实时切换明暗与密度。
 
-本包处在 L0：Token / Class Contract。`@haruhi/ui` 处在 L1：Primitive Wrapper。新闻卡、商品卡、作品卡、书封卡、试卷卡等业务组合仍处在 L2 recipe 阶段，不应直接进入本包或 UI 包。
+分层：L0 Token / Class Contract（本包 `tokens.css` + `components.css`）→ L1 Primitive Wrapper
+（`@haruhi/ui`）→ L2 Composition Recipe（本包 `recipes.css` + `@haruhi/ui/recipes` 的卡片组件）。
+L2 recipe 只定义 anatomy、母题与状态，业务字段仍由调用方传入；页面级特例不进入任何包。
 
 业务 app 不必须立刻引入 `@haruhi/ui`。迁移优先级仍是：
 
 1. 先接入本包 token 和 class contract。
 2. 再把重复出现的基础控件替换为 `@haruhi/ui` wrapper。
-3. 最后才评估业务卡片是否可以抽成共享 recipe 或组件。
+3. 卡片场景可直接复用 `recipes.css` / `@haruhi/ui/recipes`，页面特例仍留在业务 app。

@@ -140,6 +140,23 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'
 </template>
 ```
 
+## 业务卡片 recipe（@haruhi/ui/recipes）
+
+L2 业务卡片从 `@haruhi/ui/recipes` 子路径按需引入，prop 驱动，内容由业务传入：
+
+```js
+import {
+  SosArticleCard, // 团报阅读卡：label/title/subtitle/excerpt/tags/date/author/pinned
+  SosProductCard, // 商品卡：price/originalPrice/badge/progress/soldOut + #actions 插槽
+  SosArtworkCard, // 作品卡：image/author/likes/views + 悬停题注
+  SosBookCard, // 书封卡：cover/color/badge + 竖排书名
+  SosExamCard, // 试卷卡：subject/title/score/meta
+} from '@haruhi/ui/recipes'
+```
+
+每个 recipe 都消费当前 `data-sos-site` 的表达 token，因此放进对应站点即天然契合；样式契约见
+`@haruhi/design-system/recipes.css`。这是 L2：组件只定义 anatomy 与状态，标题、价格、库存等业务字段仍由调用方传入。
+
 ## 主题与表达
 
 - 表达模式由外层 `data-sos-site`（news / shop / art / library / exam）控制，组件解剖不变。
