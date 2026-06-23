@@ -2,11 +2,12 @@
   <!-- [修改] 根据路由 meta 决定是否显示 NavBar -->
   <NavBar v-if="!$route.meta.hideNavbar" :overlay="isBlogDetail" />
 
-  <SosPage v-if="!$route.meta.hideNavbar" as="main" site="news" contained="none" :class="mainClass">
+  <!-- 设计系统浅层接入：仅保留 data-sos-site 提供 token 表达，不再套 SosPage（DS 基础皮）。 -->
+  <main v-if="!$route.meta.hideNavbar" :class="mainClass" data-sos-site="news">
     <router-view />
 
     <SiteFooter />
-  </SosPage>
+  </main>
 
   <main v-else>
     <router-view />
@@ -21,7 +22,6 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { SosPage } from '@haruhi/ui'
 
 import NavBar from '@/shell/NavBar.vue'
 import SiteFooter from '@/shell/SiteFooter.vue'

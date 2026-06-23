@@ -14,13 +14,13 @@
         <!-- Logo 区域 -->
         <div class="nav-left">
           <button class="logo-group" type="button" @click="goHome" aria-label="返回春日团报首页">
-            <SosHeaderBrand
-              as="span"
-              :logo-src="logoUrl"
-              title="春日团报"
-              subtitle="Haruhi Fan Club"
-              :compact="isScrolled || overlay"
-            />
+            <span class="news-brand" :class="{ 'is-compact': isScrolled || overlay }">
+              <img :src="logoUrl" alt="" class="news-brand__logo" />
+              <span class="news-brand__text">
+                <strong>春日团报</strong>
+                <small>Haruhi Fan Club</small>
+              </span>
+            </span>
           </button>
 
           <div :class="['nav-links', overlay ? 'nav-links--overlay' : 'nav-links--default']">
@@ -183,7 +183,6 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMainStore } from '@/stores/main'
 import { AccountMenu } from '@haruhi/auth-ui'
-import { SosHeaderBrand } from '@haruhi/ui'
 
 const props = defineProps({
   overlay: {
@@ -348,13 +347,49 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
   opacity: 0.8;
 }
 
-.navbar--overlay :deep(.sos-brand-lockup__text > strong),
-.navbar--overlay :deep(.sos-brand-lockup__text > small) {
-  color: #ffffff;
+/* 品牌锁头（news 原生，仅消费 token） */
+.news-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.news-brand__logo {
+  width: 2.6rem;
+  height: 2.6rem;
+  flex: 0 0 auto;
+  border-radius: 9999px;
+  object-fit: cover;
+  box-shadow: var(--sos-shadow-hairline);
+  transition: width 150ms ease, height 150ms ease;
+}
+.news-brand__text {
+  display: grid;
+  gap: 0.05rem;
+  line-height: 1.12;
+  text-align: left;
+}
+.news-brand__text strong {
+  font-size: var(--sos-text-md);
+  font-weight: 850;
+  letter-spacing: 0;
+  color: var(--sos-text-primary);
+}
+.news-brand__text small {
+  font-size: var(--sos-text-xs);
+  font-weight: 650;
+  color: var(--sos-text-secondary);
+}
+.news-brand.is-compact .news-brand__logo {
+  width: 2.1rem;
+  height: 2.1rem;
+}
+.news-brand.is-compact .news-brand__text strong {
+  font-size: var(--sos-text-sm);
 }
 
-.navbar--overlay :deep(.sos-brand-lockup__mark) {
-  background: #ffffff;
+.navbar--overlay .news-brand__text strong,
+.navbar--overlay .news-brand__text small {
+  color: #ffffff;
 }
 
 /* ===== Nav Links (Desktop) ===== */

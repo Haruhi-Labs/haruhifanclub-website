@@ -1,18 +1,18 @@
 <template>
   <article
-    class="news-card sos-card sos-card--interactive"
+    class="news-card"
     role="button"
     tabindex="0"
     @click="$emit('click')"
     @keydown.enter.self="$emit('click')"
   >
-    <div class="sos-card__body news-card__body">
+    <div class="news-card__body">
       <div class="card-kicker-row">
         <span class="news-label">{{ article.type === 'news' ? 'NEWS' : 'POST' }}</span>
-        <span v-if="article.isPinned" class="sos-badge sos-badge--signal">置顶</span>
+        <span v-if="article.isPinned" class="news-pin">置顶</span>
       </div>
 
-      <div v-if="article.image" class="image-container sos-media-frame" data-ratio="4:3">
+      <div v-if="article.image" class="image-container">
         <img :src="article.image" :alt="article.title" class="card-image" />
       </div>
 
@@ -38,7 +38,7 @@
       <div class="card-summary" v-html="highlight(previewText)"></div>
     </div>
 
-    <footer class="sos-card__footer card-footer">
+    <footer class="card-footer">
       <div class="tags-container">
         <button
           v-for="tag in (article.tags || []).slice(0, 3)"
@@ -166,6 +166,18 @@ const highlight = (text) => {
   letter-spacing: 0;
   line-height: 1;
   text-transform: uppercase;
+}
+
+.news-pin {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-signal);
+  color: var(--sos-ink-950);
+  padding: 0.2rem 0.55rem;
+  font-size: var(--sos-text-2xs);
+  font-weight: 900;
+  line-height: 1;
 }
 
 .image-container {

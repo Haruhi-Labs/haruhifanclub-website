@@ -80,12 +80,27 @@
       </div>
     </div>
 
-    <nav v-if="totalPages > 1" class="pagination-bar" aria-label="团报分页">
+    <nav class="pagination-bar" aria-label="团报分页">
       <div class="sort-label">
         <span>发布时间倒序</span>
         <span>{{ pageNum }} / {{ totalPages }}</span>
       </div>
-      <SosPagination :model-value="pageNum" :page-count="totalPages" @update:model-value="goPage" />
+      <div class="page-buttons">
+        <button
+          v-for="p in visiblePages"
+          :key="p"
+          @click="goPage(p)"
+          :aria-current="pageNum === p ? 'page' : undefined"
+          :class="{
+            'pagination-active': pageNum === p,
+            'page-inactive': pageNum !== p,
+          }"
+          class="page-btn"
+        >
+          <span v-if="pageNum === p">第 {{ p }} 页</span>
+          <span v-else>{{ p }}</span>
+        </button>
+      </div>
     </nav>
 
     <section v-if="viewType === 'home'" class="tags-footer">
@@ -110,7 +125,6 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMainStore } from '@/stores/main'
 import { buildMasonryPages } from '@/utils/masonry'
-import { SosPagination } from '@haruhi/ui'
 import NewsCard from '@/features/blog/components/NewsCard.vue'
 
 const route = useRoute()
@@ -214,6 +228,22 @@ const currentPage = computed(() => {
 
 const leftCol = computed(() => currentPage.value.left)
 const rightCol = computed(() => currentPage.value.right)
+
+const visiblePages = computed(() => {
+  const p = pageNum.value
+  const total = totalPages.value
+  const pages = []
+
+  if (total <= 5) {
+    for (let i = 1; i <= total; i++) pages.push(i)
+  } else {
+    if (p <= 3) return [1, 2, 3, 4, 5]
+    if (p >= total - 2) return [total - 4, total - 3, total - 2, total - 1, total]
+    return [p - 2, p - 1, p, p + 1, p + 2]
+  }
+
+  return pages
+})
 
 const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
 
