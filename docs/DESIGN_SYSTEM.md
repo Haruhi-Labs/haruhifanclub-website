@@ -205,7 +205,7 @@ Primitive（物理色板，不在业务里直接用）
 | `art`     | art     | 桥接                                     |
 | `novel`   | library | **深度**（tokens + components/recipe 类，书架/阅读器/后台重构；正文沿用站点自有衬线排版） |
 | `exam`    | exam    | **深度**（tokens + components.css；首页/编辑器/审核/页脚全面 token 化，绿+多重红收敛为阅卷红+藏蓝+金；答题纸木纹/手写/阅卷印章作保护区保留） |
-| `console` | base    | 未接入                                   |
+| `console` | base    | **桥接**（tokens + data-sos-theme=dark；深色超管台局部变量桥接到 DS 暗色语义层，行动色用 DS 蓝） |
 | `auth-ui` | 随站点  | 深度（DS 原生），由各 app 路由传 `site`  |
 
 ---
