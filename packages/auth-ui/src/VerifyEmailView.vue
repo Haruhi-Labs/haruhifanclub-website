@@ -8,7 +8,7 @@ import './auth.css'
 const props = defineProps({
   apiBase: { type: String, default: '/api' },
   home: { type: String, default: '/' },
-  title: { type: String, default: '春日应援团' },
+  title: { type: String, default: '凉宫春日应援团' },
   site: { type: String, default: undefined },
 })
 
