@@ -518,7 +518,9 @@
   animation: sos-spin 760ms linear infinite;
 }
 
-.sos-button--primary {
+/* 变体用双类选择器（0,2,0）以胜过各 app 的 normalize 式
+   `button,[type=submit]{background-color:transparent}` 元素级 reset，避免按钮背景被压没。 */
+.sos-button.sos-button--primary {
   background: var(--sos-accent);
   color: var(--sos-accent-contrast);
   box-shadow:
@@ -535,7 +537,7 @@
   color: var(--sos-accent-contrast);
 }
 
-.sos-button--secondary {
+.sos-button.sos-button--secondary {
   border-color: var(--sos-border-default);
   background: var(--sos-bg-surface);
   color: var(--sos-text-primary);
@@ -561,7 +563,7 @@
   color: var(--sos-text-primary);
 }
 
-.sos-button--danger {
+.sos-button.sos-button--danger {
   background: var(--sos-danger);
   color: var(--sos-white);
   box-shadow:
