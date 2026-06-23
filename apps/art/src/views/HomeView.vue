@@ -33,6 +33,42 @@
           <span>days</span>
         </div>
 
+        <div
+          :class="['time-shift-stack', `is-${shiftDirection}`, { 'is-hovering': shiftHovering }]"
+          aria-label="时间跃迁层"
+          @pointerenter="onShiftEnter"
+          @pointermove="onShiftMove"
+          @pointerleave="onShiftLeave"
+        >
+          <div class="shift-label">
+            <span>TIME JUMP</span>
+            <strong>{{ shiftDirection === 'down' ? '向下回环' : '向上跃迁' }}</strong>
+          </div>
+          <div class="shift-window">
+            <div class="shift-track" :style="shiftTrackStyle">
+              <div v-for="copy in 2" :key="copy" class="shift-group">
+                <span
+                  v-for="layer in timeShiftLayers"
+                  :key="`${copy}-${layer.id}`"
+                  class="shift-layer"
+                  :style="{
+                    '--spread': `${layer.spread}px`,
+                    '--depth': `${layer.depth}px`,
+                    '--scale': layer.scale,
+                    '--alpha': layer.alpha,
+                    '--tilt': `${layer.tilt}deg`,
+                    '--layer-width': `${layer.width}px`,
+                    '--z': layer.z,
+                  }"
+                >
+                  <span class="shift-layer__line"></span>
+                  <span class="shift-layer__meta">{{ layer.code }}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="time-device" aria-label="画廊数据时间环">
           <div class="orbit orbit-outer"></div>
           <div class="orbit orbit-middle"></div>
@@ -114,10 +150,13 @@
 </template>
 
 <script setup>
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { seedArtworks, seedCreators } from '../mock/seedData'
 
 const VISITOR_KEY = 'haruhi-art-visitor-number'
 const DAY_MS = 24 * 60 * 60 * 1000
+const SHIFT_LOOP_HEIGHT = 540
+const SHIFT_SPEED = 58
 
 function makeVisitorNumber() {
   const fallback = 5200 + seedArtworks.length * 31 + seedCreators.length * 17
@@ -186,6 +225,103 @@ const satelliteMetrics = [
   { key: 'likes', label: '应援热度', value: `${heatScore}%`, note: `${totalLikes} 次点赞` },
   { key: 'week', label: '本周入库', value: weekCount, note: `今日新增 ${todayCount}` },
 ]
+
+const timeShiftLayers = [
+  { id: 'c', code: 'PHASE-00', spread: 0, depth: 70, scale: 1, alpha: 0.96, tilt: 0, width: 218, z: 9 },
+  { id: 'u1', code: 'T-08', spread: -36, depth: 52, scale: 0.96, alpha: 0.84, tilt: 5, width: 202, z: 8 },
+  { id: 'd1', code: 'T+08', spread: 36, depth: 52, scale: 0.96, alpha: 0.84, tilt: -5, width: 202, z: 8 },
+  { id: 'u2', code: 'T-21', spread: -88, depth: 30, scale: 0.9, alpha: 0.72, tilt: 10, width: 186, z: 7 },
+  { id: 'd2', code: 'T+21', spread: 88, depth: 30, scale: 0.9, alpha: 0.72, tilt: -10, width: 186, z: 7 },
+  { id: 'u3', code: 'T-55', spread: -154, depth: 8, scale: 0.82, alpha: 0.58, tilt: 15, width: 166, z: 6 },
+  { id: 'd3', code: 'T+55', spread: 154, depth: 8, scale: 0.82, alpha: 0.58, tilt: -15, width: 166, z: 6 },
+  { id: 'u4', code: 'T-89', spread: -230, depth: -18, scale: 0.72, alpha: 0.4, tilt: 20, width: 142, z: 5 },
+  { id: 'd4', code: 'T+89', spread: 230, depth: -18, scale: 0.72, alpha: 0.4, tilt: -20, width: 142, z: 5 },
+]
+
+const shiftHovering = ref(false)
+const shiftDirection = ref('up')
+const shiftOffset = ref(-SHIFT_LOOP_HEIGHT / 2)
+const shiftTrackStyle = computed(() => ({
+  transform: `translate3d(0, ${shiftOffset.value}px, 0)`,
+}))
+
+let shiftFrame = 0
+let shiftLastTime = 0
+let shiftLastY = null
+
+function shouldReduceMotion() {
+  return typeof window !== 'undefined'
+    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+}
+
+function normalizeShiftOffset(value) {
+  let next = value
+  while (next <= -SHIFT_LOOP_HEIGHT) next += SHIFT_LOOP_HEIGHT
+  while (next > 0) next -= SHIFT_LOOP_HEIGHT
+  return next
+}
+
+function tickShiftLayer(time) {
+  if (!shiftHovering.value || shouldReduceMotion()) {
+    shiftFrame = 0
+    shiftLastTime = 0
+    return
+  }
+
+  if (!shiftLastTime) shiftLastTime = time
+  const delta = Math.min(48, time - shiftLastTime)
+  shiftLastTime = time
+  const sign = shiftDirection.value === 'down' ? 1 : -1
+
+  shiftOffset.value = normalizeShiftOffset(
+    shiftOffset.value + sign * SHIFT_SPEED * (delta / 1000)
+  )
+  shiftFrame = window.requestAnimationFrame(tickShiftLayer)
+}
+
+function startShiftLayer() {
+  if (shouldReduceMotion() || shiftFrame || typeof window === 'undefined') return
+  shiftLastTime = 0
+  shiftFrame = window.requestAnimationFrame(tickShiftLayer)
+}
+
+function stopShiftLayer() {
+  if (shiftFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(shiftFrame)
+  }
+  shiftFrame = 0
+  shiftLastTime = 0
+}
+
+function onShiftEnter(event) {
+  shiftHovering.value = true
+  shiftLastY = event.clientY
+  startShiftLayer()
+}
+
+function onShiftMove(event) {
+  if (shiftLastY === null) {
+    shiftLastY = event.clientY
+    return
+  }
+
+  const diff = event.clientY - shiftLastY
+  if (Math.abs(diff) > 2) {
+    shiftDirection.value = diff > 0 ? 'down' : 'up'
+    shiftLastY = event.clientY
+  }
+  startShiftLayer()
+}
+
+function onShiftLeave() {
+  shiftHovering.value = false
+  shiftLastY = null
+  stopShiftLayer()
+}
+
+onBeforeUnmount(() => {
+  stopShiftLayer()
+})
 
 const tagCounts = approvedArtworks.reduce((map, item) => {
   for (const tag of item.tags || []) {
@@ -570,6 +706,174 @@ const stageStyle = {
   font-size: 30px;
   line-height: 1;
   text-shadow: 0 0 18px rgba(255, 99, 125, 0.45);
+}
+
+.art-home .time-shift-stack {
+  --shift-loop-height: 540px;
+  position: absolute;
+  left: clamp(18px, 3.2vw, 54px);
+  top: 52%;
+  z-index: 3;
+  width: min(23vw, 260px);
+  height: min(62vh, 570px);
+  min-height: 440px;
+  transform: translateY(-50%) rotateY(12deg);
+  transform-style: preserve-3d;
+  perspective: 900px;
+  pointer-events: auto;
+  opacity: 0.82;
+  transition:
+    opacity 0.18s ease,
+    filter 0.18s ease,
+    transform 0.18s ease;
+}
+
+.art-home .time-shift-stack.is-hovering {
+  opacity: 1;
+  filter: saturate(1.16);
+  transform: translateY(-50%) rotateY(7deg) translateX(4px);
+}
+
+.art-home .shift-label {
+  position: absolute;
+  left: 4px;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid rgba(116, 231, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(3, 12, 28, 0.62);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(14px);
+  clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+}
+
+.art-home .shift-label span {
+  color: rgba(183, 204, 232, 0.76);
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.art-home .shift-label strong {
+  color: var(--hud-cyan);
+  font-size: 13px;
+  font-weight: 950;
+  text-shadow: 0 0 16px rgba(116, 231, 255, 0.28);
+}
+
+.art-home .shift-window {
+  position: absolute;
+  inset: 46px 0 8px;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  mask-image: linear-gradient(transparent 0%, black 14%, black 86%, transparent 100%);
+}
+
+.art-home .shift-window::before,
+.art-home .shift-window::after {
+  content: "";
+  position: absolute;
+  left: 22px;
+  right: 20px;
+  z-index: 2;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(116, 231, 255, 0.35), transparent);
+}
+
+.art-home .shift-window::before {
+  top: 50%;
+  box-shadow: 0 0 18px rgba(116, 231, 255, 0.22);
+}
+
+.art-home .shift-window::after {
+  top: calc(50% + 34px);
+  opacity: 0.42;
+}
+
+.art-home .shift-track {
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(var(--shift-loop-height) * 2);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.art-home .shift-group {
+  position: relative;
+  height: var(--shift-loop-height);
+  transform-style: preserve-3d;
+}
+
+.art-home .shift-layer {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--spread));
+  z-index: var(--z);
+  width: var(--layer-width);
+  height: 42px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  opacity: var(--alpha);
+  border: 1px solid rgba(116, 231, 255, 0.18);
+  border-radius: 14px;
+  background:
+    linear-gradient(90deg, rgba(5, 13, 28, 0.28), rgba(20, 52, 92, 0.7), rgba(17, 16, 52, 0.42)),
+    radial-gradient(circle at 18% 50%, rgba(116, 231, 255, 0.18), transparent 38%);
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.24),
+    0 0 20px rgba(116, 231, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transform:
+    translate3d(-50%, -50%, var(--depth))
+    rotateX(var(--tilt))
+    rotateY(-18deg)
+    scale(var(--scale));
+  transform-style: preserve-3d;
+  backdrop-filter: blur(12px);
+  clip-path: polygon(0 12px, 12px 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+.art-home .shift-layer::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(116, 231, 255, 0.28), transparent);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+}
+
+.art-home .time-shift-stack.is-hovering .shift-layer::before {
+  opacity: 0.16;
+}
+
+.art-home .shift-layer__line {
+  height: 2px;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent, rgba(116, 231, 255, 0.92), rgba(177, 140, 255, 0.64), transparent);
+  box-shadow: 0 0 16px rgba(116, 231, 255, 0.3);
+}
+
+.art-home .shift-layer__meta {
+  color: rgba(229, 242, 255, 0.84);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-shadow: 0 0 10px rgba(116, 231, 255, 0.2);
+}
+
+.art-home .time-shift-stack.is-down .shift-layer__line {
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 99, 125, 0.46), rgba(116, 231, 255, 0.86), transparent);
 }
 
 .art-home .time-device {
@@ -1097,6 +1401,26 @@ const stageStyle = {
   box-shadow: 0 0 118px rgba(141, 240, 255, 0.22), inset 0 0 64px rgba(177, 140, 255, 0.1);
 }
 
+:global(html.art-lights-out) .art-home .time-shift-stack {
+  opacity: 0.9;
+}
+
+:global(html.art-lights-out) .art-home .shift-layer {
+  border-color: rgba(141, 240, 255, 0.2);
+  background:
+    linear-gradient(90deg, rgba(3, 10, 24, 0.34), rgba(24, 58, 104, 0.72), rgba(18, 14, 54, 0.46)),
+    radial-gradient(circle at 18% 50%, rgba(141, 240, 255, 0.2), transparent 38%);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.3),
+    0 0 22px rgba(141, 240, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+:global(html.art-lights-out) .art-home .shift-label {
+  border-color: rgba(141, 240, 255, 0.18);
+  background: rgba(3, 10, 24, 0.72);
+}
+
 :global(html.art-lights-out) .art-home .observer-core,
 :global(html.art-lights-out) .art-home .satellite-node,
 :global(html.art-lights-out) .art-home .endless-panel,
@@ -1176,9 +1500,14 @@ const stageStyle = {
   .art-home .star-layer,
   .art-home .nebula,
   .art-home .galaxy-halo,
+  .art-home .shift-track,
   .art-home .orbit,
   .art-home .scan-sweep {
     animation: none !important;
+  }
+
+  .art-home .time-shift-stack {
+    opacity: 0.72;
   }
 }
 
@@ -1215,6 +1544,10 @@ const stageStyle = {
 
   .art-home .summer-strip {
     top: 24px;
+  }
+
+  .art-home .time-shift-stack {
+    display: none;
   }
 }
 
