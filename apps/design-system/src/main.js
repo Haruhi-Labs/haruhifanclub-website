@@ -1396,6 +1396,33 @@ const responsiveRules = [
   ['1440+', 'Wide', '只增加留白和列数，不放大字体或卡片内部 padding。'],
 ]
 
+const pathQualityRows = [
+  {
+    mode: 'news',
+    path: '阅读流',
+    phone: '390px 单列阅读；标题、日期、置顶、标签和摘要都在卡片内常驻。',
+    desktop: '1280px 保留团报阅读宽度和工具条，不把正文拉成营销卡片。',
+    states: 'hover 只增强可点击感；空结果保留当前筛选；置顶状态有文字证据。',
+    proof: 'pnpm check:news:visual',
+  },
+  {
+    mode: 'shop',
+    path: '交易流',
+    phone: '390px 商品卡单列；筛选不撑空白；加入购物车和价格不依赖 hover。',
+    desktop: '1280px 商品列表可比较；详情页主图、价格盒、预售进度和购买动作并列稳定。',
+    states: '库存、分类、预售进度、原价和购买动作常驻；详情页 header 使用统一 logo lockup。',
+    proof: 'pnpm check:shop:visual',
+  },
+  {
+    mode: 'art',
+    path: '作品与投稿流',
+    phone: '先保存现状基线；作品卡、作者、来源、标签和上传状态必须在窄屏可读。',
+    desktop: '画廊可有视觉氛围，但作品媒体和审核信息优先；不把强调色扩成整页背景。',
+    states: '待审、通过、驳回、权限缺失和 UID 检测都要有文字证据。',
+    proof: '待建立 art visual baseline',
+  },
+]
+
 const qaEvidenceGroups = [
   [
     'Scope',
@@ -2707,6 +2734,35 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
                   .join('')}
               </div>
             </article>
+          </div>
+          <div class="ds-path-quality" aria-label="业务路径响应式验收">
+            ${pathQualityRows
+              .map(
+                ({ mode, path, phone, desktop, states, proof }) => `
+              <article data-sos-site="${mode}">
+                <header>
+                  <span class="sos-badge sos-badge--solid">${mode}</span>
+                  <h3>${path}</h3>
+                </header>
+                <dl>
+                  <div>
+                    <dt>Phone</dt>
+                    <dd>${phone}</dd>
+                  </div>
+                  <div>
+                    <dt>Desktop</dt>
+                    <dd>${desktop}</dd>
+                  </div>
+                  <div>
+                    <dt>States</dt>
+                    <dd>${states}</dd>
+                  </div>
+                </dl>
+                <code>${proof}</code>
+              </article>
+            `
+              )
+              .join('')}
           </div>
           <div class="ds-state-matrix" aria-label="基础组件状态矩阵">
             ${componentStateExamples

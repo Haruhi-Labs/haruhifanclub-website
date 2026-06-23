@@ -2670,6 +2670,74 @@ textarea {
   font-weight: 800;
 }
 
+.ds-path-quality {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sos-space-4);
+}
+
+.ds-path-quality article {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-4);
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-5);
+}
+
+.ds-path-quality header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sos-space-3);
+}
+
+.ds-path-quality h3,
+.ds-path-quality dl {
+  margin: 0;
+}
+
+.ds-path-quality h3 {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-lg);
+  line-height: 1.25;
+}
+
+.ds-path-quality dl {
+  display: grid;
+  gap: var(--sos-space-2);
+}
+
+.ds-path-quality dl div {
+  display: grid;
+  gap: var(--sos-space-1);
+  border-top: 1px solid var(--sos-border-subtle);
+  padding-top: var(--sos-space-3);
+}
+
+.ds-path-quality dt {
+  color: var(--sos-link);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ds-path-quality dd {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.6;
+}
+
+.ds-path-quality code {
+  color: var(--sos-link);
+  font-family: var(--sos-font-mono);
+  font-size: var(--sos-text-xs);
+  overflow-wrap: anywhere;
+}
+
 .ds-state-matrix {
   display: grid;
   gap: var(--sos-space-4);
@@ -3032,6 +3100,7 @@ textarea {
   .ds-snippet-grid,
   .ds-layout-lab,
   .ds-quality-grid,
+  .ds-path-quality,
   .ds-ui-mvp,
   .ds-api-lab,
   .ds-qa-board,
@@ -3124,6 +3193,7 @@ textarea {
   .ds-content-rule-grid,
   .ds-object-grid,
   .ds-path-blueprints,
+  .ds-path-quality,
   .ds-playbook-steps,
   .ds-maturity-grid,
   .ds-primitive-grid,
