@@ -53,7 +53,9 @@ function badgeText(item){
 }
 
 function badgeClass(item){
-  return isPersonal(item) ? 'badge badge--personal' : 'badge badge--network'
+  return isPersonal(item)
+    ? 'badge badge--personal sos-badge sos-badge--outline'
+    : 'badge badge--network sos-badge sos-badge--outline'
 }
 
 function likeCount(item){
@@ -180,13 +182,13 @@ onBeforeUnmount(() => {
         class="art-card-wrap"
       >
         <article
-          class="art-card"
+          class="art-card sos-art-card sos-card--interactive"
           role="button"
           tabindex="0"
           @click="openCard(it)"
           @keydown.enter="openCard(it)"
         >
-          <div class="art-card__media">
+          <div class="art-card__media sos-media-frame" data-ratio="4:3">
             <!-- 背景模糊层：填补留白（与 <img> 共用缩略图，零额外请求） -->
             <div
               class="art-card__blur-bg"
@@ -209,7 +211,7 @@ onBeforeUnmount(() => {
               <span :class="badgeClass(it)">{{ badgeText(it) }}</span>
 
               <button
-                class="like-pill"
+                class="like-pill sos-button sos-button--ghost sos-button--sm"
                 type="button"
                 @click.stop="(e) => like(it, e)"
                 data-sfx="click"
@@ -249,7 +251,7 @@ onBeforeUnmount(() => {
               <button
                 v-for="t in it.tags.slice(0, 6)"
                 :key="t"
-                class="tag-chip"
+                class="tag-chip sos-badge sos-badge--outline"
                 type="button"
                 @click.stop="(e) => clickTag(t, it, e)"
                 data-sfx="click"
@@ -301,17 +303,17 @@ onBeforeUnmount(() => {
 ========================= */
 .gallery {
   --bg-deep: #525289; 
-  --glass-bg: rgba(30, 21, 21, 0.694); 
-  --glass-border: rgba(151, 68, 68, 0.1);
+  --glass-bg: color-mix(in srgb, var(--sos-bg-strong, #0f1b2e) 74%, rgba(30, 21, 21, 0.694));
+  --glass-border: color-mix(in srgb, var(--sos-border-subtle, rgba(151, 68, 68, 0.1)) 62%, transparent);
   
-  --neon-cyan: #00f2ff;
+  --neon-cyan: var(--sos-accent, #00f2ff);
   --neon-purple: #e9b5fd;
-  --neon-glow: rgba(0, 242, 255, 0.4);
+  --neon-glow: color-mix(in srgb, var(--sos-accent, #00f2ff) 42%, transparent);
   
-  --text-main: rgba(255, 255, 255, 0.95);
-  --text-muted: rgba(255, 255, 255, 0.55);
+  --text-main: var(--sos-text-on-strong, rgba(255, 255, 255, 0.95));
+  --text-muted: color-mix(in srgb, var(--sos-text-on-strong, white) 58%, transparent);
 
-  --shadow-media: 0 10px 30px -5px rgba(0, 242, 255, 0.15); 
+  --shadow-media: 0 10px 30px -5px color-mix(in srgb, var(--sos-accent, #00f2ff) 15%, transparent);
 
   /* Twin Theme Colors (Green) */
   --twin-primary: #10b981; /* Emerald 500 */
@@ -384,17 +386,20 @@ body.modal-open .art-card-wrap {
 ========================= */
 .art-card {
   position: relative;
-  background: rgba(30, 21, 21, 0.82);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 24px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--sos-card-radius, 24px);
 
   transform-style: preserve-3d;
   /* Flattens preserve-3d (same as the removed backdrop-filter did),
      prevents hover on one card from shifting siblings in the perspective scene */
   isolation: isolate;
 
-  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-  box-shadow: 0 0 20px rgba(0, 242, 255, 0.12), 0 0 10px rgba(188, 19, 254, 0.1), inset 0 0 15px rgba(0,0,0,0.4);
+  transition: transform var(--sos-duration-slow, 0.4s) var(--sos-ease-standard, cubic-bezier(0.25, 0.8, 0.25, 1));
+  box-shadow:
+    0 0 20px color-mix(in srgb, var(--sos-accent, #00f2ff) 12%, transparent),
+    0 0 10px rgba(188, 19, 254, 0.1),
+    inset 0 0 15px rgba(0,0,0,0.4);
 
   cursor: pointer;
   outline: none;
@@ -428,7 +433,7 @@ body.modal-open .art-card-wrap {
   width: 110%;
   margin-left: -5%;
   margin-top: -15%;
-  border-radius: 20px;
+  border-radius: var(--sos-media-radius, 20px);
   background: #000;
   overflow: hidden;
 
@@ -436,13 +441,15 @@ body.modal-open .art-card-wrap {
   transform: translateZ(24px) translateY(-22px) scale(1.02);
 
   box-shadow: var(--shadow-media), 0 25px 50px rgba(0,0,0,0.5);
-  transition: box-shadow 0.3s ease;
-  border: 1px solid rgba(255,255,255,0.15);
+  transition: box-shadow var(--sos-duration-base, 0.3s) var(--sos-ease-standard, ease);
+  border: 1px solid color-mix(in srgb, var(--sos-text-on-strong, white) 15%, transparent);
   backface-visibility: hidden;
 }
 
 .art-card:hover .art-card__media {
-  box-shadow: 0 30px 80px rgba(0, 242, 255, 0.4), 0 0 0 1px rgba(255,255,255,0.4);
+  box-shadow:
+    0 30px 80px color-mix(in srgb, var(--sos-accent, #00f2ff) 40%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--sos-text-on-strong, white) 40%, transparent);
 }
 
 .art-card__img {
@@ -451,7 +458,7 @@ body.modal-open .art-card-wrap {
   object-fit: cover;
   display: block;
   transform: scale(1.02);
-  transition: transform 0.5s ease;
+  transition: transform var(--sos-duration-slow, 0.5s) var(--sos-ease-out, ease);
   position: relative;
   z-index: 2; /* 确保在模糊层之上 */
 }
@@ -561,6 +568,7 @@ body.modal-open .art-card-wrap {
 .badge {
   display: inline-flex;
   align-items: center;
+  width: fit-content;
   height: 24px;
   padding: 0 10px;
   border-radius: 6px;
@@ -572,10 +580,10 @@ body.modal-open .art-card-wrap {
 }
 
 .badge--network {
-  background: rgba(30, 45, 50, 0.55);
+  background: color-mix(in srgb, var(--sos-bg-strong, #0f1b2e) 55%, transparent);
   color: var(--neon-cyan);
-  border-color: rgba(29, 170, 178, 0.3);
-  box-shadow: 0 0 10px rgba(0, 242, 255, 0.1);
+  border-color: color-mix(in srgb, var(--sos-accent, #00f2ff) 30%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--sos-accent, #00f2ff) 10%, transparent);
 }
 
 .badge--personal {
@@ -595,8 +603,9 @@ body.modal-open .art-card-wrap {
   height: 28px;
   padding: 0 12px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.721);
-  border: 1px solid rgba(255,255,255,0.1);
+  min-height: 28px;
+  background: color-mix(in srgb, var(--sos-bg-surface, white) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sos-text-on-strong, white) 10%, transparent);
   color: var(--text-main);
   cursor: pointer;
   transition: all 0.3s ease;
@@ -606,15 +615,15 @@ body.modal-open .art-card-wrap {
 .like-pill .heart {
   width: 16px;
   height: 16px;
-  color: #ff4757;
+  color: var(--sos-danger, #ff4757);
 }
 .like-pill b { display: none; }
 .like-pill .count { font-family: monospace; font-size: 14px; }
 
 .like-pill:hover {
-  background: rgb(105, 216, 244);
-  border-color: #ff4757;
-  box-shadow: 0 0 15px rgba(255, 71, 87, 0.3);
+  background: color-mix(in srgb, var(--sos-accent, rgb(105, 216, 244)) 64%, var(--sos-bg-surface, white));
+  border-color: var(--sos-danger, #ff4757);
+  box-shadow: 0 0 15px color-mix(in srgb, var(--sos-danger, #ff4757) 30%, transparent);
 }
 .like-pill:active { transform: scale(0.95); }
 
@@ -630,12 +639,12 @@ body.modal-open .art-card-wrap {
 }
 
 .tag-chip {
-  background: rgba(255, 255, 255, 0.827);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 99px;
-  padding: 4px 10px;
+  width: fit-content;
+  min-height: 1.625rem;
+  background: color-mix(in srgb, var(--sos-bg-surface, white) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sos-text-on-strong, white) 8%, transparent);
   font-size: 13px;
-  color: solid(--text-muted);
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
 }
