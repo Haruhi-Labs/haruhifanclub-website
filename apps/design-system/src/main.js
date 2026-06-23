@@ -144,23 +144,24 @@ const modes = [
 const navItems = [
   ['overview', '总览'],
   ['manual', '设计手册'],
-  ['architecture', '接入结构'],
-  ['adoption', '接入矩阵'],
-  ['playbook', '接入步骤'],
   ['foundations', '基础规范'],
   ['tokens', 'Token 映射'],
   ['content', '内容数据'],
+  ['objects', '界面对象'],
   ['layout', '布局原语'],
   ['components', '基础组件'],
-  ['recipes', '业务 Recipe'],
-  ['contracts', '组件契约'],
-  ['api', 'UI 路线'],
   ['usage', '组件用法'],
+  ['recipes', '业务 Recipe'],
   ['expressions', '表达模式'],
   ['voice', '组件变声'],
   ['patterns', '页面模式'],
   ['a11y', '可访问性'],
   ['quality', '状态响应式'],
+  ['architecture', '工程附录'],
+  ['adoption', '接入矩阵'],
+  ['playbook', '接入步骤'],
+  ['contracts', '组件契约'],
+  ['api', 'UI 路线'],
   ['migration', '迁移验收'],
 ]
 
@@ -456,6 +457,65 @@ const worldContentRules = [
   ['art', '作品 / 作者 / 版权状态 / 审核状态', '作品是主语，界面只补充作者、筛选、审核和操作。'],
   ['library', '书名 / 作者 / 目录 / 阅读位置', '长文和书目需要连续阅读线索，不能只展示封面。'],
   ['exam', '题目 / 选项 / 倒计时 / 分数 / 恢复状态', '考试信息不可延迟出现，移动端优先答题效率。'],
+]
+
+const interfaceObjects = [
+  [
+    'Global Header',
+    '站点入口和身份识别',
+    'logo + 标题文字 + 主导航 + 工具动作',
+    'default / compact / mobile / scrolled',
+    'Header 首屏高度稳定；logo 使用 haruhi-logo-192.png；移动端保留站点名和一个主动作。',
+    '不要把每个站点的 header 重新设计成独立品牌页，也不要用虚构站名占位。',
+  ],
+  [
+    'Channel Header',
+    '列表、专题和管理页的上下文标题',
+    'eyebrow + title + summary + primary action',
+    'with-filter / with-meta / empty-result',
+    '标题说明当前对象，摘要说明筛选范围或流程状态，主动作放右侧或移动端下方。',
+    '不要使用 hero 级大标题承载普通后台页，也不要把说明文案塞进卡片内部。',
+  ],
+  [
+    'Content Card',
+    '新闻、商品、作品、书籍和试卷的可扫读容器',
+    'media? + title + summary/meta + status + action',
+    'default / hover / selected / loading / empty',
+    '卡片比例由媒体语义决定：商品 1:1、作品 4:3、书封 2:3；hover 不显示新增关键信息。',
+    '不要为了等高把图片或空白撑坏，也不要让彩色标签在 hover 中拉伸成整行。',
+  ],
+  [
+    'Filter Bar',
+    '列表筛选、搜索和批量动作入口',
+    'search + chips/tabs + count + secondary actions',
+    'default / active / no-result / sticky',
+    '筛选命中数常驻；chips 可换行；批量动作和筛选动作分层，不混在同一按钮组。',
+    '不要让筛选条依赖 hover，不要在移动端保持桌面多列布局。',
+  ],
+  [
+    'Data Row / Table',
+    '订单、审核、后台列表和状态核对',
+    'identifier + primary data + secondary data + state + actions',
+    'default / selected / pending / error / bulk',
+    '订单号、金额、日期、数量使用等宽数字；状态标签要有文字证据和 tone。',
+    '不要只用颜色点表达状态，也不要把密集表格做成松散营销卡片。',
+  ],
+  [
+    'Form Flow',
+    '投稿、发布、结账、答题和编辑后台',
+    'section + field group + help/error + sticky action',
+    'focus / invalid / disabled / saving / success',
+    'Label 常驻；错误说明原因和下一步；长表单按语义分段，移动端单列。',
+    '不要用 placeholder 代替 label，不要把授权、价格或库存这种关键字段藏进折叠说明。',
+  ],
+  [
+    'System State',
+    '加载、空、错误、权限和维护状态',
+    'context title + reason + preserved data? + action',
+    'loading / empty / no-result / error / permission',
+    '状态页要说明为什么发生、当前数据是否保留、用户能做什么。',
+    '不要只写“暂无数据”或“未知错误”，不要用大插画取代下一步动作。',
+  ],
 ]
 
 const layoutPrimitives = [
@@ -1262,7 +1322,7 @@ app.innerHTML = `
         <span class="ds-brand__mark sos-brand-lockup__mark"><img src="${logoUrl}" alt="" aria-hidden="true"></span>
         <span class="sos-brand-lockup__text">
           <strong>SOS / Parallel Design System</strong>
-          <small>项目内正式设计规范 · v0.2.0</small>
+          <small>项目内正式设计规范 · v0.2.1</small>
         </span>
       </a>
       <a class="sos-button sos-button--secondary sos-button--sm" href="${markdownUrl}" download="DESIGN_SYSTEM.md">Markdown 规范</a>
@@ -1274,8 +1334,8 @@ app.innerHTML = `
           ${navItems.map(([id, label]) => `<a href="#${id}" class="ds-nav__item">${label}</a>`).join('')}
         </nav>
         <div class="ds-note">
-          <strong>接入原则</strong>
-          <p>外部规范和既有工程都不是最终答案。正式落地以本仓库的包结构、部署方式和迁移成本为准。</p>
+          <strong>文档原则</strong>
+          <p>先判断页面是否清楚、可用、统一，再说明它如何接进 monorepo。工程附录保留约束，但不抢主线。</p>
         </div>
       </aside>
 
@@ -1290,7 +1350,7 @@ app.innerHTML = `
           </div>
           <dl class="ds-metrics" aria-label="设计系统关键数字">
             <div><dt>2</dt><dd>真实站点已开始接入</dd></div>
-            <div><dt>5</dt><dd>业务表达模式</dd></div>
+            <div><dt>7</dt><dd>核心界面对象</dd></div>
             <div><dt>18</dt><dd>成熟案例内容密度参照</dd></div>
           </dl>
         </section>
@@ -1350,9 +1410,9 @@ app.innerHTML = `
 
         <section class="ds-section" id="architecture">
           <div class="ds-section__header">
-            <p class="sos-eyebrow">Monorepo Contract</p>
-            <h2>接入结构</h2>
-            <p>规范页和共享样式是新增能力，不把现有业务 app 立即改造成同一套组件库。v0.2 先稳定 CSS 契约，并启动 <code>@haruhi/ui</code> 的 Vue 基础组件 MVP。</p>
+            <p class="sos-eyebrow">Engineering Appendix</p>
+            <h2>工程附录：接入结构</h2>
+            <p>以下内容服务设计规范落地，不作为页面主线。规范页和共享样式是新增能力，不把现有业务 app 立即改造成同一套组件库。v0.2 先稳定 CSS 契约，并启动 <code>@haruhi/ui</code> 的 Vue 基础组件 MVP。</p>
           </div>
           <div class="ds-architecture">
             <article>
@@ -1390,9 +1450,9 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
 
         <section class="ds-section" id="adoption">
           <div class="ds-section__header">
-            <p class="sos-eyebrow">Monorepo Adoption</p>
+            <p class="sos-eyebrow">Engineering Appendix</p>
             <h2>接入矩阵写清楚谁先动</h2>
-            <p>设计系统不要求一次性重写全部 app。每个 app 先在入口样式和一个代表性业务路径接入 Token、布局原语和基础组件，再根据证据扩大范围。</p>
+            <p>这部分用于安排迁移顺序，不替代设计规则。每个 app 先在入口样式和一个代表性业务路径接入 Token、布局原语和基础组件，再根据证据扩大范围。</p>
           </div>
           <div class="ds-adoption-table" role="table" aria-label="monorepo design system adoption matrix">
             <div class="ds-adoption-row ds-adoption-row--head" role="row">
@@ -1449,7 +1509,7 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
 
         <section class="ds-section" id="playbook">
           <div class="ds-section__header">
-            <p class="sos-eyebrow">Implementation Playbook</p>
+            <p class="sos-eyebrow">Engineering Appendix</p>
             <h2>最小接入步骤必须可复制</h2>
             <p>迁移从最小可验证切片开始：先让一个页面读到 token 和 scope，再替换布局原语和基础控件，最后补齐截图、状态和回滚证据。</p>
           </div>
@@ -1718,6 +1778,61 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
             `
               )
               .join('')}
+          </article>
+        </section>
+
+        <section class="ds-section" id="objects">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">Interface Objects</p>
+            <h2>先把界面对象讲厚，再谈组件抽象</h2>
+            <p>成熟案例之所以显得扎实，是因为它们反复说明真实界面对象：导航、搜索、卡片、表单、数据行和系统状态。Haruhi 也要把这些对象的职责、结构、状态和禁止用法写清楚，再决定哪些进入 UI 库。</p>
+          </div>
+          <div class="ds-object-grid">
+            ${interfaceObjects
+              .map(
+                ([name, role, anatomy, states, use, avoid]) => `
+              <article class="ds-object-card">
+                <header>
+                  <span>${role}</span>
+                  <h3>${name}</h3>
+                </header>
+                <dl>
+                  <div>
+                    <dt>Anatomy</dt>
+                    <dd>${anatomy}</dd>
+                  </div>
+                  <div>
+                    <dt>States</dt>
+                    <dd>${states}</dd>
+                  </div>
+                </dl>
+                <div class="ds-object-card__rule">
+                  <strong>Use</strong>
+                  <p>${use}</p>
+                </div>
+                <div class="ds-object-card__rule ds-object-card__rule--avoid">
+                  <strong>Don’t</strong>
+                  <p>${avoid}</p>
+                </div>
+              </article>
+            `
+              )
+              .join('')}
+          </div>
+          <article class="ds-object-flow sos-surface">
+            <header>
+              <span class="sos-badge sos-badge--signal">对象组合示例</span>
+              <h3>一个商品列表页至少要证明这些对象能协作</h3>
+            </header>
+            <div class="ds-object-flow__rail">
+              <span>Global Header</span>
+              <span>Channel Header</span>
+              <span>Filter Bar</span>
+              <span>Content Card</span>
+              <span>Data Row</span>
+              <span>System State</span>
+            </div>
+            <p>如果页面只替换了按钮颜色，却没有解决 header、筛选、卡片、订单状态、空状态和移动端动作位置，那么还不能算真正接入设计系统。</p>
           </article>
         </section>
 

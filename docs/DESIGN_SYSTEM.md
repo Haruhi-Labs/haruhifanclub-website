@@ -1,6 +1,6 @@
 # SOS / Parallel Design System 项目设计规范
 
-版本：`0.2.0`
+版本：`0.2.1`
 
 适用范围：`news`、`shop`、`art`、`novel`、`exam` 以及项目内新增页面。`console` 是运维管理界面，默认采用克制的中性界面，不单独建立角色化 Expression Mode。
 
@@ -13,6 +13,12 @@
 ## 0. 文档定位
 
 这份文档首先是项目内的设计手册，其次才是 monorepo 接入说明。它要回答“页面应该怎么长、组件应该怎么用、信息应该怎么组织”，再回答“这些规则如何在当前工程里落地”。
+
+因此阅读顺序调整为：
+
+1. **设计主线**：命题、品牌、色彩、排版、间距、媒体几何、界面对象、基础组件、业务 recipe、页面 pattern。
+2. **质量主线**：状态矩阵、响应式、可访问性、Do / Don’t 和上线验收。
+3. **工程附录**：包结构、monorepo 接入矩阵、bridge、UI 库准入和迁移 playbook。
 
 当前版本曾经把很多篇幅放在接入结构、包治理和迁移策略上，这对工程落地有必要，但不足以对标成熟设计系统。后续增厚优先级如下：
 
@@ -78,16 +84,32 @@ Header 中使用“logo + 标题文字”的组合：
 - 双行组合第一行是站点名，第二行是短描述；第二行可省略，但不要超过一行。
 - 标题文字可使用当前 Expression Mode 的 `--sos-link` 或 `--sos-text-primary`，不要给每个站点临时发明新色值。
 
-## 2. 项目接入判断
+### 1.2 界面对象目录
+
+设计系统要先讲清楚真实界面对象，再决定哪些对象进入组件库。当前主线优先覆盖以下对象：
+
+| 对象             | 职责                         | Anatomy                                       | 必须覆盖的状态                              | 设计规则                                             |
+| ---------------- | ---------------------------- | --------------------------------------------- | ------------------------------------------- | ---------------------------------------------------- |
+| Global Header    | 站点入口和身份识别           | logo + 标题文字 + 主导航 + 工具动作           | default / compact / mobile / scrolled       | `haruhi-logo-192.png` 保持一致，站点文字允许适度变声 |
+| Channel Header   | 列表、专题和管理页上下文标题 | eyebrow + title + summary + primary action    | with-filter / with-meta / empty-result      | 普通页面不用 hero 级大标题；主动作与标题关系清楚     |
+| Content Card     | 新闻、商品、作品、书籍和试卷 | media? + title + summary/meta + status/action | hover / selected / loading / empty          | 媒体比例按业务语义决定，hover 不显示新增关键信息     |
+| Filter Bar       | 搜索、筛选和批量动作入口     | search + chips/tabs + count + actions         | active / no-result / sticky                 | 筛选数常驻，筛选动作和批量动作分层                   |
+| Data Row / Table | 订单、审核、后台核对         | identifier + primary data + state + actions   | selected / pending / error / bulk           | 订单号、金额、日期、数量使用等宽数字                 |
+| Form Flow        | 投稿、发布、结账、答题       | section + field group + help/error + action   | focus / invalid / disabled / saving/success | Label 常驻；错误说明原因和下一步                     |
+| System State     | 加载、空、错误、权限、维护   | context + reason + preserved data? + action   | loading / empty / no-result / error         | 不只写“暂无数据”或“未知错误”，必须提供下一步         |
+
+这些对象比“某个 Vue 组件”更稳定。进入 `@haruhi/ui` 前，先在规范页和真实业务页面验证 anatomy、状态和响应式。
+
+## 2. 工程附录：项目接入判断
 
 这份规范的来源材料并不了解本仓库的多 app 结构；本仓库此前的说明也没有预设要接入一套正式设计系统。因此落地时不照搬任一边的表述，而以当前 monorepo 的真实约束为准：
 
 - 现有业务 app 已经分别承担生产能力，不能把设计系统接入变成一次性重写。
 - `packages/design-system` 继续承担框架无关 token 和 class contract；`packages/ui` 已启用 Vue wrapper MVP，但只封装稳定基础件。
 - 外部 preview 中的 React 示例只作为规范演示参考，不作为本仓库必须采用的技术栈。
-- 设计系统先稳定 token、布局原语、基础组件 anatomy、状态矩阵和文档页；业务卡片要等跨 app 形态稳定后再抽象。
+- 设计系统先稳定 token、布局原语、基础组件 anatomy、界面对象、状态矩阵和文档页；业务卡片要等跨 app 形态稳定后再抽象。
 
-## 3. 项目接入约束
+## 3. 工程附录：项目接入约束
 
 当前仓库是多前端应用 monorepo，现有 app 以 Vue 为主，样式技术包含原生 CSS、SCSS、Tailwind 和 CSS 变量。设计系统的第一阶段交付不是共享 Vue 组件库，而是框架无关的 CSS Token、基础 class contract 和兼容 bridge。
 

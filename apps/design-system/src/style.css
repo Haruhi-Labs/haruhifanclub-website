@@ -223,6 +223,90 @@ textarea {
   gap: var(--sos-space-6);
 }
 
+#overview {
+  order: 1;
+}
+
+#manual {
+  order: 2;
+}
+
+#foundations {
+  order: 3;
+}
+
+#tokens {
+  order: 4;
+}
+
+#content {
+  order: 5;
+}
+
+#objects {
+  order: 6;
+}
+
+#layout {
+  order: 7;
+}
+
+#components {
+  order: 8;
+}
+
+#usage {
+  order: 9;
+}
+
+#recipes {
+  order: 10;
+}
+
+#expressions {
+  order: 11;
+}
+
+#voice {
+  order: 12;
+}
+
+#patterns {
+  order: 13;
+}
+
+#a11y {
+  order: 14;
+}
+
+#quality {
+  order: 15;
+}
+
+#architecture {
+  order: 16;
+}
+
+#adoption {
+  order: 17;
+}
+
+#playbook {
+  order: 18;
+}
+
+#contracts {
+  order: 19;
+}
+
+#api {
+  order: 20;
+}
+
+#migration {
+  order: 21;
+}
+
 .ds-section__header {
   max-width: 840px;
 }
@@ -896,6 +980,143 @@ textarea {
 .ds-world-content .sos-badge {
   justify-self: start;
   width: fit-content;
+}
+
+.ds-object-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sos-space-4);
+}
+
+.ds-object-card {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-4);
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-5);
+}
+
+.ds-object-card header {
+  display: grid;
+  gap: var(--sos-space-2);
+}
+
+.ds-object-card header span {
+  color: var(--sos-link);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ds-object-card h3 {
+  margin: 0;
+  font-size: var(--sos-text-xl);
+  line-height: 1.18;
+}
+
+.ds-object-card dl {
+  display: grid;
+  gap: var(--sos-space-2);
+  margin: 0;
+}
+
+.ds-object-card dl div {
+  display: grid;
+  grid-template-columns: 5.75rem minmax(0, 1fr);
+  gap: var(--sos-space-3);
+  align-items: baseline;
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-subtle);
+  padding: var(--sos-space-3);
+}
+
+.ds-object-card dt {
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ds-object-card dd {
+  margin: 0;
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.55;
+}
+
+.ds-object-card__rule {
+  display: grid;
+  gap: var(--sos-space-2);
+  border-left: 3px solid var(--sos-success);
+  padding-left: var(--sos-space-3);
+}
+
+.ds-object-card__rule--avoid {
+  border-left-color: var(--sos-danger);
+}
+
+.ds-object-card__rule strong {
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+}
+
+.ds-object-card__rule p {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.65;
+}
+
+.ds-object-flow {
+  display: grid;
+  gap: var(--sos-space-4);
+  padding: var(--sos-space-5);
+}
+
+.ds-object-flow header {
+  display: grid;
+  gap: var(--sos-space-2);
+}
+
+.ds-object-flow h3,
+.ds-object-flow p {
+  margin: 0;
+}
+
+.ds-object-flow h3 {
+  font-size: var(--sos-text-xl);
+  line-height: 1.2;
+}
+
+.ds-object-flow p {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.7;
+}
+
+.ds-object-flow__rail {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--sos-space-2);
+}
+
+.ds-object-flow__rail span {
+  display: grid;
+  min-height: 52px;
+  align-items: center;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-subtle);
+  color: var(--sos-text-primary);
+  padding: var(--sos-space-3);
+  font-size: var(--sos-text-xs);
+  font-weight: 850;
+  line-height: 1.35;
 }
 
 .ds-component-grid {
@@ -2450,6 +2671,7 @@ textarea {
   .ds-token-grid,
   .ds-token-workbench,
   .ds-content-rule-grid,
+  .ds-object-grid,
   .ds-playbook-steps,
   .ds-maturity-grid,
   .ds-primitive-grid,
@@ -2502,6 +2724,7 @@ textarea {
   .ds-api-lab,
   .ds-qa-board,
   .ds-governance-grid,
+  .ds-object-grid,
   .ds-guide-shell,
   .ds-guide-panel,
   .ds-recipe-card,
@@ -2527,9 +2750,14 @@ textarea {
   .ds-token-row,
   .ds-expression-row,
   .ds-data-format div,
-  .ds-world-content div {
+  .ds-world-content div,
+  .ds-object-card dl div {
     grid-template-columns: 1fr;
     gap: var(--sos-space-2);
+  }
+
+  .ds-object-flow__rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .ds-token-workbench {
@@ -2573,10 +2801,15 @@ textarea {
   .ds-token-grid,
   .ds-token-workbench,
   .ds-content-rule-grid,
+  .ds-object-grid,
   .ds-playbook-steps,
   .ds-maturity-grid,
   .ds-primitive-grid,
   .ds-mode-picker {
+    grid-template-columns: 1fr;
+  }
+
+  .ds-object-flow__rail {
     grid-template-columns: 1fr;
   }
 
