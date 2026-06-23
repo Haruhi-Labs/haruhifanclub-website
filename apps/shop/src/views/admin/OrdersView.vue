@@ -1,82 +1,85 @@
 <template>
-  <div class="panel">
-    <div class="toolbar">
-      <div class="filter-group">
+  <div class="panel orders-panel sos-surface">
+    <div class="toolbar orders-toolbar">
+      <div class="filter-group order-filter-tabs sos-tabs">
         <button
           v-for="status in statusOptions"
           :key="status.value"
-          class="filter-btn"
+          class="filter-btn sos-tab"
           :class="{ active: filterStatus === status.value }"
+          :aria-selected="filterStatus === status.value"
           @click="changeFilter(status.value)"
         >
           {{ status.label }}
         </button>
         <span class="filter-separator">|</span>
         <button
-          class="filter-btn"
+          class="filter-btn sos-tab"
           :class="{ active: filterItemType === 'spot' }"
+          :aria-selected="filterItemType === 'spot'"
           @click="changeItemTypeFilter('spot')"
         >仅现货</button>
         <button
-          class="filter-btn"
+          class="filter-btn sos-tab"
           :class="{ active: filterItemType === 'presale' }"
+          :aria-selected="filterItemType === 'presale'"
           @click="changeItemTypeFilter('presale')"
         >仅预售</button>
       </div>
       <div class="toolbar-query">
-        <input v-model.trim="keyword" class="search-input" placeholder="按订单号/收货人/手机号搜索">
-        <select v-model="sortBy" class="form-select compact-select">
+        <input v-model.trim="keyword" class="search-input sos-input" placeholder="按订单号/收货人/手机号搜索">
+        <select v-model="sortBy" class="form-select compact-select sos-select">
           <option value="created_at">按时间</option>
           <option value="total">按金额</option>
           <option value="status">按状态</option>
           <option value="id">按订单号</option>
         </select>
-        <select v-model="sortDir" class="form-select compact-select">
+        <select v-model="sortDir" class="form-select compact-select sos-select">
           <option value="desc">降序</option>
           <option value="asc">升序</option>
         </select>
-        <select v-model.number="pageSize" class="form-select compact-select">
+        <select v-model.number="pageSize" class="form-select compact-select sos-select">
           <option :value="10">10/页</option>
           <option :value="20">20/页</option>
           <option :value="50">50/页</option>
         </select>
-        <button class="admin-btn btn-blue" @click="searchOrders">查询</button>
+        <button class="admin-btn btn-blue sos-button sos-button--primary sos-button--sm" @click="searchOrders">查询</button>
       </div>
       <div class="toolbar-actions">
         <span class="text-sub">已选 {{ selectedCount }} 单</span>
-        <button class="admin-btn btn-outline" :disabled="selectedCount === 0" @click="clearSelection">清空选择</button>
-        <button class="admin-btn btn-outline" @click="selectPendingUnexported" title="勾选所有尚未导出发货单的待发货订单">
+        <button class="admin-btn btn-outline sos-button sos-button--secondary sos-button--sm" :disabled="selectedCount === 0" @click="clearSelection">清空选择</button>
+        <button class="admin-btn btn-outline sos-button sos-button--secondary sos-button--sm" @click="selectPendingUnexported" title="勾选所有尚未导出发货单的待发货订单">
           <i class="fa fa-check-square-o"></i> 未导出待发货
         </button>
-        <button class="admin-btn btn-outline" @click="selectAllPending" title="勾选所有待发货订单">
+        <button class="admin-btn btn-outline sos-button sos-button--secondary sos-button--sm" @click="selectAllPending" title="勾选所有待发货订单">
           <i class="fa fa-check-square-o"></i> 全部待发货
         </button>
-        <button class="admin-btn btn-green" :disabled="selectedCount === 0" @click="exportSelectedOrders">
+        <button class="admin-btn btn-green sos-button sos-button--primary sos-button--sm" :disabled="selectedCount === 0" @click="exportSelectedOrders">
           <i class="fa fa-download"></i> 导出所选
         </button>
-        <button class="admin-btn btn-green" :disabled="selectedCount === 0" @click="exportSpotOrders" title="导出所选订单中的现货商品（预售商品不导出，纯预售订单被跳过）">
+        <button class="admin-btn btn-green sos-button sos-button--primary sos-button--sm" :disabled="selectedCount === 0" @click="exportSpotOrders" title="导出所选订单中的现货商品（预售商品不导出，纯预售订单被跳过）">
           <i class="fa fa-download"></i> 导出现货订单
         </button>
         <div class="presale-export-group">
-          <select v-model="presaleExportProductId" class="form-select compact-select presale-export-select">
+          <select v-model="presaleExportProductId" class="form-select compact-select sos-select presale-export-select">
             <option value="all">全部预售商品</option>
             <option v-for="p in presaleProductOptions" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
-          <button class="admin-btn btn-green" :disabled="selectedCount === 0" @click="exportPresaleOrders" title="导出所选订单中的预售商品（仅导出选定的预售商品）">
+          <button class="admin-btn btn-green sos-button sos-button--primary sos-button--sm" :disabled="selectedCount === 0" @click="exportPresaleOrders" title="导出所选订单中的预售商品（仅导出选定的预售商品）">
             <i class="fa fa-download"></i> 导出预售订单
           </button>
         </div>
-        <input type="file" ref="importFileRef" accept=".csv" style="display:none" @change="handleImportFile">
-        <button class="admin-btn btn-outline" @click="$refs.importFileRef.click()" title="导入带有物流单号的CSV文件，自动匹配包裹并发货">
+        <input type="file" ref="importFileRef" accept=".csv" class="visually-hidden-input" @change="handleImportFile">
+        <button class="admin-btn btn-outline sos-button sos-button--secondary sos-button--sm" @click="$refs.importFileRef.click()" title="导入带有物流单号的CSV文件，自动匹配包裹并发货">
           <i class="fa fa-upload"></i> 导入发货单
         </button>
       </div>
     </div>
 
-    <div v-if="importResult" class="import-result-panel">
+    <div v-if="importResult" class="import-result-panel sos-surface">
       <div class="import-result-header">
         <strong>导入结果</strong>
-        <button class="admin-btn btn-outline" style="padding:2px 8px;font-size:0.75rem;" @click="importResult = null">关闭</button>
+        <button class="admin-btn btn-outline sos-button sos-button--secondary sos-button--sm order-action-button" @click="importResult = null">关闭</button>
       </div>
       <div class="import-result-summary">
         成功 <strong>{{ importResult.success }}</strong> 单，跳过 {{ importResult.skipped }} 单，失败 {{ importResult.errors?.length || 0 }} 单
@@ -89,7 +92,7 @@
       </div>
     </div>
 
-    <div class="table-container">
+    <div class="table-container orders-table-surface sos-surface">
       <table class="data-table">
         <thead>
           <tr>
@@ -106,8 +109,8 @@
             <th>商品概览</th>
             <th>收货信息</th>
             <th>金额</th>
-            <th style="text-align: center;">状态</th>
-            <th style="text-align: center;">操作</th>
+            <th class="cell-center">状态</th>
+            <th class="cell-center">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -118,10 +121,10 @@
             <td>
               <div class="order-id">{{ order.id }}</div>
               <div class="text-sub">{{ new Date(order.created_at).toLocaleString() }}</div>
-              <span v-if="order.orderType === 'mixed'" class="order-type-badge type-mixed">混合订单</span>
-              <span v-else-if="order.orderType === 'presale'" class="order-type-badge type-presale">预售订单</span>
+              <span v-if="order.orderType === 'mixed'" class="order-type-badge type-mixed sos-badge sos-badge--outline">混合订单</span>
+              <span v-else-if="order.orderType === 'presale'" class="order-type-badge type-presale sos-badge sos-badge--outline">预售订单</span>
               <div v-if="getExportTags(order).length" class="export-tags">
-                <span v-for="tag in getExportTags(order)" :key="tag.key" class="export-tag" :class="tag.cls">{{ tag.label }}</span>
+                <span v-for="tag in getExportTags(order)" :key="tag.key" class="export-tag sos-badge sos-badge--outline" :class="tag.cls">{{ tag.label }}</span>
               </div>
               <div v-if="order.mergeMeta" class="merge-order-brief">
                 <div><strong>合并单（第 {{ getMergeCount(order.mergeMeta) }} 次）</strong></div>
@@ -147,11 +150,11 @@
                 </div>
                 <div class="merge-kv-row">
                   <span>邮费减免</span>
-                  <span style="color: #16a34a;">-¥{{ getMergeShippingDiscount(order.mergeMeta) }}</span>
+                  <span class="amount-success">-¥{{ getMergeShippingDiscount(order.mergeMeta) }}</span>
                 </div>
                 <div v-if="getMergeShippingExtra(order.mergeMeta) > 0" class="merge-kv-row">
                   <span>邮费补差</span>
-                  <span style="color: #dc2626;">+¥{{ getMergeShippingExtra(order.mergeMeta) }}</span>
+                  <span class="amount-danger">+¥{{ getMergeShippingExtra(order.mergeMeta) }}</span>
                 </div>
               </div>
             </td>
@@ -160,73 +163,78 @@
                 <div v-for="sub in order.subOrders" :key="sub.subKey" class="sub-order-block">
                   <div class="sub-order-header">
                     <span class="sub-order-label">{{ sub.label }}</span>
-                    <span v-if="sub.shipped" class="sub-shipped-badge"><i class="fa fa-check"></i> 已发货</span>
-                    <span v-else class="sub-pending-badge">待发货</span>
+                    <span v-if="sub.shipped" class="sub-shipped-badge sos-badge sos-badge--outline"><i class="fa fa-check"></i> 已发货</span>
+                    <span v-else class="sub-pending-badge sos-badge sos-badge--outline">待发货</span>
                   </div>
                   <div v-for="(item, idx) in sub.items" :key="idx" class="item-row">
-                    {{ item.name }} <span style="color: #9ca3af;">x{{ item.quantity }}</span>
+                    {{ item.name }} <span class="item-quantity">x{{ item.quantity }}</span>
                   </div>
-                  <div v-if="sub.shipped && sub.trackingNo" class="text-sub" style="font-size: 0.72rem;">
+                  <div v-if="sub.shipped && sub.trackingNo" class="text-sub tracking-text">
                     {{ sub.trackingCompany }} {{ sub.trackingNo }}
                   </div>
                 </div>
               </template>
               <template v-else>
                 <div v-for="(item, idx) in order.items" :key="idx" class="item-row">
-                  {{ item.name }} <span style="color: #9ca3af;">x{{ item.quantity }}</span>
-                  <span v-if="item.isPresale" class="item-presale-tag">预售</span>
+                  {{ item.name }} <span class="item-quantity">x{{ item.quantity }}</span>
+                  <span v-if="item.isPresale" class="item-presale-tag sos-badge sos-badge--outline">预售</span>
                 </div>
               </template>
             </td>
-            <td style="font-size: 0.85rem;">
+            <td class="contact-cell">
               <div><strong>{{ order.contact.name }}</strong> {{ order.contact.phone }}</div>
               <div class="text-sub">{{ order.contact.email || '-' }}</div>
               <div class="text-sub">{{ order.contact.province }}{{ order.contact.city }}{{ order.contact.district }}</div>
-              <div class="text-sub" style="max-width: 200px;">{{ order.contact.addressDetail }}</div>
+              <div class="text-sub address-detail">{{ order.contact.addressDetail }}</div>
             </td>
-            <td style="font-weight: bold;">¥{{ order.total }}</td>
-            <td style="text-align: center;">
-              <span :class="['status-badge', 'status-' + order.status]">{{ getStatusLabel(order.status) }}</span>
+            <td class="amount-cell">¥{{ order.total }}</td>
+            <td class="cell-center">
+              <span :class="['status-badge', 'sos-badge', 'status-' + order.status]">{{ getStatusLabel(order.status) }}</span>
             </td>
-            <td style="text-align: center;">
-              <div style="display: flex; flex-direction: column; gap: 0.4rem; align-items: center;">
-                <div style="display: flex; gap: 0.5rem; justify-content: center;">
-                  <button class="admin-btn btn-outline" style="font-size: 0.75rem;" @click="openEditContact(order)">修改收货</button>
+            <td class="cell-center">
+              <div class="order-actions-stack">
+                <div class="order-actions-row">
+                  <button class="admin-btn btn-outline sos-button sos-button--secondary sos-button--sm order-action-button" @click="openEditContact(order)">修改收货</button>
                   <template v-if="order.status === 1">
-                    <button class="admin-btn btn-blue" style="font-size: 0.75rem;" @click="updateStatus(order.id, 2)">收款</button>
-                    <button class="admin-btn btn-outline" style="font-size: 0.75rem; color: #ef4444;" @click="updateStatus(order.id, 0)">取消</button>
+                    <button class="admin-btn btn-blue sos-button sos-button--primary sos-button--sm order-action-button" @click="updateStatus(order.id, 2)">收款</button>
+                    <button class="admin-btn btn-outline sos-button sos-button--danger sos-button--sm order-action-button" @click="updateStatus(order.id, 0)">取消</button>
                   </template>
                   <template v-if="order.status === 5">
-                    <button class="admin-btn btn-blue" style="font-size: 0.75rem;" @click="updateStatus(order.id, 2)">确认收款</button>
-                    <button class="admin-btn btn-outline order-delete-btn" style="font-size: 0.75rem;" @click="deletePendingOrder(order)">删除</button>
+                    <button class="admin-btn btn-blue sos-button sos-button--primary sos-button--sm order-action-button" @click="updateStatus(order.id, 2)">确认收款</button>
+                    <button class="admin-btn btn-outline order-delete-btn sos-button sos-button--danger sos-button--sm order-action-button" @click="deletePendingOrder(order)">删除</button>
                   </template>
                   <template v-if="order.status === 2 && (!order.subOrders || order.subOrders.length === 0)">
-                    <button class="admin-btn btn-green" style="font-size: 0.75rem;" @click="openShip(order)">发货</button>
+                    <button class="admin-btn btn-green sos-button sos-button--primary sos-button--sm order-action-button" @click="openShip(order)">发货</button>
                   </template>
-                  <span v-if="order.status === 0" style="color: #999; font-size: 0.75rem;">已取消 (库存已回滚)</span>
-                  <span v-if="order.status === 3 && (!order.subOrders || order.subOrders.length === 0)" style="color: #10b981; font-size: 0.75rem;">已发货</span>
+                  <span v-if="order.status === 0" class="order-state-note">已取消 (库存已回滚)</span>
+                  <span v-if="order.status === 3 && (!order.subOrders || order.subOrders.length === 0)" class="order-state-note order-state-note--success">已发货</span>
                 </div>
                 <!-- Sub-order shipping buttons -->
                 <template v-if="order.status === 2 && order.subOrders && order.subOrders.length > 0">
                   <div v-for="sub in order.subOrders" :key="sub.subKey" class="sub-ship-row">
                     <template v-if="!sub.shipped">
-                      <button class="admin-btn btn-green" style="font-size: 0.72rem;" @click="openSubShip(order.id, sub)">
+                      <button class="admin-btn btn-green sos-button sos-button--primary sos-button--sm order-action-button" @click="openSubShip(order.id, sub)">
                         发货: {{ sub.label }}
                       </button>
                     </template>
-                    <span v-else style="color: #10b981; font-size: 0.72rem;">
+                    <span v-else class="order-state-note order-state-note--success">
                       <i class="fa fa-check"></i> {{ sub.label }}
                     </span>
                   </div>
                 </template>
                 <template v-if="order.status === 3 && order.subOrders && order.subOrders.length > 0">
-                  <span style="color: #10b981; font-size: 0.75rem;">全部已发货</span>
+                  <span class="order-state-note order-state-note--success">全部已发货</span>
                 </template>
               </div>
             </td>
           </tr>
           <tr v-if="orders.length === 0">
-            <td colspan="7" style="text-align: center; color: #9ca3af;">暂无订单数据</td>
+            <td colspan="7">
+              <section class="sos-empty-state orders-empty-state">
+                <h4 class="sos-empty-state__title">暂无订单数据</h4>
+                <p class="sos-empty-state__copy">当前筛选条件下没有订单。调整状态、商品类型或搜索词后重试。</p>
+              </section>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -234,8 +242,8 @@
 
     <div class="toolbar pagination-row">
       <span class="text-sub">共 {{ ordersMeta.total }} 单，第 {{ ordersMeta.page }} / {{ ordersMeta.totalPages }} 页</span>
-      <button class="admin-btn btn-outline" :disabled="ordersMeta.page <= 1" @click="goPrevPage">上一页</button>
-      <button class="admin-btn btn-outline" :disabled="ordersMeta.page >= ordersMeta.totalPages" @click="goNextPage">下一页</button>
+      <button class="admin-btn btn-outline sos-button sos-button--secondary sos-button--sm" :disabled="ordersMeta.page <= 1" @click="goPrevPage">上一页</button>
+      <button class="admin-btn btn-outline sos-button sos-button--secondary sos-button--sm" :disabled="ordersMeta.page >= ordersMeta.totalPages" @click="goNextPage">下一页</button>
     </div>
 
     <!-- Ship modal (for orders without sub-orders) -->
@@ -243,13 +251,13 @@
       <div class="modal-card">
         <h3 class="modal-title">订单发货</h3>
         <label class="form-label">快递单号 (选填，可自动识别快递公司)</label>
-        <input v-model="shipModal.no" type="text" class="form-input" placeholder="留空则不回填运单号">
-        <div v-if="detectedCompany" style="margin-top: 0.5rem; font-size: 0.85rem; color: #047857;">
+        <input v-model="shipModal.no" type="text" class="form-input sos-input" placeholder="留空则不回填运单号">
+        <div v-if="detectedCompany" class="detected-company">
           <i class="fa fa-check-circle"></i> 识别为: {{ detectedCompany }}
         </div>
         <div class="modal-actions">
-          <button @click="shipModal.show = false" class="admin-btn btn-outline">取消</button>
-          <button @click="confirmShip" class="admin-btn btn-blue">确认发货</button>
+          <button @click="shipModal.show = false" class="admin-btn btn-outline sos-button sos-button--secondary">取消</button>
+          <button @click="confirmShip" class="admin-btn btn-blue sos-button sos-button--primary">确认发货</button>
         </div>
       </div>
     </div>
@@ -260,17 +268,17 @@
         <h3 class="modal-title">子订单发货: {{ subShipModal.label }}</h3>
         <div class="sub-ship-items">
           <div v-for="(item, idx) in subShipModal.items" :key="idx" class="item-row">
-            {{ item.name }} <span style="color: #9ca3af;">x{{ item.quantity }}</span>
+            {{ item.name }} <span class="item-quantity">x{{ item.quantity }}</span>
           </div>
         </div>
         <label class="form-label">快递单号 (选填，可自动识别快递公司)</label>
-        <input v-model="subShipModal.no" type="text" class="form-input" placeholder="留空则不回填运单号">
-        <div v-if="subDetectedCompany" style="margin-top: 0.5rem; font-size: 0.85rem; color: #047857;">
+        <input v-model="subShipModal.no" type="text" class="form-input sos-input" placeholder="留空则不回填运单号">
+        <div v-if="subDetectedCompany" class="detected-company">
           <i class="fa fa-check-circle"></i> 识别为: {{ subDetectedCompany }}
         </div>
         <div class="modal-actions">
-          <button @click="subShipModal.show = false" class="admin-btn btn-outline">取消</button>
-          <button @click="confirmSubShip" class="admin-btn btn-blue">确认发货</button>
+          <button @click="subShipModal.show = false" class="admin-btn btn-outline sos-button sos-button--secondary">取消</button>
+          <button @click="confirmSubShip" class="admin-btn btn-blue sos-button sos-button--primary">确认发货</button>
         </div>
       </div>
     </div>
@@ -281,37 +289,37 @@
         <div class="contact-edit-grid">
           <div>
             <label class="form-label">收货人姓名</label>
-            <input v-model.trim="editContactModal.form.name" type="text" class="form-input">
+            <input v-model.trim="editContactModal.form.name" type="text" class="form-input sos-input">
           </div>
           <div>
             <label class="form-label">手机号</label>
-            <input v-model.trim="editContactModal.form.phone" type="tel" maxlength="11" class="form-input">
+            <input v-model.trim="editContactModal.form.phone" type="tel" maxlength="11" class="form-input sos-input">
           </div>
           <div class="col-span-2">
             <label class="form-label">邮箱</label>
-            <input v-model.trim="editContactModal.form.email" type="email" class="form-input">
+            <input v-model.trim="editContactModal.form.email" type="email" class="form-input sos-input">
           </div>
           <div>
             <label class="form-label">省</label>
-            <input v-model.trim="editContactModal.form.province" type="text" class="form-input">
+            <input v-model.trim="editContactModal.form.province" type="text" class="form-input sos-input">
           </div>
           <div>
             <label class="form-label">市</label>
-            <input v-model.trim="editContactModal.form.city" type="text" class="form-input">
+            <input v-model.trim="editContactModal.form.city" type="text" class="form-input sos-input">
           </div>
           <div class="col-span-2">
             <label class="form-label">区/县</label>
-            <input v-model.trim="editContactModal.form.district" type="text" class="form-input">
+            <input v-model.trim="editContactModal.form.district" type="text" class="form-input sos-input">
           </div>
           <div class="col-span-2">
             <label class="form-label">详细地址</label>
-            <input v-model.trim="editContactModal.form.addressDetail" type="text" class="form-input">
+            <input v-model.trim="editContactModal.form.addressDetail" type="text" class="form-input sos-input">
           </div>
         </div>
         <p v-if="editContactModal.error" class="text-danger">{{ editContactModal.error }}</p>
         <div class="modal-actions">
-          <button @click="closeEditContactModal" class="admin-btn btn-outline">取消</button>
-          <button @click="confirmEditContact" class="admin-btn btn-blue" :disabled="editContactModal.saving">
+          <button @click="closeEditContactModal" class="admin-btn btn-outline sos-button sos-button--secondary">取消</button>
+          <button @click="confirmEditContact" class="admin-btn btn-blue sos-button sos-button--primary" :disabled="editContactModal.saving">
             {{ editContactModal.saving ? '保存中...' : '保存' }}
           </button>
         </div>
@@ -953,9 +961,9 @@ const handleImportFile = async (e) => {
 .import-result-panel {
   margin: 0.5rem 0;
   padding: 0.6rem 0.8rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  background: #f9fafb;
+  border: 1px solid var(--sos-border-default);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
   font-size: 0.8rem;
 }
 
@@ -979,17 +987,43 @@ const handleImportFile = async (e) => {
 }
 
 .import-detail-line {
-  color: #047857;
+  color: var(--sos-success);
 }
 
 .import-error-line {
-  color: #dc2626;
+  color: var(--sos-danger);
+}
+
+.orders-panel {
+  border: 1px solid var(--sos-border-subtle);
+}
+
+.orders-toolbar {
+  background: var(--sos-bg-subtle);
+}
+
+.orders-table-surface {
+  overflow-x: auto;
+  border-radius: 0;
+  border-inline: 0;
+  border-bottom: 0;
 }
 
 .toolbar-actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.toolbar-actions .admin-btn,
+.toolbar-query .admin-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.toolbar-actions > .text-sub {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .toolbar-query {
@@ -1009,10 +1043,19 @@ const handleImportFile = async (e) => {
   text-align: center;
 }
 
+.cell-center {
+  text-align: center;
+}
+
+.visually-hidden-input {
+  display: none;
+}
+
 .compact-select {
   width: 110px;
   margin-bottom: 0;
   padding: 0.35rem 0.5rem;
+  min-height: var(--sos-control-sm);
 }
 
 button:disabled {
@@ -1021,8 +1064,8 @@ button:disabled {
 }
 
 .order-delete-btn {
-  color: #ef4444;
-  border-color: #fca5a5;
+  color: var(--sos-white);
+  border-color: var(--sos-danger);
 }
 
 .export-tags {
@@ -1033,9 +1076,12 @@ button:disabled {
 }
 
 .export-tag {
-  display: inline-block;
+  width: fit-content;
+  min-height: 1.25rem;
+  display: inline-flex;
+  align-items: center;
   padding: 0 5px;
-  border-radius: 3px;
+  border-radius: var(--sos-radius-full);
   font-size: 0.63rem;
   font-weight: 600;
   line-height: 1.5;
@@ -1047,59 +1093,63 @@ button:disabled {
 }
 
 .tag-done {
-  background: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
+  background: color-mix(in srgb, var(--sos-success) 10%, var(--sos-bg-surface));
+  color: var(--sos-success);
+  border: 1px solid color-mix(in srgb, var(--sos-success) 28%, var(--sos-border-default));
 }
 
 .tag-spot {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+  background: var(--sos-accent-soft);
+  color: var(--sos-link);
+  border: 1px solid color-mix(in srgb, var(--sos-accent) 28%, var(--sos-border-default));
 }
 
 .tag-presale {
-  background: #ede9fe;
-  color: #5b21b6;
-  border: 1px solid #c4b5fd;
+  background: var(--sos-amber-50);
+  color: var(--sos-amber-700);
+  border: 1px solid color-mix(in srgb, var(--sos-amber-600) 28%, var(--sos-border-default));
 }
 
 .order-type-badge {
-  display: inline-block;
+  width: fit-content;
+  display: inline-flex;
   margin-top: 0.25rem;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--sos-radius-full);
   font-size: 0.68rem;
   font-weight: 600;
 }
 
 .type-mixed {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fcd34d;
+  background: var(--sos-accent-soft);
+  color: var(--sos-link);
+  border: 1px solid color-mix(in srgb, var(--sos-accent) 28%, var(--sos-border-default));
 }
 
 .type-presale {
-  background: #ede9fe;
-  color: #5b21b6;
-  border: 1px solid #c4b5fd;
+  background: var(--sos-amber-50);
+  color: var(--sos-amber-700);
+  border: 1px solid color-mix(in srgb, var(--sos-amber-600) 28%, var(--sos-border-default));
 }
 
 .item-presale-tag {
-  display: inline-block;
+  width: fit-content;
+  min-height: 1.125rem;
+  display: inline-flex;
   margin-left: 0.3rem;
   padding: 0 4px;
-  border-radius: 3px;
+  border-radius: var(--sos-radius-full);
   font-size: 0.65rem;
   font-weight: 600;
-  background: #ede9fe;
-  color: #7c3aed;
+  background: var(--sos-amber-50);
+  color: var(--sos-amber-700);
   vertical-align: middle;
 }
 
 .presale-export-group {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 0;
 }
 
@@ -1118,7 +1168,7 @@ button:disabled {
 }
 
 .filter-separator {
-  color: #cbd5e1;
+  color: var(--sos-border-default);
   margin: 0 0.15rem;
   user-select: none;
 }
@@ -1126,9 +1176,9 @@ button:disabled {
 .sub-order-block {
   padding: 0.35rem 0.45rem;
   margin-bottom: 0.35rem;
-  border-radius: 5px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-subtle);
+  border: 1px solid var(--sos-border-subtle);
 }
 
 .sub-order-header {
@@ -1141,18 +1191,22 @@ button:disabled {
 .sub-order-label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--sos-text-secondary);
 }
 
 .sub-shipped-badge {
+  width: fit-content;
+  min-height: 1.125rem;
   font-size: 0.68rem;
-  color: #10b981;
+  color: var(--sos-success);
   font-weight: 600;
 }
 
 .sub-pending-badge {
+  width: fit-content;
+  min-height: 1.125rem;
   font-size: 0.68rem;
-  color: #f59e0b;
+  color: var(--sos-yellow-600);
   font-weight: 600;
 }
 
@@ -1163,18 +1217,18 @@ button:disabled {
 .sub-ship-items {
   padding: 0.4rem 0.5rem;
   margin-bottom: 0.5rem;
-  border-radius: 5px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-subtle);
+  border: 1px solid var(--sos-border-subtle);
 }
 
 .merge-order-brief {
   margin-top: 0.35rem;
   padding: 0.35rem 0.45rem;
-  border-radius: 6px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1e3a8a;
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--sos-accent) 24%, var(--sos-border-default));
+  color: var(--sos-link);
   font-size: 0.73rem;
   line-height: 1.45;
 }
@@ -1202,7 +1256,93 @@ button:disabled {
 .text-danger {
   margin: 0.4rem 0 0;
   font-size: 0.85rem;
-  color: #dc2626;
+  color: var(--sos-danger);
+}
+
+.item-quantity {
+  color: var(--sos-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tracking-text {
+  font-size: 0.72rem;
+}
+
+.contact-cell {
+  font-size: 0.85rem;
+}
+
+.address-detail {
+  max-width: 200px;
+}
+
+.amount-cell {
+  color: var(--sos-text-primary);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.amount-success {
+  color: var(--sos-success);
+}
+
+.amount-danger {
+  color: var(--sos-danger);
+}
+
+.status-badge {
+  width: fit-content;
+  min-height: 1.35rem;
+  justify-content: center;
+  border-radius: var(--sos-radius-full);
+  font-weight: 800;
+}
+
+.order-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.order-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.order-action-button {
+  min-height: 2rem;
+  font-size: 0.75rem;
+}
+
+.order-action-button.sos-button--danger {
+  border-color: var(--sos-danger);
+  background: var(--sos-danger);
+  color: var(--sos-white);
+}
+
+.order-state-note {
+  color: var(--sos-text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.order-state-note--success {
+  color: var(--sos-success);
+}
+
+.detected-company {
+  margin-top: 0.5rem;
+  color: var(--sos-success);
+  font-size: 0.85rem;
+}
+
+.orders-empty-state {
+  max-width: 28rem;
+  margin: 0 auto;
+  padding-block: 1rem;
 }
 
 @media (max-width: 1023px) {
