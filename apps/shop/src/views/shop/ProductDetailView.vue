@@ -44,13 +44,13 @@
                                 <span class="detail-presale-label">开做条件</span>
                                 <span class="detail-presale-value">支付件数达到 {{ presaleProgress.target }}</span>
                             </div>
-                            <div class="detail-presale-progress-track">
-                                <span :style="{ width: `${presaleProgress.percent}%` }"></span>
-                            </div>
-                            <div class="detail-presale-progress-meta">
-                                <span>已支付 {{ presaleProgress.paidCount }} / {{ presaleProgress.target }}</span>
-                                <span>{{ presaleProgress.percent }}%</span>
-                            </div>
+                            <SosProgress
+                                class="detail-presale-progress"
+                                :value="presaleProgress.paidCount"
+                                :max="presaleProgress.target || 1"
+                                label="预售进度"
+                                :value-label="`${presaleProgress.paidCount}/${presaleProgress.target || '-'} · ${Math.round(presaleProgress.percent)}%`"
+                            />
                             <p class="detail-presale-note">
                                 {{ presaleProgress.reached ? '已达到开做目标，正在推进生产。' : '进度会随着已支付订单实时更新。' }}
                             </p>
@@ -95,12 +95,12 @@
                     </div>
 
                     <div class="action-row">
-                        <button class="market-btn primary action-btn-group" style="padding: 0.75rem;" @click="buyNow">
+                        <SosButton class="action-btn-group" size="lg" @click="buyNow">
                             <i class="fa fa-shopping-bag mr-2"></i> 立即购买
-                        </button>
-                        <button class="market-btn outline-blue action-btn-group" style="padding: 0.75rem;" @click="addToCart">
+                        </SosButton>
+                        <SosButton class="action-btn-group" variant="secondary" size="lg" @click="addToCart">
                             <i class="fa fa-cart-plus mr-2"></i> 加入购物车
-                        </button>
+                        </SosButton>
                     </div>
                 </div>
             </div>
@@ -138,6 +138,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useShopStore } from '@/stores/shopStore'
+import { SosButton, SosProgress } from '@haruhi/ui'
 
 const route = useRoute()
 const router = useRouter()

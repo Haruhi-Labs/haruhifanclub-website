@@ -50,40 +50,19 @@
         </div>
 
         <!-- Title Section -->
-        <div>
-            <div class="brand-area" @click="$router.push('/')">
-                <div class="brand-logo">
-                    <img :src="mainLogoUrl" alt="春日商城 Logo" class="brand-logo-img">
-                </div>
-                <div class="brand-text">
-                    <h1>春 日 商 城</h1>
-                    <div v-if="!isHomePage" class="brand-subtitle">{{ pageTitle }}</div>
-                </div>
-            </div>
-            <div v-if="isHomePage" style="width: fit-content;">
-                <hr class="custom-hr">
-                <span class="slogan">
-                    用爱发电的
-                    <span
-                        ref="nonprofitTermRef"
-                        class="nonprofit-term"
-                        :class="{ 'is-open': nonprofitTooltipOpen }"
-                        role="button"
-                        :aria-expanded="nonprofitTooltipOpen ? 'true' : 'false'"
-                        tabindex="0"
-                        aria-label="非营利说明"
-                        @click.stop="toggleNonprofitTooltip"
-                        @keydown.enter.prevent="toggleNonprofitTooltip"
-                        @keydown.space.prevent="toggleNonprofitTooltip"
-                    >
-                        非营利
-                        <span class="nonprofit-tooltip" role="tooltip">
-                            “非营利”不等于“非盈利”，是不以利润分配为目的，所获利润全部用于团内活动、企划和日常开销。
-                        </span>
-                    </span>
-                    周边商城平台
-                </span>
-            </div>
+        <div class="shop-header-identity">
+            <SosHeaderBrand
+                as="button"
+                class="shop-header-brand"
+                :logo-src="mainLogoUrl"
+                logo-alt="春日商城 Logo"
+                title="春日商城"
+                :subtitle="isHomePage ? '非营利周边商城平台' : pageTitle"
+                @click="$router.push('/')"
+            />
+            <p v-if="isHomePage" class="slogan">
+                商品、库存和预售进度常驻展示，购买动作使用行动蓝。
+            </p>
         </div>
 
         <!-- Filter Section (Only on Home) -->
@@ -134,12 +113,16 @@
 
     <!-- Header: 迷你版 (详情页) -->
     <header v-else class="mini-header-detail">
-        <div class="mini-header-brand" @click="$router.push('/')">
-            <div class="brand-logo mini-brand-logo">
-                <img :src="miniLogoUrl" alt="春日商城 Mini Logo" class="brand-logo-img">
-            </div>
-            <span class="mini-header-title">春日商城</span>
-        </div>
+        <SosHeaderBrand
+            as="button"
+            class="mini-header-brand shop-header-brand"
+            :logo-src="miniLogoUrl"
+            logo-alt="春日商城 Logo"
+            title="春日商城"
+            subtitle="商品详情"
+            compact
+            @click="$router.push('/')"
+        />
         <div class="mini-header-actions desktop-mini-actions">
             <button class="mini-header-action-btn" @click="$router.push('/contact')"><i class="fa fa-user"></i> 联系我们</button>
             <button class="mini-header-action-btn mini-header-cart-btn" @click="$router.push('/cart')">
@@ -197,19 +180,6 @@
         </div>
     </transition>
 
-    <teleport to="body">
-        <transition name="fade">
-            <div
-                v-if="nonprofitTooltipOpen && isHomePage && isMobileViewport"
-                ref="nonprofitTooltipPanelRef"
-                class="nonprofit-tooltip-mobile"
-                role="tooltip"
-            >
-                "非营利"不等于"非盈利"，是不以利润分配为目的，所获利润用于团内。
-            </div>
-        </transition>
-    </teleport>
-
     <!-- Mobile floating cart -->
     <teleport to="body">
         <transition name="fade">
@@ -265,6 +235,7 @@ import { useShopStore } from '@/stores/shopStore'
 import TheFooter from '@/components/TheFooter.vue'
 import { appBaseUrl } from '@/utils/runtimePaths'
 import { AccountMenu } from '@haruhi/auth-ui'
+import { SosHeaderBrand } from '@haruhi/ui'
 import '@/assets/shop.css'
 
 const route = useRoute()
@@ -272,13 +243,10 @@ const router = useRouter()
 const store = useShopStore()
 const { cartCount, state, setProductType } = store
 const mainLogoUrl = `${appBaseUrl}haruhi-logo-192.png`
-const miniLogoUrl = `${appBaseUrl}favicon.ico`
+const miniLogoUrl = mainLogoUrl
 const mobileMenuOpen = ref(false)
 const isFilterExpanded = ref(typeof window !== 'undefined' ? window.innerWidth > 639 : true)
 const mobileMenuWrapRef = ref(null)
-const nonprofitTermRef = ref(null)
-const nonprofitTooltipPanelRef = ref(null)
-const nonprofitTooltipOpen = ref(false)
 const isMobileViewport = ref(false)
 const cartPopupOpen = ref(false)
 
@@ -336,10 +304,6 @@ const goToCartFromPopup = () => {
     router.push('/cart')
 }
 
-const toggleNonprofitTooltip = () => {
-    nonprofitTooltipOpen.value = !nonprofitTooltipOpen.value
-}
-
 const toggleMobileMenu = () => {
     mobileMenuOpen.value = !mobileMenuOpen.value
 }
@@ -361,7 +325,6 @@ watch(
     () => route.fullPath,
     () => {
         mobileMenuOpen.value = false
-        nonprofitTooltipOpen.value = false
         cartPopupOpen.value = false
     }
 )
@@ -377,15 +340,6 @@ const handleDocumentPointerDown = (event) => {
         }
     }
 
-    if (nonprofitTooltipOpen.value) {
-        const nonprofitTerm = nonprofitTermRef.value
-        const nonprofitPanel = nonprofitTooltipPanelRef.value
-        const isInsideTerm = nonprofitTerm && nonprofitTerm.contains(target)
-        const isInsidePanel = nonprofitPanel && nonprofitPanel.contains(target)
-        if (!isInsideTerm && !isInsidePanel) {
-            nonprofitTooltipOpen.value = false
-        }
-    }
 }
 
 const updateViewportState = () => {

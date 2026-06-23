@@ -12,6 +12,7 @@
     "@haruhi/api-client": "workspace:*",
     "@haruhi/auth-ui": "workspace:*",
     "@haruhi/design-system": "workspace:*",
+    "@haruhi/ui": "workspace:*",
     "chart.js": "^4.4.0",
     "cropperjs": "^1.6.2",
     "vue": "^3.5.22",

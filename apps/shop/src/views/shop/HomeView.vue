@@ -6,15 +6,22 @@
     </div>
 
     <div v-if="filteredProducts.length > 0" class="product-grid">
-        <div v-for="item in filteredProducts" :key="item.id" class="product-card group" @click="$router.push(`/product/${item.id}`)">
+        <article
+            v-for="item in filteredProducts"
+            :key="item.id"
+            class="product-card shop-product-card sos-card sos-card--interactive"
+            role="link"
+            tabindex="0"
+            :aria-label="`查看 ${item.name} 商品详情`"
+            @click="goToProduct(item)"
+            @keydown.enter.prevent="goToProduct(item)"
+            @keydown.space.prevent="goToProduct(item)"
+        >
             <div class="card-image-wrapper">
                 <picture>
                     <source v-if="item.imageMobile" media="(max-width: 639px)" :srcset="item.imageMobile">
                     <img :src="item.image" :alt="item.name" class="card-image">
                 </picture>
-                <div class="card-overlay">
-                    <button class="market-btn" @click.stop="store.addToCart(item)">加入购物车</button>
-                </div>
             </div>
             <div class="card-body">
                 <div class="card-title-row">
@@ -32,9 +39,13 @@
                             {{ getPresaleProgress(item).paidCount }}/{{ getPresaleProgress(item).target }}
                         </span>
                     </div>
-                    <div class="card-presale-track">
-                        <span :style="{ width: `${getPresaleProgress(item).percent}%` }"></span>
-                    </div>
+                    <SosProgress
+                        class="shop-product-progress"
+                        :value="getPresaleProgress(item).paidCount"
+                        :max="getPresaleProgress(item).target || 1"
+                        label="预售进度"
+                        :value-label="getPresaleValueLabel(item)"
+                    />
                     <p class="card-presale-tip">
                         {{ getPresaleProgress(item).reached ? '已达标' : '订单持续累计中' }}
                     </p>
@@ -50,9 +61,10 @@
                     <small class="stock-label">
                         {{ item.presaleMode === PRESALE_MODES.NONE ? `库存: ${item.stock}` : '预售商品' }}
                     </small>
+                    <SosButton class="shop-card-action" size="sm" @click.stop="store.addToCart(item)">加入购物车</SosButton>
                 </div>
             </div>
-        </div>
+        </article>
     </div>
     <div v-else style="padding: 4rem; text-align: center; color: #666;">
         <i class="fa fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 1rem;"></i>
@@ -63,9 +75,12 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useShopStore } from '@/stores/shopStore'
+import { SosButton, SosProgress } from '@haruhi/ui'
 
 const store = useShopStore()
+const router = useRouter()
 const PRESALE_MODES = Object.freeze({
     NONE: 'none',
     GOAL: 'goal',
@@ -100,4 +115,11 @@ const hasDiscount = (item) => store.hasProductDiscount(item)
 const getDisplayPrice = (item) => store.resolveProductPrice(item)
 const getPresaleProgress = (item) => store.getPresaleProgress(item)
 const getFixedPresaleDateText = (item) => store.formatFixedPresaleDate(item)
+const getPresaleValueLabel = (item) => {
+    const progress = getPresaleProgress(item)
+    return `${progress.paidCount}/${progress.target || '-'} · ${Math.round(progress.percent)}%`
+}
+const goToProduct = (item) => {
+    router.push(`/product/${item.id}`)
+}
 </script>

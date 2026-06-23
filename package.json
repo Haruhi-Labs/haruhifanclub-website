@@ -22,6 +22,7 @@
     "check:design-system": "node scripts/check-design-system.mjs",
     "check:design-system:browser": "node scripts/check-design-system.mjs --browser",
     "check:news:visual": "node scripts/check-news-visual.mjs",
+    "check:shop:visual": "node scripts/check-shop-visual.mjs",
     "build:apps": "pnpm -r --filter \"./apps/*\" build",
     "lint": "eslint . && cargo fmt --check && cargo clippy -- -D warnings",
     "lint:js": "eslint .",
