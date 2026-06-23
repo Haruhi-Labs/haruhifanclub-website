@@ -516,7 +516,7 @@ const closeImportModal = () => {
   pointer-events: none; /* 确保不影响点击 */
   
   /* 默认底色 */
-  background-color: #f5f5f7; 
+  background-color: var(--sos-bg-page); 
 }
 
 /* 新增：泛白滤镜遮罩
@@ -539,7 +539,7 @@ const closeImportModal = () => {
   .bg-layer {
     background-size: auto 100%; /* 高度100%，宽度保持比例 */
     /* 可以在图片下层垫一个径向渐变，让两侧空白处更自然 */
-    background-image: var(--bg-url), radial-gradient(circle at center, rgba(255,255,255,0) 0%, #f5f5f7 100%);
+    background-image: var(--bg-url), radial-gradient(circle at center, rgba(255,255,255,0) 0%, var(--sos-bg-page) 100%);
   }
 }
 
@@ -572,13 +572,13 @@ const closeImportModal = () => {
   font-size: 48px; /* 加大标题 */
   font-weight: 900; /* 最粗字重 */
   margin-bottom: 16px;
-  color: #000000; /* 纯黑，高对比度 */
+  color: var(--sos-text-primary); /* 纯黑，高对比度 */
   letter-spacing: -1.5px; /* 收紧字间距，更现代 */
 }
 .header p {
   font-size: 18px; /* 加大副标题 */
   font-weight: 600; /* 加粗 */
-  color: #333333; /* 深灰，高对比度 */
+  color: var(--sos-text-secondary); /* 深灰，高对比度 */
   line-height: 1.6;
 }
 .actions {
@@ -597,7 +597,7 @@ const closeImportModal = () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: white;
+  background: var(--sos-bg-surface);
   border-radius: 12px;
   padding: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -615,12 +615,12 @@ const closeImportModal = () => {
   padding: 12px 16px;
   font-size: 16px;
   font-weight: 500;
-  color: #374151;
+  color: var(--sos-text-secondary);
   background: transparent;
 }
 
 .search-input::placeholder {
-  color: #9ca3af;
+  color: var(--sos-text-disabled);
 }
 
 .search-input:disabled {
@@ -633,7 +633,7 @@ const closeImportModal = () => {
   height: 44px;
   border: none;
   border-radius: 8px;
-  background: #16a34a;
+  background: var(--sos-accent);
   color: white;
   font-size: 20px;
   cursor: pointer;
@@ -645,7 +645,7 @@ const closeImportModal = () => {
 }
 
 .search-btn:hover:not(:disabled) {
-  background: #15803d;
+  background: var(--sos-accent-hover);
   transform: scale(1.05);
 }
 
@@ -663,8 +663,8 @@ const closeImportModal = () => {
   height: 36px;
   border: none;
   border-radius: 8px;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--sos-bg-muted);
+  color: var(--sos-text-tertiary);
   font-size: 18px;
   cursor: pointer;
   display: flex;
@@ -675,8 +675,8 @@ const closeImportModal = () => {
 }
 
 .search-clear-btn:hover:not(:disabled) {
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--sos-border-default);
+  color: var(--sos-text-secondary);
 }
 
 .search-clear-btn:disabled {
@@ -687,7 +687,7 @@ const closeImportModal = () => {
 .search-info {
   margin-top: 12px;
   text-align: center;
-  color: #6b7280;
+  color: var(--sos-text-tertiary);
   font-size: 14px;
   font-weight: 500;
 }
@@ -701,9 +701,26 @@ button.ui {
   transition: transform 0.1s;
 }
 button.ui.green {
-  background: #16a34a;
-  color: #fff;
-  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.4);
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
+  box-shadow: var(--sos-shadow-card);
+}
+button.ui.green:hover:not(:disabled) {
+  background: var(--sos-accent-hover);
+}
+/* 默认 .ui 按钮：米白承载面次按钮（藏蓝描边） */
+button.ui {
+  background: var(--sos-bg-surface);
+  color: var(--sos-accent-2);
+  box-shadow: var(--sos-shadow-xs);
+  border: 1px solid var(--sos-border-default);
+}
+button.ui:hover:not(:disabled) {
+  border-color: var(--sos-accent-2);
+}
+button.ui:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 button.ui:active { transform: scale(0.96); }
 
@@ -716,7 +733,7 @@ button.ui:active { transform: scale(0.96); }
 }
 .card {
   /* 卡片背景保持不透明，确保内容清晰 */
-  background: rgba(255, 255, 255, 0.95); /* 更不透明一些，增强文字对比 */
+  background: color-mix(in srgb, var(--sos-bg-surface) 92%, transparent); /* 毛玻璃米白，增强文字对比 */
   backdrop-filter: blur(10px); 
   border-radius: 20px; /* 圆角加大 */
   padding: 28px; /* 内边距加大 */
@@ -725,19 +742,19 @@ button.ui:active { transform: scale(0.96); }
   transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
   position: relative;
   overflow: hidden;
-  border: 2px solid rgba(255,255,255,0.8);
+  border: 2px solid var(--sos-border-subtle);
 }
 .card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(0,0,0,0.15);
-  background: #fff;
+  box-shadow: var(--sos-hover-shadow);
+  background: var(--sos-bg-surface);
 }
 
 /* 高亮样式 */
 .card.highlight {
-  border-color: #16a34a;
-  background: #f0fdf4;
-  box-shadow: 0 8px 30px rgba(22, 163, 74, 0.25);
+  border-color: var(--sos-accent);
+  background: var(--sos-accent-soft);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--sos-accent) 22%, transparent);
   transform: translateY(-4px);
 }
 .highlight-badge {
@@ -745,8 +762,8 @@ button.ui:active { transform: scale(0.96); }
   top: 0;
   left: 0;
   right: 0;
-  background: #16a34a;
-  color: #fff;
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
   font-size: 13px;
   font-weight: 800;
   text-align: center;
@@ -769,27 +786,30 @@ button.ui:active { transform: scale(0.96); }
   top: 36px; 
 }
 
-.card .tag.official { background: #e0f2fe; color: #0369a1; /* 更加深的蓝色 */ }
-.card .tag.user { background: #f3f4f6; color: #4b5563; /* 更深的灰色 */ }
+.card .tag.official {
+  background: color-mix(in srgb, var(--sos-accent-2) 14%, var(--sos-bg-surface));
+  color: var(--sos-accent-2); /* 学生藏蓝 */
+}
+.card .tag.user { background: var(--sos-bg-muted); color: var(--sos-text-secondary); }
 .card.special {
-  background: linear-gradient(135deg, rgba(255, 251, 235, 0.98) 0%, rgba(255, 255, 255, 0.98) 100%);
-  border: 2px solid #fbbf24; /* 加粗边框 */
+  background: linear-gradient(135deg, var(--sos-accent-soft) 0%, var(--sos-bg-surface) 100%);
+  border: 2px solid var(--sos-signal); /* 金色信号描边 */
 }
 /* 官方卡片高亮时覆盖默认边框 */
 .card.special.highlight {
-  border: 2px solid #16a34a; 
+  border: 2px solid var(--sos-accent); 
 }
 
 .card.special .tag {
-  background: #fcd34d;
-  color: #78350f;
+  background: var(--sos-signal);
+  color: var(--sos-text-primary);
 }
 
 .card h3 { 
   margin: 0 80px 10px 0; 
   font-size: 22px; /* 加大卡片标题 */
   font-weight: 800; /* 加粗 */
-  color: #000; /* 纯黑 */
+  color: var(--sos-text-primary); /* 纯黑 */
   line-height: 1.3;
   word-wrap: break-word;
   overflow: hidden;
@@ -799,15 +819,15 @@ button.ui:active { transform: scale(0.96); }
   margin: 0 0 20px 0; 
   font-size: 16px; /* 加大正文 */
   font-weight: 500; /* 中等字重 */
-  color: #374151; /* 深灰 */
+  color: var(--sos-text-secondary); /* 深灰 */
   line-height: 1.6; 
 }
 .card .meta { 
   font-size: 13px; 
-  color: #6b7280; /* 加深颜色 */
+  color: var(--sos-text-tertiary); /* 加深颜色 */
   font-weight: 700; 
 }
-.card.loading { display: flex; align-items: center; justify-content: center; color: #999; font-weight: 600; min-height: 160px; }
+.card.loading { display: flex; align-items: center; justify-content: center; color: var(--sos-text-tertiary); font-weight: 600; min-height: 160px; }
 
 /* 移动端适配调整 */
 @media (max-width: 768px) {
@@ -869,7 +889,7 @@ button.ui:active { transform: scale(0.96); }
 .no-results {
   text-align: center;
   padding: 60px 20px;
-  background: rgba(255, 255, 255, 0.95);
+  background: color-mix(in srgb, var(--sos-bg-surface) 92%, transparent);
   border-radius: 16px;
   margin: 40px auto;
   max-width: 500px;
@@ -883,18 +903,18 @@ button.ui:active { transform: scale(0.96); }
 .no-results h3 {
   font-size: 24px;
   font-weight: 800;
-  color: #374151;
+  color: var(--sos-text-secondary);
   margin-bottom: 12px;
 }
 
 .no-results p {
   font-size: 16px;
-  color: #6b7280;
+  color: var(--sos-text-tertiary);
   line-height: 1.6;
 }
 
 .no-results a {
-  color: #16a34a;
+  color: var(--sos-accent);
   text-decoration: none;
   font-weight: 600;
 }
@@ -915,18 +935,18 @@ button.ui:active { transform: scale(0.96); }
 
 .pagination-btn {
   padding: 10px 20px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 8px;
-  background: white;
-  color: #374151;
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-secondary);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .pagination-btn:hover:not(:disabled) {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: var(--sos-bg-muted);
+  border-color: var(--sos-border-strong);
 }
 
 .pagination-btn:disabled {
@@ -944,10 +964,10 @@ button.ui:active { transform: scale(0.96); }
   min-width: 40px;
   height: 40px;
   padding: 0 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 8px;
-  background: white;
-  color: #374151;
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-secondary);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -957,24 +977,24 @@ button.ui:active { transform: scale(0.96); }
 }
 
 .pagination-page:hover {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: var(--sos-bg-muted);
+  border-color: var(--sos-border-strong);
 }
 
 .pagination-page.active {
-  background: #16a34a;
+  background: var(--sos-accent);
   color: white;
-  border-color: #16a34a;
+  border-color: var(--sos-accent);
 }
 
 .pagination-page.active:hover {
-  background: #15803d;
-  border-color: #15803d;
+  background: var(--sos-accent-hover);
+  border-color: var(--sos-accent-hover);
 }
 
 .pagination-info {
   text-align: center;
-  color: #6b7280;
+  color: var(--sos-text-tertiary);
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 40px;
@@ -1010,7 +1030,7 @@ button.ui:active { transform: scale(0.96); }
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--sos-bg-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1019,7 +1039,7 @@ button.ui:active { transform: scale(0.96); }
 }
 
 .admin-key-modal {
-  background: white;
+  background: var(--sos-bg-surface);
   border-radius: 16px;
   padding: 32px;
   max-width: 400px;
@@ -1037,12 +1057,12 @@ button.ui:active { transform: scale(0.96); }
   font-size: 24px;
   font-weight: 800;
   margin-bottom: 12px;
-  color: #000;
+  color: var(--sos-text-primary);
 }
 
 .admin-key-modal p {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--sos-text-tertiary);
   margin-bottom: 24px;
   line-height: 1.6;
 }
@@ -1054,7 +1074,7 @@ button.ui:active { transform: scale(0.96); }
 .admin-key-input {
   width: 100%;
   padding: 12px 16px;
-  border: 2px solid #e5e7eb;
+  border: 2px solid var(--sos-border-default);
   border-radius: 8px;
   font-size: 16px;
   transition: border-color 0.2s;
@@ -1067,7 +1087,7 @@ button.ui:active { transform: scale(0.96); }
 
 .admin-key-input:focus {
   outline: none;
-  border-color: #16a34a;
+  border-color: var(--sos-accent);
 }
 
 .admin-key-actions button.ui.green:disabled {
@@ -1077,7 +1097,7 @@ button.ui:active { transform: scale(0.96); }
 
 .admin-key-error {
   margin-top: 8px;
-  color: #ef4444;
+  color: var(--sos-danger);
   font-size: 14px;
   text-align: left;
 }
@@ -1098,21 +1118,21 @@ button.ui:active { transform: scale(0.96); }
 }
 
 .admin-key-actions button.ui.ghost {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--sos-bg-muted);
+  color: var(--sos-text-secondary);
 }
 
 .admin-key-actions button.ui.ghost:hover {
-  background: #e5e7eb;
+  background: var(--sos-border-default);
 }
 
 .admin-key-actions button.ui.green {
-  background: #16a34a;
+  background: var(--sos-accent);
   color: white;
 }
 
 .admin-key-actions button.ui.green:hover {
-  background: #15803d;
+  background: var(--sos-accent-hover);
 }
 
 /* 导入弹窗样式 */
@@ -1122,7 +1142,7 @@ button.ui:active { transform: scale(0.96); }
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--sos-bg-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1131,7 +1151,7 @@ button.ui:active { transform: scale(0.96); }
 }
 
 .import-modal {
-  background: white;
+  background: var(--sos-bg-surface);
   border-radius: 16px;
   padding: 32px;
   max-width: 500px;
@@ -1149,7 +1169,7 @@ button.ui:active { transform: scale(0.96); }
   font-size: 24px;
   font-weight: 800;
   margin-bottom: 16px;
-  color: #000;
+  color: var(--sos-text-primary);
 }
 
 .import-link-box {
@@ -1161,15 +1181,15 @@ button.ui:active { transform: scale(0.96); }
 .import-link-box input {
   flex: 1;
   padding: 10px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 8px;
   font-size: 14px;
 }
 
 .import-link-box button {
   padding: 10px 20px;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
+  background: var(--sos-bg-muted);
+  border: 1px solid var(--sos-border-default);
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
@@ -1177,7 +1197,7 @@ button.ui:active { transform: scale(0.96); }
 }
 
 .import-link-box button:hover {
-  background: #e5e7eb;
+  background: var(--sos-border-default);
 }
 
 .import-actions {
@@ -1197,28 +1217,28 @@ button.ui:active { transform: scale(0.96); }
 }
 
 .import-actions button.ui.ghost {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--sos-bg-muted);
+  color: var(--sos-text-secondary);
 }
 
 .import-actions button.ui.ghost:hover {
-  background: #e5e7eb;
+  background: var(--sos-border-default);
 }
 
 .import-actions button.ui {
-  background: #3b82f6;
+  background: var(--sos-accent-2);
   color: white;
 }
 
 .import-actions button.ui:hover {
-  background: #2563eb;
+  background: var(--sos-link-hover);
 }
 
 .import-actions button.ui.green {
-  background: #16a34a;
+  background: var(--sos-accent);
 }
 
 .import-actions button.ui.green:hover {
-  background: #15803d;
+  background: var(--sos-accent-hover);
 }
 </style>
