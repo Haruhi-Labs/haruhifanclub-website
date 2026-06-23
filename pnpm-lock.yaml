@@ -150,6 +150,9 @@ importers:
       '@haruhi/auth-ui':
         specifier: workspace:*
         version: link:../../packages/auth-ui
+      '@haruhi/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       dompurify:
         specifier: ^3.4.8
         version: 3.4.8

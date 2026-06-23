@@ -1,6 +1,5 @@
 <template>
   <header>
-
     <div v-if="!overlay" class="nav-spacer"></div>
 
     <nav
@@ -8,168 +7,227 @@
         'navbar',
         isHidden ? 'navbar--hidden' : 'navbar--visible',
         isScrolled ? 'navbar--scrolled' : 'navbar--top',
-        overlay
-          ? 'navbar--overlay'
-          : 'navbar--default'
+        overlay ? 'navbar--overlay' : 'navbar--default',
       ]"
     >
       <div class="nav-container">
         <!-- Logo 区域 -->
         <div class="nav-left">
-           <div class="logo-group" @click="goHome">
-              <div :class="['logo-icon-wrapper', overlay ? 'logo-icon-wrapper--overlay' : 'logo-icon-wrapper--default']">
-                <!-- 图标容器 -->
-                <div :class="['logo-image-container', overlay ? 'logo-image-container--overlay' : 'logo-image-container--default']">
-                    <!-- 自定义图标: 请确保 public 目录下有 haruhi-logo.jpg -->
-                    <img src="/haruhi-logo-192.png" alt="Logo" class="logo-image" />
-                </div>
-              </div>
-              <span class="logo-text serif-font">凉宫春日应援团</span>
-           </div>
+          <button class="logo-group" type="button" @click="goHome" aria-label="返回春日团报首页">
+            <SosHeaderBrand
+              as="span"
+              logo-src="/haruhi-logo-192.png"
+              title="春日团报"
+              subtitle="Haruhi Fan Club"
+              :compact="isScrolled || overlay"
+            />
+          </button>
 
-           <div :class="['nav-links', overlay ? 'nav-links--overlay' : 'nav-links--default']">
-              <router-link to="/submit" class="nav-link">我要投稿</router-link>
-              <!-- [新增] 活动列表入口 -->
-              <router-link to="/activity" class="nav-link nav-link--with-icon">
-                  <span>活动中心</span>
-              </router-link>
-              <router-link to="/store" class="nav-link nav-link--with-icon">
-                  <span>奖品兑换</span>
-              </router-link>
-              <router-link to="/admin" class="nav-link">管理后台</router-link>
-           </div>
+          <div :class="['nav-links', overlay ? 'nav-links--overlay' : 'nav-links--default']">
+            <router-link to="/submit" class="nav-link">我要投稿</router-link>
+            <!-- [新增] 活动列表入口 -->
+            <router-link to="/activity" class="nav-link nav-link--with-icon">
+              <span>活动中心</span>
+            </router-link>
+            <router-link to="/store" class="nav-link nav-link--with-icon">
+              <span>奖品兑换</span>
+            </router-link>
+            <router-link to="/admin" class="nav-link">管理后台</router-link>
+          </div>
         </div>
 
         <!-- 右侧功能区 -->
         <div class="nav-right">
-           <!-- 新增：SOS团期末考试 -->
-           <!-- exam 是独立 app（/exam/），必须用原生 a 整页跳转；router-link 会被解析进 /news/ base 导致跳错 -->
-           <a href="/exam/" target="_blank" class="nav-right-link" :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'">
-              SOS团期末考试
-           </a>
+          <!-- 新增：SOS团期末考试 -->
+          <!-- exam 是独立 app（/exam/），必须用原生 a 整页跳转；router-link 会被解析进 /news/ base 导致跳错 -->
+          <a
+            href="/exam/"
+            target="_blank"
+            class="nav-right-link"
+            :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'"
+          >
+            SOS团期末考试
+          </a>
 
-           <!-- 修改：去掉了 emoji -->
-           <router-link :to="{ name: 'quiz' }" target="_blank" class="nav-right-link" :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'">
-              凉宫入坑测试
-           </router-link>
+          <!-- 修改：去掉了 emoji -->
+          <router-link
+            :to="{ name: 'quiz' }"
+            target="_blank"
+            class="nav-right-link"
+            :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'"
+          >
+            凉宫入坑测试
+          </router-link>
 
-           <router-link to="/handbook" class="nav-right-link nav-right-link--no-margin" :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'">
-              团员手册
-           </router-link>
+          <router-link
+            to="/handbook"
+            class="nav-right-link nav-right-link--no-margin"
+            :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'"
+          >
+            团员手册
+          </router-link>
 
-           <div :class="['nav-divider', overlay ? 'nav-divider--overlay' : 'nav-divider--default']"></div>
+          <div
+            :class="['nav-divider', overlay ? 'nav-divider--overlay' : 'nav-divider--default']"
+          ></div>
 
-           <button
-             @click="store.toggleSearch"
-             :class="[
-               'search-button',
-               overlay ? 'search-button--overlay' : 'search-button--default'
-             ]"
-           >
-             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="icon-sm">
-               <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-             </svg>
-           </button>
+          <button
+            @click="store.toggleSearch"
+            aria-label="搜索团报"
+            :class="[
+              'search-button',
+              overlay ? 'search-button--overlay' : 'search-button--default',
+            ]"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="icon-sm"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+              />
+            </svg>
+            <span class="search-button-label">搜索团报</span>
+          </button>
 
-           <AccountMenu />
+          <AccountMenu />
 
-           <button
-             @click="toggleMobileMenu"
-             class="mobile-menu-button"
-             :class="overlay ? 'mobile-menu-button--overlay' : 'mobile-menu-button--default'"
-           >
-             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="icon-md">
-               <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-             </svg>
-           </button>
+          <button
+            @click="toggleMobileMenu"
+            class="mobile-menu-button"
+            :class="overlay ? 'mobile-menu-button--overlay' : 'mobile-menu-button--default'"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="icon-md"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+              />
+            </svg>
+          </button>
         </div>
-
       </div>
     </nav>
 
     <Transition name="fade">
       <div v-if="isMobileMenuOpen" class="mobile-overlay">
-         <button @click="toggleMobileMenu" class="mobile-close-button">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="icon-lg">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-         </button>
+        <button @click="toggleMobileMenu" class="mobile-close-button">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+            class="icon-lg"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
 
-         <nav class="mobile-nav serif-font">
-            <router-link to="/" @click="toggleMobileMenu" class="mobile-nav-link mobile-nav-link--gray">首页</router-link>
+        <nav class="mobile-nav serif-font">
+          <router-link to="/" @click="toggleMobileMenu" class="mobile-nav-link">首页</router-link>
 
-            <!-- 移动端菜单也添加了考试入口 -->
-            <a href="/exam/" target="_blank" @click="toggleMobileMenu" class="mobile-nav-link mobile-nav-link--red">SOS团期末考试</a>
+          <!-- 移动端菜单也添加了考试入口 -->
+          <a href="/exam/" target="_blank" @click="toggleMobileMenu" class="mobile-nav-link"
+            >SOS团期末考试</a
+          >
 
-            <router-link to="/activity" @click="toggleMobileMenu" class="mobile-nav-link mobile-nav-link--cyan">活动中心</router-link>
-            <router-link to="/store" @click="toggleMobileMenu" class="mobile-nav-link mobile-nav-link--purple">奖品兑换</router-link>
+          <router-link to="/activity" @click="toggleMobileMenu" class="mobile-nav-link"
+            >活动中心</router-link
+          >
+          <router-link to="/store" @click="toggleMobileMenu" class="mobile-nav-link"
+            >奖品兑换</router-link
+          >
 
-            <router-link :to="{ name: 'quiz' }" target="_blank" @click="toggleMobileMenu" class="mobile-nav-link mobile-nav-link--gray mobile-nav-link--with-icon">
-               <span>凉宫入坑测试</span>
-            </router-link>
+          <router-link
+            :to="{ name: 'quiz' }"
+            target="_blank"
+            @click="toggleMobileMenu"
+            class="mobile-nav-link mobile-nav-link--with-icon"
+          >
+            <span>凉宫入坑测试</span>
+          </router-link>
 
-            <router-link to="/handbook" @click="toggleMobileMenu" class="mobile-nav-link mobile-nav-link--gray">团员手册</router-link>
-            <router-link to="/submit" @click="toggleMobileMenu" class="mobile-nav-link mobile-nav-link--gray">我要投稿</router-link>
-            <router-link to="/admin" @click="toggleMobileMenu" class="mobile-nav-link mobile-nav-link--gray">管理后台</router-link>
-         </nav>
+          <router-link to="/handbook" @click="toggleMobileMenu" class="mobile-nav-link"
+            >团员手册</router-link
+          >
+          <router-link to="/submit" @click="toggleMobileMenu" class="mobile-nav-link"
+            >我要投稿</router-link
+          >
+          <router-link to="/admin" @click="toggleMobileMenu" class="mobile-nav-link"
+            >管理后台</router-link
+          >
+        </nav>
 
-         <div class="mobile-footer">
-            - 凉宫春日应援团 -
-         </div>
+        <div class="mobile-footer">- 凉宫春日应援团 -</div>
       </div>
     </Transition>
   </header>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useMainStore } from '@/stores/main';
-import { AccountMenu } from '@haruhi/auth-ui';
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useMainStore } from '@/stores/main'
+import { AccountMenu } from '@haruhi/auth-ui'
+import { SosHeaderBrand } from '@haruhi/ui'
 
 const props = defineProps({
   overlay: {
     type: Boolean,
     default: false,
   },
-});
+})
 
-const store = useMainStore();
-const router = useRouter();
+const store = useMainStore()
+const router = useRouter()
 
-const isScrolled = ref(false);
-const isHidden = ref(false);
-const isMobileMenuOpen = ref(false);
+const isScrolled = ref(false)
+const isHidden = ref(false)
+const isMobileMenuOpen = ref(false)
 
-let lastScrollY = 0;
+let lastScrollY = 0
 
 const goHome = () => {
-    store.searchQuery = '';
-    router.push('/');
-};
+  store.searchQuery = ''
+  router.push('/')
+}
 
 const toggleMobileMenu = () => {
-  isMobileMenuOpen.value = !isMobileMenuOpen.value;
+  isMobileMenuOpen.value = !isMobileMenuOpen.value
   if (isMobileMenuOpen.value) {
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden'
   } else {
-    document.body.style.overflow = '';
+    document.body.style.overflow = ''
   }
-};
+}
 
 const handleScroll = () => {
-  const currentScrollY = window.scrollY;
-  isScrolled.value = currentScrollY > 20;
+  const currentScrollY = window.scrollY
+  isScrolled.value = currentScrollY > 20
   if (currentScrollY > lastScrollY && currentScrollY > 100) {
-    isHidden.value = true;
+    isHidden.value = true
   } else {
-    isHidden.value = false;
+    isHidden.value = false
   }
-  lastScrollY = currentScrollY;
-};
+  lastScrollY = currentScrollY
+}
 
-onMounted(() => window.addEventListener('scroll', handleScroll));
-onUnmounted(() => window.removeEventListener('scroll', handleScroll));
+onMounted(() => window.addEventListener('scroll', handleScroll))
+onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 </script>
 
 <style scoped>
@@ -277,91 +335,25 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll));
 
 /* ===== Logo Group ===== */
 .logo-group {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
   cursor: pointer;
 }
 
-@media (min-width: 768px) {
-  .logo-group {
-    gap: 0.75rem;
-  }
+.logo-group:hover {
+  opacity: 0.8;
 }
 
-/* ===== Logo Icon Wrapper ===== */
-.logo-icon-wrapper {
-  height: 2.25rem;
-  width: 2.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9999px;
-  transition: background-color 300ms;
-}
-
-.logo-icon-wrapper--overlay {
-  background-color: #ffffff;
-  color: #000000;
-}
-
-.logo-icon-wrapper--default {
-  background-color: #000000;
+.navbar--overlay :deep(.sos-brand-lockup__text > strong),
+.navbar--overlay :deep(.sos-brand-lockup__text > small) {
   color: #ffffff;
 }
 
-.logo-group:hover .logo-icon-wrapper--default {
-  background-color: #1f2937;
-}
-
-/* ===== Logo Image Container ===== */
-.logo-image-container {
-  height: 2.25rem;
-  width: 2.25rem;
-  border-radius: 9999px;
-  overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  transition: transform 300ms;
-  border-width: 1px;
-  border-style: solid;
-}
-
-.logo-image-container--overlay {
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-.logo-image-container--default {
-  border-color: #e5e7eb;
-}
-
-.logo-group:hover .logo-image-container {
-  transform: scale(1.05);
-}
-
-/* ===== Logo Image ===== */
-.logo-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* ===== Logo Text ===== */
-.logo-text {
-  font-size: 1.125rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  transition: opacity 150ms;
-  white-space: nowrap;
-}
-
-@media (min-width: 768px) {
-  .logo-text {
-    font-size: 1.25rem;
-  }
-}
-
-.logo-group:hover .logo-text {
-  opacity: 0.8;
+.navbar--overlay :deep(.sos-brand-lockup__mark) {
+  background: #ffffff;
 }
 
 /* ===== Nav Links (Desktop) ===== */
@@ -486,6 +478,12 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll));
   border-style: solid;
 }
 
+.search-button-label {
+  display: none;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
 @media (min-width: 768px) {
   .search-button {
     width: 16rem;
@@ -494,6 +492,10 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll));
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
     justify-content: space-between;
+  }
+
+  .search-button-label {
+    display: inline;
   }
 }
 
@@ -602,20 +604,12 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll));
   transition: color 150ms;
 }
 
-.mobile-nav-link--gray:hover {
-  color: #4b5563;
-}
-
-.mobile-nav-link--red:hover {
-  color: #dc2626;
-}
-
-.mobile-nav-link--cyan:hover {
-  color: #0891b2;
-}
-
-.mobile-nav-link--purple:hover {
-  color: #9333ea;
+.mobile-nav-link:hover {
+  color: #111111;
+  text-decoration: underline;
+  text-decoration-color: #ffc83d;
+  text-decoration-thickness: 0.2em;
+  text-underline-offset: 0.2em;
 }
 
 .mobile-nav-link--with-icon {
@@ -630,6 +624,6 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll));
   margin-top: 3rem;
   font-size: 0.875rem;
   color: #9ca3af;
-  font-family: "Noto Sans SC", sans-serif;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 </style>
