@@ -151,6 +151,7 @@ const navItems = [
   ['usage', '组件用法'],
   ['expressions', '表达模式'],
   ['voice', '组件变声'],
+  ['patterns', '页面模式'],
   ['quality', '状态响应式'],
   ['migration', '迁移验收'],
 ]
@@ -634,6 +635,44 @@ const responsiveRules = [
   ['1440+', 'Wide', '只增加留白和列数，不放大字体或卡片内部 padding。'],
 ]
 
+const pagePatterns = [
+  [
+    'AppShell',
+    'BrandLockup / Nav / Account / Footer',
+    '全站 Header 使用同一 logo + 标题组合；站点差异体现在文字和语义色，不重新造壳。',
+  ],
+  [
+    'ChannelHeader',
+    'Title / Description / Primary action / Meta',
+    '频道名必须成为首屏信号；说明文字解释当前页面任务，不写营销口号。',
+  ],
+  [
+    'FilterBar',
+    'Search / Category / Sort / Result count',
+    '筛选和结果数量在同一区域，移动端可换行或折叠，但顺序不反转。',
+  ],
+  [
+    'ContentGrid',
+    'Grid / Card recipe / Empty / Loading',
+    '列数由 `--sos-grid-min` 决定，不能为了塞列数压缩标题、价格或按钮。',
+  ],
+  [
+    'DetailLayout',
+    'Main content / Rail / Related action',
+    '双栏只在空间足够时出现；窄屏 Rail 下移，不遮挡正文或媒体。',
+  ],
+  [
+    'StickyAction',
+    'Current state / Primary action / Safe area',
+    '移动端核心动作可 sticky，但不能盖住内容，也不能替代页面内状态说明。',
+  ],
+  [
+    'SystemState',
+    'Notice / EmptyState / Progress / Error',
+    '系统状态跨站统一体验，只让 tone 和上下文文案变化。',
+  ],
+]
+
 const app = document.querySelector('#app')
 const markdownUrl = URL.createObjectURL(
   new Blob([designMarkdown], { type: 'text/markdown;charset=utf-8' })
@@ -1071,6 +1110,104 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
                 <div class="sos-progress__track"><span class="sos-progress__fill" style="width:64%"></span></div>
               </div>
             </div>
+          </article>
+        </section>
+
+        <section class="ds-section" id="patterns">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">Page Patterns</p>
+            <h2>页面模式把组件变成真实流程</h2>
+            <p>页面模式不是新组件库，而是迁移时的结构协议。它要求 Header、频道头、筛选、网格、详情 Rail、Sticky Action 和系统状态在不同站点中保持一致的信息顺序。</p>
+          </div>
+          <div class="ds-pattern-grid">
+            ${pagePatterns
+              .map(
+                ([name, anatomy, rule]) => `
+              <article class="ds-pattern-card">
+                <span>${name}</span>
+                <strong>${anatomy}</strong>
+                <p>${rule}</p>
+              </article>
+            `
+              )
+              .join('')}
+          </div>
+          <article class="ds-page-lab" data-sos-site="shop">
+            <header class="ds-page-lab__bar">
+              <div class="sos-brand-lockup sos-brand-lockup--compact">
+                <span class="sos-brand-lockup__mark"><img src="${logoUrl}" alt=""></span>
+                <span class="sos-brand-lockup__text">
+                  <strong>春日商城</strong>
+                  <small>预售、订单与周边</small>
+                </span>
+              </div>
+              <div class="sos-inline">
+                <button class="sos-button sos-button--ghost sos-button--sm">订单</button>
+                <button class="sos-button sos-button--primary sos-button--sm">发布预售</button>
+              </div>
+            </header>
+            <section class="ds-page-lab__hero">
+              <div>
+                <span class="sos-badge sos-badge--signal">ChannelHeader</span>
+                <h3>本周预售清单</h3>
+                <p>用真实信息结构验收页面模式：标题、筛选、结果、状态和操作都必须在窄屏可用。</p>
+              </div>
+              <button class="sos-button sos-button--secondary">导出订单</button>
+            </section>
+            <section class="ds-page-lab__filters" aria-label="页面模式筛选示例">
+              <label class="sos-field">
+                <span class="sos-field__label">搜索商品</span>
+                <input class="sos-input" value="SOS 团限定徽章" aria-label="搜索商品">
+              </label>
+              <div class="sos-inline">
+                <span class="sos-badge" aria-selected="true">全部</span>
+                <span class="sos-badge sos-badge--outline">预售中</span>
+                <span class="sos-badge sos-badge--outline">待补货</span>
+              </div>
+              <strong>24 个结果</strong>
+            </section>
+            <div class="ds-page-lab__body">
+              <div class="ds-page-lab__grid">
+                ${[
+                  ['限定徽章', '预售 126/200', '63%'],
+                  ['团长臂章', '库存 18', '92%'],
+                  ['活动票根套装', '待补货', '0%'],
+                ]
+                  .map(
+                    ([title, status, progress]) => `
+                  <article class="sos-card">
+                    <div class="sos-card__body">
+                      <h4 class="ds-state-card-title">${title}</h4>
+                      <p class="ds-state-card-copy">${status}</p>
+                      <div class="sos-progress">
+                        <div class="sos-progress__meta"><span>状态</span><strong>${progress}</strong></div>
+                        <div class="sos-progress__track"><span class="sos-progress__fill" style="width:${progress}"></span></div>
+                      </div>
+                    </div>
+                  </article>
+                `
+                  )
+                  .join('')}
+              </div>
+              <aside class="ds-page-lab__rail">
+                <div class="sos-notice">
+                  <span class="sos-notice__icon">i</span>
+                  <div>
+                    <h4 class="sos-notice__title">迁移验收点</h4>
+                    <p class="sos-notice__copy">筛选、结果数、进度和主操作在 390px 下仍保持顺序。</p>
+                  </div>
+                </div>
+                <section class="sos-empty-state">
+                  <span class="sos-empty-state__icon">?</span>
+                  <h4 class="sos-empty-state__title">无匹配库存</h4>
+                  <p class="sos-empty-state__copy">切换筛选后必须说明原因，并提供返回动作。</p>
+                </section>
+              </aside>
+            </div>
+            <footer class="ds-page-lab__sticky">
+              <span>已选 3 件商品</span>
+              <button class="sos-button sos-button--primary sos-button--sm">继续处理</button>
+            </footer>
           </article>
         </section>
 

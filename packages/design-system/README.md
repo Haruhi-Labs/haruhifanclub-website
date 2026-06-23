@@ -74,7 +74,7 @@ import '@haruhi/design-system/bridges.css'
 
 ## 和 @haruhi/ui 的关系
 
-`@haruhi/ui` 已启用 MVP，适合在 Vue app 中复用稳定基础件：Button、Badge、Field、Notice、Progress、Card、EmptyState、HeaderBrand、Stack、Inline、Surface、MediaFrame。
+`@haruhi/ui` 已启用 MVP，适合在 Vue app 中复用稳定基础件：Button、Badge、Field、Notice、Progress、Card、EmptyState、HeaderBrand、Stack、Inline、Cluster、Grid、Split、Surface、MediaFrame。
 
 业务 app 不必须立刻引入 `@haruhi/ui`。迁移优先级仍是：
 

@@ -11,13 +11,16 @@ import {
   SosBadge,
   SosButton,
   SosCard,
+  SosCluster,
   SosEmptyState,
   SosField,
+  SosGrid,
   SosHeaderBrand,
   SosInline,
   SosMediaFrame,
   SosNotice,
   SosProgress,
+  SosSplit,
   SosStack,
   SosSurface,
 } from '@haruhi/ui'
@@ -39,6 +42,9 @@ import {
 | `SosHeaderBrand` | Header 中 logo + 标题文字组合                           |
 | `SosStack`       | 纵向内容节奏                                            |
 | `SosInline`      | 可换行同行操作                                          |
+| `SosCluster`     | 两端或多组对齐                                          |
+| `SosGrid`        | 自适应卡片网格                                          |
+| `SosSplit`       | 稳定双栏布局                                            |
 | `SosSurface`     | 有边界的承载面                                          |
 | `SosMediaFrame`  | 固定媒体比例容器                                        |
 

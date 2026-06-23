@@ -8,6 +8,9 @@ export type SosStackGap = 'default' | 'tight' | 'loose'
 export type SosMediaRatio = '1:1' | '4:3' | '3:4' | '2:3'
 export type SosSurfaceVariant = 'default' | 'subtle' | 'raised'
 export type SosProgressTone = 'default' | 'success' | 'danger'
+export type SosClusterAlign = 'start' | 'center' | 'end' | 'stretch'
+export type SosClusterJustify = 'start' | 'center' | 'end' | 'between'
+export type SosSplitAlign = 'start' | 'center' | 'end' | 'stretch'
 
 export const SosBadge: DefineComponent<{
   variant?: SosBadgeVariant
@@ -29,6 +32,12 @@ export const SosCard: DefineComponent<{
   selected?: boolean
   loading?: boolean
 }>
+export const SosCluster: DefineComponent<{
+  as?: string
+  align?: SosClusterAlign
+  justify?: SosClusterJustify
+  gap?: string
+}>
 export const SosEmptyState: DefineComponent<{
   title: string
   copy?: string
@@ -49,6 +58,11 @@ export const SosHeaderBrand: DefineComponent<{
   subtitle?: string
   compact?: boolean
 }>
+export const SosGrid: DefineComponent<{
+  as?: string
+  min?: string
+  gap?: string
+}>
 export const SosInline: DefineComponent<{
   as?: string
   gap?: SosStackGap
@@ -67,6 +81,13 @@ export const SosProgress: DefineComponent<{
   label?: string
   valueLabel?: string
   tone?: SosProgressTone
+}>
+export const SosSplit: DefineComponent<{
+  as?: string
+  left?: string
+  right?: string
+  gap?: string
+  align?: SosSplitAlign
 }>
 export const SosStack: DefineComponent<{
   as?: string
