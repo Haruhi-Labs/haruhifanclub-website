@@ -30,6 +30,13 @@ body {
   font-family: var(--font-sans);
 }
 
+/* 设计系统接入修正：SosPage 的 .sos-scope 会把内容区字体同化为 DS 字体，
+   但团报全站基于 Noto Sans SC（导航栏/页脚均是），内容区也应保留，避免字体不一致。
+   仅恢复界面字体，正文阅读仍走站点 reading-family（衬线）。 */
+.sos-scope[data-sos-site='news'] {
+  --sos-scope-font: var(--font-sans);
+}
+
 hr {
   height: 0;
   color: inherit;
