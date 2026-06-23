@@ -511,8 +511,24 @@ const repeatRecords = approvedArtworks
     time: formatShortTime(item.created_at),
   }))
 
+function getSectorLabelPosition(angle, radius = 34) {
+  const radians = (angle * Math.PI) / 180
+  return {
+    x: `${(50 + Math.cos(radians) * radius).toFixed(2)}%`,
+    y: `${(50 + Math.sin(radians) * radius).toFixed(2)}%`,
+  }
+}
+
+const haruhiAngle = haruhiRatio * 3.6
+const haruhiLabelPosition = getSectorLabelPosition(-90 + haruhiAngle / 2)
+const otherLabelPosition = getSectorLabelPosition(-90 + haruhiAngle + (360 - haruhiAngle) / 2)
+
 const stageStyle = {
-  '--haruhi-angle': `${haruhiRatio * 3.6}deg`,
+  '--haruhi-angle': `${haruhiAngle}deg`,
+  '--haruhi-label-x': haruhiLabelPosition.x,
+  '--haruhi-label-y': haruhiLabelPosition.y,
+  '--other-label-x': otherLabelPosition.x,
+  '--other-label-y': otherLabelPosition.y,
   '--heat-level': `${heatScore}%`,
   '--week-level': `${Math.min(100, weekCount * 18)}%`,
   '--loop-offset': `${visitorNumber % 360}deg`,
@@ -1394,42 +1410,54 @@ const stageStyle = {
 
 .art-home .ratio-note {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   display: grid;
   place-items: center;
-  min-width: 104px;
-  padding: 10px 14px;
-  border: 1px solid rgba(116, 231, 255, 0.24);
-  border-radius: 12px;
-  background: rgba(7, 17, 36, 0.72);
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.26), 0 0 22px rgba(116, 231, 255, 0.08);
-  backdrop-filter: blur(14px);
-  clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+  min-width: 92px;
+  padding: 9px 12px;
+  border: 1px solid var(--sector-line);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 0%, var(--sector-glow), transparent 62%),
+    rgba(4, 13, 29, 0.68);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.28),
+    0 0 28px var(--sector-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 .art-home .ratio-note strong {
-  color: var(--hud-cyan);
-  font-size: 28px;
+  color: var(--sector-color);
+  font-size: 26px;
   line-height: 1;
   font-weight: 950;
-  text-shadow: 0 0 18px rgba(116, 231, 255, 0.36);
+  text-shadow: 0 0 18px var(--sector-glow);
 }
 
 .art-home .ratio-note span {
   margin-top: 4px;
-  color: var(--hud-muted);
-  font-size: 12px;
+  color: rgba(230, 241, 255, 0.78);
+  font-size: 11px;
   font-weight: 900;
 }
 
 .art-home .note-haruhi {
-  top: 100px;
-  left: 54px;
+  --sector-color: var(--hud-cyan);
+  --sector-line: rgba(116, 231, 255, 0.46);
+  --sector-glow: rgba(116, 231, 255, 0.26);
+  top: var(--haruhi-label-y);
+  left: var(--haruhi-label-x);
 }
 
 .art-home .note-other {
-  right: 54px;
-  bottom: 108px;
+  --sector-color: var(--hud-violet);
+  --sector-line: rgba(177, 140, 255, 0.42);
+  --sector-glow: rgba(177, 140, 255, 0.24);
+  top: var(--other-label-y);
+  left: var(--other-label-x);
 }
 
 .art-home .satellite-node {
@@ -1981,9 +2009,9 @@ const stageStyle = {
   }
 
   .art-home .ratio-note {
-    min-width: 82px;
-    padding: 8px 10px;
-    border-radius: 10px;
+    min-width: 74px;
+    padding: 7px 9px;
+    border-radius: 999px;
   }
 
   .art-home .ratio-note strong {
@@ -1995,13 +2023,13 @@ const stageStyle = {
   }
 
   .art-home .note-haruhi {
-    top: 36px;
-    left: 18px;
+    top: var(--haruhi-label-y);
+    left: var(--haruhi-label-x);
   }
 
   .art-home .note-other {
-    right: 18px;
-    bottom: 36px;
+    top: var(--other-label-y);
+    left: var(--other-label-x);
   }
 
   .art-home .bottom-grid {
