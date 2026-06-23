@@ -26,7 +26,12 @@
         </div>
       </div>
 
-      <div class="visual-stage">
+      <div
+        :class="[
+          'visual-stage',
+          { 'is-gallery-orbit-active': galleryOrbitVisible || galleryOrbitDragging || galleryOrbitSpinning },
+        ]"
+      >
         <div class="summer-strip" aria-label="暑假倒计时">
           <span>暑假倒计时</span>
           <strong>{{ summerCountdown }}</strong>
@@ -1134,6 +1139,10 @@ const stageStyle = {
   display: grid;
   place-items: center;
   padding: 10px 32px 42px;
+}
+
+.art-home .visual-stage.is-gallery-orbit-active {
+  z-index: 6;
 }
 
 .art-home .summer-strip {
