@@ -450,7 +450,7 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
 /* 容器 */
 .panel {
   display: flex; flex-direction: column; 
-  background: #f8fafc; /* 更柔和的背景灰 */
+  background: var(--sos-bg-subtle); /* 更柔和的背景灰 */
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.03);
   min-height: 400px; /* 给一个最小高度保证视觉效果 */
@@ -458,8 +458,8 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
 
 /* 顶部 Tab 栏 */
 .tabs-header {
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--sos-bg-surface);
+  border-bottom: 1px solid var(--sos-border-default);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -468,12 +468,12 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
   flex-shrink: 0;
   border-radius: 12px 12px 0 0; /* 顶部圆角 */
 }
-.tabs { display: flex; gap: 4px; background: #f1f5f9; padding: 4px; border-radius: 8px; }
+.tabs { display: flex; gap: 4px; background: var(--sos-bg-subtle); padding: 4px; border-radius: 8px; }
 .tabs button {
   padding: 6px 16px;
   border: 0;
   background: transparent;
-  color: #64748b;
+  color: var(--sos-text-secondary);
   font-weight: 600;
   font-size: 13px;
   border-radius: 6px;
@@ -481,16 +481,16 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
   transition: all 0.2s;
   white-space: nowrap;
 }
-.tabs button:hover { color: #334155; }
+.tabs button:hover { color: var(--sos-text-primary); }
 .tabs button.active {
-  background: #fff;
-  color: #16a34a;
+  background: var(--sos-bg-surface);
+  color: var(--sos-accent);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 .header-action .btn-primary-ghost {
-  border: 1px solid #16a34a;
+  border: 1px solid var(--sos-accent);
   background: transparent;
-  color: #16a34a;
+  color: var(--sos-accent);
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 13px;
@@ -501,7 +501,7 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
   white-space: nowrap;
 }
 .header-action .btn-primary-ghost:hover {
-  background: #f0fdf4;
+  background: var(--sos-success-soft);
 }
 
 /* 列表区 */
@@ -509,11 +509,11 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
   padding: 24px;
   display: flex; flex-direction: column; gap: 24px;
 }
-.empty-state { text-align: center; color: #94a3b8; margin-top: 40px; font-size: 14px; }
+.empty-state { text-align: center; color: var(--sos-text-tertiary); margin-top: 40px; font-size: 14px; }
 
 /* 题目卡片 */
 .q-card {
-  background: #fff;
+  background: var(--sos-bg-surface);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   border: 1px solid transparent;
@@ -522,18 +522,18 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
 }
 .q-card:hover {
   box-shadow: 0 8px 24px rgba(0,0,0,0.06);
-  border-color: #e2e8f0;
+  border-color: var(--sos-border-default);
 }
 
 /* 题目头部 */
 .q-header {
   display: flex; justify-content: space-between; align-items: center;
   padding: 16px;
-  background: #fff;
-  border-bottom: 1px solid #f1f5f9;
+  background: var(--sos-bg-surface);
+  border-bottom: 1px solid var(--sos-bg-subtle);
 }
 .q-badge {
-  background: #1e293b; color: #fff;
+  background: var(--sos-text-primary); color: var(--sos-bg-surface);
   font-size: 14px; font-weight: 800;
   padding: 4px 10px;
   border-radius: 6px;
@@ -541,21 +541,21 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
 }
 .q-meta-group { display: flex; gap: 16px; align-items: center; }
 .meta-item { display: flex; align-items: center; gap: 6px; }
-.meta-item label { font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
+.meta-item label { font-size: 12px; color: var(--sos-text-tertiary); font-weight: 600; text-transform: uppercase; }
 
 /* 现代输入框 */
 .modern-input, .modern-select, .modern-textarea {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--sos-border-default);
   border-radius: 6px;
   padding: 8px 10px;
   font-size: 13px;
-  color: #334155;
+  color: var(--sos-text-primary);
   transition: border-color 0.2s;
-  background: #fff;
+  background: var(--sos-bg-surface);
 }
 .modern-input:focus, .modern-select:focus, .modern-textarea:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--sos-accent-2);
   box-shadow: 0 0 0 2px rgba(59,130,246,0.1);
 }
 .modern-input.short { width: 80px; }
@@ -565,16 +565,16 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
 .modern-textarea { width: 100%; resize: vertical; line-height: 1.5; }
 
 /* 区域 */
-.section-area { padding: 16px; border-bottom: 1px solid #f8fafc; }
+.section-area { padding: 16px; border-bottom: 1px solid var(--sos-bg-subtle); }
 .section-area:last-child { border-bottom: 0; }
-.section-title { font-size: 11px; font-weight: 700; color: #cbd5e1; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px; }
+.section-title { font-size: 11px; font-weight: 700; color: var(--sos-border-strong); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px; }
 
 /* 题干块列表 */
 .blocks-container { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
 .block-row { display: flex; gap: 10px; align-items: flex-start; }
 .block-icon {
   width: 24px; height: 24px;
-  background: #f1f5f9; color: #64748b;
+  background: var(--sos-bg-subtle); color: var(--sos-text-secondary);
   border-radius: 4px;
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 700;
@@ -583,15 +583,15 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
 .block-body { flex: 1; display: flex; flex-direction: column; gap: 8px; }
 
 /* Media Input Styling */
-.media-input-group { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #e2e8f0; }
+.media-input-group { background: var(--sos-bg-subtle); padding: 10px; border-radius: 8px; border: 1px dashed var(--sos-border-default); }
 .upload-placeholder { display: flex; justify-content: center; width: 100%; }
 .media-preview-row { display: flex; align-items: center; gap: 10px; width: 100%; }
 
 .audio-icon { 
-  width: 32px; height: 32px; background: #e0f2fe; color: #0284c7; 
+  width: 32px; height: 32px; background: var(--sos-info-soft); color: var(--sos-accent-2); 
   border-radius: 50%; display: flex; align-items: center; justify-content: center; 
 }
-.duration-badge { font-size: 11px; font-weight: 600; color: #94a3b8; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+.duration-badge { font-size: 11px; font-weight: 600; color: var(--sos-text-tertiary); background: var(--sos-bg-subtle); padding: 2px 6px; border-radius: 4px; }
 
 /* 按钮样式 */
 .file-btn {
@@ -600,40 +600,40 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
   border-radius: 6px; font-weight: 600; transition: all 0.2s;
 }
 .file-btn.primary {
-  background: #fff; border: 1px solid #e2e8f0; color: #64748b;
+  background: var(--sos-bg-surface); border: 1px solid var(--sos-border-default); color: var(--sos-text-secondary);
   padding: 8px 16px; font-size: 13px; width: 100%;
 }
-.file-btn.primary:hover { border-color: #cbd5e1; color: #334155; background: #f8fafc; }
+.file-btn.primary:hover { border-color: var(--sos-border-strong); color: var(--sos-text-primary); background: var(--sos-bg-subtle); }
 .file-btn.small {
   font-size: 12px; padding: 4px 10px;
-  background: #fff; border: 1px solid #e2e8f0; color: #64748b;
+  background: var(--sos-bg-surface); border: 1px solid var(--sos-border-default); color: var(--sos-text-secondary);
 }
-.file-btn.small:hover { color: #334155; border-color: #94a3b8; }
+.file-btn.small:hover { color: var(--sos-text-primary); border-color: var(--sos-text-tertiary); }
 
 .file-btn input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
-.media-preview { width: 60px; height: 60px; border-radius: 6px; background-size: cover; background-position: center; border: 1px solid #e2e8f0; }
+.media-preview { width: 60px; height: 60px; border-radius: 6px; background-size: cover; background-position: center; border: 1px solid var(--sos-border-default); }
 .media-actions { display: flex; flex-direction: column; justify-content: center; }
 
 .btn-icon-del { background: transparent; border: 0; cursor: pointer; font-size: 18px; opacity: 0.5; transition: opacity 0.2s; }
 .btn-icon-del:hover { opacity: 1; }
-.btn-block-del { width: 30px; height: 30px; border-radius: 50%; border: 0; background: #fee2e2; color: #ef4444; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-top: 2px; opacity: 0.8; transition: opacity 0.2s; }
+.btn-block-del { width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--sos-danger-soft); color: var(--sos-danger); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-top: 2px; opacity: 0.8; transition: opacity 0.2s; }
 .btn-block-del:hover { opacity: 1; }
-.btn-icon-small { border: 0; background: transparent; color: #94a3b8; font-size: 18px; cursor: pointer; }
-.btn-icon-small:hover { color: #ef4444; }
+.btn-icon-small { border: 0; background: transparent; color: var(--sos-text-tertiary); font-size: 18px; cursor: pointer; }
+.btn-icon-small:hover { color: var(--sos-danger); }
 
 .action-bar { display: flex; gap: 8px; }
 .btn-pill {
-  border: 1px dashed #cbd5e1;
-  background: #fff; color: #64748b;
+  border: 1px dashed var(--sos-border-strong);
+  background: var(--sos-bg-surface); color: var(--sos-text-secondary);
   padding: 6px 14px; border-radius: 20px;
   font-size: 12px; font-weight: 600;
   cursor: pointer; transition: all 0.2s;
 }
-.btn-pill:hover { border-color: #94a3b8; color: #334155; background: #f8fafc; }
+.btn-pill:hover { border-color: var(--sos-text-tertiary); color: var(--sos-text-primary); background: var(--sos-bg-subtle); }
 .btn-pill.small { padding: 4px 10px; font-size: 11px; }
 
 /* 答案区特殊样式 */
-.answer-bg { background: #fdfbf7; /* 极淡的黄色背景，区分区域 */ }
+.answer-bg { background: var(--sos-bg-subtle); /* 极淡的黄色背景，区分区域 */ }
 .choice-container { display: flex; flex-direction: column; gap: 12px; }
 .correct-answer-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .correct-answer-row label { font-size: 12px; font-weight: 700; color: #d97706; }
@@ -642,26 +642,26 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
 .radio-item {
   display: flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; border-radius: 50%;
-  border: 1px solid #e2e8f0; background: #fff;
-  cursor: pointer; font-weight: 700; font-size: 13px; color: #64748b;
+  border: 1px solid var(--sos-border-default); background: var(--sos-bg-surface);
+  cursor: pointer; font-weight: 700; font-size: 13px; color: var(--sos-text-secondary);
   transition: all 0.2s;
 }
 .radio-item input { display: none; }
-.radio-item.active { background: #d97706; color: #fff; border-color: #d97706; box-shadow: 0 2px 5px rgba(217,119,6,0.3); }
+.radio-item.active { background: #d97706; color: var(--sos-bg-surface); border-color: #d97706; box-shadow: 0 2px 5px rgba(217,119,6,0.3); }
 
 .options-list { display: flex; flex-direction: column; gap: 8px; }
 .option-row { display: flex; align-items: center; gap: 8px; }
-.opt-key { width: 24px; text-align: center; font-weight: 700; color: #64748b; font-size: 13px; }
+.opt-key { width: 24px; text-align: center; font-weight: 700; color: var(--sos-text-secondary); font-size: 13px; }
 .btn-dashed {
-  width: 100%; padding: 8px; border: 1px dashed #cbd5e1; background: transparent;
-  color: #64748b; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer;
+  width: 100%; padding: 8px; border: 1px dashed var(--sos-border-strong); background: transparent;
+  color: var(--sos-text-secondary); font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer;
   margin-top: 8px; transition: all 0.2s;
 }
-.btn-dashed:hover { border-color: #94a3b8; color: #334155; }
+.btn-dashed:hover { border-color: var(--sos-text-tertiary); color: var(--sos-text-primary); }
 
 /* 填空题 */
 .fill-container { display: flex; align-items: center; gap: 12px; }
-.fill-container label { font-size: 13px; font-weight: 700; color: #475569; }
+.fill-container label { font-size: 13px; font-weight: 700; color: var(--sos-text-secondary); }
 
 /* 多选题 */
 .multiple-container { display: flex; flex-direction: column; gap: 12px; }
@@ -669,15 +669,15 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
 .checkbox-item {
   display: flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; border-radius: 6px;
-  border: 1px solid #e2e8f0; background: #fff;
-  cursor: pointer; font-weight: 700; font-size: 13px; color: #64748b;
+  border: 1px solid var(--sos-border-default); background: var(--sos-bg-surface);
+  cursor: pointer; font-weight: 700; font-size: 13px; color: var(--sos-text-secondary);
   transition: all 0.2s;
 }
 .checkbox-item input { display: none; }
 .checkbox-item.active { 
-  background: #3b82f6; 
-  color: #fff; 
-  border-color: #3b82f6; 
+  background: var(--sos-accent-2); 
+  color: var(--sos-bg-surface); 
+  border-color: var(--sos-accent-2); 
   box-shadow: 0 2px 5px rgba(59,130,246,0.3); 
 }
 
@@ -685,7 +685,7 @@ const handleMediaUpload = async (e: Event, block: ContentBlock) => {
 .judgment-container { display: flex; flex-direction: column; gap: 12px; }
 
 /* 解析区 */
-.analysis-bg { background: #f0fdf4; /* 极淡的绿色 */ }
+.analysis-bg { background: var(--sos-success-soft); /* 极淡的绿色 */ }
 
 /* Mobile Adaptation */
 @media (max-width: 768px) {

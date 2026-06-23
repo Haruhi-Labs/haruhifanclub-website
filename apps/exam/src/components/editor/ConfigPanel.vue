@@ -218,15 +218,15 @@ defineExpose({ validate });
 </template>
 
 <style scoped>
-.panel { padding: 20px; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
-h3 { margin: 32px 0 16px 0; font-size: 18px; color: #1a1c20; border-left: 4px solid #16a34a; padding-left: 10px; }
+.panel { padding: 20px; background: var(--sos-bg-surface); border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+h3 { margin: 32px 0 16px 0; font-size: 18px; color: var(--sos-text-primary); border-left: 4px solid var(--sos-accent); padding-left: 10px; }
 h3:first-child { margin-top: 0; }
 .form-group { margin-bottom: 16px; }
 .row { display: flex; gap: 20px; }
 .half { flex: 1; }
-label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 6px; color: #374151; }
-.tip { display: block; font-weight: 400; font-size: 12px; color: #9ca3af; margin-top: 2px; }
-.required { color: #ef4444; margin-left: 2px; }
+label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 6px; color: var(--sos-text-secondary); }
+.tip { display: block; font-weight: 400; font-size: 12px; color: var(--sos-text-tertiary); margin-top: 2px; }
+.required { color: var(--sos-danger); margin-left: 2px; }
 
 /* 预览容器：桌面端横向排列，移动端纵向排列 */
 .preview-container {
@@ -267,28 +267,28 @@ label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 6px; c
   border-radius: 8px;
   text-transform: uppercase;
 }
-.card .tag.user { background: #f3f4f6; color: #4b5563;  }
+.card .tag.user { background: var(--sos-bg-muted); color: var(--sos-text-secondary);  }
 .card h2 {  
   margin: 0 80px 10px 0; 
   font-size: 22px; 
   font-weight: 800; 
-  color: #000; 
+  color: var(--sos-text-primary); 
   line-height: 1.3;
   word-wrap: break-word;
   overflow: visible; /* 允许文字完整显示 */
   text-overflow: clip; /* 不显示省略号 */
 }
-.card p {  margin: 0 0 20px 0; font-size: 16px; font-weight: 500; color: #374151; line-height: 1.6; }
-.card .meta { font-size: 13px; color: #6b7280; font-weight: 700; }
+.card p {  margin: 0 0 20px 0; font-size: 16px; font-weight: 500; color: var(--sos-text-secondary); line-height: 1.6; }
+.card .meta { font-size: 13px; color: var(--sos-text-secondary); font-weight: 700; }
 
-input[type="text"] {width: 100%; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.2s;}
-input[type="text"]:focus { border-color: #16a34a; outline: none; box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1); }
-input[type="text"].error { border-color: #ef4444; background-color: #fef2f2; }
+input[type="text"] {width: 100%; padding: 10px 12px; border: 1px solid var(--sos-border-default); border-radius: 8px; font-size: 14px; transition: all 0.2s;}
+input[type="text"]:focus { border-color: var(--sos-accent); outline: none; box-shadow: var(--sos-ring); }
+input[type="text"].error { border-color: var(--sos-danger); background-color: var(--sos-danger-soft); }
 input[type="text"].error:focus { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1); }
 
 /* 试卷卷头预览样式 */
 .paper-preview {
-  background: #f7f4ec;
+  background: var(--sos-bg-surface);
   border-radius: 12px;
   padding: 20px;
   border: 1px solid rgba(0, 0, 0, 0.1);
