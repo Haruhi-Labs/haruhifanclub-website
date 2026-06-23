@@ -302,12 +302,12 @@ const timeShiftLayers = computed(() =>
     return {
       id: `shift-${index}`,
       code: index === 0 ? 'PHASE-00' : `LAYER-${codeNumber}`,
-      x: Math.round(Math.cos(radians) * SHIFT_WHEEL_RADIUS_X),
-      y: Math.round(Math.sin(radians) * SHIFT_WHEEL_RADIUS_Y),
-      depth: Math.round(Math.cos(radians) * SHIFT_WHEEL_DEPTH),
+      x: Number((Math.cos(radians) * SHIFT_WHEEL_RADIUS_X).toFixed(2)),
+      y: Number((Math.sin(radians) * SHIFT_WHEEL_RADIUS_Y).toFixed(2)),
+      depth: Number((Math.cos(radians) * SHIFT_WHEEL_DEPTH).toFixed(2)),
       scale: Number((0.72 + depthWeight * 0.3).toFixed(3)),
       alpha: Number((inVisibleSide ? 0.34 + edgeWeight * 0.64 : 0).toFixed(3)),
-      width: Math.round(306 + depthWeight * 74),
+      width: Number((306 + depthWeight * 74).toFixed(2)),
       z: Math.round(20 + depthWeight * 120),
       hitEvents: shiftHovering.value && inVisibleSide ? 'auto' : 'none',
     }
@@ -906,6 +906,10 @@ const stageStyle = {
   opacity: 0.24;
   filter: saturate(0.62) brightness(0.78);
   isolation: isolate;
+  will-change: transform, opacity, filter;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
   transition:
     opacity 0.28s ease,
     filter 0.28s ease,
@@ -1041,6 +1045,7 @@ const stageStyle = {
   overflow: visible;
   transform-style: preserve-3d;
   mask-image: none;
+  backface-visibility: hidden;
 }
 
 .art-home .shift-window::before,
@@ -1071,6 +1076,8 @@ const stageStyle = {
   height: 100%;
   transform-style: preserve-3d;
   pointer-events: none;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .art-home .shift-layer {
@@ -1101,8 +1108,15 @@ const stageStyle = {
     translate3d(calc(-50% + var(--panel-x)), calc(-50% + var(--panel-y)), var(--depth))
     rotateY(-22deg)
     rotateZ(-2deg)
-    scale(var(--scale));
+    scale3d(var(--scale), var(--scale), 1)
+    translateZ(0.01px);
   transform-style: preserve-3d;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  contain: layout paint;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
   backdrop-filter: blur(7px);
   clip-path: polygon(0 12px, 12px 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
   transition:
@@ -1133,6 +1147,7 @@ const stageStyle = {
   opacity: 0;
   transition: opacity 0.18s ease;
   pointer-events: none;
+  backface-visibility: hidden;
 }
 
 .art-home .time-shift-stack.is-hovering .shift-layer::before {
@@ -1153,6 +1168,8 @@ const stageStyle = {
   background:
     linear-gradient(90deg, transparent, rgba(116, 231, 255, 0.92), rgba(177, 140, 255, 0.64), transparent);
   box-shadow: 0 0 18px rgba(116, 231, 255, 0.44);
+  transform: translateZ(0.02px);
+  backface-visibility: hidden;
 }
 
 .art-home .shift-layer__meta {
@@ -1162,6 +1179,10 @@ const stageStyle = {
   letter-spacing: 0;
   white-space: nowrap;
   text-shadow: 0 0 12px rgba(116, 231, 255, 0.34);
+  transform: translateZ(0.02px);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
 }
 
 .art-home .time-shift-stack.is-hovering .shift-layer__line {
