@@ -266,6 +266,15 @@ Bridge 规则：
 
 `news` 的第一切片不是把页面改成全新站点，而是保留已有的团报黑白阅读气质，把它纳入设计系统：`SosPage` 输出页面 scope，`SosHeaderBrand` 落实 header 的 logo+标题文字，首页使用 PageHeader + Toolbar 组织信息，业务新闻卡仍留在 app 内作为 recipe 验证。
 
+视觉验收使用可控文章数据跑浏览器截图：
+
+```sh
+pnpm dev:news
+pnpm check:news:visual
+```
+
+该检查会输出桌面、移动和 hover 截图到 `tmp/visual-checks/news/`，并验证无横向溢出、首卡日期和置顶状态常驻。
+
 ## 4. Token 架构
 
 ### 4.1 三层模型

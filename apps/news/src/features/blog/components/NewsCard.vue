@@ -169,12 +169,19 @@ const highlight = (text) => {
 }
 
 .image-container {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
   margin-top: var(--sos-space-1);
   border: 1px solid var(--sos-border-subtle);
   border-radius: var(--sos-radius-xs);
 }
 
 .card-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
   transition: transform var(--sos-duration-slow) var(--sos-ease-out);
 }
 

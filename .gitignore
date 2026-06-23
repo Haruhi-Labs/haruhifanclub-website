@@ -5,6 +5,7 @@ apps/*/dist/
 .vite/
 *.local
 .eslintcache
+/tmp/
 
 # === Rust / 后端 ===
 target/

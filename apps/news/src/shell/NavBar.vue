@@ -16,7 +16,7 @@
           <button class="logo-group" type="button" @click="goHome" aria-label="返回春日团报首页">
             <SosHeaderBrand
               as="span"
-              logo-src="/haruhi-logo-192.png"
+              :logo-src="logoUrl"
               title="春日团报"
               subtitle="Haruhi Fan Club"
               :compact="isScrolled || overlay"
@@ -198,6 +198,7 @@ const router = useRouter()
 const isScrolled = ref(false)
 const isHidden = ref(false)
 const isMobileMenuOpen = ref(false)
+const logoUrl = `${import.meta.env.BASE_URL}haruhi-logo-192.png`
 
 let lastScrollY = 0
 
