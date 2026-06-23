@@ -593,15 +593,33 @@ const stageStyle = {
 .art-home .time-device::before {
   inset: 0;
   background:
-    radial-gradient(circle, transparent 0 50%, rgba(116, 231, 255, 0.08) 51% 54%, transparent 55%),
-    repeating-conic-gradient(from var(--loop-offset), rgba(206, 238, 255, 0.48) 0 1.4deg, transparent 1.4deg 9deg);
-  box-shadow: 0 0 94px rgba(116, 231, 255, 0.15);
+    radial-gradient(circle, transparent 0 42%, rgba(116, 231, 255, 0.07) 43% 45%, transparent 46%),
+    radial-gradient(circle, transparent 0 61%, rgba(177, 140, 255, 0.08) 62% 64%, transparent 65%),
+    conic-gradient(
+      from var(--loop-offset),
+      transparent 0deg,
+      rgba(116, 231, 255, 0.06) 22deg,
+      rgba(116, 231, 255, 0.32) 42deg,
+      rgba(177, 140, 255, 0.26) 58deg,
+      transparent 84deg,
+      transparent 142deg,
+      rgba(255, 99, 125, 0.16) 168deg,
+      rgba(116, 231, 255, 0.22) 196deg,
+      transparent 228deg,
+      transparent 278deg,
+      rgba(177, 140, 255, 0.2) 314deg,
+      transparent 360deg
+    );
+  box-shadow: 0 0 104px rgba(116, 231, 255, 0.16), inset 0 0 56px rgba(177, 140, 255, 0.08);
 }
 
 .art-home .time-device::after {
   inset: 54px;
-  border: 1px solid rgba(255, 99, 125, 0.18);
-  box-shadow: inset 0 0 26px rgba(255, 99, 125, 0.08), 0 0 36px rgba(116, 231, 255, 0.08);
+  border: 1px solid rgba(116, 231, 255, 0.16);
+  background:
+    conic-gradient(from calc(var(--loop-offset) + 90deg), transparent 0 28deg, rgba(116, 231, 255, 0.1) 44deg, transparent 74deg, transparent 180deg, rgba(177, 140, 255, 0.1) 212deg, transparent 250deg),
+    radial-gradient(circle, transparent 0 56%, rgba(116, 231, 255, 0.05) 58% 60%, transparent 62%);
+  box-shadow: inset 0 0 34px rgba(116, 231, 255, 0.08), 0 0 44px rgba(116, 231, 255, 0.08);
 }
 
 .art-home .orbit,
@@ -614,14 +632,17 @@ const stageStyle = {
 
 .art-home .orbit-outer {
   inset: 8px;
-  border: 1px solid rgba(116, 231, 255, 0.24);
-  box-shadow: 0 0 28px rgba(116, 231, 255, 0.09);
+  border: 1px solid rgba(116, 231, 255, 0.18);
+  box-shadow: 0 0 34px rgba(116, 231, 255, 0.1), inset 0 0 28px rgba(116, 231, 255, 0.04);
   animation: homeOrbit 30s linear infinite;
 }
 
 .art-home .orbit-middle {
   inset: 62px;
-  border: 1px dashed rgba(177, 140, 255, 0.34);
+  border: 1px solid rgba(177, 140, 255, 0.18);
+  background:
+    conic-gradient(from calc(var(--loop-offset) + 18deg), transparent 0 38deg, rgba(177, 140, 255, 0.16) 52deg, transparent 78deg, transparent 190deg, rgba(116, 231, 255, 0.12) 220deg, transparent 252deg);
+  mask-image: radial-gradient(circle, transparent 0 49%, black 50% 51%, transparent 52%);
   animation: homeOrbitReverse 22s linear infinite;
 }
 
@@ -635,21 +656,42 @@ const stageStyle = {
 .art-home .ratio-orbit {
   inset: 28px;
   background:
-    conic-gradient(from -90deg, var(--hud-cyan) 0 var(--haruhi-angle), rgba(177, 140, 255, 0.34) var(--haruhi-angle) 360deg);
-  mask-image: radial-gradient(circle, transparent 0 41%, black 42% 49%, transparent 50%);
-  box-shadow: 0 0 58px rgba(116, 231, 255, 0.22);
+    conic-gradient(
+      from -90deg,
+      rgba(116, 231, 255, 0.96) 0 var(--haruhi-angle),
+      rgba(141, 240, 255, 0.48) var(--haruhi-angle),
+      rgba(177, 140, 255, 0.28) calc(var(--haruhi-angle) + 7deg) 360deg
+    );
+  mask-image: radial-gradient(circle, transparent 0 40%, black 41% 48%, transparent 49%);
+  box-shadow: 0 0 66px rgba(116, 231, 255, 0.22), 0 0 28px rgba(177, 140, 255, 0.12);
 }
 
 .art-home .tick-ring {
   inset: 86px;
   background:
-    repeating-conic-gradient(from 4deg, rgba(232, 246, 255, 0.5) 0 2deg, transparent 2deg 15deg);
-  mask-image: radial-gradient(circle, transparent 0 47%, black 48% 51%, transparent 52%);
+    conic-gradient(
+      from calc(var(--loop-offset) + 4deg),
+      transparent 0deg,
+      rgba(116, 231, 255, 0.08) 28deg,
+      rgba(116, 231, 255, 0.22) 44deg,
+      transparent 74deg,
+      transparent 126deg,
+      rgba(177, 140, 255, 0.18) 156deg,
+      transparent 188deg,
+      transparent 244deg,
+      rgba(255, 99, 125, 0.12) 274deg,
+      rgba(116, 231, 255, 0.16) 304deg,
+      transparent 340deg
+    ),
+    repeating-conic-gradient(from 0deg, rgba(116, 231, 255, 0.16) 0 0.45deg, transparent 0.45deg 18deg);
+  mask-image: radial-gradient(circle, transparent 0 47%, black 48% 50%, transparent 51%);
+  opacity: 0.88;
 }
 
 .art-home .scan-sweep {
   inset: 0;
-  background: conic-gradient(from 0deg, transparent 0 286deg, rgba(116, 231, 255, 0.22) 318deg, transparent 350deg);
+  background:
+    conic-gradient(from 0deg, transparent 0 268deg, rgba(116, 231, 255, 0.06) 292deg, rgba(116, 231, 255, 0.2) 318deg, rgba(177, 140, 255, 0.08) 334deg, transparent 356deg);
   animation: homeOrbit 11s linear infinite;
   mix-blend-mode: screen;
 }
@@ -1052,7 +1094,7 @@ const stageStyle = {
 }
 
 :global(html.art-lights-out) .art-home .time-device::before {
-  box-shadow: 0 0 116px rgba(141, 240, 255, 0.2);
+  box-shadow: 0 0 118px rgba(141, 240, 255, 0.22), inset 0 0 64px rgba(177, 140, 255, 0.1);
 }
 
 :global(html.art-lights-out) .art-home .observer-core,
@@ -1065,7 +1107,8 @@ const stageStyle = {
 }
 
 :global(html.art-lights-out) .art-home .scan-sweep {
-  background: conic-gradient(from 0deg, transparent 0 284deg, rgba(141, 240, 255, 0.3) 318deg, transparent 350deg);
+  background:
+    conic-gradient(from 0deg, transparent 0 266deg, rgba(141, 240, 255, 0.08) 292deg, rgba(141, 240, 255, 0.28) 318deg, rgba(199, 166, 255, 0.12) 334deg, transparent 356deg);
 }
 
 @keyframes homeStarDrift {
