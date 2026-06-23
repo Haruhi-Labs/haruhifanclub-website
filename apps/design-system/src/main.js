@@ -144,6 +144,7 @@ const modes = [
 const navItems = [
   ['overview', '总览'],
   ['architecture', '接入结构'],
+  ['adoption', '接入矩阵'],
   ['foundations', '基础规范'],
   ['tokens', 'Token 映射'],
   ['content', '内容数据'],
@@ -178,6 +179,80 @@ const spacingScale = [
   ['32 / 40', '组合间距', '筛选区、列表组、详情块和并列模块之间。'],
   ['48 / 64', '页面模块', '频道头部、内容区、表单大段落之间的主要分隔。'],
   ['80 / 96', '大区段', '只用于首页或专题页首屏级区段，后台和密集页慎用。'],
+]
+
+const appAdoptionRows = [
+  [
+    '@haruhi/news',
+    'news',
+    'apps/news/src/main.js + style.css',
+    'NavBar、SiteFooter、文章列表、后台发布表单',
+    '发布/阅读路径，列表与详情截图',
+  ],
+  [
+    '@haruhi/shop',
+    'shop',
+    'apps/shop/src/main.js + assets/shop.css/admin.css',
+    '商品卡、预售进度、订单状态、管理后台表单',
+    '下单、订单查看、库存编辑路径',
+  ],
+  [
+    '@haruhi/art',
+    'art',
+    'apps/art/src/main.js + style.css',
+    'TopBar、FilterPanel、ArtworkGrid、上传和审核状态',
+    '上传、筛选、审核、作品详情路径',
+  ],
+  [
+    '@haruhi/novel',
+    'library',
+    'apps/novel/src/main.js + assets/base.css/main.css',
+    '书架、Reader、目录、阅读位置和反馈状态',
+    '书架进入阅读、目录跳转、阅读恢复路径',
+  ],
+  [
+    '@haruhi/exam',
+    'exam',
+    'apps/exam/src/main.ts + style.css',
+    'HomeView、ExamPaper、QuestionRenderer、AdminView',
+    '开始答题、恢复进度、提交和批阅路径',
+  ],
+  [
+    '@haruhi/console',
+    'base + compact',
+    'apps/console/src/main.ts + style.css',
+    'Dashboard、Audit、Notify、Users 的表格和表单',
+    '审核、通知、用户管理路径',
+  ],
+]
+
+const packageGovernance = [
+  [
+    '@haruhi/design-system',
+    'L0 · CSS Contract',
+    '新增 token/class 走 minor；删除或改名必须先 deprecate，并保留 bridge 删除计划。',
+  ],
+  [
+    '@haruhi/ui',
+    'L1 · Vue Wrapper',
+    '只接收基础 wrapper；新增 props/variant 前先更新规范页、状态矩阵和 a11y 证据。',
+  ],
+  [
+    '@haruhi/auth-ui',
+    'Auth Domain',
+    '继续维护登录/会话 UI；可以消费基础件，但不被合并进通用 UI 包。',
+  ],
+  [
+    '@haruhi/api-client',
+    'Data Contract',
+    '不依赖视觉样式；只和内容数据格式、错误文案和状态字段对齐。',
+  ],
+]
+
+const releaseRules = [
+  ['Minor', '新增 token、class、wrapper、文档 section 或非破坏性 recipe。'],
+  ['Patch', '修复样式 bug、补状态、补文档、修响应式和 a11y 问题。'],
+  ['Breaking', '删除 token/class、改变 anatomy、改变 variant 语义；必须给迁移步骤和回滚边界。'],
 ]
 
 const semanticTokens = [
@@ -951,6 +1026,65 @@ import '@haruhi/design-system/components.css'
 
 // Vue wrapper MVP
 import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
+        </section>
+
+        <section class="ds-section" id="adoption">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">Monorepo Adoption</p>
+            <h2>接入矩阵写清楚谁先动</h2>
+            <p>设计系统不要求一次性重写全部 app。每个 app 先在入口样式和一个代表性业务路径接入 Token、布局原语和基础组件，再根据证据扩大范围。</p>
+          </div>
+          <div class="ds-adoption-table" role="table" aria-label="monorepo design system adoption matrix">
+            <div class="ds-adoption-row ds-adoption-row--head" role="row">
+              <span>App</span>
+              <span>Mode</span>
+              <span>入口</span>
+              <span>首批对象</span>
+              <span>验收路径</span>
+            </div>
+            ${appAdoptionRows
+              .map(
+                ([appName, mode, entry, target, evidence]) => `
+              <div class="ds-adoption-row" role="row">
+                <strong>${appName}</strong>
+                <code>${mode}</code>
+                <span>${entry}</span>
+                <p>${target}</p>
+                <p>${evidence}</p>
+              </div>
+            `
+              )
+              .join('')}
+          </div>
+          <div class="ds-governance-grid">
+            <article class="ds-package-governance">
+              <h3>包职责</h3>
+              ${packageGovernance
+                .map(
+                  ([name, level, rule]) => `
+                <div>
+                  <code>${name}</code>
+                  <strong>${level}</strong>
+                  <p>${rule}</p>
+                </div>
+              `
+                )
+                .join('')}
+            </article>
+            <article class="ds-release-rules">
+              <h3>版本和变更</h3>
+              ${releaseRules
+                .map(
+                  ([type, rule]) => `
+                <div>
+                  <span>${type}</span>
+                  <p>${rule}</p>
+                </div>
+              `
+                )
+                .join('')}
+            </article>
+          </div>
         </section>
 
         <section class="ds-section" id="foundations">

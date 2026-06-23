@@ -78,6 +78,36 @@ import '@haruhi/design-system/bridges.css'
 
 `bridges.css` 只用于渐进迁移。新页面不应把 bridge 变量当成新的设计系统变量。
 
+### 3.1 Monorepo 接入矩阵
+
+每个 app 先在入口样式和一个代表性业务路径接入 Token、布局原语和基础组件，再根据证据扩大范围。
+
+| App               | Mode             | 入口                                      | 首批对象                                   | 验收路径                         |
+| ----------------- | ---------------- | ----------------------------------------- | ------------------------------------------ | -------------------------------- |
+| `@haruhi/news`    | `news`           | `apps/news/src/main.js` + `style.css`     | NavBar、SiteFooter、文章列表、后台发布表单 | 发布/阅读路径，列表与详情截图    |
+| `@haruhi/shop`    | `shop`           | `apps/shop/src/main.js` + `assets/*.css`  | 商品卡、预售进度、订单状态、管理后台表单   | 下单、订单查看、库存编辑路径     |
+| `@haruhi/art`     | `art`            | `apps/art/src/main.js` + `style.css`      | TopBar、FilterPanel、ArtworkGrid、上传审核 | 上传、筛选、审核、作品详情路径   |
+| `@haruhi/novel`   | `library`        | `apps/novel/src/main.js` + `assets/*.css` | 书架、Reader、目录、阅读位置和反馈状态     | 书架进入阅读、目录跳转、阅读恢复 |
+| `@haruhi/exam`    | `exam`           | `apps/exam/src/main.ts` + `style.css`     | HomeView、ExamPaper、QuestionRenderer      | 开始答题、恢复进度、提交和批阅   |
+| `@haruhi/console` | `base + compact` | `apps/console/src/main.ts` + `style.css`  | Dashboard、Audit、Notify、Users 表格表单   | 审核、通知、用户管理路径         |
+
+`console` 是管理后台，不强行套某个业务表达模式。它默认使用基础语义 token，可按页面密度加 `data-sos-density="compact"`。
+
+### 3.2 包治理
+
+| Package                 | Level             | 规则                                                                            |
+| ----------------------- | ----------------- | ------------------------------------------------------------------------------- |
+| `@haruhi/design-system` | L0 · CSS Contract | 新增 token/class 走 minor；删除或改名必须先 deprecate，并保留 bridge 删除计划。 |
+| `@haruhi/ui`            | L1 · Vue Wrapper  | 新增 props/variant 前先更新规范页、状态矩阵和 a11y 证据。                       |
+| `@haruhi/auth-ui`       | Auth Domain       | 继续维护登录/会话 UI；可以消费基础件，但不合并进通用 UI 包。                    |
+| `@haruhi/api-client`    | Data Contract     | 不依赖视觉样式；只和内容数据格式、错误文案和状态字段对齐。                      |
+
+版本规则：
+
+- Minor：新增 token、class、wrapper、文档 section 或非破坏性 recipe。
+- Patch：修复样式 bug、补状态、补文档、修响应式和 a11y 问题。
+- Breaking：删除 token/class、改变 anatomy、改变 variant 语义；必须给迁移步骤和回滚边界。
+
 ## 4. Token 架构
 
 ### 4.1 三层模型

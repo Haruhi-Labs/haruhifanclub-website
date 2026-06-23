@@ -295,6 +295,120 @@ textarea {
   line-height: 1.65;
 }
 
+.ds-adoption-table {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+}
+
+.ds-adoption-row {
+  display: grid;
+  grid-template-columns:
+    minmax(8rem, 0.75fr) 7rem minmax(12rem, 1.15fr) minmax(12rem, 1.2fr)
+    minmax(11rem, 1fr);
+  gap: var(--sos-space-3);
+  align-items: baseline;
+  border-top: 1px solid var(--sos-border-subtle);
+  padding: var(--sos-space-4);
+}
+
+.ds-adoption-row:first-child {
+  border-top: 0;
+}
+
+.ds-adoption-row--head {
+  background: var(--sos-bg-subtle);
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ds-adoption-row strong {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-sm);
+}
+
+.ds-adoption-row code {
+  color: var(--sos-link);
+  font-family: var(--sos-font-mono);
+  font-size: var(--sos-text-xs);
+  overflow-wrap: anywhere;
+}
+
+.ds-adoption-row span,
+.ds-adoption-row p {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.55;
+}
+
+.ds-governance-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(20rem, 0.8fr);
+  gap: var(--sos-space-4);
+}
+
+.ds-package-governance,
+.ds-release-rules {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-3);
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-5);
+}
+
+.ds-package-governance h3,
+.ds-release-rules h3 {
+  margin: 0 0 var(--sos-space-1);
+  font-size: var(--sos-text-lg);
+  line-height: 1.3;
+}
+
+.ds-package-governance div,
+.ds-release-rules div {
+  display: grid;
+  gap: var(--sos-space-2);
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-subtle);
+  padding: var(--sos-space-4);
+}
+
+.ds-package-governance div {
+  grid-template-columns: minmax(10rem, 0.85fr) minmax(9rem, 0.7fr) minmax(0, 1.25fr);
+  align-items: baseline;
+}
+
+.ds-package-governance code {
+  color: var(--sos-link);
+  font-family: var(--sos-font-mono);
+  font-size: var(--sos-text-xs);
+  overflow-wrap: anywhere;
+}
+
+.ds-package-governance strong,
+.ds-release-rules span {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+}
+
+.ds-package-governance p,
+.ds-release-rules p {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.58;
+}
+
 .ds-code {
   min-width: 0;
   max-width: 100%;
@@ -1940,6 +2054,7 @@ textarea {
   .ds-ui-mvp,
   .ds-api-lab,
   .ds-qa-board,
+  .ds-governance-grid,
   .ds-guide-shell,
   .ds-guide-panel,
   .ds-page-lab__body,
@@ -1951,7 +2066,9 @@ textarea {
   }
 
   .ds-contract-row,
-  .ds-contract-row--head {
+  .ds-contract-row--head,
+  .ds-adoption-row,
+  .ds-package-governance div {
     grid-template-columns: 1fr;
     gap: var(--sos-space-2);
   }
@@ -1984,7 +2101,8 @@ textarea {
     grid-row: auto;
   }
 
-  .ds-contract-row--head {
+  .ds-contract-row--head,
+  .ds-adoption-row--head {
     display: none;
   }
 }

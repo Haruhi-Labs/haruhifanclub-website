@@ -107,3 +107,9 @@ API 规则：
 - 390 / 768 / 1280px 响应式截图。
 - 键盘路径和可访问名称说明。
 - 不新增视觉 props、不重定义 token 的说明。
+
+## 版本规则
+
+- Minor：新增 wrapper、非破坏性 props、文档 section 或 recipe 示例。
+- Patch：修复 class 组合、aria、类型声明、文档和响应式问题。
+- Breaking：改变 anatomy、slot、variant 语义或移除 props；必须同时给迁移步骤和回滚边界。

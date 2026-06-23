@@ -90,6 +90,17 @@ import '@haruhi/design-system/bridges.css'
 
 ## 迁移顺序
 
+目标 app 的表达模式：
+
+| App               | Mode             | 入口样式                         |
+| ----------------- | ---------------- | -------------------------------- |
+| `@haruhi/news`    | `news`           | `apps/news/src/style.css`        |
+| `@haruhi/shop`    | `shop`           | `apps/shop/src/assets/shop.css`  |
+| `@haruhi/art`     | `art`            | `apps/art/src/style.css`         |
+| `@haruhi/novel`   | `library`        | `apps/novel/src/assets/base.css` |
+| `@haruhi/exam`    | `exam`           | `apps/exam/src/style.css`        |
+| `@haruhi/console` | `base + compact` | `apps/console/src/style.css`     |
+
 1. 在目标 app 的入口样式中引入 `tokens.css`。
 2. 给页面根节点补 `class="sos-scope"` 和对应 `data-sos-site`。
 3. 如果旧 CSS 变量较多，短期加载 `bridges.css`，把旧变量指向新语义 token。
