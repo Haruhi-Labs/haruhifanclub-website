@@ -15,13 +15,7 @@
         <span class="viewport-glass"></span>
       </div>
 
-      <div
-        ref="screenHeaderRef"
-        class="screen-header"
-        @pointerenter="keepShiftVisible"
-        @pointermove="keepShiftVisible"
-        @pointerleave="onShiftLeave"
-      >
+      <div class="screen-header">
         <div>
           <p class="eyebrow">Endless Eight Observatory</p>
           <h1>八月循环观测中枢</h1>
@@ -41,22 +35,29 @@
 
         <div
           ref="shiftHoverFieldRef"
-          :class="['shift-hover-field', { 'is-hovering': shiftHovering }]"
+          :class="['shift-hover-field', { 'is-hovering': shiftHovering, 'is-dragging': shiftDragging }]"
           aria-hidden="true"
-          @pointerenter="onShiftEnter"
-          @pointermove="onShiftMove"
-          @pointerleave="onShiftLeave"
-          @pointercancel="onShiftLeave"
+          @pointerdown="onShiftGrabStart"
+          @pointermove="onShiftDrag"
+          @pointerup="onShiftGrabEnd"
+          @pointercancel="onShiftGrabCancel"
         ></div>
 
         <div
           ref="shiftStackRef"
-          :class="['time-shift-stack', { 'is-hovering': shiftHovering }]"
+          :class="[
+            'time-shift-stack',
+            {
+              'is-hovering': shiftHovering,
+              'is-dragging': shiftDragging,
+              'is-spinning': shiftSpinning,
+            },
+          ]"
           aria-label="时间跃迁层"
         >
           <div class="shift-label">
             <span>TIME JUMP</span>
-            <strong>{{ shiftHovering ? '边缘显现' : '边缘折叠' }}</strong>
+            <strong>{{ shiftStateText }}</strong>
           </div>
           <div class="shift-window">
             <div class="shift-track">
@@ -74,9 +75,10 @@
                   '--z': layer.z,
                   pointerEvents: layer.hitEvents,
                 }"
-                @pointerenter="onShiftEnter"
-                @pointermove="onShiftMove"
-                @pointerleave="onShiftLeave"
+                @pointerdown="onShiftGrabStart"
+                @pointermove="onShiftDrag"
+                @pointerup="onShiftGrabEnd"
+                @pointercancel="onShiftGrabCancel"
               >
                 <span class="shift-layer__line"></span>
                 <span class="shift-layer__meta">{{ layer.code }}</span>
@@ -85,14 +87,7 @@
           </div>
         </div>
 
-        <div
-          ref="timeDeviceRef"
-          class="time-device"
-          aria-label="画廊数据时间环"
-          @pointerenter="keepShiftVisible"
-          @pointermove="keepShiftVisible"
-          @pointerleave="onShiftLeave"
-        >
+        <div class="time-device" aria-label="画廊数据时间环">
           <div class="orbit orbit-outer"></div>
           <div class="orbit orbit-middle"></div>
           <div class="orbit orbit-inner"></div>
@@ -184,7 +179,10 @@ const SHIFT_ANGLE_STEP = 360 / SHIFT_LAYER_COUNT
 const SHIFT_WHEEL_RADIUS_Y = 388
 const SHIFT_WHEEL_RADIUS_X = 244
 const SHIFT_WHEEL_DEPTH = 210
-const SHIFT_ROTATE_SPEED = 0.42
+const SHIFT_DRAG_SPEED = 0.34
+const SHIFT_MAX_VELOCITY = 1.25
+const SHIFT_INERTIA_DECAY = 0.94
+const SHIFT_STOP_VELOCITY = 0.012
 
 function makeVisitorNumber() {
   const fallback = 5200 + seedArtworks.length * 31 + seedCreators.length * 17
@@ -255,14 +253,17 @@ const satelliteMetrics = [
 ]
 
 const shiftHovering = ref(false)
+const shiftDragging = ref(false)
+const shiftSpinning = ref(false)
 const shiftRotation = ref(0)
 const shiftHoverFieldRef = ref(null)
 const shiftStackRef = ref(null)
-const screenHeaderRef = ref(null)
-const timeDeviceRef = ref(null)
 let shiftLastY = null
-let shiftLastX = 0
-let shiftHideFrame = 0
+let shiftLastTime = 0
+let shiftPointerId = null
+let shiftVelocity = 0
+let shiftInertiaFrame = 0
+let shiftInertiaLastTime = 0
 
 function normalizeShiftAngle(value) {
   let next = value % 360
@@ -297,93 +298,149 @@ const timeShiftLayers = computed(() =>
       alpha: Number((inVisibleSide ? 0.24 + edgeWeight * 0.72 : 0).toFixed(3)),
       width: Math.round(306 + depthWeight * 74),
       z: Math.round(20 + depthWeight * 120),
-      hitEvents: inVisibleSide ? 'auto' : 'none',
+      hitEvents: shiftHovering.value && inVisibleSide ? 'auto' : 'none',
     }
   })
 )
 
-function cancelShiftHide() {
-  if (shiftHideFrame && typeof window !== 'undefined') {
-    window.cancelAnimationFrame(shiftHideFrame)
+const shiftStateText = computed(() => {
+  if (shiftDragging.value) return '拖拽跃迁'
+  if (shiftSpinning.value) return '惯性回环'
+  if (shiftHovering.value) return '边缘抓取'
+  return '边缘待命'
+})
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function applyShiftRotation(delta) {
+  shiftRotation.value = normalizeShiftRotation(shiftRotation.value + delta)
+}
+
+function cancelShiftInertia() {
+  if (shiftInertiaFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(shiftInertiaFrame)
   }
-  shiftHideFrame = 0
-}
-
-function rememberShiftPointer(event) {
-  shiftLastX = event.clientX
-  shiftLastY = event.clientY
-}
-
-function isPointInsideElement(element, x, y, padding = 0) {
-  if (!element) return false
-  const rect = element.getBoundingClientRect()
-  return (
-    x >= rect.left - padding
-    && x <= rect.right + padding
-    && y >= rect.top - padding
-    && y <= rect.bottom + padding
-  )
-}
-
-function isPointerInShiftKeepZone() {
-  return (
-    isPointInsideElement(shiftHoverFieldRef.value, shiftLastX, shiftLastY, 2)
-    || isPointInsideElement(shiftStackRef.value, shiftLastX, shiftLastY, 2)
-    || isPointInsideElement(screenHeaderRef.value, shiftLastX, shiftLastY, 8)
-    || isPointInsideElement(timeDeviceRef.value, shiftLastX, shiftLastY, 8)
-  )
-}
-
-function onShiftEnter(event) {
-  cancelShiftHide()
-  shiftHovering.value = true
-  rememberShiftPointer(event)
-}
-
-function keepShiftVisible(event) {
-  if (!shiftHovering.value) return
-  cancelShiftHide()
-  rememberShiftPointer(event)
-}
-
-function onShiftMove(event) {
-  cancelShiftHide()
-  shiftHovering.value = true
-  if (shiftLastY === null) {
-    rememberShiftPointer(event)
-    return
-  }
-
-  const diff = event.clientY - shiftLastY
-  if (Math.abs(diff) >= 1) {
-    shiftRotation.value = normalizeShiftRotation(shiftRotation.value + diff * SHIFT_ROTATE_SPEED)
-  }
-  rememberShiftPointer(event)
+  shiftInertiaFrame = 0
+  shiftInertiaLastTime = 0
+  shiftSpinning.value = false
 }
 
 function hideShiftWheel() {
   shiftHovering.value = false
+  shiftDragging.value = false
+  shiftSpinning.value = false
   shiftLastY = null
+  shiftLastTime = 0
+  shiftPointerId = null
+  shiftVelocity = 0
 }
 
-function onShiftLeave(event) {
-  rememberShiftPointer(event)
-  cancelShiftHide()
-  if (typeof window === 'undefined') {
+function releaseShiftCapture(event) {
+  const target = event.currentTarget
+  if (target?.hasPointerCapture?.(event.pointerId)) {
+    target.releasePointerCapture(event.pointerId)
+  }
+}
+
+function onShiftGrabStart(event) {
+  if (event.button !== undefined && event.button !== 0) return
+  event.preventDefault()
+  cancelShiftInertia()
+  shiftHovering.value = true
+  shiftDragging.value = true
+  shiftPointerId = event.pointerId
+  shiftLastY = event.clientY
+  shiftLastTime = event.timeStamp || performance.now()
+  shiftVelocity = 0
+  event.currentTarget?.setPointerCapture?.(event.pointerId)
+}
+
+function onShiftDrag(event) {
+  if (!shiftDragging.value || event.pointerId !== shiftPointerId) return
+  event.preventDefault()
+
+  const nowTime = event.timeStamp || performance.now()
+  if (shiftLastY === null) {
+    shiftLastY = event.clientY
+    shiftLastTime = nowTime
+    return
+  }
+
+  const diff = event.clientY - shiftLastY
+  const elapsed = Math.max(8, nowTime - shiftLastTime)
+  if (Math.abs(diff) >= 0.2) {
+    const rotationDelta = diff * SHIFT_DRAG_SPEED
+    const instantVelocity = rotationDelta / elapsed
+    applyShiftRotation(rotationDelta)
+    shiftVelocity = clamp(
+      shiftVelocity * 0.28 + instantVelocity * 0.72,
+      -SHIFT_MAX_VELOCITY,
+      SHIFT_MAX_VELOCITY
+    )
+  }
+
+  shiftLastY = event.clientY
+  shiftLastTime = nowTime
+}
+
+function stopShiftInertia() {
+  cancelShiftInertia()
+  hideShiftWheel()
+}
+
+function tickShiftInertia(time) {
+  if (!shiftSpinning.value) {
+    shiftInertiaFrame = 0
+    return
+  }
+
+  if (!shiftInertiaLastTime) shiftInertiaLastTime = time
+  const delta = Math.min(40, time - shiftInertiaLastTime)
+  shiftInertiaLastTime = time
+
+  applyShiftRotation(shiftVelocity * delta)
+  shiftVelocity *= Math.pow(SHIFT_INERTIA_DECAY, delta / 16.67)
+
+  if (Math.abs(shiftVelocity) <= SHIFT_STOP_VELOCITY) {
+    stopShiftInertia()
+    return
+  }
+
+  shiftInertiaFrame = window.requestAnimationFrame(tickShiftInertia)
+}
+
+function startShiftInertia() {
+  if (typeof window === 'undefined' || Math.abs(shiftVelocity) <= SHIFT_STOP_VELOCITY) {
     hideShiftWheel()
     return
   }
 
-  shiftHideFrame = window.requestAnimationFrame(() => {
-    shiftHideFrame = 0
-    if (!isPointerInShiftKeepZone()) {
-      hideShiftWheel()
-    }
-  })
+  shiftSpinning.value = true
+  shiftInertiaLastTime = 0
+  shiftInertiaFrame = window.requestAnimationFrame(tickShiftInertia)
+}
+
+function onShiftGrabEnd(event) {
+  if (!shiftDragging.value || event.pointerId !== shiftPointerId) return
+  event.preventDefault()
+  releaseShiftCapture(event)
+  shiftDragging.value = false
+  shiftPointerId = null
+  shiftLastY = null
+  shiftLastTime = 0
+  startShiftInertia()
+}
+
+function onShiftGrabCancel(event) {
+  if (event.pointerId !== shiftPointerId) return
+  releaseShiftCapture(event)
+  stopShiftInertia()
 }
 
 onBeforeUnmount(() => {
-  cancelShiftHide()
+  cancelShiftInertia()
 })
 
 const tagCounts = approvedArtworks.reduce((map, item) => {
@@ -776,16 +833,21 @@ const stageStyle = {
   left: 0;
   top: 0;
   z-index: 9;
-  width: 190px;
+  width: 44px;
   height: 100dvh;
   pointer-events: auto;
   background: transparent;
+  cursor: grab;
   touch-action: none;
   transition: width 0.28s ease;
 }
 
 .art-home .shift-hover-field.is-hovering {
-  width: 390px;
+  width: 128px;
+}
+
+.art-home .shift-hover-field.is-dragging {
+  cursor: grabbing;
 }
 
 .art-home .time-shift-stack {
@@ -796,13 +858,13 @@ const stageStyle = {
   width: 760px;
   height: min(96dvh, 940px);
   min-height: 760px;
-  transform: translate3d(-628px, -50%, 0) rotateY(-31deg);
+  transform: translate3d(-804px, -50%, 0) rotateY(-36deg);
   transform-origin: left center;
   transform-style: preserve-3d;
   perspective: 1400px;
   pointer-events: none;
-  opacity: 0.34;
-  filter: saturate(0.74) brightness(0.86);
+  opacity: 0.24;
+  filter: saturate(0.62) brightness(0.78);
   isolation: isolate;
   transition:
     opacity 0.28s ease,
@@ -811,9 +873,14 @@ const stageStyle = {
 }
 
 .art-home .time-shift-stack.is-hovering {
-  opacity: 0.96;
-  filter: saturate(1.18) brightness(1.08);
-  transform: translate3d(-462px, -50%, 0) rotateY(-14deg);
+  opacity: 0.9;
+  filter: saturate(1.08) brightness(1.02);
+  transform: translate3d(-732px, -50%, 0) rotateY(-22deg);
+}
+
+.art-home .time-shift-stack.is-dragging {
+  opacity: 0.98;
+  filter: saturate(1.16) brightness(1.08);
 }
 
 .art-home .shift-label {
@@ -896,6 +963,8 @@ const stageStyle = {
   gap: 10px;
   padding: 0 12px;
   opacity: var(--alpha);
+  cursor: grab;
+  user-select: none;
   border: 1px solid rgba(116, 231, 255, 0.18);
   border-radius: 14px;
   background:
@@ -918,6 +987,18 @@ const stageStyle = {
     border-color 0.28s ease,
     box-shadow 0.28s ease,
     transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.art-home .time-shift-stack.is-dragging .shift-layer {
+  cursor: grabbing;
+}
+
+.art-home .time-shift-stack.is-dragging .shift-layer,
+.art-home .time-shift-stack.is-spinning .shift-layer {
+  transition:
+    opacity 0.14s linear,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .art-home .shift-layer::before {
@@ -1492,13 +1573,18 @@ const stageStyle = {
 }
 
 :global(html.art-lights-out) .art-home .time-shift-stack {
-  opacity: 0.42;
-  filter: saturate(0.82) brightness(0.92);
+  opacity: 0.28;
+  filter: saturate(0.7) brightness(0.82);
 }
 
 :global(html.art-lights-out) .art-home .time-shift-stack.is-hovering {
+  opacity: 0.92;
+  filter: saturate(1.16) brightness(1.06);
+}
+
+:global(html.art-lights-out) .art-home .time-shift-stack.is-dragging {
   opacity: 1;
-  filter: saturate(1.22) brightness(1.1);
+  filter: saturate(1.24) brightness(1.12);
 }
 
 :global(html.art-lights-out) .art-home .shift-layer {
