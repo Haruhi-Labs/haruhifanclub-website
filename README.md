@@ -43,6 +43,7 @@ pnpm dev:exam
 pnpm dev:novel
 pnpm dev:shop
 pnpm dev:console
+pnpm dev:design-system
 ```
 
 本地前端 dev server 都把 `/api` 和 `/uploads` 代理到 `127.0.0.1:17777`。请先准备 `.env`；否则 `Config` 的代码默认值是 `127.0.0.1:8080`，前端代理会找不到后端。
@@ -55,14 +56,15 @@ APP=novel pnpm dev    # 默认 APP=news
 
 ## 前端 app
 
-| app     | 包名              | 子路径      | dev 端口 | 说明                                             |
-| ------- | ----------------- | ----------- | -------- | ------------------------------------------------ |
-| news    | `@haruhi/news`    | `/news/`    | 5204     | 团内新闻（春日团报）、活动、积分和后台管理       |
-| art     | `@haruhi/art`     | `/art/`     | 5201     | 画廊、投稿、匿名互动、积分和审核后台             |
-| exam    | `@haruhi/exam`    | `/exam/`    | 5202     | 在线试卷、编辑器、分享导出和审核后台，TypeScript |
-| novel   | `@haruhi/novel`   | `/library/` | 5203     | EPUB 书架、阅读器、上传和编目后台                |
-| shop    | `@haruhi/shop`    | `/shop/`    | 5205     | 商品、订单、预售、优惠券、物流和商城后台         |
-| console | `@haruhi/console` | `/console/` | 5200     | 超管控制台，管理用户和 RBAC 角色，TypeScript     |
+| app           | 包名                         | 子路径            | dev 端口 | 说明                                             |
+| ------------- | ---------------------------- | ----------------- | -------- | ------------------------------------------------ |
+| news          | `@haruhi/news`               | `/news/`          | 5204     | 团内新闻（春日团报）、活动、积分和后台管理       |
+| art           | `@haruhi/art`                | `/art/`           | 5201     | 画廊、投稿、匿名互动、积分和审核后台             |
+| exam          | `@haruhi/exam`               | `/exam/`          | 5202     | 在线试卷、编辑器、分享导出和审核后台，TypeScript |
+| novel         | `@haruhi/novel`              | `/library/`       | 5203     | EPUB 书架、阅读器、上传和编目后台                |
+| shop          | `@haruhi/shop`               | `/shop/`          | 5205     | 商品、订单、预售、优惠券、物流和商城后台         |
+| console       | `@haruhi/console`            | `/console/`       | 5200     | 超管控制台，管理用户和 RBAC 角色，TypeScript     |
+| design-system | `@haruhi/design-system-docs` | `/design-system/` | 5206     | SOS / Parallel Design System 静态规范页          |
 
 每个 app 都有自己的 `README.md`。入口命令统一为：
 
@@ -122,6 +124,7 @@ flowchart TB
 ```text
 apps/                  前端应用目录
 packages/api-client/   已启用的共享前端包：fetch、JWT、RBAC、上传 URL
+packages/design-system/ CSS-first 设计系统：tokens、components、bridges
 packages/ui/           预留目录，当前无 package.json
 packages/config/       预留目录，当前无 package.json
 backend/crates/        Rust workspace crate
@@ -166,5 +169,6 @@ HARUHI_DEPLOY_HOST=root@<server> bash deploy/deploy.sh
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)：后端、前端、数据库和 RBAC 设计
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)：部署、环境变量、备份
 - [docs/ADDING_MODULE.md](docs/ADDING_MODULE.md)：新增业务模块
+- [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)：SOS / Parallel Design System 项目设计规范
 - [docs/COLLABORATION.md](docs/COLLABORATION.md)：推到 GitHub 后启用分支保护、CodeRabbit、Dependabot
 - [SECURITY.md](SECURITY.md)：安全披露流程

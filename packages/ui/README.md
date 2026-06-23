@@ -6,13 +6,14 @@
 
 - 没有 `package.json`。
 - 任何 app 都不应 import 本目录。
-- 没有共享组件、主题 token 或样式入口。
+- 没有共享 Vue 组件入口。
+- 设计系统的 CSS token、基础 class contract 和兼容桥位于 `packages/design-system`。
 
 保留原因：
 
 - 现有 app 的视觉和技术栈差异较大：原生 CSS、CSS 变量、SCSS、Tailwind 都在使用。
 - 当前复用的是鉴权、请求和上传路径，已经放在 `packages/api-client`。
-- 只有出现跨 app 高复用且形态稳定的组件时，再从具体 app 中抽取。
+- 设计系统先以 CSS-first 方式接入，只有出现跨 app 高复用且形态稳定的组件时，再从具体 app 中抽取到这里。
 
 启用前需要先补：
 

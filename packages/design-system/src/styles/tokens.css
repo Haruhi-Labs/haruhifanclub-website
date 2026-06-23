@@ -1,0 +1,300 @@
+/* SOS / Parallel Design System
+   Primitive → semantic → expression tokens.
+   Product code should consume semantic tokens only. */
+
+:root {
+  color-scheme: light;
+
+  /* ---------- Primitive colors ---------- */
+  --sos-yellow-50: #fff9db;
+  --sos-yellow-100: #fff2ad;
+  --sos-yellow-300: #ffdd66;
+  --sos-yellow-500: #ffc83d;
+  --sos-yellow-600: #e9a900;
+
+  --sos-sky-50: #eef7ff;
+  --sos-sky-100: #d9edff;
+  --sos-sky-500: #4b9fe8;
+  --sos-sky-600: #2f78c4;
+  --sos-sky-700: #235f9f;
+
+  --sos-blue-50: #eef4ff;
+  --sos-blue-100: #dce8ff;
+  --sos-blue-500: #3478f6;
+  --sos-blue-600: #2865d7;
+  --sos-blue-700: #1f4fab;
+
+  --sos-teal-50: #eaf8f5;
+  --sos-teal-100: #cff1eb;
+  --sos-teal-500: #159a90;
+  --sos-teal-600: #0f7f77;
+  --sos-teal-700: #0d655f;
+
+  --sos-amber-50: #fff7e8;
+  --sos-amber-100: #f8e7c3;
+  --sos-amber-500: #bd7928;
+  --sos-amber-600: #9d5d16;
+  --sos-amber-700: #7a4510;
+
+  --sos-red-50: #fff0f0;
+  --sos-red-100: #ffd9dc;
+  --sos-red-500: #db3a46;
+  --sos-red-600: #c8171e;
+  --sos-red-700: #a41219;
+
+  --sos-mint-50: #effaf6;
+  --sos-mint-500: #61c8a9;
+  --sos-mint-700: #247a63;
+
+  --sos-ink-950: #171a22;
+  --sos-ink-900: #20242e;
+  --sos-ink-800: #303642;
+  --sos-ink-700: #454d5b;
+  --sos-ink-600: #5f6876;
+  --sos-ink-500: #798291;
+  --sos-ink-400: #9ca4af;
+  --sos-ink-300: #c5cad1;
+  --sos-ink-200: #dde1e6;
+  --sos-ink-100: #eef0f3;
+  --sos-ink-50: #f7f8f9;
+
+  --sos-white: #ffffff;
+  --sos-warm-50: #fffaf2;
+  --sos-warm-100: #fff4e5;
+  --sos-paper-50: #faf6ec;
+  --sos-paper-100: #f4ecdc;
+  --sos-paper-200: #e8d9bd;
+  --sos-wood-100: #f6ead7;
+  --sos-wood-300: #e2c7a1;
+  --sos-night-900: #0f1b2e;
+  --sos-night-800: #16243a;
+  --sos-student-navy: #1a2b3d;
+
+  /* ---------- Typography ---------- */
+  --sos-font-sans:
+    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --sos-font-display: var(--sos-font-sans);
+  --sos-font-reading: 'Noto Serif SC', 'Songti SC', 'STSong', Georgia, serif;
+  --sos-font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+
+  --sos-text-2xs: 0.6875rem;
+  --sos-text-xs: 0.75rem;
+  --sos-text-sm: 0.875rem;
+  --sos-text-md: 1rem;
+  --sos-text-lg: 1.125rem;
+  --sos-text-xl: 1.375rem;
+  --sos-text-2xl: 1.75rem;
+  --sos-text-3xl: 2.25rem;
+  --sos-text-hero: 3rem;
+
+  --sos-leading-tight: 1.08;
+  --sos-leading-heading: 1.2;
+  --sos-leading-body: 1.65;
+  --sos-leading-reading: 1.9;
+
+  /* ---------- 4px spacing grid ---------- */
+  --sos-space-0: 0;
+  --sos-space-1: 0.25rem;
+  --sos-space-2: 0.5rem;
+  --sos-space-3: 0.75rem;
+  --sos-space-4: 1rem;
+  --sos-space-5: 1.25rem;
+  --sos-space-6: 1.5rem;
+  --sos-space-8: 2rem;
+  --sos-space-10: 2.5rem;
+  --sos-space-12: 3rem;
+  --sos-space-16: 4rem;
+  --sos-space-20: 5rem;
+  --sos-space-24: 6rem;
+
+  /* ---------- Shape ---------- */
+  --sos-radius-xs: 0.25rem;
+  --sos-radius-sm: 0.5rem;
+  --sos-radius-md: 0.75rem;
+  --sos-radius-lg: 1.125rem;
+  --sos-radius-xl: 1.5rem;
+  --sos-radius-full: 9999px;
+
+  /* ---------- Elevation ---------- */
+  --sos-shadow-hairline: 0 0 0 1px rgba(23, 26, 34, 0.07);
+  --sos-shadow-card: 0 8px 24px rgba(23, 26, 34, 0.07);
+  --sos-shadow-float: 0 20px 54px rgba(23, 26, 34, 0.13);
+  --sos-shadow-hard: 4px 4px 0 rgba(23, 26, 34, 0.95);
+  --sos-shadow-paper: 2px 8px 24px rgba(88, 58, 28, 0.16);
+
+  /* ---------- Motion ---------- */
+  --sos-duration-fast: 120ms;
+  --sos-duration-base: 200ms;
+  --sos-duration-slow: 420ms;
+  --sos-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --sos-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* ---------- Layout ---------- */
+  --sos-container-reading: 46rem;
+  --sos-container-content: 78rem;
+  --sos-container-wide: 92rem;
+  --sos-control-sm: 2.25rem;
+  --sos-control-md: 2.75rem;
+  --sos-control-lg: 3rem;
+
+  /* ---------- Default semantic mapping ---------- */
+  --sos-bg-page: var(--sos-warm-50);
+  --sos-bg-surface: var(--sos-white);
+  --sos-bg-subtle: var(--sos-ink-50);
+  --sos-bg-strong: var(--sos-night-900);
+  --sos-bg-overlay: rgba(15, 27, 46, 0.48);
+
+  --sos-text-primary: var(--sos-ink-950);
+  --sos-text-secondary: var(--sos-ink-600);
+  --sos-text-tertiary: var(--sos-ink-500);
+  --sos-text-on-strong: var(--sos-white);
+
+  --sos-border-subtle: rgba(23, 26, 34, 0.1);
+  --sos-border-default: rgba(23, 26, 34, 0.18);
+  --sos-border-strong: var(--sos-ink-950);
+
+  --sos-accent: var(--sos-yellow-500);
+  --sos-accent-hover: var(--sos-yellow-600);
+  --sos-accent-soft: var(--sos-yellow-50);
+  --sos-accent-contrast: var(--sos-ink-950);
+  --sos-link: var(--sos-blue-600);
+  --sos-focus: var(--sos-sky-500);
+  --sos-signal: var(--sos-yellow-500);
+  --sos-danger: var(--sos-red-600);
+  --sos-success: var(--sos-mint-700);
+
+  --sos-card-radius: var(--sos-radius-lg);
+  --sos-media-radius: var(--sos-radius-md);
+  --sos-control-radius: var(--sos-radius-full);
+  --sos-card-shadow: var(--sos-shadow-card);
+  --sos-hover-shadow: var(--sos-shadow-float);
+  --sos-page-texture: none;
+  --sos-display-family: var(--sos-font-display);
+  --sos-reading-family: var(--sos-font-sans);
+}
+
+@media (min-width: 768px) {
+  :root {
+    --sos-text-2xl: 2.25rem;
+    --sos-text-3xl: 3.5rem;
+    --sos-text-hero: 6rem;
+  }
+}
+
+/* ---------- Expression modes ---------- */
+[data-sos-site='news'] {
+  --sos-bg-page: #f7f7f5;
+  --sos-bg-surface: var(--sos-white);
+  --sos-bg-subtle: #efefec;
+  --sos-bg-strong: var(--sos-ink-950);
+  --sos-accent: var(--sos-ink-950);
+  --sos-accent-hover: var(--sos-ink-800);
+  --sos-accent-soft: var(--sos-ink-100);
+  --sos-accent-contrast: var(--sos-white);
+  --sos-link: var(--sos-ink-950);
+  --sos-signal: var(--sos-yellow-500);
+  --sos-card-radius: var(--sos-radius-sm);
+  --sos-media-radius: var(--sos-radius-xs);
+  --sos-control-radius: var(--sos-radius-sm);
+  --sos-card-shadow: none;
+  --sos-hover-shadow: 0 8px 24px rgba(23, 26, 34, 0.08);
+  --sos-reading-family: var(--sos-font-reading);
+}
+
+[data-sos-site='shop'] {
+  --sos-bg-page: #f4f7fb;
+  --sos-bg-surface: var(--sos-white);
+  --sos-bg-subtle: var(--sos-blue-50);
+  --sos-accent: var(--sos-blue-500);
+  --sos-accent-hover: var(--sos-blue-600);
+  --sos-accent-soft: var(--sos-blue-50);
+  --sos-accent-contrast: var(--sos-white);
+  --sos-link: var(--sos-blue-600);
+  --sos-signal: var(--sos-yellow-500);
+  --sos-card-radius: var(--sos-radius-lg);
+  --sos-media-radius: calc(var(--sos-radius-lg) - 4px);
+  --sos-control-radius: var(--sos-radius-full);
+  --sos-card-shadow: 0 8px 24px rgba(34, 75, 125, 0.08);
+  --sos-hover-shadow: 0 20px 48px rgba(34, 75, 125, 0.16);
+}
+
+[data-sos-site='art'] {
+  --sos-bg-page: #e9f5f2;
+  --sos-bg-surface: rgba(255, 255, 255, 0.82);
+  --sos-bg-subtle: var(--sos-teal-50);
+  --sos-accent: var(--sos-teal-500);
+  --sos-accent-hover: var(--sos-teal-600);
+  --sos-accent-soft: var(--sos-teal-50);
+  --sos-accent-contrast: var(--sos-white);
+  --sos-link: var(--sos-teal-700);
+  --sos-signal: var(--sos-yellow-500);
+  --sos-card-radius: var(--sos-radius-xl);
+  --sos-media-radius: calc(var(--sos-radius-xl) - 5px);
+  --sos-control-radius: var(--sos-radius-full);
+  --sos-card-shadow: 0 12px 32px rgba(21, 104, 97, 0.11);
+  --sos-hover-shadow: 0 24px 56px rgba(21, 104, 97, 0.18);
+}
+
+[data-sos-site='library'] {
+  --sos-bg-page: var(--sos-paper-50);
+  --sos-bg-surface: rgba(255, 253, 247, 0.72);
+  --sos-bg-subtle: var(--sos-paper-100);
+  --sos-accent: var(--sos-amber-600);
+  --sos-accent-hover: var(--sos-amber-700);
+  --sos-accent-soft: var(--sos-amber-50);
+  --sos-accent-contrast: var(--sos-white);
+  --sos-link: var(--sos-amber-700);
+  --sos-signal: var(--sos-yellow-500);
+  --sos-card-radius: var(--sos-radius-sm);
+  --sos-media-radius: var(--sos-radius-xs);
+  --sos-control-radius: var(--sos-radius-md);
+  --sos-card-shadow: var(--sos-shadow-paper);
+  --sos-hover-shadow: 4px 16px 36px rgba(88, 58, 28, 0.22);
+  --sos-reading-family: var(--sos-font-reading);
+  --sos-page-texture:
+    radial-gradient(circle at 20% 15%, rgba(140, 103, 52, 0.045) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 72% 63%, rgba(140, 103, 52, 0.035) 0 1px, transparent 1.5px);
+}
+
+[data-sos-site='exam'] {
+  --sos-bg-page: #efe1ca;
+  --sos-bg-surface: #f8f4eb;
+  --sos-bg-subtle: #eee4d4;
+  --sos-bg-strong: var(--sos-student-navy);
+  --sos-accent: var(--sos-red-600);
+  --sos-accent-hover: var(--sos-red-700);
+  --sos-accent-soft: var(--sos-red-50);
+  --sos-accent-contrast: var(--sos-white);
+  --sos-link: var(--sos-student-navy);
+  --sos-focus: var(--sos-blue-500);
+  --sos-signal: var(--sos-yellow-500);
+  --sos-card-radius: var(--sos-radius-md);
+  --sos-media-radius: var(--sos-radius-sm);
+  --sos-control-radius: var(--sos-radius-full);
+  --sos-card-shadow: 0 18px 44px rgba(79, 53, 29, 0.2);
+  --sos-hover-shadow: 0 24px 56px rgba(79, 53, 29, 0.26);
+  --sos-reading-family: var(--sos-font-reading);
+  --sos-page-texture:
+    repeating-linear-gradient(8deg, rgba(119, 76, 39, 0.035) 0 1px, transparent 1px 16px),
+    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.34), transparent 40%);
+}
+
+/* Density only changes rhythm—not color or component anatomy. */
+[data-sos-density='compact'] {
+  --sos-control-md: 2.5rem;
+  --sos-control-lg: 2.75rem;
+}
+
+[data-sos-density='spacious'] {
+  --sos-control-md: 3rem;
+  --sos-control-lg: 3.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --sos-duration-fast: 1ms;
+    --sos-duration-base: 1ms;
+    --sos-duration-slow: 1ms;
+  }
+}

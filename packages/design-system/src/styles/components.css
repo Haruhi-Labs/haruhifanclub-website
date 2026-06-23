@@ -1,0 +1,724 @@
+@import './tokens.css';
+
+/* Framework-neutral components. React/Vue wrappers should emit these classes. */
+
+.sos-scope {
+  color: var(--sos-text-primary);
+  background-color: var(--sos-bg-page);
+  background-image: var(--sos-page-texture);
+  background-size:
+    32px 32px,
+    32px 32px;
+  font-family: var(--sos-font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.sos-scope *,
+.sos-scope *::before,
+.sos-scope *::after {
+  box-sizing: border-box;
+}
+
+.sos-focusable:focus-visible,
+.sos-scope :where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--sos-focus) 58%, transparent);
+  outline-offset: 3px;
+}
+
+.sos-container {
+  width: min(var(--sos-container-content), calc(100% - 2rem));
+  margin-inline: auto;
+}
+
+.sos-container--wide {
+  width: min(var(--sos-container-wide), calc(100% - 2rem));
+}
+.sos-container--reading {
+  width: min(var(--sos-container-reading), calc(100% - 2rem));
+}
+
+.sos-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.sos-eyebrow::before {
+  content: '';
+  width: 1.75rem;
+  height: 0.25rem;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-signal);
+}
+
+.sos-title {
+  margin: 0;
+  color: var(--sos-text-primary);
+  font-family: var(--sos-display-family);
+  font-size: var(--sos-text-2xl);
+  font-weight: 800;
+  line-height: var(--sos-leading-heading);
+  letter-spacing: 0;
+}
+
+.sos-title--hero {
+  font-size: var(--sos-text-hero);
+  font-weight: 850;
+  line-height: var(--sos-leading-tight);
+  letter-spacing: 0;
+}
+
+.sos-copy {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-md);
+  line-height: var(--sos-leading-body);
+}
+
+.sos-reading {
+  color: var(--sos-text-primary);
+  font-family: var(--sos-reading-family);
+  font-size: 1.0625rem;
+  line-height: var(--sos-leading-reading);
+}
+
+/* Buttons */
+.sos-button {
+  min-height: var(--sos-control-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sos-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--sos-control-radius);
+  padding: 0 var(--sos-space-5);
+  font: 700 var(--sos-text-sm) / 1 var(--sos-font-sans);
+  letter-spacing: 0;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  transition:
+    transform var(--sos-duration-fast) var(--sos-ease-out),
+    background-color var(--sos-duration-base) var(--sos-ease-standard),
+    border-color var(--sos-duration-base) var(--sos-ease-standard),
+    box-shadow var(--sos-duration-base) var(--sos-ease-standard),
+    color var(--sos-duration-base) var(--sos-ease-standard);
+}
+
+.sos-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.sos-button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+}
+.sos-button:disabled {
+  opacity: 0.46;
+  cursor: not-allowed;
+}
+
+.sos-button--primary {
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--sos-accent) 20%, transparent);
+}
+.sos-button--primary:hover:not(:disabled) {
+  background: var(--sos-accent-hover);
+}
+
+.sos-button--secondary {
+  border-color: var(--sos-border-default);
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-primary);
+  box-shadow: var(--sos-shadow-hairline);
+}
+.sos-button--secondary:hover:not(:disabled) {
+  border-color: var(--sos-border-strong);
+}
+
+.sos-button--ghost {
+  background: transparent;
+  color: var(--sos-text-secondary);
+}
+.sos-button--ghost:hover:not(:disabled) {
+  background: var(--sos-bg-subtle);
+  color: var(--sos-text-primary);
+}
+
+.sos-button--danger {
+  background: var(--sos-danger);
+  color: var(--sos-white);
+}
+
+.sos-button--sm {
+  min-height: var(--sos-control-sm);
+  padding-inline: var(--sos-space-4);
+  font-size: var(--sos-text-xs);
+}
+
+.sos-button--lg {
+  min-height: var(--sos-control-lg);
+  padding-inline: var(--sos-space-6);
+  font-size: var(--sos-text-md);
+}
+
+.sos-icon-button {
+  width: var(--sos-control-md);
+  min-width: var(--sos-control-md);
+  padding: 0;
+}
+
+/* Badges */
+.sos-badge {
+  min-height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid transparent;
+  border-radius: var(--sos-radius-full);
+  padding: 0.2rem 0.55rem;
+  background: var(--sos-bg-subtle);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-2xs);
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.sos-badge--accent {
+  background: var(--sos-accent-soft);
+  color: var(--sos-link);
+}
+
+.sos-badge--solid {
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
+}
+
+.sos-badge--outline {
+  border-color: var(--sos-border-default);
+  background: transparent;
+  color: var(--sos-text-secondary);
+}
+
+.sos-badge--signal {
+  background: var(--sos-signal);
+  color: var(--sos-ink-950);
+}
+
+/* Cards */
+.sos-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-card-radius);
+  background: var(--sos-bg-surface);
+  box-shadow: var(--sos-card-shadow);
+  transition:
+    transform var(--sos-duration-base) var(--sos-ease-out),
+    box-shadow var(--sos-duration-base) var(--sos-ease-out),
+    border-color var(--sos-duration-base) var(--sos-ease-standard);
+}
+
+.sos-card--interactive {
+  cursor: pointer;
+}
+.sos-card--interactive:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--sos-accent) 24%, var(--sos-border-subtle));
+  box-shadow: var(--sos-hover-shadow);
+}
+
+.sos-card__body {
+  padding: var(--sos-space-6);
+}
+.sos-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+  padding-top: var(--sos-space-4);
+  border-top: 1px solid var(--sos-border-subtle);
+}
+
+/* Inputs */
+.sos-field {
+  display: grid;
+  gap: var(--sos-space-2);
+}
+.sos-field__label {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-xs);
+  font-weight: 750;
+}
+.sos-field__help {
+  margin: 0;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.45;
+}
+
+.sos-input,
+.sos-textarea,
+.sos-select {
+  width: 100%;
+  min-height: var(--sos-control-lg);
+  border: 1px solid var(--sos-border-default);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-primary);
+  padding: 0 var(--sos-space-4);
+  font: 500 var(--sos-text-sm) / 1.4 var(--sos-font-sans);
+  transition:
+    border-color var(--sos-duration-base),
+    box-shadow var(--sos-duration-base);
+}
+.sos-textarea {
+  min-height: 7rem;
+  padding-block: var(--sos-space-3);
+  resize: vertical;
+}
+.sos-input::placeholder,
+.sos-textarea::placeholder {
+  color: var(--sos-text-tertiary);
+}
+.sos-input:focus,
+.sos-textarea:focus,
+.sos-select:focus {
+  border-color: var(--sos-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sos-focus) 18%, transparent);
+  outline: none;
+}
+
+/* Tabs */
+.sos-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-1);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-full);
+  background: color-mix(in srgb, var(--sos-bg-surface) 80%, transparent);
+  padding: var(--sos-space-1);
+}
+.sos-tab {
+  min-height: 2.25rem;
+  border: 0;
+  border-radius: var(--sos-radius-full);
+  background: transparent;
+  color: var(--sos-text-secondary);
+  padding: 0 var(--sos-space-4);
+  font-size: var(--sos-text-xs);
+  font-weight: 800;
+  cursor: pointer;
+}
+.sos-tab[aria-selected='true'] {
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
+  box-shadow: var(--sos-shadow-hairline);
+}
+
+/* Notice */
+.sos-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--sos-space-3);
+  border: 1px solid color-mix(in srgb, var(--sos-accent) 36%, var(--sos-border-subtle));
+  border-radius: var(--sos-radius-md);
+  background: color-mix(in srgb, var(--sos-accent-soft) 62%, var(--sos-bg-surface));
+  padding: var(--sos-space-4);
+}
+.sos-notice__icon {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
+}
+.sos-notice__title {
+  margin: 0 0 0.2rem;
+  font-size: var(--sos-text-sm);
+  font-weight: 800;
+}
+.sos-notice__copy {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.55;
+}
+
+/* Progress */
+.sos-progress {
+  display: grid;
+  gap: var(--sos-space-2);
+}
+.sos-progress__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  font-weight: 750;
+}
+.sos-progress__track {
+  height: 0.45rem;
+  overflow: hidden;
+  border-radius: var(--sos-radius-full);
+  background: color-mix(in srgb, var(--sos-border-default) 55%, transparent);
+}
+.sos-progress__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sos-accent);
+  transition: width var(--sos-duration-slow) var(--sos-ease-out);
+}
+
+/* Brand expression helpers */
+.sos-signal-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  border: 1px solid color-mix(in srgb, var(--sos-signal) 58%, var(--sos-border-default));
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-signal);
+  color: var(--sos-ink-950);
+  padding: 0.35rem 0.65rem;
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: var(--sos-shadow-hairline);
+}
+
+.sos-stamp {
+  display: inline-grid;
+  place-items: center;
+  border: 2px solid currentColor;
+  border-radius: var(--sos-radius-xs);
+  color: var(--sos-danger);
+  padding: 0.35rem 0.5rem;
+  font: 900 var(--sos-text-xs) / 1 var(--sos-font-sans);
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.sos-divider {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--sos-border-subtle);
+  margin: 0;
+}
+
+/* Site compositions */
+.sos-news-card .sos-card__body {
+  padding: var(--sos-space-5);
+}
+@media (min-width: 768px) {
+  .sos-news-card .sos-card__body {
+    padding: var(--sos-space-8);
+  }
+}
+.sos-news-card__type {
+  display: inline-block;
+  margin-bottom: var(--sos-space-4);
+  border-left: 0.35rem solid var(--sos-signal);
+  background: var(--sos-ink-950);
+  color: var(--sos-white);
+  padding: 0.32rem 0.62rem;
+  font-size: var(--sos-text-2xs);
+  font-weight: 900;
+  letter-spacing: 0;
+}
+.sos-news-card__title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+.sos-news-card__summary {
+  margin: var(--sos-space-3) 0 var(--sos-space-6);
+  color: var(--sos-text-secondary);
+  font-family: var(--sos-reading-family);
+  line-height: 1.75;
+}
+.sos-news-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+}
+
+.sos-product-card {
+  height: 100%;
+}
+.sos-product-card__media {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: var(--sos-bg-subtle);
+}
+.sos-product-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--sos-duration-slow) var(--sos-ease-out);
+}
+.sos-product-card:hover .sos-product-card__media img {
+  transform: scale(1.035);
+}
+.sos-product-card__actions {
+  position: absolute;
+  inset: auto var(--sos-space-4) var(--sos-space-4);
+  display: flex;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(0.5rem);
+  transition:
+    opacity var(--sos-duration-base),
+    transform var(--sos-duration-base) var(--sos-ease-out);
+}
+.sos-product-card:hover .sos-product-card__actions {
+  opacity: 1;
+  transform: translateY(0);
+}
+.sos-product-card__title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: var(--sos-space-3);
+}
+.sos-product-card__title {
+  margin: 0;
+  font-size: var(--sos-text-md);
+  font-weight: 800;
+  line-height: 1.35;
+}
+.sos-product-card__price {
+  color: var(--sos-link);
+  font-size: var(--sos-text-md);
+  font-weight: 850;
+  white-space: nowrap;
+}
+.sos-product-card__description {
+  margin: var(--sos-space-2) 0 var(--sos-space-4);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.55;
+}
+
+.sos-art-card {
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.sos-art-card__frame {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: var(--sos-media-radius);
+  background: var(--sos-bg-surface);
+  box-shadow: var(--sos-card-shadow);
+  transition:
+    transform var(--sos-duration-base) var(--sos-ease-out),
+    box-shadow var(--sos-duration-base) var(--sos-ease-out);
+}
+.sos-art-card:hover .sos-art-card__frame {
+  transform: translateY(-4px);
+  box-shadow: var(--sos-hover-shadow);
+}
+.sos-art-card__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sos-art-card__veil {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 3.5rem var(--sos-space-4) var(--sos-space-4);
+  background: linear-gradient(transparent, rgba(9, 34, 32, 0.78));
+  color: white;
+}
+.sos-art-card__title {
+  margin: 0;
+  font-size: var(--sos-text-md);
+  font-weight: 800;
+}
+.sos-art-card__meta {
+  margin: var(--sos-space-3) var(--sos-space-1) 0;
+  display: flex;
+  justify-content: space-between;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+}
+
+.sos-book-card {
+  display: grid;
+  gap: var(--sos-space-3);
+  text-align: center;
+}
+.sos-book-card__cover {
+  position: relative;
+  width: min(100%, 11rem);
+  aspect-ratio: 2 / 3;
+  margin-inline: auto;
+  overflow: hidden;
+  border-radius: var(--sos-media-radius);
+  border: 1px solid rgba(88, 58, 28, 0.16);
+  background: var(--book-color, #dfeaf4);
+  box-shadow: var(--sos-card-shadow);
+  transform-origin: 50% 100%;
+  transition:
+    transform var(--sos-duration-base) var(--sos-ease-out),
+    box-shadow var(--sos-duration-base);
+}
+.sos-book-card:hover .sos-book-card__cover {
+  transform: translateY(-4px);
+  box-shadow: var(--sos-hover-shadow);
+}
+.sos-book-card__cover::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.75rem;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.16), transparent);
+}
+.sos-book-card__cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, rgba(255, 255, 255, 0.3), transparent 28%);
+  pointer-events: none;
+}
+.sos-book-card__vertical {
+  position: absolute;
+  inset: var(--sos-space-4);
+  display: grid;
+  place-items: center;
+  writing-mode: vertical-rl;
+  color: color-mix(in srgb, var(--sos-text-primary) 86%, transparent);
+  font-family: var(--sos-font-reading);
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.sos-book-card__title {
+  margin: 0;
+  font-family: var(--sos-font-reading);
+  font-size: var(--sos-text-sm);
+  font-weight: 800;
+}
+.sos-book-card__author {
+  margin: 0.2rem 0 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+}
+
+.sos-exam-card {
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.sos-exam-card__paper {
+  position: relative;
+  min-height: 18rem;
+  overflow: hidden;
+  border: 1px solid rgba(66, 44, 23, 0.13);
+  border-radius: var(--sos-card-radius);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.025), transparent 18%), var(--sos-bg-surface);
+  box-shadow: var(--sos-card-shadow);
+  padding: var(--sos-space-6);
+  transition:
+    transform var(--sos-duration-base) var(--sos-ease-out),
+    box-shadow var(--sos-duration-base);
+}
+.sos-exam-card:hover .sos-exam-card__paper {
+  transform: translateY(-4px);
+  box-shadow: var(--sos-hover-shadow);
+}
+.sos-exam-card__paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0 27px,
+    rgba(50, 85, 120, 0.14) 28px
+  );
+  pointer-events: none;
+}
+.sos-exam-card__content {
+  position: relative;
+  z-index: 1;
+}
+.sos-exam-card__score {
+  position: absolute;
+  top: var(--sos-space-4);
+  right: var(--sos-space-4);
+  color: var(--sos-danger);
+  font-family: var(--sos-font-reading);
+  font-size: 2.4rem;
+  font-weight: 900;
+}
+.sos-exam-card__title {
+  max-width: 80%;
+  margin: var(--sos-space-5) 0 var(--sos-space-2);
+  font-family: var(--sos-reading-family);
+  font-size: var(--sos-text-xl);
+  font-weight: 800;
+  line-height: 1.35;
+}
+.sos-exam-card__meta {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+}
+.sos-exam-card__rule {
+  margin: var(--sos-space-5) 0;
+  border: 0;
+  border-top: 2px solid var(--sos-student-navy);
+}
+
+@media (hover: none) {
+  .sos-product-card__actions {
+    opacity: 1;
+    transform: none;
+  }
+  .sos-card--interactive:hover,
+  .sos-art-card:hover .sos-art-card__frame,
+  .sos-book-card:hover .sos-book-card__cover,
+  .sos-exam-card:hover .sos-exam-card__paper {
+    transform: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .sos-container,
+  .sos-container--wide,
+  .sos-container--reading {
+    width: min(100% - 1.25rem, var(--sos-container-content));
+  }
+  .sos-card__body {
+    padding: var(--sos-space-5);
+  }
+}
+
+@media (forced-colors: active) {
+  .sos-card,
+  .sos-button,
+  .sos-input,
+  .sos-textarea,
+  .sos-select {
+    border: 1px solid CanvasText;
+  }
+}

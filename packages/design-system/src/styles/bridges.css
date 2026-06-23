@@ -1,0 +1,90 @@
+/*
+ * Optional legacy variable bridges.
+ * Load order for gradual migration:
+ *   1. existing site CSS
+ *   2. tokens.css
+ *   3. bridges.css
+ *
+ * Remove a bridge block after the corresponding legacy selectors have moved
+ * to SOS semantic tokens and shared component classes.
+ */
+
+/* Spring Day Shop / haruhishop */
+[data-sos-site="shop"] {
+  --primary-color: var(--sos-accent);
+  --primary-dark: var(--sos-accent-hover);
+  --secondary-color: var(--sos-bg-strong);
+  --text-main: var(--sos-text-primary);
+  --text-secondary: var(--sos-text-secondary);
+  --text-light: var(--sos-text-tertiary);
+  --bg-body: var(--sos-bg-page);
+  --bg-white: var(--sos-bg-surface);
+  --bg-light: var(--sos-bg-subtle);
+  --danger: var(--sos-danger);
+  --success: var(--sos-success);
+  --border-color: var(--sos-border-default);
+  --radius-md: var(--sos-radius-sm);
+  --radius-lg: var(--sos-radius-md);
+  --shadow-sm: var(--sos-shadow-hairline);
+  --shadow-md: var(--sos-card-shadow);
+  --shadow-lg: var(--sos-hover-shadow);
+  --container-width: var(--sos-container-content);
+}
+
+/* Haruhi Art Club */
+[data-sos-site="art"] {
+  --bg-0: var(--sos-bg-page);
+  --bg-1: var(--sos-teal-50);
+  --panel: var(--sos-bg-surface);
+  --panel-2: color-mix(in srgb, var(--sos-bg-surface) 72%, var(--sos-bg-subtle));
+  --line: var(--sos-border-default);
+  --text: var(--sos-text-primary);
+  --muted: var(--sos-text-secondary);
+  --accent: var(--sos-accent);
+  --accent-2: var(--sos-sky-600);
+  --accent-soft: var(--sos-accent-soft);
+  --r-lg: var(--sos-radius-xl);
+  --r-md: var(--sos-radius-lg);
+  --r-sm: var(--sos-radius-md);
+  --shadow-1: var(--sos-card-shadow);
+  --shadow-2: var(--sos-hover-shadow);
+  --shadow-in: inset 0 1px 0 rgba(255, 255, 255, 0.66);
+  --ease: var(--sos-ease-standard);
+}
+
+/* Haruhi Exam Platform */
+[data-sos-site="exam"] {
+  --bg1: var(--sos-wood-100);
+  --bg2: var(--sos-wood-300);
+  --paper: var(--sos-bg-surface);
+  --ink: var(--sos-text-primary);
+  --student: var(--sos-student-navy);
+  --teacher: var(--sos-danger);
+  --nameBlue: var(--sos-blue-500);
+  --shadow1: var(--sos-hover-shadow);
+  --shadow2: var(--sos-card-shadow);
+  --radius: var(--sos-radius-lg);
+}
+
+/* A deliberately small news bridge. Add aliases only after inventorying the
+   current news app; do not guess names and accidentally couple new code. */
+[data-sos-site="news"] {
+  --news-page: var(--sos-bg-page);
+  --news-paper: var(--sos-bg-surface);
+  --news-ink: var(--sos-text-primary);
+  --news-muted: var(--sos-text-secondary);
+  --news-rule: var(--sos-border-default);
+  --news-signal: var(--sos-signal);
+}
+
+/* Library bridge is intentionally semantic because the reader repository may
+   contain generated/static assets. It can be consumed without restructuring
+   the reading surface. */
+[data-sos-site="library"] {
+  --library-page: var(--sos-bg-page);
+  --library-paper: var(--sos-bg-surface);
+  --library-ink: var(--sos-text-primary);
+  --library-muted: var(--sos-text-secondary);
+  --library-accent: var(--sos-accent);
+  --library-reading-font: var(--sos-reading-family);
+}

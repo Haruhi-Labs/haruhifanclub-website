@@ -18,6 +18,7 @@
     "dev:novel": "pnpm --filter @haruhi/novel dev",
     "dev:shop": "pnpm --filter @haruhi/shop dev",
     "dev:console": "pnpm --filter @haruhi/console dev",
+    "dev:design-system": "pnpm --filter @haruhi/design-system-docs dev",
     "build:apps": "pnpm -r --filter \"./apps/*\" build",
     "lint": "eslint . && cargo fmt --check && cargo clippy -- -D warnings",
     "lint:js": "eslint .",
@@ -34,6 +35,8 @@
     "vue-eslint-parser": "^9.4.3"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }
