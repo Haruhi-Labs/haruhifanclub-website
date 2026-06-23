@@ -2248,9 +2248,19 @@ textarea.input-field {
     letter-spacing: 0;
 }
 
+/* 商品网格：用 flex 让卡片填满整行（3~4 个时自然放大），
+   但用 max-width 封顶——这样只有 1~2 个商品时不会被拉得过大。 */
 .shop-app .product-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    grid-template-columns: none;
     gap: var(--sos-space-5);
+}
+
+.shop-app .product-grid > * {
+    flex: 1 1 15rem;
+    min-width: 0;
+    max-width: 26rem;
 }
 
 .shop-app .shop-product-card {
