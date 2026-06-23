@@ -37,7 +37,8 @@
           ref="shiftHoverFieldRef"
           :class="['shift-hover-field', { 'is-hovering': shiftHovering, 'is-dragging': shiftDragging }]"
           aria-hidden="true"
-          @pointerdown="onShiftGrabStart"
+          @click="showShiftWheel"
+          @pointerdown="onShiftPointerDown"
           @pointermove="onShiftDrag"
           @pointerup="onShiftGrabEnd"
           @pointercancel="onShiftGrabCancel"
@@ -75,7 +76,8 @@
                   '--z': layer.z,
                   pointerEvents: layer.hitEvents,
                 }"
-                @pointerdown="onShiftGrabStart"
+                @click="showShiftWheel"
+                @pointerdown="onShiftPointerDown"
                 @pointermove="onShiftDrag"
                 @pointerup="onShiftGrabEnd"
                 @pointercancel="onShiftGrabCancel"
@@ -168,7 +170,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { seedArtworks, seedCreators } from '../mock/seedData'
 
 const VISITOR_KEY = 'haruhi-art-visitor-number'
@@ -264,6 +266,7 @@ let shiftPointerId = null
 let shiftVelocity = 0
 let shiftInertiaFrame = 0
 let shiftInertiaLastTime = 0
+let shiftMoved = false
 
 function normalizeShiftAngle(value) {
   let next = value % 360
@@ -335,6 +338,7 @@ function hideShiftWheel() {
   shiftLastTime = 0
   shiftPointerId = null
   shiftVelocity = 0
+  shiftMoved = false
 }
 
 function releaseShiftCapture(event) {
@@ -344,16 +348,27 @@ function releaseShiftCapture(event) {
   }
 }
 
-function onShiftGrabStart(event) {
-  if (event.button !== undefined && event.button !== 0) return
-  event.preventDefault()
+function showShiftWheel(event) {
+  if (event?.button !== undefined && event.button !== 0) return
   cancelShiftInertia()
   shiftHovering.value = true
+}
+
+function onShiftPointerDown(event) {
+  if (event.button !== undefined && event.button !== 0) return
+
+  if (!shiftHovering.value) {
+    return
+  }
+
+  event.preventDefault()
+  cancelShiftInertia()
   shiftDragging.value = true
   shiftPointerId = event.pointerId
   shiftLastY = event.clientY
   shiftLastTime = event.timeStamp || performance.now()
   shiftVelocity = 0
+  shiftMoved = false
   event.currentTarget?.setPointerCapture?.(event.pointerId)
 }
 
@@ -374,6 +389,7 @@ function onShiftDrag(event) {
     const rotationDelta = diff * SHIFT_DRAG_SPEED
     const instantVelocity = rotationDelta / elapsed
     applyShiftRotation(rotationDelta)
+    shiftMoved = true
     shiftVelocity = clamp(
       shiftVelocity * 0.28 + instantVelocity * 0.72,
       -SHIFT_MAX_VELOCITY,
@@ -387,7 +403,7 @@ function onShiftDrag(event) {
 
 function stopShiftInertia() {
   cancelShiftInertia()
-  hideShiftWheel()
+  shiftVelocity = 0
 }
 
 function tickShiftInertia(time) {
@@ -412,8 +428,8 @@ function tickShiftInertia(time) {
 }
 
 function startShiftInertia() {
-  if (typeof window === 'undefined' || Math.abs(shiftVelocity) <= SHIFT_STOP_VELOCITY) {
-    hideShiftWheel()
+  if (typeof window === 'undefined' || !shiftMoved || Math.abs(shiftVelocity) <= SHIFT_STOP_VELOCITY) {
+    stopShiftInertia()
     return
   }
 
@@ -437,10 +453,24 @@ function onShiftGrabCancel(event) {
   if (event.pointerId !== shiftPointerId) return
   releaseShiftCapture(event)
   stopShiftInertia()
+  shiftDragging.value = false
+  shiftPointerId = null
 }
+
+function onGlobalShiftContextMenu(event) {
+  if (!shiftHovering.value && !shiftDragging.value && !shiftSpinning.value) return
+  event.preventDefault()
+  cancelShiftInertia()
+  hideShiftWheel()
+}
+
+onMounted(() => {
+  window.addEventListener('contextmenu', onGlobalShiftContextMenu, true)
+})
 
 onBeforeUnmount(() => {
   cancelShiftInertia()
+  window.removeEventListener('contextmenu', onGlobalShiftContextMenu, true)
 })
 
 const tagCounts = approvedArtworks.reduce((map, item) => {
