@@ -267,6 +267,7 @@
   --sos-accent-hover: var(--sos-yellow-600);
   --sos-accent-soft: var(--sos-yellow-50);
   --sos-accent-contrast: var(--sos-ink-950);
+  --sos-accent-2: var(--sos-accent); /* 站点辅色，默认同 accent */
   --sos-link: var(--sos-blue-600);
   --sos-link-hover: var(--sos-blue-700);
   --sos-focus: var(--sos-sky-500);
@@ -297,11 +298,11 @@
  *  只覆盖语义层：accent / 表面 / 几何 / 字体 / 密度，保持组件解剖一致。
  * ============================================================ */
 
-/* news — 编辑部墨色，锐利克制，正文衬线 */
+/* news — 团报：纯净白纸编辑部，毛笔报头，墨色 + 黄色线索 */
 [data-sos-site='news'] {
-  --sos-bg-page: #f7f7f4;
+  --sos-bg-page: #fbfbfa;
   --sos-bg-surface: var(--sos-white);
-  --sos-bg-subtle: #efefea;
+  --sos-bg-subtle: #f1f1ee;
   --sos-bg-muted: #e7e7e1;
   --sos-bg-strong: var(--sos-ink-950);
   --sos-accent: var(--sos-ink-950);
@@ -315,79 +316,72 @@
   --sos-media-radius: var(--sos-radius-xs);
   --sos-control-radius: var(--sos-radius-sm);
   --sos-card-shadow: none;
-  --sos-hover-shadow: 0 10px 28px -12px rgba(20, 22, 28, 0.2);
+  --sos-hover-shadow: 0 12px 28px -14px rgba(20, 22, 28, 0.22);
   --sos-reading-family: var(--sos-font-reading);
-  /* 编辑部：极淡墨点网格，像新闻纸 */
-  --sos-page-texture: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--sos-ink-950) 6%, transparent) 1px,
-    transparent 1.6px
-  );
-  --sos-page-texture-size: 22px 22px;
-  --sos-page-texture-repeat: repeat;
+  /* 编辑部保持纯净纸面，不加肌理 */
+  --sos-page-texture: none;
 }
 
-/* shop — 交易蓝，圆润亲和，柔软投影 */
+/* shop — 商城：晴空蓝（沿用原站 #3498db 一脉）+ 圆润亲和 */
 [data-sos-site='shop'] {
-  --sos-bg-page: #f7f9fc;
+  --sos-bg-page: #f5f8fc;
   --sos-bg-surface: var(--sos-white);
-  --sos-bg-subtle: #eef2f8;
-  --sos-bg-muted: #e3e9f3;
-  --sos-accent: var(--sos-blue-500);
-  --sos-accent-hover: var(--sos-blue-600);
-  --sos-accent-soft: var(--sos-blue-50);
+  --sos-bg-subtle: #ecf3f9;
+  --sos-bg-muted: #dfeaf5;
+  --sos-accent: #2f8ed6;
+  --sos-accent-hover: #2474b5;
+  --sos-accent-soft: #e8f3fb;
   --sos-accent-contrast: var(--sos-white);
-  --sos-link: var(--sos-blue-600);
-  --sos-link-hover: var(--sos-blue-700);
-  --sos-focus: var(--sos-blue-500);
+  --sos-link: #2474b5;
+  --sos-link-hover: #1d5e95;
+  --sos-focus: #2f8ed6;
   --sos-signal: var(--sos-yellow-500);
   --sos-card-radius: var(--sos-radius-lg);
   --sos-media-radius: calc(var(--sos-radius-lg) - 0.375rem);
   --sos-control-radius: var(--sos-radius-full);
-  --sos-card-shadow: 0 1px 2px rgba(34, 75, 125, 0.05), 0 12px 28px -12px rgba(34, 75, 125, 0.18);
+  --sos-card-shadow: 0 1px 2px rgba(35, 90, 150, 0.05), 0 12px 28px -12px rgba(35, 90, 150, 0.16);
   --sos-hover-shadow:
-    0 8px 18px -8px rgba(34, 75, 125, 0.18), 0 30px 56px -22px rgba(34, 75, 125, 0.28);
+    0 8px 18px -8px rgba(35, 90, 150, 0.16), 0 30px 56px -22px rgba(35, 90, 150, 0.26);
 }
 
-/* art — 画廊青，大圆角，通透留白 */
+/* art — 美术部：梦幻渐变氛围 + 青绿主色 / 粉色辅色 + 玻璃感内高光面板（沿用原站气质） */
 [data-sos-site='art'] {
-  --sos-bg-page: #f4f8f7;
-  --sos-bg-surface: var(--sos-white);
-  --sos-bg-subtle: #e9f3f1;
-  --sos-bg-muted: #dcebe8;
-  --sos-accent: var(--sos-teal-500);
-  --sos-accent-hover: var(--sos-teal-600);
-  --sos-accent-soft: var(--sos-teal-50);
+  --sos-bg-page: hsl(174 36% 95%);
+  --sos-bg-surface: hsl(174 40% 99.5%);
+  --sos-bg-subtle: hsl(174 34% 93%);
+  --sos-bg-muted: hsl(174 28% 88%);
+  --sos-accent: hsl(172 70% 39%);
+  --sos-accent-hover: hsl(172 74% 32%);
+  --sos-accent-soft: hsl(172 58% 92%);
   --sos-accent-contrast: var(--sos-white);
-  --sos-link: var(--sos-teal-700);
-  --sos-link-hover: var(--sos-teal-600);
-  --sos-focus: var(--sos-teal-500);
+  --sos-accent-2: hsl(330 72% 56%); /* 粉色：点赞 / 活泼辅色 */
+  --sos-link: hsl(190 76% 37%);
+  --sos-link-hover: hsl(190 80% 29%);
+  --sos-focus: hsl(190 85% 46%);
   --sos-signal: var(--sos-yellow-500);
-  --sos-card-radius: var(--sos-radius-xl);
-  --sos-media-radius: calc(var(--sos-radius-xl) - 0.4rem);
+  --sos-card-radius: 18px;
+  --sos-media-radius: 14px;
   --sos-control-radius: var(--sos-radius-full);
-  --sos-card-shadow:
-    0 2px 6px -2px rgba(12, 100, 94, 0.1), 0 18px 40px -16px rgba(12, 100, 94, 0.2);
-  --sos-hover-shadow:
-    0 10px 22px -10px rgba(12, 100, 94, 0.2), 0 34px 64px -22px rgba(12, 100, 94, 0.3);
-  /* 画廊：顶部柔光随视口固定，营造展陈氛围 */
-  --sos-page-texture: radial-gradient(
-    120% 52% at 50% 0%,
-    color-mix(in srgb, var(--sos-accent) 10%, transparent),
-    transparent 62%
-  );
+  /* 玻璃面板：柔影 + 顶部内高光 */
+  --sos-card-shadow: 0 10px 24px rgba(18, 50, 60, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --sos-hover-shadow: 0 20px 46px rgba(18, 50, 60, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  /* 梦幻氛围：粉 / 青 / 薄荷三向柔光，随视口固定 */
+  --sos-page-texture:
+    radial-gradient(58% 48% at 10% 0%, hsl(288 80% 90% / 0.75), transparent 60%),
+    radial-gradient(55% 45% at 92% 6%, hsl(190 88% 88% / 0.7), transparent 58%),
+    radial-gradient(72% 55% at 50% 102%, hsl(150 68% 90% / 0.6), transparent 66%);
   --sos-page-texture-attachment: fixed;
 }
 
-/* library — 书库暖纸，衬线标题，小圆角古典 */
+/* library — 书架：温润奶油纸，衬线标题，极简留白（沿用原站气质） */
 [data-sos-site='library'] {
-  --sos-bg-page: #faf5ea;
-  --sos-bg-surface: var(--sos-white);
-  --sos-bg-subtle: var(--sos-paper-50);
-  --sos-bg-muted: var(--sos-paper-100);
+  --sos-bg-page: #faf7e9;
+  --sos-bg-surface: #fffdf6;
+  --sos-bg-subtle: #f3eed9;
+  --sos-bg-muted: #e9e1c8;
   --sos-accent: var(--sos-amber-600);
   --sos-accent-hover: var(--sos-amber-700);
-  --sos-accent-soft: var(--sos-amber-50);
+  --sos-accent-soft: #f6edd6;
   --sos-accent-contrast: var(--sos-white);
   --sos-link: var(--sos-amber-700);
   --sos-link-hover: var(--sos-amber-600);
@@ -397,46 +391,39 @@
   --sos-media-radius: var(--sos-radius-xs);
   --sos-control-radius: var(--sos-radius-md);
   --sos-card-shadow: var(--sos-shadow-paper);
-  --sos-hover-shadow: 4px 16px 36px rgba(88, 58, 28, 0.22);
+  --sos-hover-shadow: 4px 16px 36px rgba(120, 90, 40, 0.2);
   --sos-reading-family: var(--sos-font-reading);
   --sos-display-family: var(--sos-font-reading);
-  /* 暖纸：顶部纸张暖光 */
-  --sos-page-texture: radial-gradient(
-    130% 48% at 50% 0%,
-    color-mix(in srgb, var(--sos-amber-600) 9%, transparent),
-    transparent 58%
-  );
-  --sos-page-texture-attachment: fixed;
+  /* 原站极简，保持纯净奶油纸面 */
+  --sos-page-texture: none;
 }
 
-/* exam — 考场藏蓝 / 阅卷红，衬线标题，纪律感中圆角 */
+/* exam — 考场：暖木书桌 + 米白试卷 + 阅卷红笔 / 学生藏蓝 / 金色信号（沿用原站气质） */
 [data-sos-site='exam'] {
-  --sos-bg-page: #f6f7f9;
-  --sos-bg-surface: var(--sos-white);
-  --sos-bg-subtle: #eef1f5;
-  --sos-bg-muted: #e2e7ee;
+  --sos-bg-page: #f3ebda;
+  --sos-bg-surface: #fffdf8;
+  --sos-bg-subtle: #efe6d2;
+  --sos-bg-muted: #e6dabf;
   --sos-bg-strong: var(--sos-student-navy);
-  --sos-accent: var(--sos-red-600);
-  --sos-accent-hover: var(--sos-red-700);
-  --sos-accent-soft: var(--sos-red-50);
+  --sos-accent: #e23b46;
+  --sos-accent-hover: #c8202c;
+  --sos-accent-soft: #fbe9e4;
   --sos-accent-contrast: var(--sos-white);
+  --sos-accent-2: var(--sos-student-navy);
   --sos-link: var(--sos-student-navy);
   --sos-link-hover: var(--sos-night-800);
   --sos-focus: var(--sos-blue-500);
-  --sos-signal: var(--sos-yellow-500);
+  --sos-signal: #eab308;
   --sos-card-radius: var(--sos-radius-md);
   --sos-media-radius: var(--sos-radius-sm);
   --sos-control-radius: var(--sos-radius-md);
   --sos-card-shadow:
-    0 2px 6px -2px rgba(26, 43, 61, 0.12), 0 16px 38px -16px rgba(26, 43, 61, 0.22);
-  --sos-hover-shadow: 0 24px 56px -22px rgba(26, 43, 61, 0.3);
+    0 2px 6px -2px rgba(82, 60, 28, 0.16), 0 14px 34px -16px rgba(82, 60, 28, 0.22);
+  --sos-hover-shadow: 0 22px 50px -22px rgba(82, 60, 28, 0.3);
   --sos-reading-family: var(--sos-font-reading);
   --sos-display-family: var(--sos-font-reading);
-  /* 考场：极淡横格，像作业本 / 答题纸 */
-  --sos-page-texture: repeating-linear-gradient(
-    transparent 0 31px,
-    color-mix(in srgb, var(--sos-student-navy) 5%, transparent) 31px 32px
-  );
+  /* 答题横格保留在试卷卡上，页面保持暖木米白 */
+  --sos-page-texture: none;
 }
 
 /* ============================================================
