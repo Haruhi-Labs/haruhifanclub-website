@@ -365,11 +365,10 @@
   /* 玻璃面板：柔影 + 顶部内高光 */
   --sos-card-shadow: 0 10px 24px rgba(18, 50, 60, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.75);
   --sos-hover-shadow: 0 20px 46px rgba(18, 50, 60, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.75);
-  /* 梦幻氛围：粉 / 青 / 薄荷三向柔光，随视口固定 */
+  /* 克制的梦幻氛围：粉 / 青双向柔光，低饱和、随视口固定（取原站气质而不照搬其艳度） */
   --sos-page-texture:
-    radial-gradient(58% 48% at 10% 0%, hsl(288 80% 90% / 0.75), transparent 60%),
-    radial-gradient(55% 45% at 92% 6%, hsl(190 88% 88% / 0.7), transparent 58%),
-    radial-gradient(72% 55% at 50% 102%, hsl(150 68% 90% / 0.6), transparent 66%);
+    radial-gradient(52% 44% at 14% 0%, hsl(286 60% 93% / 0.5), transparent 62%),
+    radial-gradient(50% 42% at 90% 4%, hsl(192 66% 92% / 0.5), transparent 60%);
   --sos-page-texture-attachment: fixed;
 }
 
