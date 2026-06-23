@@ -514,8 +514,8 @@ const repeatRecords = approvedArtworks
 function getSectorLabelPosition(angle, radius = 34) {
   const radians = (angle * Math.PI) / 180
   return {
-    x: `${(50 + Math.cos(radians) * radius).toFixed(2)}%`,
-    y: `${(50 + Math.sin(radians) * radius).toFixed(2)}%`,
+    x: `${(50 + Math.sin(radians) * radius).toFixed(2)}%`,
+    y: `${(50 - Math.cos(radians) * radius).toFixed(2)}%`,
   }
 }
 
