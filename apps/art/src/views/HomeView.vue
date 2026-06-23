@@ -92,6 +92,67 @@
           </div>
         </div>
 
+        <div
+          ref="galleryOrbitFieldRef"
+          :class="['gallery-orbit-field', { 'is-hovering': galleryOrbitVisible, 'is-dragging': galleryOrbitDragging }]"
+          aria-hidden="true"
+          @click="showGalleryOrbit"
+          @pointerdown="onGalleryOrbitPointerDown"
+          @pointermove="onGalleryOrbitDrag"
+          @pointerup="onGalleryOrbitGrabEnd"
+          @pointercancel="onGalleryOrbitGrabCancel"
+        ></div>
+
+        <div
+          ref="galleryOrbitStackRef"
+          :class="[
+            'gallery-art-stack',
+            {
+              'is-hovering': galleryOrbitVisible,
+              'is-dragging': galleryOrbitDragging,
+              'is-spinning': galleryOrbitSpinning,
+            },
+          ]"
+          aria-label="画作跃迁轮盘"
+        >
+          <div class="gallery-orbit-label">
+            <span>ART JUMP</span>
+            <strong>{{ galleryOrbitStateText }}</strong>
+          </div>
+          <div class="gallery-module-shell" aria-hidden="true">
+            <span class="gallery-module-shell__edge"></span>
+          </div>
+          <div class="gallery-orbit-window">
+            <div class="gallery-orbit-track">
+              <RouterLink
+                v-for="layer in galleryOrbitLayers"
+                :key="layer.id"
+                class="gallery-orbit-layer"
+                :to="layer.to"
+                :style="{
+                  '--panel-x': `${layer.x}px`,
+                  '--panel-y': `${layer.y}px`,
+                  '--depth': `${layer.depth}px`,
+                  '--scale': layer.scale,
+                  '--alpha': layer.alpha,
+                  '--layer-width': `${layer.width}px`,
+                  '--z': layer.z,
+                  pointerEvents: layer.hitEvents,
+                }"
+                @click="onGalleryOrbitLayerClick"
+                @pointerdown="onGalleryOrbitPointerDown"
+                @pointermove="onGalleryOrbitDrag"
+                @pointerup="onGalleryOrbitGrabEnd"
+                @pointercancel="onGalleryOrbitGrabCancel"
+              >
+                <img :src="layer.imageUrl" :alt="layer.title" draggable="false" />
+                <span class="gallery-orbit-layer__glow"></span>
+                <span class="gallery-orbit-layer__title">{{ layer.title }}</span>
+              </RouterLink>
+            </div>
+          </div>
+        </div>
+
         <div class="time-device" aria-label="画廊数据时间环">
           <div class="orbit orbit-outer"></div>
           <div class="orbit orbit-middle"></div>
@@ -275,6 +336,20 @@ let shiftVelocity = 0
 let shiftInertiaFrame = 0
 let shiftInertiaLastTime = 0
 let shiftMoved = false
+const galleryOrbitVisible = ref(false)
+const galleryOrbitDragging = ref(false)
+const galleryOrbitSpinning = ref(false)
+const galleryOrbitRotation = ref(0)
+const galleryOrbitFieldRef = ref(null)
+const galleryOrbitStackRef = ref(null)
+let galleryOrbitLastY = null
+let galleryOrbitLastTime = 0
+let galleryOrbitPointerId = null
+let galleryOrbitVelocity = 0
+let galleryOrbitInertiaFrame = 0
+let galleryOrbitInertiaLastTime = 0
+let galleryOrbitMoved = false
+let galleryOrbitSuppressClickUntil = 0
 
 function normalizeShiftAngle(value) {
   let next = value % 360
@@ -314,10 +389,48 @@ const timeShiftLayers = computed(() =>
   })
 )
 
+const galleryOrbitLayers = computed(() => {
+  const source = approvedArtworks.length ? approvedArtworks : seedArtworks
+  if (!source.length) return []
+
+  return Array.from({ length: SHIFT_LAYER_COUNT }, (_, index) => {
+    const artwork = source[index % source.length]
+    const angle = normalizeShiftAngle(index * SHIFT_ANGLE_STEP + galleryOrbitRotation.value)
+    const radians = (angle * Math.PI) / 180
+    const sideDistance = Math.abs(angle) / SHIFT_ANGLE_STEP
+    const inVisibleSide = sideDistance <= SHIFT_VISIBLE_SIDE
+    const edgeWeight = inVisibleSide ? Math.max(0, 1 - sideDistance / SHIFT_VISIBLE_SIDE) : 0
+    const depthWeight = Math.max(0, Math.cos(radians))
+
+    return {
+      id: `gallery-orbit-${index}-${artwork.id}`,
+      artwork,
+      title: artwork.title,
+      imageUrl: artwork.image_url,
+      to: { name: 'gallery', query: { artwork: artwork.id } },
+      x: Number((Math.cos(radians) * SHIFT_WHEEL_RADIUS_X).toFixed(2)),
+      y: Number((Math.sin(radians) * SHIFT_WHEEL_RADIUS_Y).toFixed(2)),
+      depth: Number((Math.cos(radians) * SHIFT_WHEEL_DEPTH).toFixed(2)),
+      scale: Number((0.72 + depthWeight * 0.32).toFixed(3)),
+      alpha: Number((inVisibleSide ? 0.36 + edgeWeight * 0.62 : 0).toFixed(3)),
+      width: Number((220 + depthWeight * 74).toFixed(2)),
+      z: Math.round(20 + depthWeight * 120),
+      hitEvents: galleryOrbitVisible.value && inVisibleSide ? 'auto' : 'none',
+    }
+  })
+})
+
 const shiftStateText = computed(() => {
   if (shiftDragging.value) return '拖拽跃迁'
   if (shiftSpinning.value) return '惯性回环'
   if (shiftHovering.value) return '边缘抓取'
+  return '边缘待命'
+})
+
+const galleryOrbitStateText = computed(() => {
+  if (galleryOrbitDragging.value) return '拖拽索引'
+  if (galleryOrbitSpinning.value) return '惯性巡游'
+  if (galleryOrbitVisible.value) return '画作可选'
   return '边缘待命'
 })
 
@@ -466,11 +579,156 @@ function onShiftGrabCancel(event) {
   shiftPointerId = null
 }
 
+function applyGalleryOrbitRotation(delta) {
+  galleryOrbitRotation.value = normalizeShiftRotation(galleryOrbitRotation.value + delta)
+}
+
+function cancelGalleryOrbitInertia() {
+  if (galleryOrbitInertiaFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(galleryOrbitInertiaFrame)
+  }
+  galleryOrbitInertiaFrame = 0
+  galleryOrbitInertiaLastTime = 0
+  galleryOrbitSpinning.value = false
+}
+
+function hideGalleryOrbit() {
+  galleryOrbitVisible.value = false
+  galleryOrbitDragging.value = false
+  galleryOrbitSpinning.value = false
+  galleryOrbitLastY = null
+  galleryOrbitLastTime = 0
+  galleryOrbitPointerId = null
+  galleryOrbitVelocity = 0
+  galleryOrbitMoved = false
+}
+
+function showGalleryOrbit(event) {
+  if (event?.button !== undefined && event.button !== 0) return
+  if (galleryOrbitVisible.value) return
+  cancelGalleryOrbitInertia()
+  galleryOrbitVisible.value = true
+}
+
+function onGalleryOrbitPointerDown(event) {
+  if (event.button !== undefined && event.button !== 0) return
+  if (!galleryOrbitVisible.value) return
+
+  cancelGalleryOrbitInertia()
+  galleryOrbitDragging.value = true
+  galleryOrbitPointerId = event.pointerId
+  galleryOrbitLastY = event.clientY
+  galleryOrbitLastTime = event.timeStamp || performance.now()
+  galleryOrbitVelocity = 0
+  galleryOrbitMoved = false
+  event.currentTarget?.setPointerCapture?.(event.pointerId)
+}
+
+function onGalleryOrbitDrag(event) {
+  if (!galleryOrbitDragging.value || event.pointerId !== galleryOrbitPointerId) return
+  event.preventDefault()
+
+  const nowTime = event.timeStamp || performance.now()
+  if (galleryOrbitLastY === null) {
+    galleryOrbitLastY = event.clientY
+    galleryOrbitLastTime = nowTime
+    return
+  }
+
+  const diff = event.clientY - galleryOrbitLastY
+  const elapsed = Math.max(8, nowTime - galleryOrbitLastTime)
+  if (Math.abs(diff) >= 0.2) {
+    const rotationDelta = diff * SHIFT_DRAG_SPEED
+    const instantVelocity = rotationDelta / elapsed
+    applyGalleryOrbitRotation(rotationDelta)
+    galleryOrbitMoved = true
+    galleryOrbitVelocity = clamp(
+      galleryOrbitVelocity * 0.28 + instantVelocity * 0.72,
+      -SHIFT_MAX_VELOCITY,
+      SHIFT_MAX_VELOCITY
+    )
+  }
+
+  galleryOrbitLastY = event.clientY
+  galleryOrbitLastTime = nowTime
+}
+
+function stopGalleryOrbitInertia() {
+  cancelGalleryOrbitInertia()
+  galleryOrbitVelocity = 0
+}
+
+function tickGalleryOrbitInertia(time) {
+  if (!galleryOrbitSpinning.value) {
+    galleryOrbitInertiaFrame = 0
+    return
+  }
+
+  if (!galleryOrbitInertiaLastTime) galleryOrbitInertiaLastTime = time
+  const delta = Math.min(40, time - galleryOrbitInertiaLastTime)
+  galleryOrbitInertiaLastTime = time
+
+  applyGalleryOrbitRotation(galleryOrbitVelocity * delta)
+  galleryOrbitVelocity *= Math.pow(SHIFT_INERTIA_DECAY, delta / 16.67)
+
+  if (Math.abs(galleryOrbitVelocity) <= SHIFT_STOP_VELOCITY) {
+    stopGalleryOrbitInertia()
+    return
+  }
+
+  galleryOrbitInertiaFrame = window.requestAnimationFrame(tickGalleryOrbitInertia)
+}
+
+function startGalleryOrbitInertia() {
+  if (typeof window === 'undefined' || !galleryOrbitMoved || Math.abs(galleryOrbitVelocity) <= SHIFT_STOP_VELOCITY) {
+    stopGalleryOrbitInertia()
+    return
+  }
+
+  galleryOrbitSpinning.value = true
+  galleryOrbitInertiaLastTime = 0
+  galleryOrbitInertiaFrame = window.requestAnimationFrame(tickGalleryOrbitInertia)
+}
+
+function onGalleryOrbitGrabEnd(event) {
+  if (!galleryOrbitDragging.value || event.pointerId !== galleryOrbitPointerId) return
+  if (galleryOrbitMoved) {
+    event.preventDefault()
+    galleryOrbitSuppressClickUntil = (event.timeStamp || performance.now()) + 220
+  }
+  releaseShiftCapture(event)
+  galleryOrbitDragging.value = false
+  galleryOrbitPointerId = null
+  galleryOrbitLastY = null
+  galleryOrbitLastTime = 0
+  startGalleryOrbitInertia()
+}
+
+function onGalleryOrbitGrabCancel(event) {
+  if (event.pointerId !== galleryOrbitPointerId) return
+  releaseShiftCapture(event)
+  stopGalleryOrbitInertia()
+  galleryOrbitDragging.value = false
+  galleryOrbitPointerId = null
+}
+
+function onGalleryOrbitLayerClick(event) {
+  const nowTime = event.timeStamp || performance.now()
+  if (nowTime < galleryOrbitSuppressClickUntil) {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+}
+
 function onGlobalShiftContextMenu(event) {
-  if (!shiftHovering.value && !shiftDragging.value && !shiftSpinning.value) return
+  const shiftActive = shiftHovering.value || shiftDragging.value || shiftSpinning.value
+  const galleryActive = galleryOrbitVisible.value || galleryOrbitDragging.value || galleryOrbitSpinning.value
+  if (!shiftActive && !galleryActive) return
   event.preventDefault()
   cancelShiftInertia()
   hideShiftWheel()
+  cancelGalleryOrbitInertia()
+  hideGalleryOrbit()
 }
 
 onMounted(() => {
@@ -479,6 +737,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   cancelShiftInertia()
+  cancelGalleryOrbitInertia()
   window.removeEventListener('contextmenu', onGlobalShiftContextMenu, true)
 })
 
@@ -1207,6 +1466,342 @@ const stageStyle = {
   box-shadow: 0 0 20px rgba(116, 231, 255, 0.42);
 }
 
+.art-home .gallery-orbit-field {
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 7;
+  width: min(18vw, 156px);
+  height: 100dvh;
+  pointer-events: auto;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+  transition: width 0.28s ease;
+}
+
+.art-home .gallery-orbit-field.is-hovering {
+  width: min(30vw, 268px);
+}
+
+.art-home .gallery-orbit-field.is-dragging {
+  cursor: grabbing;
+}
+
+.art-home .gallery-art-stack {
+  position: fixed;
+  right: 0;
+  top: 52dvh;
+  z-index: 8;
+  width: 760px;
+  height: min(96dvh, 940px);
+  min-height: 760px;
+  transform: translate3d(804px, -50%, 0) rotateY(36deg);
+  transform-origin: right center;
+  transform-style: preserve-3d;
+  perspective: 1400px;
+  pointer-events: none;
+  opacity: 0.24;
+  filter: saturate(0.64) brightness(0.78);
+  isolation: isolate;
+  will-change: transform, opacity, filter;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  transition:
+    opacity 0.28s ease,
+    filter 0.28s ease,
+    transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.art-home .gallery-art-stack.is-hovering {
+  opacity: 0.98;
+  filter: saturate(1.16) brightness(1.08) contrast(1.08);
+  transform: translate3d(732px, -50%, 0) rotateY(22deg);
+}
+
+.art-home .gallery-art-stack.is-dragging {
+  opacity: 1;
+  filter: saturate(1.22) brightness(1.12) contrast(1.1);
+}
+
+.art-home .gallery-module-shell {
+  position: absolute;
+  right: 472px;
+  top: 50%;
+  z-index: 0;
+  width: 470px;
+  height: min(108dvh, 1040px);
+  min-height: 830px;
+  transform: translate3d(50%, -50%, -260px) rotateY(18deg);
+  transform-origin: right center;
+  pointer-events: none;
+  opacity: 0.32;
+  border-radius: 999px 0 0 999px;
+  background:
+    radial-gradient(ellipse at -2% 50%, rgba(255, 99, 125, 0.1), transparent 42%),
+    radial-gradient(ellipse at 16% 22%, rgba(116, 231, 255, 0.13), transparent 34%),
+    linear-gradient(270deg, rgba(68, 74, 86, 0.1), rgba(128, 135, 148, 0.22), rgba(52, 60, 76, 0.16));
+  box-shadow:
+    inset 28px 0 58px rgba(232, 240, 255, 0.08),
+    inset -28px 0 78px rgba(0, 0, 0, 0.36),
+    0 0 42px rgba(255, 99, 125, 0.06);
+  backdrop-filter: blur(13px);
+  clip-path: ellipse(68% 50% at 0% 50%);
+  transition:
+    opacity 0.3s ease,
+    filter 0.3s ease,
+    transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.art-home .gallery-module-shell::before,
+.art-home .gallery-module-shell::after,
+.art-home .gallery-module-shell__edge {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.art-home .gallery-module-shell::before {
+  inset: 18px 40px 18px -4px;
+  border-left: 1px solid rgba(255, 99, 125, 0.38);
+  box-shadow:
+    -18px 0 28px rgba(255, 99, 125, 0.16),
+    -26px 0 42px rgba(116, 231, 255, 0.12);
+  clip-path: ellipse(66% 50% at 0% 50%);
+}
+
+.art-home .gallery-module-shell::after {
+  inset: 52px 96px 52px 12px;
+  border-left: 1px solid rgba(116, 231, 255, 0.22);
+  opacity: 0.62;
+  clip-path: ellipse(62% 50% at 0% 50%);
+}
+
+.art-home .gallery-module-shell__edge {
+  inset: -1px auto -1px -2px;
+  width: 126px;
+  background:
+    radial-gradient(ellipse at 0% 18%, rgba(116, 231, 255, 0.42), transparent 32%),
+    radial-gradient(ellipse at 0% 50%, rgba(255, 99, 125, 0.58), transparent 46%),
+    radial-gradient(ellipse at 0% 82%, rgba(177, 140, 255, 0.42), transparent 36%);
+  filter: blur(0.2px);
+  mix-blend-mode: screen;
+  opacity: 0.72;
+  clip-path: ellipse(76% 50% at 0% 50%);
+}
+
+.art-home .gallery-art-stack.is-hovering .gallery-module-shell {
+  opacity: 0.86;
+  filter: saturate(1.16) brightness(1.08) contrast(1.06);
+  transform: translate3d(50%, -50%, -260px) rotateY(10deg);
+}
+
+.art-home .gallery-art-stack.is-dragging .gallery-module-shell,
+.art-home .gallery-art-stack.is-spinning .gallery-module-shell {
+  opacity: 0.94;
+  filter: saturate(1.24) brightness(1.12) contrast(1.08);
+}
+
+.art-home .gallery-orbit-label {
+  position: absolute;
+  right: 556px;
+  top: 26px;
+  z-index: 4;
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 99, 125, 0.28);
+  border-radius: 12px;
+  background: rgba(3, 12, 28, 0.78);
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.26),
+    0 0 22px rgba(255, 99, 125, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+
+.art-home .gallery-orbit-label span {
+  color: rgba(219, 235, 255, 0.86);
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.art-home .gallery-orbit-label strong {
+  color: var(--hud-red);
+  font-size: 14px;
+  font-weight: 950;
+  text-shadow: 0 0 18px rgba(255, 99, 125, 0.42);
+}
+
+.art-home .gallery-orbit-window {
+  position: absolute;
+  inset: 18px 0;
+  z-index: 2;
+  overflow: visible;
+  transform-style: preserve-3d;
+  mask-image: none;
+  backface-visibility: hidden;
+}
+
+.art-home .gallery-orbit-window::before,
+.art-home .gallery-orbit-window::after {
+  content: "";
+  position: absolute;
+  left: 64px;
+  right: 176px;
+  z-index: 2;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 99, 125, 0.35), transparent);
+}
+
+.art-home .gallery-orbit-window::before {
+  top: 50%;
+  box-shadow: 0 0 18px rgba(255, 99, 125, 0.22);
+}
+
+.art-home .gallery-orbit-window::after {
+  top: calc(50% + 44px);
+  opacity: 0.42;
+}
+
+.art-home .gallery-orbit-track {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  transform-style: preserve-3d;
+  pointer-events: none;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.art-home .gallery-orbit-layer {
+  position: absolute;
+  left: 28%;
+  top: 50%;
+  z-index: var(--z);
+  width: var(--layer-width);
+  height: 72px;
+  display: block;
+  overflow: hidden;
+  opacity: var(--alpha);
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  border: 1px solid rgba(255, 99, 125, 0.34);
+  border-radius: 16px;
+  background: rgba(4, 12, 27, 0.72);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.34),
+    0 0 26px rgba(255, 99, 125, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transform:
+    translate3d(calc(-50% - var(--panel-x)), calc(-50% + var(--panel-y)), var(--depth))
+    rotateY(22deg)
+    rotateZ(2deg)
+    scale3d(var(--scale), var(--scale), 1)
+    translateZ(0.01px);
+  transform-style: preserve-3d;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  contain: layout paint;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  backdrop-filter: blur(7px);
+  clip-path: polygon(0 8px, 8px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 12px 100%, 0 calc(100% - 12px));
+  transition:
+    opacity 0.28s ease,
+    border-color 0.28s ease,
+    box-shadow 0.28s ease,
+    filter 0.28s ease,
+    transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.art-home .gallery-art-stack.is-dragging .gallery-orbit-layer {
+  cursor: grabbing;
+}
+
+.art-home .gallery-art-stack.is-dragging .gallery-orbit-layer,
+.art-home .gallery-art-stack.is-spinning .gallery-orbit-layer {
+  transition:
+    opacity 0.14s linear,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease;
+}
+
+.art-home .gallery-orbit-layer img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transform: translateZ(0.02px) scale(1.02);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  filter: saturate(1.08) contrast(1.06) brightness(0.92);
+  pointer-events: none;
+}
+
+.art-home .gallery-orbit-layer__glow,
+.art-home .gallery-orbit-layer__title {
+  position: absolute;
+  pointer-events: none;
+  transform: translateZ(0.03px);
+  backface-visibility: hidden;
+}
+
+.art-home .gallery-orbit-layer__glow {
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(2, 8, 20, 0.72), rgba(2, 8, 20, 0.12) 48%, rgba(255, 99, 125, 0.18)),
+    linear-gradient(0deg, rgba(2, 8, 20, 0.62), transparent 62%);
+  mix-blend-mode: multiply;
+}
+
+.art-home .gallery-orbit-layer__title {
+  left: 12px;
+  right: 10px;
+  bottom: 9px;
+  overflow: hidden;
+  color: rgba(246, 250, 255, 0.98);
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow:
+    0 0 14px rgba(255, 99, 125, 0.52),
+    0 2px 8px rgba(0, 0, 0, 0.62);
+}
+
+.art-home .gallery-art-stack.is-hovering .gallery-orbit-layer {
+  border-color: rgba(255, 99, 125, 0.58);
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.36),
+    0 0 30px rgba(255, 99, 125, 0.22),
+    0 0 20px rgba(116, 231, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.art-home .gallery-orbit-layer:hover {
+  filter: saturate(1.18) brightness(1.1) contrast(1.06);
+  border-color: rgba(116, 231, 255, 0.62);
+  box-shadow:
+    0 20px 44px rgba(0, 0, 0, 0.4),
+    0 0 34px rgba(116, 231, 255, 0.24),
+    0 0 24px rgba(255, 99, 125, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.art-home .gallery-orbit-layer:hover img {
+  filter: saturate(1.18) contrast(1.08) brightness(0.98);
+}
+
 .art-home .time-device {
   position: relative;
   width: 560px;
@@ -1764,6 +2359,21 @@ const stageStyle = {
   filter: saturate(1.3) brightness(1.16) contrast(1.12);
 }
 
+:global(html.art-lights-out) .art-home .gallery-art-stack {
+  opacity: 0.28;
+  filter: saturate(0.72) brightness(0.82);
+}
+
+:global(html.art-lights-out) .art-home .gallery-art-stack.is-hovering {
+  opacity: 0.98;
+  filter: saturate(1.2) brightness(1.1) contrast(1.1);
+}
+
+:global(html.art-lights-out) .art-home .gallery-art-stack.is-dragging {
+  opacity: 1;
+  filter: saturate(1.28) brightness(1.14) contrast(1.12);
+}
+
 :global(html.art-lights-out) .art-home .shift-module-shell {
   background:
     radial-gradient(ellipse at 102% 50%, rgba(141, 240, 255, 0.16), transparent 42%),
@@ -1786,6 +2396,28 @@ const stageStyle = {
   opacity: 0.84;
 }
 
+:global(html.art-lights-out) .art-home .gallery-module-shell {
+  background:
+    radial-gradient(ellipse at -2% 50%, rgba(255, 99, 125, 0.16), transparent 42%),
+    radial-gradient(ellipse at 16% 22%, rgba(141, 240, 255, 0.16), transparent 34%),
+    linear-gradient(270deg, rgba(38, 46, 64, 0.08), rgba(112, 124, 144, 0.18), rgba(14, 24, 42, 0.28));
+  box-shadow:
+    inset 30px 0 64px rgba(235, 246, 255, 0.09),
+    inset -32px 0 88px rgba(0, 0, 0, 0.48),
+    0 0 56px rgba(255, 99, 125, 0.08);
+}
+
+:global(html.art-lights-out) .art-home .gallery-module-shell::before {
+  border-left-color: rgba(255, 99, 125, 0.52);
+  box-shadow:
+    -20px 0 34px rgba(255, 99, 125, 0.2),
+    -30px 0 54px rgba(141, 240, 255, 0.14);
+}
+
+:global(html.art-lights-out) .art-home .gallery-module-shell__edge {
+  opacity: 0.84;
+}
+
 :global(html.art-lights-out) .art-home .shift-layer {
   border-color: rgba(141, 240, 255, 0.38);
   background:
@@ -1797,8 +2429,22 @@ const stageStyle = {
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
+:global(html.art-lights-out) .art-home .gallery-orbit-layer {
+  border-color: rgba(255, 99, 125, 0.44);
+  background: rgba(3, 10, 24, 0.78);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(255, 99, 125, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
 :global(html.art-lights-out) .art-home .shift-label {
   border-color: rgba(141, 240, 255, 0.32);
+  background: rgba(3, 10, 24, 0.84);
+}
+
+:global(html.art-lights-out) .art-home .gallery-orbit-label {
+  border-color: rgba(255, 99, 125, 0.34);
   background: rgba(3, 10, 24, 0.84);
 }
 
@@ -1888,7 +2534,9 @@ const stageStyle = {
 
   .art-home .time-shift-stack,
   .art-home .shift-layer,
-  .art-home .shift-layer::before {
+  .art-home .shift-layer::before,
+  .art-home .gallery-art-stack,
+  .art-home .gallery-orbit-layer {
     transition: none !important;
   }
 }
@@ -1928,7 +2576,10 @@ const stageStyle = {
     top: 24px;
   }
 
-  .art-home .time-shift-stack {
+  .art-home .time-shift-stack,
+  .art-home .shift-hover-field,
+  .art-home .gallery-art-stack,
+  .art-home .gallery-orbit-field {
     display: none;
   }
 }
