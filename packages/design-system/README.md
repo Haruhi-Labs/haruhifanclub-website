@@ -53,6 +53,14 @@ import '@haruhi/design-system/bridges.css'
 
 需要站点气质时先定义局部强调语言，不把 `data-sos-site` 当成整站换肤开关；业务组件里也不新增 hex、临时阴影、13px 圆角或非 4px 网格间距。
 
+### 主题与密度
+
+- 明暗：`data-sos-theme="dark"` 只重映射语义层（背景、文本、边框、阴影）。建议挂在 `documentElement`
+  上，Teleport 到 body 的弹层和 toast 也会继承。
+- 密度：`data-sos-density="compact" | "spacious"` 只调整控件高度节奏，不改颜色与组件解剖。
+- 焦点：统一用 `--sos-ring` 表达 focus-visible；不要在业务里自定义 outline。
+- 浮层叠放：弹层 / 浮层使用 `--sos-z-*` 层级体系（dropdown < overlay < modal < popover < toast < tooltip）。
+
 ## 内容与数据
 
 设计系统接入不只替换样式，也要保留真实信息结构：
@@ -153,7 +161,9 @@ pnpm check:design-system:browser
 
 ## 和 @haruhi/ui 的关系
 
-`@haruhi/ui` 已启用 MVP，适合在 Vue app 中复用稳定基础件：Button、Badge、Field、Notice、Progress、Card、EmptyState、HeaderBrand、Stack、Inline、Cluster、Grid、Split、Surface、MediaFrame。
+`@haruhi/ui` 已是完整的 Vue 组件库，覆盖布局、排印、控件、表单、数据陈列、反馈、导航与浮层
+（含 `SosModal` / `SosDropdown` / `SosToastRegion` + `useToast`）。可在 `pnpm dev:design-system`
+的活规范页里交互预览全部组件、状态与五个表达模式，并实时切换明暗与密度。
 
 本包处在 L0：Token / Class Contract。`@haruhi/ui` 处在 L1：Primitive Wrapper。新闻卡、商品卡、作品卡、书封卡、试卷卡等业务组合仍处在 L2 recipe 阶段，不应直接进入本包或 UI 包。
 

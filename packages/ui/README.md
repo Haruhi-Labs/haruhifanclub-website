@@ -1,31 +1,65 @@
 # @haruhi/ui
 
-SOS / Parallel Design System 的 Vue 基础组件 MVP。
+SOS / Parallel Design System 的 Vue 组件库。
 
 这个包只封装已经稳定的 CSS class contract，不重新定义视觉样式。样式来源仍是 `@haruhi/design-system`；业务 app 可以直接使用 CSS，也可以在 Vue 页面中使用本包 wrapper。
 
 ## 导出
 
+涵盖布局、排印、控件、表单、数据陈列、反馈、导航、浮层与一个 toast composable：
+
 ```js
 import {
-  SosBadge,
-  SosButton,
-  SosCard,
-  SosCluster,
-  SosEmptyState,
-  SosField,
-  SosGrid,
-  SosHeaderBrand,
-  SosInline,
-  SosMediaFrame,
-  SosNotice,
+  // 布局
   SosPage,
   SosPageHeader,
-  SosProgress,
-  SosSplit,
-  SosStack,
-  SosSurface,
   SosToolbar,
+  SosStack,
+  SosInline,
+  SosCluster,
+  SosGrid,
+  SosSplit,
+  SosSurface,
+  SosMediaFrame,
+  SosDivider,
+  // 排印
+  SosEyebrow,
+  SosTitle,
+  SosCopy,
+  // 控件 / 表单
+  SosButton,
+  SosBadge,
+  SosChip,
+  SosTabs,
+  SosField,
+  SosInput,
+  SosTextarea,
+  SosSelect,
+  SosCheckbox,
+  SosSwitch,
+  // 数据陈列
+  SosCard,
+  SosAvatar,
+  SosTable,
+  SosTooltip,
+  SosSkeleton,
+  SosSpinner,
+  // 反馈
+  SosNotice,
+  SosProgress,
+  SosEmptyState,
+  SosToastRegion,
+  // 导航
+  SosAppbar,
+  SosNavLink,
+  SosBreadcrumb,
+  SosPagination,
+  SosHeaderBrand,
+  // 浮层
+  SosModal,
+  SosDropdown,
+  // composable
+  useToast,
 } from '@haruhi/ui'
 ```
 
@@ -43,26 +77,51 @@ import {
 
 ## 当前组件
 
-| 组件             | 用途                                                    |
-| ---------------- | ------------------------------------------------------- |
-| `SosButton`      | 明确命令按钮，支持 primary / secondary / ghost / danger |
-| `SosBadge`       | 状态、分类、短标签                                      |
-| `SosField`       | Label、Control、Help / Error anatomy                    |
-| `SosNotice`      | 系统提示，支持 info / success / warning / danger        |
-| `SosPage`        | 页面根容器、scope、宽度和整体纵向节奏                   |
-| `SosPageHeader`  | 页面/频道标题、说明、meta 和动作区 anatomy              |
-| `SosProgress`    | 常驻数值的进度反馈                                      |
-| `SosCard`        | 基础卡片 anatomy，不封装业务卡片                        |
-| `SosEmptyState`  | 空状态说明和下一步动作                                  |
-| `SosHeaderBrand` | Header 中 logo + 标题文字组合                           |
-| `SosStack`       | 纵向内容节奏                                            |
-| `SosInline`      | 可换行同行操作                                          |
-| `SosCluster`     | 两端或多组对齐                                          |
-| `SosGrid`        | 自适应卡片网格                                          |
-| `SosSplit`       | 稳定双栏布局                                            |
-| `SosSurface`     | 有边界的承载面                                          |
-| `SosToolbar`     | 筛选、批量动作和工具组的可换行布局                      |
-| `SosMediaFrame`  | 固定媒体比例容器                                        |
+**布局与结构**
+
+| 组件                                    | 用途                            |
+| --------------------------------------- | ------------------------------- |
+| `SosPage` / `SosPageHeader`             | 页面根容器、scope、标题与动作区 |
+| `SosStack` / `SosInline` / `SosCluster` | 纵向节奏 / 同行操作 / 两端对齐  |
+| `SosGrid` / `SosSplit`                  | 自适应卡片网格 / 稳定双栏       |
+| `SosSurface` / `SosMediaFrame`          | 有边界承载面 / 固定媒体比例     |
+| `SosToolbar` / `SosDivider`             | 工具组布局 / 分隔线（可带标签） |
+
+**排印与控件**
+
+| 组件                                  | 用途                                        |
+| ------------------------------------- | ------------------------------------------- |
+| `SosEyebrow` / `SosTitle` / `SosCopy` | 眉标 / 标题（含 hero）/ 正文                |
+| `SosButton`                           | primary / secondary / ghost / danger / link |
+| `SosBadge` / `SosChip`                | 状态短标签 / 可切换可删除筛选标记           |
+| `SosTabs`                             | 分段 pill 与下划线两种 variant              |
+
+**表单**
+
+| 组件                                     | 用途                             |
+| ---------------------------------------- | -------------------------------- |
+| `SosField`                               | Label / Control / Help anatomy   |
+| `SosInput` / `SosTextarea` / `SosSelect` | 文本、多行、下拉，均支持 v-model |
+| `SosCheckbox` / `SosSwitch`              | 勾选 / 单选 / 开关               |
+
+**数据陈列与反馈**
+
+| 组件                                        | 用途                                       |
+| ------------------------------------------- | ------------------------------------------ |
+| `SosCard`                                   | 基础卡片 anatomy，不封装业务卡片           |
+| `SosAvatar` / `SosTable`                    | 头像（含 group）/ 列定义表格               |
+| `SosTooltip` / `SosSkeleton` / `SosSpinner` | 提示 / 骨架屏 / 加载指示                   |
+| `SosNotice` / `SosProgress`                 | info/success/warning/danger / 常驻数值进度 |
+| `SosEmptyState` / `SosToastRegion`          | 空状态 / Toast 区（配 `useToast`）         |
+
+**导航与浮层**
+
+| 组件                              | 用途                         |
+| --------------------------------- | ---------------------------- |
+| `SosAppbar` / `SosNavLink`        | 应用顶栏 / 导航链接          |
+| `SosBreadcrumb` / `SosPagination` | 面包屑 / 分页（v-model）     |
+| `SosHeaderBrand`                  | Header logo + 标题组合       |
+| `SosModal` / `SosDropdown`        | 模态框（Teleport）/ 下拉菜单 |
 
 ## 使用示例
 
@@ -80,6 +139,13 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'
   </SosStack>
 </template>
 ```
+
+## 主题与表达
+
+- 表达模式由外层 `data-sos-site`（news / shop / art / library / exam）控制，组件解剖不变。
+- 明暗主题由 `data-sos-theme="dark"` 切换，只重映射语义 token；建议挂在 `documentElement` 上，
+  这样 Teleport 到 body 的 `SosModal` / `SosToastRegion` 也能继承。
+- 密度由 `data-sos-density="compact | spacious"` 控制，只改控件节奏。
 
 ## 边界
 
