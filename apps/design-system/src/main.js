@@ -583,6 +583,67 @@ const interfaceObjects = [
   ],
 ]
 
+const pathBlueprints = [
+  {
+    mode: 'news',
+    status: '已接入',
+    title: 'News 阅读流',
+    source: 'apps/news/src/views/HomeView.vue + components/NewsCard.vue',
+    intent:
+      '把已有团报黑白气质收进统一系统，首屏先证明标题、摘要、日期、专题、标签和置顶状态可扫读。',
+    fields: '标题 / 摘要 / 日期 / 标签 / 置顶 / 参与者',
+    steps: [
+      ['Global Header', 'logo+标题文字稳定，不再用大 logo banner 代替站点入口。'],
+      ['Channel Header', '说明当前阅读范围、更新节奏和发布入口，不把说明塞进卡片。'],
+      ['Filter / Tags', '搜索、标签和热门专题分组，移动端可换行。'],
+      ['NewsArticleCard', '日期、置顶和标签常驻；hover 只增强可点击感。'],
+      ['System State', '空结果、加载和错误保留当前筛选语境。'],
+    ],
+    protect: '保留报纸感、强标题层级和黑白主行动；黄色只做信号，不做整页主色。',
+    evidence: 'pnpm check:news:visual',
+  },
+  {
+    mode: 'shop',
+    status: '已接入',
+    title: 'Shop 前台交易流',
+    source:
+      'apps/shop/src/layouts/ShopLayout.vue + views/shop/HomeView.vue + ProductDetailView.vue',
+    intent:
+      '验证设计系统是否真的解决交易页面问题：商品、价格、库存、预售进度和购买动作必须可比较、可追踪。',
+    fields: '商品图 / 商品名 / 价格 / 原价 / 库存 / 预售进度 / 购买动作',
+    steps: [
+      [
+        'Global Header',
+        '使用 haruhi-logo-192.png 和标题文字；明亮中性底，行动蓝只服务购买和链接。',
+      ],
+      ['Filter Bar', '分类筛选、结果数和非营利说明分层，不让移动端动画撑出空白。'],
+      ['ShopProductCard', '1:1 商品图、价格、原价、库存和预售进度常驻，加入购物车不藏在 hover。'],
+      ['Product Detail', '主图、价格盒、预售进度、规格、数量和双购买动作形成稳定交易面。'],
+      ['Cart Entry', '购物车入口保留在 header 和移动端浮层，不抢商品信息层级。'],
+    ],
+    protect: '保护交易信任感和信息密度；蓝色不是整站主题色，商品图和数字才是页面主语。',
+    evidence: 'pnpm check:shop:visual',
+  },
+  {
+    mode: 'art',
+    status: '下一轮',
+    title: 'Art 作品与投稿流',
+    source: 'apps/art/src/components/ArtworkGrid.vue + views/UploadView.vue',
+    intent:
+      '先做媒体优先设计研究，再接入应用。作品、作者、来源、授权和审核状态必须压过背景、磨砂和动效。',
+    fields: '作品 / 作者 / 来源 / 授权 / 标签 / 审核状态 / 上传文件',
+    steps: [
+      ['Gallery Header', '保留作品主位，不把青绿色变成整页背景或主视觉。'],
+      ['ArtworkCard', '固定媒体比例；作者、标签、点赞和来源在可读 scrim 或媒体外常驻。'],
+      ['Filter Bar', '标签、来源、排序和审核状态分层，筛选命中数可见。'],
+      ['Upload Form', 'Label、UID 检测、授权说明和文件状态都有文字证据。'],
+      ['Review State', '待审、通过、驳回和权限缺失不能只靠颜色表达。'],
+    ],
+    protect: '保护作品展示质量；强调色只用于筛选、标签和成功反馈，不做破坏性换肤。',
+    evidence: '待建立 art visual baseline',
+  },
+]
+
 const layoutPrimitives = [
   ['Stack', '.sos-stack', '纵向信息组。标题、说明、表单、状态列表默认用 Stack 管理间距。'],
   ['Inline', '.sos-inline', '同行工具组。按钮、Badge、短操作集合可换行，不拉伸子项。'],
@@ -2034,6 +2095,42 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
                 <div class="ds-object-card__rule ds-object-card__rule--avoid">
                   <strong>Don’t</strong>
                   <p>${avoid}</p>
+                </div>
+              </article>
+            `
+              )
+              .join('')}
+          </div>
+          <div class="ds-path-blueprints">
+            ${pathBlueprints
+              .map(
+                ({ mode, status, title, source, intent, fields, steps, protect, evidence }) => `
+              <article class="ds-path-card" data-sos-site="${mode}">
+                <header>
+                  <span class="sos-badge sos-badge--solid">${status}</span>
+                  <h3>${title}</h3>
+                  <p>${intent}</p>
+                </header>
+                <div class="ds-path-card__meta">
+                  <code>${source}</code>
+                  <span>${fields}</span>
+                </div>
+                <ol class="ds-path-steps">
+                  ${steps
+                    .map(
+                      ([object, rule]) => `
+                  <li>
+                    <strong>${object}</strong>
+                    <span>${rule}</span>
+                  </li>
+                `
+                    )
+                    .join('')}
+                </ol>
+                <div class="ds-path-card__evidence">
+                  <strong>Protect</strong>
+                  <p>${protect}</p>
+                  <code>${evidence}</code>
                 </div>
               </article>
             `

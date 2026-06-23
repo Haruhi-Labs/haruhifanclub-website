@@ -1249,6 +1249,137 @@ textarea {
   line-height: 1.65;
 }
 
+.ds-path-blueprints {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sos-space-4);
+}
+
+.ds-path-card {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-4);
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-card-radius);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-5);
+  box-shadow: var(--sos-card-shadow);
+}
+
+.ds-path-card header {
+  display: grid;
+  justify-items: start;
+  gap: var(--sos-space-3);
+}
+
+.ds-path-card h3,
+.ds-path-card p,
+.ds-path-card ol {
+  margin: 0;
+}
+
+.ds-path-card h3 {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-xl);
+  line-height: 1.2;
+}
+
+.ds-path-card header p {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.65;
+}
+
+.ds-path-card__meta {
+  display: grid;
+  gap: var(--sos-space-2);
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-subtle);
+  padding: var(--sos-space-3);
+}
+
+.ds-path-card__meta code,
+.ds-path-card__evidence code {
+  color: var(--sos-link);
+  font-family: var(--sos-font-mono);
+  font-size: var(--sos-text-xs);
+  overflow-wrap: anywhere;
+}
+
+.ds-path-card__meta span {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.55;
+}
+
+.ds-path-steps {
+  display: grid;
+  gap: var(--sos-space-2);
+  padding: 0;
+  list-style: none;
+  counter-reset: path-step;
+}
+
+.ds-path-steps li {
+  counter-increment: path-step;
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: var(--sos-space-3);
+  align-items: start;
+  min-width: 0;
+  border-top: 1px solid var(--sos-border-subtle);
+  padding-top: var(--sos-space-3);
+}
+
+.ds-path-steps li::before {
+  content: counter(path-step);
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-accent-soft);
+  color: var(--sos-link);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+}
+
+.ds-path-steps strong {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.ds-path-steps span {
+  grid-column: 2;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.55;
+}
+
+.ds-path-card__evidence {
+  display: grid;
+  gap: var(--sos-space-2);
+  border-left: 3px solid var(--sos-signal);
+  padding-left: var(--sos-space-3);
+}
+
+.ds-path-card__evidence strong {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-xs);
+  font-weight: 900;
+}
+
+.ds-path-card__evidence p {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.6;
+}
+
 .ds-object-flow {
   display: grid;
   gap: var(--sos-space-4);
@@ -2850,6 +2981,7 @@ textarea {
   .ds-token-workbench,
   .ds-content-rule-grid,
   .ds-object-grid,
+  .ds-path-blueprints,
   .ds-playbook-steps,
   .ds-maturity-grid,
   .ds-primitive-grid,
@@ -2905,6 +3037,7 @@ textarea {
   .ds-qa-board,
   .ds-governance-grid,
   .ds-object-grid,
+  .ds-path-blueprints,
   .ds-guide-shell,
   .ds-guide-panel,
   .ds-recipe-card,
@@ -2936,6 +3069,12 @@ textarea {
   .ds-object-card dl div {
     grid-template-columns: 1fr;
     gap: var(--sos-space-2);
+  }
+
+  .ds-path-steps li,
+  .ds-path-steps span {
+    grid-template-columns: 1fr;
+    grid-column: auto;
   }
 
   .ds-object-flow__rail {
@@ -2984,6 +3123,7 @@ textarea {
   .ds-token-workbench,
   .ds-content-rule-grid,
   .ds-object-grid,
+  .ds-path-blueprints,
   .ds-playbook-steps,
   .ds-maturity-grid,
   .ds-primitive-grid,
