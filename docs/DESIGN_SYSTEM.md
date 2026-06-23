@@ -99,6 +99,35 @@ import '@haruhi/design-system/bridges.css'
 }
 ```
 
+### 4.2 Semantic Token 使用表
+
+| 语义层     | Token                                    | 业务用途                             | 边界                          |
+| ---------- | ---------------------------------------- | ------------------------------------ | ----------------------------- |
+| 页面底色   | `--sos-bg-page`                          | 页面根背景、全局区段背景             | 不用于卡片内部或按钮          |
+| 承载面     | `--sos-bg-surface`                       | 卡片、表单、弹层、Notice             | 不直接替代 `--sos-bg-page`    |
+| 弱承载面   | `--sos-bg-subtle`                        | 筛选条、空状态、状态格、局部衬底     | 不用于强调状态                |
+| 主文本     | `--sos-text-primary`                     | 标题、强数字、按钮内文、主要链接文本 | 不用于 disabled 文案          |
+| 辅助文本   | `--sos-text-secondary`                   | 摘要、说明、meta、help text          | 不承载主要操作                |
+| 边界       | `--sos-border-subtle / default / strong` | 分隔信息关系、承载面边界、焦点补强   | 焦点态不能只靠边框变浅        |
+| 主行动     | `--sos-accent`                           | Primary button、当前 tab、关键进度   | 每个 Expression Mode 只有一个 |
+| 品牌信号   | `--sos-signal`                           | 少量 Badge、编号、重要线索           | 不用于价格、错误或大面积 CTA  |
+| 跨站状态   | `--sos-danger / --sos-success`           | 错误、成功、危险操作、完成反馈       | 不随站点气质改变语义          |
+| 几何与深度 | `--sos-card-radius / --sos-card-shadow`  | 卡片、浮层、媒体承载面               | 不在业务里新增临时半径或阴影  |
+
+### 4.3 Expression Mapping 边界
+
+Expression Mode 可以映射主行动色、表面色、圆角、媒体圆角、卡片阴影和阅读字体。它不改变组件 anatomy、不改变状态意义、不改变业务信息结构。
+
+| Mode      | 主行动表达   | 卡片圆角 | 深度             | 验收重点                         |
+| --------- | ------------ | -------- | ---------------- | -------------------------------- |
+| `news`    | 墨色主行动   | `8px`    | 默认平面         | 列表、长文和后台审核能快速扫读   |
+| `shop`    | 行动蓝 CTA   | `18px`   | 柔和交易卡片阴影 | 商品图 1:1，价格、库存、进度常驻 |
+| `art`     | 画廊青主行动 | `24px`   | 轻磨砂悬浮       | 作品占视觉主位，界面只承载       |
+| `library` | 书脊琥珀     | `8px`    | 纸张阴影         | 阅读栈、书封比例和目录连续       |
+| `exam`    | 批改红       | `12px`   | 试卷纸张阴影     | 题目、选项、倒计时和批阅稳定     |
+
+需要站点气质时改 Expression Mapping，不在组件里写 `[data-sos-site='shop'] .product-card { color: #3478f6; }` 这类业务覆盖。
+
 不要在业务组件中直接写物理值：
 
 ```css
@@ -111,7 +140,7 @@ import '@haruhi/design-system/bridges.css'
 }
 ```
 
-### 4.2 上下文注入
+### 4.4 上下文注入
 
 页面或局部区域通过 `data-sos-site` 注入表达模式：
 

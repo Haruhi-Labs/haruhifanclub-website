@@ -36,6 +36,23 @@ import '@haruhi/design-system/bridges.css'
 }
 ```
 
+常用语义变量：
+
+| Token                                     | 用途                            |
+| ----------------------------------------- | ------------------------------- |
+| `--sos-bg-page`                           | 页面根背景                      |
+| `--sos-bg-surface`                        | 卡片、表单、弹层、Notice 承载面 |
+| `--sos-bg-subtle`                         | 筛选条、空状态、状态格          |
+| `--sos-text-primary`                      | 标题、强数字、主要操作文本      |
+| `--sos-text-secondary`                    | 摘要、说明、meta、help text     |
+| `--sos-border-subtle/default/strong`      | 分隔和承载面边界                |
+| `--sos-accent`                            | 当前表达模式的主行动            |
+| `--sos-signal`                            | 少量品牌线索和重点标签          |
+| `--sos-danger` / `--sos-success`          | 跨站点一致的错误和成功状态      |
+| `--sos-card-radius` / `--sos-card-shadow` | 卡片几何与深度                  |
+
+需要站点气质时调整 Expression Mapping，不在业务组件里新增 hex、临时阴影、13px 圆角或非 4px 网格间距。
+
 ## v0.2 Primitives
 
 `components.css` 提供一组框架无关布局原语，供业务页面和未来 Vue wrapper 复用：

@@ -145,6 +145,7 @@ const navItems = [
   ['overview', '总览'],
   ['architecture', '接入结构'],
   ['foundations', '基础规范'],
+  ['tokens', 'Token 映射'],
   ['layout', '布局原语'],
   ['components', '基础组件'],
   ['contracts', '组件契约'],
@@ -175,6 +176,38 @@ const spacingScale = [
   ['32 / 40', '组合间距', '筛选区、列表组、详情块和并列模块之间。'],
   ['48 / 64', '页面模块', '频道头部、内容区、表单大段落之间的主要分隔。'],
   ['80 / 96', '大区段', '只用于首页或专题页首屏级区段，后台和密集页慎用。'],
+]
+
+const semanticTokens = [
+  ['Page', '--sos-bg-page', '页面底色', '只用于页面根背景，不用于卡片内部。'],
+  ['Surface', '--sos-bg-surface', '承载面', '卡片、表单、弹层和 Notice 的默认表面。'],
+  ['Subtle', '--sos-bg-subtle', '弱承载面', '筛选条、空状态、状态格和局部衬底。'],
+  ['Text Primary', '--sos-text-primary', '主文本', '标题、强数字、按钮内文和可点击主体。'],
+  ['Text Secondary', '--sos-text-secondary', '辅助文本', '摘要、说明、meta、help text。'],
+  [
+    'Border',
+    '--sos-border-subtle / default / strong',
+    '边界',
+    '分隔信息关系；焦点态不能只靠边框变浅。',
+  ],
+  ['Accent', '--sos-accent', '主行动', '每个表达模式只有一个主行动色。'],
+  ['Signal', '--sos-signal', '品牌信号', '少量 Badge、编号和重点标记，不承担主 CTA。'],
+  ['State', '--sos-danger / --sos-success', '状态语义', '错误和成功跨站点保持意义一致。'],
+]
+
+const expressionTokenMap = [
+  ['news', '墨色主行动', '8px', 'none', '列表、长文和后台审核优先清晰扫读。'],
+  ['shop', '行动蓝 CTA', '18px', '柔和交易卡片阴影', '商品图 1:1，价格和库存常驻。'],
+  ['art', '画廊青主行动', '24px', '轻磨砂悬浮', '作品占视觉主位，界面只做承载。'],
+  ['library', '书脊琥珀', '8px', '纸张阴影', '阅读栈、书封比例和目录连续性优先。'],
+  ['exam', '批改红', '12px', '试卷纸张阴影', '题目、选择、倒计时和批阅状态稳定。'],
+]
+
+const tokenBoundaries = [
+  ['Do', '业务 CSS 使用 Semantic Token：背景、文字、边框、主行动和状态都从语义变量读取。'],
+  ['Do', '需要站点气质时改 Expression Mapping，不在组件里按站点写选择器覆盖物理色值。'],
+  ['Don’t', '不要在业务卡片里新增 hex、临时阴影、13px 圆角或非 4px 网格间距。'],
+  ['Don’t', '不要把 Signal Yellow 当主按钮色、价格色或错误色；它只负责品牌线索。'],
 ]
 
 const layoutPrimitives = [
@@ -858,6 +891,73 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
                     <span>预售、订单与周边</span>
                   </div>
                 </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="ds-section" id="tokens">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">Token Map</p>
+            <h2>语义 Token 先于组件抽象</h2>
+            <p>成熟 UI 库不能建立在散落的颜色、阴影和间距上。v0.2 先把业务可消费的语义变量固定下来，组件只读取语义变量，站点差异只通过 Expression Mapping 变声。</p>
+          </div>
+          <div class="ds-token-map">
+            ${semanticTokens
+              .map(
+                ([name, token, role, usage]) => `
+              <article class="ds-token-row">
+                <span>${name}</span>
+                <code>${token}</code>
+                <strong>${role}</strong>
+                <p>${usage}</p>
+              </article>
+            `
+              )
+              .join('')}
+          </div>
+          <div class="ds-token-workbench">
+            <article class="ds-expression-map">
+              <h3>Expression Mapping 只改表达，不改组件结构</h3>
+              ${expressionTokenMap
+                .map(
+                  ([mode, accent, radius, shadow, rule]) => `
+                <div class="ds-expression-row" data-sos-site="${mode}">
+                  <span class="sos-badge sos-badge--solid">${mode}</span>
+                  <strong>${accent}</strong>
+                  <code>${radius}</code>
+                  <code>${shadow}</code>
+                  <p>${rule}</p>
+                </div>
+              `
+                )
+                .join('')}
+            </article>
+            <article class="ds-token-code-card">
+              <h3>业务代码读取语义变量</h3>
+              <pre class="ds-code ds-code--compact"><code>.product-card {
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-primary);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-card-radius);
+  box-shadow: var(--sos-card-shadow);
+}
+
+.product-card__price {
+  color: var(--sos-link);
+  font-variant-numeric: tabular-nums;
+}</code></pre>
+              <div class="ds-token-boundaries">
+                ${tokenBoundaries
+                  .map(
+                    ([label, copy]) => `
+                  <div>
+                    <span>${label}</span>
+                    <p>${copy}</p>
+                  </div>
+                `
+                  )
+                  .join('')}
               </div>
             </article>
           </div>

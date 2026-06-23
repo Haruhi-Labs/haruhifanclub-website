@@ -24,6 +24,12 @@ textarea {
   min-height: 100vh;
 }
 
+.ds-app *,
+.ds-app *::before,
+.ds-app *::after {
+  box-sizing: border-box;
+}
+
 .ds-topbar {
   position: sticky;
   top: 0;
@@ -144,6 +150,11 @@ textarea {
 .ds-content {
   display: grid;
   gap: var(--sos-space-16);
+  min-width: 0;
+}
+
+.ds-content > *,
+.ds-section > * {
   min-width: 0;
 }
 
@@ -285,6 +296,8 @@ textarea {
 }
 
 .ds-code {
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--sos-border-subtle);
   border-radius: var(--sos-radius-md);
@@ -322,6 +335,148 @@ textarea {
   color: var(--sos-link);
   font-family: var(--sos-font-mono);
   font-size: var(--sos-text-xs);
+}
+
+.ds-token-map {
+  display: grid;
+  gap: var(--sos-space-3);
+}
+
+.ds-token-row {
+  display: grid;
+  grid-template-columns: 0.85fr 1.45fr 0.8fr minmax(0, 1.7fr);
+  gap: var(--sos-space-4);
+  align-items: baseline;
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-4) var(--sos-space-5);
+}
+
+.ds-token-row > span {
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.ds-token-row code {
+  color: var(--sos-link);
+  font-family: var(--sos-font-mono);
+  font-size: var(--sos-text-xs);
+  overflow-wrap: anywhere;
+}
+
+.ds-token-row strong {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-sm);
+}
+
+.ds-token-row p {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.55;
+}
+
+.ds-token-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(22rem, 0.82fr);
+  gap: var(--sos-space-4);
+  margin-top: var(--sos-space-4);
+  align-items: start;
+}
+
+.ds-expression-map,
+.ds-token-code-card {
+  min-width: 0;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  padding: var(--sos-space-5);
+}
+
+.ds-expression-map h3,
+.ds-token-code-card h3 {
+  margin: 0 0 var(--sos-space-4);
+  font-size: var(--sos-text-lg);
+  line-height: 1.3;
+}
+
+.ds-token-code-card .ds-code code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ds-expression-row {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr) 4.5rem minmax(7rem, 0.85fr);
+  gap: var(--sos-space-3);
+  align-items: center;
+  min-width: 0;
+  border-top: 1px solid var(--sos-border-subtle);
+  padding: var(--sos-space-3) 0;
+}
+
+.ds-expression-row:first-of-type {
+  border-top: 0;
+}
+
+.ds-expression-row .sos-badge {
+  grid-row: 1 / span 2;
+  justify-self: start;
+  width: fit-content;
+}
+
+.ds-expression-row strong {
+  color: var(--sos-accent);
+  font-size: var(--sos-text-sm);
+}
+
+.ds-expression-row code {
+  color: var(--sos-text-secondary);
+  font-family: var(--sos-font-mono);
+  font-size: var(--sos-text-xs);
+  overflow-wrap: anywhere;
+}
+
+.ds-expression-row p {
+  grid-column: 2 / -1;
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.55;
+}
+
+.ds-token-boundaries {
+  display: grid;
+  gap: var(--sos-space-3);
+  margin-top: var(--sos-space-4);
+}
+
+.ds-token-boundaries div {
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  gap: var(--sos-space-3);
+  align-items: start;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-subtle);
+  padding: var(--sos-space-3);
+}
+
+.ds-token-boundaries span {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-xs);
+  font-weight: 850;
+}
+
+.ds-token-boundaries p {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  line-height: 1.55;
 }
 
 .ds-component-grid {
@@ -1439,6 +1594,7 @@ textarea {
 
   .ds-architecture,
   .ds-token-grid,
+  .ds-token-workbench,
   .ds-primitive-grid,
   .ds-mode-picker {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1498,6 +1654,22 @@ textarea {
     gap: var(--sos-space-2);
   }
 
+  .ds-token-row,
+  .ds-expression-row {
+    grid-template-columns: 1fr;
+    gap: var(--sos-space-2);
+  }
+
+  .ds-token-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .ds-expression-row .sos-badge,
+  .ds-expression-row p {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
   .ds-contract-row--head {
     display: none;
   }
@@ -1515,6 +1687,7 @@ textarea {
 
   .ds-architecture,
   .ds-token-grid,
+  .ds-token-workbench,
   .ds-primitive-grid,
   .ds-mode-picker {
     grid-template-columns: 1fr;
