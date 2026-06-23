@@ -4,16 +4,20 @@ import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
 const router = useRouter()
 
+const navItems = [
+  { path: '/', label: '首页' },
+  { path: '/gallery', label: '画廊' },
+  { path: '/announcements', label: '公告' },
+  { path: '/upload', label: '投稿' },
+  { path: '/points', label: '积分' },
+  { path: '/exchange', label: '兑换' },
+]
+
 const isActive = (path) => {
-  if (path === '/' && route.path.startsWith('/creator')) return true
+  if (path === '/gallery' && route.path.startsWith('/creator')) return true
   return route.path === path
 }
 const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
-
-function enterAdmin() {
-  // 管理后台登录已统一为 JWT 单点登录，直接进入后台由 AdminView 处理登录
-  router.push('/admin')
-}
 </script>
 
 <template>
@@ -26,10 +30,16 @@ function enterAdmin() {
       </div>
     </div>
 
-    <nav class="nav">
-      <RouterLink :class="linkClass('/')" to="/" data-sfx="click">画廊</RouterLink>
-      <RouterLink :class="linkClass('/upload')" to="/upload" data-sfx="click">投稿</RouterLink>
-      <RouterLink :class="linkClass('/points')" to="/points" data-sfx="click">积分</RouterLink>
+    <nav class="nav" aria-label="画廊功能导航">
+      <RouterLink
+        v-for="item in navItems"
+        :key="item.path"
+        :class="linkClass(item.path)"
+        :to="item.path"
+        data-sfx="click"
+      >
+        {{ item.label }}
+      </RouterLink>
     </nav>
   </div>
 </template>
@@ -47,7 +57,7 @@ function enterAdmin() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 18px;
   padding: 0 24px;
   
   /* --- 视觉风格：全透明 --- */
@@ -64,7 +74,7 @@ function enterAdmin() {
   gap: 12px;
   cursor: pointer;
   user-select: none;
-  color: #fff; 
+  color: #fff;
   text-shadow: 0 2px 4px rgba(0,0,0,0.6);
   
   /* 关键：防止 Logo 被压缩 */
@@ -117,47 +127,59 @@ function enterAdmin() {
 .nav {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 4px;
+  max-width: min(720px, 62vw);
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.38);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   flex-shrink: 0; /* 导航区不许被压缩，保证按钮完整 */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
 }
 
 .navlink {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 24px;
+  min-width: 58px;
+  padding: 8px 13px;
   font-weight: 900;
-  font-size: 14px;
-  letter-spacing: 1px;
-  border-radius: 2px 20px 2px 20px;
-  background: linear-gradient(135deg, #d9f99d 0%, #86efac 100%);
-  color: #14532d;
-  border: 1px solid rgba(255,255,255,0.5);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  font-size: 13px;
+  letter-spacing: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(13, 63, 74, 0.88);
+  border: 1px solid transparent;
+  box-shadow: none;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   text-decoration: none; /* 确保链接无下划线 */
+  white-space: nowrap;
 }
 
-.navlink:hover { transform: translateY(-2px) scale(1.05); box-shadow: 0 8px 16px rgba(0,0,0,0.25); }
+.navlink:hover {
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.62);
+  color: #063f4f;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
 .navlink.on {
-  background: linear-gradient(135deg, #bef264 0%, #4ade80 100%);
-  color: #064e3b;
+  background: linear-gradient(135deg, #fef08a 0%, #86efac 50%, #67e8f9 100%);
+  color: #073b4c;
   text-shadow: 0 1px 0 rgba(255,255,255,0.3);
-  transform: scale(1.1) rotate(-3deg);
-  box-shadow: 0 6px 14px rgba(20, 200, 100, 0.4);
+  transform: scale(1.03);
+  border-color: rgba(255,255,255,0.72);
+  box-shadow: 0 8px 18px rgba(20, 140, 160, 0.22), inset 0 1px 0 rgba(255,255,255,0.72);
   z-index: 5;
 }
-
-.adminBtn {
-  border: none; cursor: pointer; padding: 8px 20px; font-weight: 900; font-size: 13px;
-  border-radius: 20px 2px 20px 2px;
-  background: linear-gradient(135deg, #fdba74 0%, #fb923c 100%);
-  color: #7c2d12;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-  transition: transform 0.2s ease;
-}
-.adminBtn:hover { transform: rotate(5deg) scale(1.1); }
-.adminBtn:active { transform: scale(0.95); }
 
 /* =========================================
    手机端自适应优化 (宽度 <= 768px)
@@ -168,6 +190,7 @@ function enterAdmin() {
     padding: 0 12px;
     /* 2. 减小中间间距 */
     gap: 8px;
+    height: 76px;
   }
   
   .brand {
@@ -198,18 +221,25 @@ function enterAdmin() {
   }
 
   .nav {
-    /* 8. 减小导航按钮之间的间距 */
-    gap: 8px;
+    max-width: 52vw;
+    gap: 3px;
+    padding: 4px;
   }
 
   .navlink {
-    /* 9. 以前是 18px 太大了，导致挤压左边。改为 14px 比较平衡 */
-    font-size: 14px;
-    padding: 6px 12px; /* 减小按钮内边距 */
+    min-width: 52px;
+    font-size: 13px;
+    padding: 7px 11px;
+  }
+}
+
+@media (max-width: 560px) {
+  .brand__text {
+    display: none;
   }
 
-  .adminBtn {
-    display: none;
+  .nav {
+    max-width: calc(100vw - 74px);
   }
 }
 </style>
