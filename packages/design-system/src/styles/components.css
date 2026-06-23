@@ -20,9 +20,12 @@
   background-position: var(--sos-page-texture-position, top center);
   background-repeat: var(--sos-page-texture-repeat, no-repeat);
   background-attachment: var(--sos-page-texture-attachment, scroll);
-  font-family: var(--sos-font-sans);
+  /* 字体 / 行高可被覆盖：渐进接入的旧站可在自己的根上设
+     --sos-scope-font: inherit（或自有字体栈）保留原有字体气质，
+     设计系统只经 data-sos-site + token 提供配色/几何，不强行同化排版。 */
+  font-family: var(--sos-scope-font, var(--sos-font-sans));
   font-size: var(--sos-text-md);
-  line-height: var(--sos-leading-body);
+  line-height: var(--sos-scope-leading, var(--sos-leading-body));
   font-feature-settings: 'cv05', 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

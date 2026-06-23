@@ -64,6 +64,23 @@ import '@haruhi/design-system/bridges.css'
 - 站点肌理：表达模式可声明 `--sos-page-texture`（如 news 墨点网格、exam 答题横格、art/library 顶部柔光），
   并通过 `--sos-display-family` 区分标题字（library/exam 用衬线）。这些都只是语义层覆盖，组件解剖不变。
 
+### 渐进接入：不要同化既有站点的字体
+
+`.sos-scope` 默认带一套基础排版（字体族 / 行高）。把它整体罩在「自带成熟排版的旧站」上会**覆盖原有字体气质，造成视觉倒退**——设计系统应只经 `data-sos-site` + bridges 提供配色/阴影/圆角，不强行同化排版。`.sos-scope` 的字体与行高因此做成可覆盖：
+
+```css
+/* 旧站在自己的根上保留原字体，仅吃 DS 的配色/几何 */
+.shop-app.sos-scope {
+  --sos-scope-font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --sos-scope-leading: 1.6;
+}
+.sos-scope[data-sos-site='news'] {
+  --sos-scope-font: var(--font-sans); /* 团报的 Noto Sans SC */
+}
+```
+
+新建的 DS 原生页面（规范页、auth-ui 等）不设这两个变量，自然采用设计系统字体。
+
 ## 业务卡片 recipe
 
 `recipes.css` 把"共享卡片解剖 + 五个内容类型特化 recipe"沉淀为 class contract：
