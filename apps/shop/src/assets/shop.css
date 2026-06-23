@@ -44,6 +44,15 @@ body {
     flex-direction: column;
 }
 
+/* 设计系统接入修正：.sos-scope 会强加 DS 基础排版（Inter 字体族 / 行高），
+   但商城应保留自身的字体气质（Helvetica + 1px 字距 + 1.6 行高）。
+   设计系统只通过 data-sos-site + bridges 提供配色/阴影/圆角，不应同化字体。 */
+.shop-app.sos-scope {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 1px;
+    line-height: 1.6;
+}
+
 /* 布局工具类 */
 .container {
     width: 100%;
