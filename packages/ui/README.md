@@ -72,3 +72,19 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'
 - 不新增独立主题变量；表达模式仍由外层 `data-sos-site` 和 `@haruhi/design-system` token 控制。
 - 不把页面特例做成组件 variant。新增 variant 前必须先更新规范页和状态矩阵。
 - 不替代 `@haruhi/auth-ui`。鉴权 UI 仍由 `packages/auth-ui` 维护，后续可逐步消费本包基础件。
+
+## 准入分级
+
+| Level | 名称                   | 落点                    | 说明                                                   |
+| ----- | ---------------------- | ----------------------- | ------------------------------------------------------ |
+| L0    | Token / Class Contract | `@haruhi/design-system` | 颜色、间距、圆角、布局原语和基础 class。               |
+| L1    | Primitive Wrapper      | `@haruhi/ui`            | 本包只接收跨站重复、语义稳定、状态明确的基础 wrapper。 |
+| L2    | Composition Recipe     | 规范页 + 业务 app       | 业务卡片和页面组合先用真实数据验证，不进入本包。       |
+| L3    | Product Component      | 未来评估                | 多页面共享同一信息结构、状态机和数据契约后再评估。     |
+
+API 规则：
+
+- Props 只暴露稳定语义：`variant`、`size`、`tone`、`ratio`、`gap`、`selected`、`loading`。
+- 不提供 `color`、`shadow`、`radius` 等视觉 props；表达由外层 token 和 `data-sos-site` 决定。
+- Slot 对应稳定 anatomy 槽位，不用任意 slot 绕过结构。
+- 状态 props 必须同步可访问性证据，例如 `aria-busy`、`aria-invalid`、`disabled`。

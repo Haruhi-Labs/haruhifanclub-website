@@ -93,6 +93,8 @@ import '@haruhi/design-system/bridges.css'
 
 `@haruhi/ui` 已启用 MVP，适合在 Vue app 中复用稳定基础件：Button、Badge、Field、Notice、Progress、Card、EmptyState、HeaderBrand、Stack、Inline、Cluster、Grid、Split、Surface、MediaFrame。
 
+本包处在 L0：Token / Class Contract。`@haruhi/ui` 处在 L1：Primitive Wrapper。新闻卡、商品卡、作品卡、书封卡、试卷卡等业务组合仍处在 L2 recipe 阶段，不应直接进入本包或 UI 包。
+
 业务 app 不必须立刻引入 `@haruhi/ui`。迁移优先级仍是：
 
 1. 先接入本包 token 和 class contract。

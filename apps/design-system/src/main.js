@@ -149,6 +149,7 @@ const navItems = [
   ['layout', '布局原语'],
   ['components', '基础组件'],
   ['contracts', '组件契约'],
+  ['api', 'UI 路线'],
   ['usage', '组件用法'],
   ['expressions', '表达模式'],
   ['voice', '组件变声'],
@@ -272,6 +273,69 @@ const componentContracts = [
     'default',
     'empty · no-result · permission-missing',
     '必须说明为空原因，并提供清晰下一步。',
+  ],
+]
+
+const uiMaturityLevels = [
+  [
+    'L0',
+    'Token / Class Contract',
+    'CSS 包',
+    '颜色、间距、圆角、布局原语和基础 class。只要业务还在迁移，就允许先以 CSS-first 接入。',
+  ],
+  [
+    'L1',
+    'Primitive Wrapper',
+    '@haruhi/ui',
+    'Button、Badge、Field、Notice、Progress、Card anatomy 和布局 wrapper。只封装稳定 props、slot、状态和可访问性。',
+  ],
+  [
+    'L2',
+    'Composition Recipe',
+    '规范页 + 业务 app',
+    '新闻卡、商品卡、作品卡、书封卡、试卷卡先作为 recipe 验证。它们共享基础件，但不急着跨站抽象。',
+  ],
+  [
+    'L3',
+    'Product Component',
+    '未来评估',
+    '至少三个页面反复出现同一信息结构、状态和数据契约后，才考虑从 recipe 升级为共享业务组件。',
+  ],
+]
+
+const uiApiRules = [
+  ['Props', '只暴露稳定语义：variant、size、tone、ratio、gap、selected、loading。'],
+  ['Slots', 'Slot 对应 anatomy 槽位；不能用任意 slot 绕过结构约束。'],
+  ['Styling', '组件不接受 color、shadow、radius 等视觉 props；这些由 Semantic Token 决定。'],
+  ['State', '状态 props 必须同步 aria、disabled、aria-busy、aria-invalid 等可访问性证据。'],
+  ['Upgrade', '新增组件或 variant 前，必须先更新规范页、状态矩阵和响应式截图证据。'],
+]
+
+const uiDecisionMatrix = [
+  [
+    'SosButton / SosBadge / SosField',
+    'L1 · UI Wrapper',
+    '跨站重复、语义稳定、状态明确，可以由 Vue wrapper 输出统一 class。',
+  ],
+  [
+    'SosCard / SosMediaFrame',
+    'L1 · Anatomy Wrapper',
+    '只封装边界、媒体比例和 body/footer 槽位，不决定新闻、商品或作品信息结构。',
+  ],
+  [
+    'SosStack / Inline / Grid / Split',
+    'L1 · Layout Wrapper',
+    '允许 gap、min、ratio 等布局参数；不暴露颜色和材质。',
+  ],
+  [
+    'ShopProductCard / ArtworkCard',
+    'L2 · Recipe',
+    '需要真实数据、媒体比例和流程状态继续验证，暂不进入共享 UI 包。',
+  ],
+  [
+    'CheckoutRail / ExamQuestion',
+    'L3 · Candidate',
+    '只有当多页面共享同一数据契约和状态机时，才进入产品组件评估。',
   ],
 ]
 
@@ -1090,6 +1154,57 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
             `
               )
               .join('')}
+          </div>
+        </section>
+
+        <section class="ds-section" id="api">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">UI Library Roadmap</p>
+            <h2>组件进入 UI 库前先分级</h2>
+            <p>UI 库不是把所有重复 UI 都收进去。v0.2 用四个成熟度层级管理抽象边界：先稳定 CSS 契约，再封装基础 wrapper，业务组合继续作为 recipe 验证，最后才评估产品组件。</p>
+          </div>
+          <div class="ds-maturity-grid">
+            ${uiMaturityLevels
+              .map(
+                ([level, title, owner, copy]) => `
+              <article class="ds-maturity-card">
+                <span>${level}</span>
+                <h3>${title}</h3>
+                <strong>${owner}</strong>
+                <p>${copy}</p>
+              </article>
+            `
+              )
+              .join('')}
+          </div>
+          <div class="ds-api-lab">
+            <article class="ds-api-rules">
+              <h3>API 设计守则</h3>
+              ${uiApiRules
+                .map(
+                  ([term, description]) => `
+                <div>
+                  <strong>${term}</strong>
+                  <p>${description}</p>
+                </div>
+              `
+                )
+                .join('')}
+            </article>
+            <article class="ds-ui-decision">
+              <h3>当前去留判断</h3>
+              ${uiDecisionMatrix
+                .map(
+                  ([name, level, reason]) => `
+                <div>
+                  <code>${name}</code>
+                  <span>${level}</span>
+                  <p>${reason}</p>
+                </div>
+              `
+                )
+                .join('')}
+            </article>
           </div>
         </section>
 
