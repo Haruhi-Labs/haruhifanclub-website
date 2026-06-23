@@ -32,8 +32,22 @@ import {
   SosTooltip,
   useToast,
 } from '@haruhi/ui'
+import {
+  SosArticleCard,
+  SosProductCard,
+  SosArtworkCard,
+  SosBookCard,
+  SosExamCard,
+} from '@haruhi/ui/recipes'
 
 const logoUrl = `${import.meta.env.BASE_URL}haruhi-logo-192.png`
+
+// 演示用 SVG 占位图
+const ph = (text, bg, fg) =>
+  `data:image/svg+xml,` +
+  encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='${bg || '#e8eef6'}'/><circle cx='320' cy='70' r='46' fill='${fg || '#9aa1ad'}' opacity='.28'/><text x='200' y='168' font-family='sans-serif' font-size='30' font-weight='700' fill='${fg || '#6b7480'}' text-anchor='middle'>${text}</text></svg>`
+  )
 
 /* ---------------- 全局演示状态 ---------------- */
 const site = ref('shop')
@@ -167,6 +181,14 @@ const products = [
   { name: 'SOS 团 复刻应援手幅', price: '¥68', tag: '限量' },
 ]
 
+const cardShowcase = [
+  { site: 'news', name: '团报 · 阅读卡' },
+  { site: 'shop', name: '商城 · 商品卡' },
+  { site: 'art', name: '美术部 · 作品卡' },
+  { site: 'library', name: '书库 · 书封卡' },
+  { site: 'exam', name: '考场 · 试卷卡' },
+]
+
 /* ---------------- Sidebar 导航 + 滚动高亮 ---------------- */
 const nav = [
   { group: '入门', items: [{ id: 'overview', label: '总览' }] },
@@ -187,6 +209,7 @@ const nav = [
       { id: 'feedback', label: '反馈' },
       { id: 'overlay', label: '浮层' },
       { id: 'nav', label: '导航' },
+      { id: 'cards', label: '业务卡片 recipe' },
     ],
   },
   {
@@ -503,36 +526,22 @@ onBeforeUnmount(() => observer?.disconnect())
           </div>
 
           <div class="ds-demo">
-            <div class="ds-demo__label">商品卡 <small>L2 recipe</small></div>
+            <div class="ds-demo__label">商品卡 <small>SosProductCard recipe</small></div>
             <SosGrid min="14rem">
-              <article
+              <SosProductCard
                 v-for="p in products"
                 :key="p.name"
-                class="sos-card sos-product-card sos-card--interactive"
+                :title="p.name"
+                :price="p.price"
+                :image="ph(p.tag, '#eaf0f8', '#7e94b8')"
+                :badge="p.tag"
+                desc="官方授权周边，SOS 团限量发售。"
+                state="现货 12"
               >
-                <div
-                  class="sos-product-card__media"
-                  :style="{
-                    background:
-                      'linear-gradient(135deg, var(--sos-accent-soft), var(--sos-bg-muted))',
-                  }"
-                >
-                  <div class="sos-product-card__actions">
-                    <SosButton variant="primary" size="sm">加入购物车</SosButton>
-                  </div>
-                </div>
-                <div class="sos-card__body">
-                  <div class="sos-product-card__title-row">
-                    <h3 class="sos-product-card__title">{{ p.name }}</h3>
-                    <span class="sos-product-card__price">{{ p.price }}</span>
-                  </div>
-                  <p class="sos-product-card__description">官方授权周边，SOS 团限量发售。</p>
-                  <div class="sos-card__footer">
-                    <SosBadge variant="accent">{{ p.tag }}</SosBadge>
-                    <span class="sos-state-row" style="font-size: var(--sos-text-xs)">现货 12</span>
-                  </div>
-                </div>
-              </article>
+                <template #actions>
+                  <SosButton variant="primary" size="sm">加入购物车</SosButton>
+                </template>
+              </SosProductCard>
             </SosGrid>
           </div>
 
@@ -659,14 +668,89 @@ onBeforeUnmount(() => observer?.disconnect())
           </div>
         </section>
 
+        <!-- Business card recipes -->
+        <section id="cards" class="ds-section">
+          <div class="ds-section__head">
+            <SosEyebrow>RECIPES</SosEyebrow>
+            <SosTitle as="h2" size="xl">业务卡片 recipe</SosTitle>
+            <SosCopy>
+              共享 <code>.sos-card</code> 解剖 + 五个内容类型特化 recipe，由
+              <code>@haruhi/ui/recipes</code> 输出，内容由业务传入。每张卡片置于它的原生表达模式中——
+              配色、圆角、字体、肌理与母题随之切换，这就是"平行世界"在卡片层的落地。
+            </SosCopy>
+          </div>
+          <div class="ds-cards">
+            <div
+              v-for="card in cardShowcase"
+              :key="card.site"
+              class="ds-card-cell sos-scope"
+              :data-sos-site="card.site"
+            >
+              <div class="ds-card-cell__bar">
+                <SosEyebrow>{{ card.site }}</SosEyebrow>
+                <span class="ds-card-cell__name">{{ card.name }}</span>
+              </div>
+              <div class="ds-card-cell__stage">
+                <SosArticleCard
+                  v-if="card.site === 'news'"
+                  label="NEWS"
+                  pinned
+                  title="北高校园祭筹备进入最终检查"
+                  subtitle="活动组完成摊位、排队与志愿者排班复核"
+                  excerpt="校园祭摊位复核完成，志愿者排班表已同步到活动组；现场检查与物料确认在本周内收尾。"
+                  :tags="['活动', '校园祭', '公告']"
+                  author="编辑部"
+                  date="2026-06-23"
+                />
+                <SosProductCard
+                  v-else-if="card.site === 'shop'"
+                  title="朝比奈实玖瑠 亚克力立牌"
+                  desc="达标后统一排产，订单持续累计中。"
+                  :price="147"
+                  :original-price="168"
+                  badge="预售"
+                  :image="ph('fufu', '#eaf0f8', '#7e94b8')"
+                  :progress="{ value: 126, max: 200, label: '众筹进度' }"
+                  state="预售中"
+                >
+                  <template #actions>
+                    <SosButton variant="primary" size="sm">加入购物车</SosButton>
+                  </template>
+                </SosProductCard>
+                <SosArtworkCard
+                  v-else-if="card.site === 'art'"
+                  title="夏日的长门"
+                  author="@kimidori"
+                  :image="ph('ART', '#e3f1ee', '#3a8f84')"
+                  :likes="128"
+                  :views="2400"
+                />
+                <SosBookCard
+                  v-else-if="card.site === 'library'"
+                  title="凉宫春日的忧郁"
+                  author="谷川流"
+                  color="#dfe9f4"
+                  badge="卷一"
+                />
+                <SosExamCard
+                  v-else
+                  subject="语文"
+                  title="北高第一学期期末模拟卷"
+                  score="优秀"
+                  :meta="['20 题', '45 分钟', '满分 100']"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- Expressions -->
         <section id="expressions" class="ds-section">
           <div class="ds-section__head">
             <SosEyebrow>EXPRESSION</SosEyebrow>
             <SosTitle as="h2" size="xl">五个平行世界</SosTitle>
             <SosCopy>
-              同一张卡片解剖，在五种表达模式下的不同气质——配色、圆角、阴影与字体随语义 token
-              切换。
+              同一张卡片解剖，在五种表达模式下的不同气质——配色、圆角、阴影与字体随语义 token 切换。
             </SosCopy>
           </div>
           <div

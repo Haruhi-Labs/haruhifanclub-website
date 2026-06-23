@@ -239,6 +239,47 @@ body {
   gap: var(--sos-space-5);
 }
 
+.ds-content code {
+  font-family: var(--sos-font-mono);
+  font-size: 0.86em;
+  background: var(--sos-bg-subtle);
+  padding: 0.08em 0.36em;
+  border-radius: var(--sos-radius-xs);
+}
+
+/* 业务卡片陈列：每张卡置于其原生表达模式 */
+.ds-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: var(--sos-space-5);
+}
+.ds-card-cell {
+  display: grid;
+  gap: var(--sos-space-3);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-lg);
+  background: var(--sos-bg-page);
+  background-image: var(--sos-page-texture);
+  background-size: var(--sos-page-texture-size, auto);
+  padding: var(--sos-space-5);
+}
+.ds-card-cell__bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+}
+.ds-card-cell__name {
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-bold);
+}
+.ds-card-cell__stage {
+  display: grid;
+  align-content: center;
+  min-height: 20rem;
+}
+
 @media (max-width: 900px) {
   .ds {
     grid-template-columns: 1fr;
