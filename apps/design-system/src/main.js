@@ -145,9 +145,12 @@ const navItems = [
   ['overview', '总览'],
   ['architecture', '接入结构'],
   ['foundations', '基础规范'],
+  ['layout', '布局原语'],
   ['components', '基础组件'],
+  ['contracts', '组件契约'],
   ['expressions', '表达模式'],
   ['voice', '组件变声'],
+  ['quality', '状态响应式'],
   ['migration', '迁移验收'],
 ]
 
@@ -171,6 +174,82 @@ const spacingScale = [
   ['80 / 96', '大区段', '只用于首页或专题页首屏级区段，后台和密集页慎用。'],
 ]
 
+const layoutPrimitives = [
+  ['Stack', '.sos-stack', '纵向信息组。标题、说明、表单、状态列表默认用 Stack 管理间距。'],
+  ['Inline', '.sos-inline', '同行工具组。按钮、Badge、短操作集合可换行，不拉伸子项。'],
+  ['Cluster', '.sos-cluster', '两端或多组对齐。卡片 footer、标题栏和统计行优先用 Cluster。'],
+  ['Grid', '.sos-grid', '自适应卡片网格。只定义最小列宽和 gap，不在业务页硬写列数。'],
+  ['Surface', '.sos-surface', '页面内有边界的承载面。用于控制边框、圆角、背景和 elevation。'],
+  [
+    'MediaFrame',
+    '.sos-media-frame',
+    '媒体比例容器。商品 1:1、作品 4:3、书封 2:3 必须通过 ratio 声明。',
+  ],
+]
+
+const componentContracts = [
+  [
+    'Button',
+    'button / a.sos-button',
+    'primary · secondary · ghost · danger · sm · lg',
+    'hover · active · focus-visible · disabled · loading',
+    '只承载明确命令；图标按钮以后单独封装为 IconButton。',
+  ],
+  [
+    'Badge',
+    'span.sos-badge',
+    'default · accent · solid · outline · signal',
+    'default · selected · disabled by parent',
+    '只表达状态、分类或短标签；不能作为段落标题或按钮替代品。',
+  ],
+  [
+    'Field',
+    'label.sos-field > label/input/help',
+    'input · textarea · select',
+    'focus · disabled · error · help · required',
+    'Label 不被 placeholder 替代；错误态必须有文字证据。',
+  ],
+  [
+    'Card',
+    '.sos-card + body/footer/media',
+    'flat · raised · interactive · composition recipe',
+    'hover · focus-within · selected · loading · empty',
+    '卡片内部节奏由 body/footer/media anatomy 管理，页面不得临时改 padding。',
+  ],
+  [
+    'Notice',
+    '.sos-notice > icon/content/action',
+    'info · warning · success · danger',
+    'dismissible · action · compact',
+    '用于系统提示，不用于普通营销文案。',
+  ],
+  [
+    'Progress',
+    '.sos-progress > meta/track/fill',
+    'default · compact · segmented later',
+    '0 · in-progress · complete · error',
+    '进度数字常驻显示，不能只依赖颜色或 hover。',
+  ],
+]
+
+const stateRows = [
+  ['Default', '信息完整、操作可用、无悬浮依赖。'],
+  ['Hover', '只增强可点击感；不能出现新关键信息。'],
+  ['Focus-visible', '键盘焦点必须比边框清晰，不能只靠阴影。'],
+  ['Disabled', '降低可操作性但保留 label，必要时说明原因。'],
+  ['Loading', '锁定重复提交，保留当前上下文和进度反馈。'],
+  ['Empty / Error', '给出下一步动作；错误不能只用红色表达。'],
+]
+
+const responsiveRules = [
+  ['320-390', 'Phone', '单列；核心操作 44px 以上；所有卡片不能依赖 hover。'],
+  ['640', 'Large Phone', '工具组允许换行；FilterBar 可折叠为抽屉或段落。'],
+  ['768', 'Tablet', '列表与详情可以并排；卡片网格最小列宽驱动。'],
+  ['1024', 'Laptop', '常规后台和内容页进入双栏；侧栏允许 sticky。'],
+  ['1280', 'Desktop', '内容容器锁定 1248px；大网格使用 1472px。'],
+  ['1440+', 'Wide', '只增加留白和列数，不放大字体或卡片内部 padding。'],
+]
+
 const app = document.querySelector('#app')
 const markdownUrl = URL.createObjectURL(
   new Blob([designMarkdown], { type: 'text/markdown;charset=utf-8' })
@@ -183,7 +262,7 @@ app.innerHTML = `
         <span class="ds-brand__mark"><img src="${logoUrl}" alt="" aria-hidden="true"></span>
         <span>
           <strong>SOS / Parallel Design System</strong>
-          <small>项目内正式设计规范 · v1.0.0-rc1</small>
+          <small>项目内正式设计规范 · v0.2.0</small>
         </span>
       </a>
       <a class="sos-button sos-button--secondary sos-button--sm" href="${markdownUrl}" download="DESIGN_SYSTEM.md">Markdown 规范</a>
@@ -204,7 +283,7 @@ app.innerHTML = `
         <section class="ds-hero" id="overview">
           <p class="sos-eyebrow">One Spine, Five Worlds</p>
           <h1>一套骨架，五个平行世界。</h1>
-          <p class="ds-hero__lead">这份规范把外部设计系统材料重新整理为 haruhifanclub monorepo 可执行的接入方案：先建立 CSS Token、组件 class contract 和文档页，再让 news、shop、art、library、exam 按风险逐步迁移。</p>
+          <p class="ds-hero__lead">v0.2 把设计系统从“可看的规范页”推进到“可执行的工程契约”：Token、布局原语、组件 anatomy、状态矩阵和响应式规则先稳定，再进入 Vue UI 库。</p>
           <div class="ds-hero__actions">
             <a class="sos-button sos-button--primary sos-button--lg" href="#architecture">查看接入结构</a>
             <a class="sos-button sos-button--secondary sos-button--lg" href="#expressions">浏览表达模式</a>
@@ -212,7 +291,7 @@ app.innerHTML = `
           <dl class="ds-metrics" aria-label="设计系统关键数字">
             <div><dt>3</dt><dd>Primitive / Semantic / Expression</dd></div>
             <div><dt>5</dt><dd>业务表达模式</dd></div>
-            <div><dt>0</dt><dd>第一阶段强制重写页面</dd></div>
+            <div><dt>6</dt><dd>layout primitives</dd></div>
           </dl>
         </section>
 
@@ -346,6 +425,43 @@ import '@haruhi/design-system/components.css'
           </div>
         </section>
 
+        <section class="ds-section" id="layout">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">Layout Primitives</p>
+            <h2>先稳定间距，再封装组件</h2>
+            <p>v0.2 新增框架无关布局原语。它们不替代业务组件，而是让卡片内部、工具组、媒体比例和页面网格不再靠局部 CSS 猜测。</p>
+          </div>
+          <div class="ds-primitive-grid">
+            ${layoutPrimitives
+              .map(
+                ([name, className, usage]) => `
+              <article class="ds-primitive-card">
+                <code>${className}</code>
+                <h3>${name}</h3>
+                <p>${usage}</p>
+              </article>
+            `
+              )
+              .join('')}
+          </div>
+          <div class="ds-layout-lab sos-surface">
+            <div class="sos-stack">
+              <span class="sos-badge sos-badge--signal">Stack</span>
+              <h3>内容组只处理垂直节奏</h3>
+              <p>标题、正文、帮助文字和状态之间使用 Stack，而不是在每个子元素上追加 margin。</p>
+            </div>
+            <div class="sos-stack sos-stack--tight">
+              <span class="sos-badge sos-badge--accent">MediaFrame</span>
+              <div class="sos-grid" style="--sos-grid-min: 7rem; --sos-grid-gap: var(--sos-space-3)">
+                <div class="sos-media-frame" data-ratio="1:1"><img alt="" src="${productImage}"></div>
+                <div class="sos-media-frame" data-ratio="4:3"><img alt="" src="${artImage}"></div>
+                <div class="sos-media-frame" data-ratio="2:3"><span class="ds-book-mini">书</span></div>
+              </div>
+              <p>比例写在容器上，图片只负责 cover。页面不再通过固定高度猜测卡片形态。</p>
+            </div>
+          </div>
+        </section>
+
         <section class="ds-section" id="components">
           <div class="ds-section__header">
             <p class="sos-eyebrow">Components</p>
@@ -393,6 +509,36 @@ import '@haruhi/design-system/components.css'
                 <div class="sos-progress__track"><span class="sos-progress__fill" style="width:40%"></span></div>
               </div>
             </article>
+          </div>
+        </section>
+
+        <section class="ds-section" id="contracts">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">Component Contract</p>
+            <h2>UI 库先封装稳定 anatomy</h2>
+            <p>后续 <code>packages/ui</code> 只封装这些已经稳定的基础组件。业务卡片先作为 recipe 验证，不急着抽成跨站组件。</p>
+          </div>
+          <div class="ds-contract-table" role="table" aria-label="Component contract matrix">
+            <div role="row" class="ds-contract-row ds-contract-row--head">
+              <span>组件</span>
+              <span>Anatomy</span>
+              <span>Variants</span>
+              <span>States</span>
+              <span>规则</span>
+            </div>
+            ${componentContracts
+              .map(
+                ([name, anatomy, variants, states, rule]) => `
+              <div role="row" class="ds-contract-row">
+                <strong>${name}</strong>
+                <code>${anatomy}</code>
+                <span>${variants}</span>
+                <span>${states}</span>
+                <p>${rule}</p>
+              </div>
+            `
+              )
+              .join('')}
           </div>
         </section>
 
@@ -476,6 +622,57 @@ import '@haruhi/design-system/components.css'
               </div>
             </div>
           </article>
+        </section>
+
+        <section class="ds-section" id="quality">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">States & Responsive</p>
+            <h2>状态和断点必须成为验收条件</h2>
+            <p>成熟设计系统不是只有默认态。每个进入 UI 库的组件都必须有状态矩阵和响应式行为，预览页、截图和 PR 描述都要能证明。</p>
+          </div>
+          <div class="ds-quality-grid">
+            <article class="ds-quality-panel">
+              <h3>组件状态矩阵</h3>
+              <div class="ds-state-list">
+                ${stateRows
+                  .map(
+                    ([state, rule]) => `
+                  <div>
+                    <strong>${state}</strong>
+                    <span>${rule}</span>
+                  </div>
+                `
+                  )
+                  .join('')}
+              </div>
+            </article>
+            <article class="ds-quality-panel">
+              <h3>响应式断点</h3>
+              <div class="ds-responsive-list">
+                ${responsiveRules
+                  .map(
+                    ([width, name, rule]) => `
+                  <div>
+                    <code>${width}</code>
+                    <strong>${name}</strong>
+                    <span>${rule}</span>
+                  </div>
+                `
+                  )
+                  .join('')}
+              </div>
+            </article>
+          </div>
+          <div class="ds-state-demo sos-surface sos-surface--raised">
+            <button class="sos-button sos-button--primary">Default</button>
+            <button class="sos-button sos-button--secondary">Secondary</button>
+            <button class="sos-button sos-button--primary" disabled>Disabled</button>
+            <label class="sos-field">
+              <span class="sos-field__label">Focus / Help</span>
+              <input class="sos-input" value="状态必须可见" aria-label="状态矩阵示例">
+              <span class="sos-field__help">状态样式要能被键盘、截图和读屏验收。</span>
+            </label>
+          </div>
         </section>
 
         <section class="ds-section" id="migration">

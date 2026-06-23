@@ -38,6 +38,112 @@
   width: min(var(--sos-container-reading), calc(100% - 2rem));
 }
 
+/* Layout primitives */
+.sos-stack {
+  display: grid;
+  gap: var(--sos-stack-gap, var(--sos-space-4));
+}
+
+.sos-stack--tight {
+  --sos-stack-gap: var(--sos-space-2);
+}
+
+.sos-stack--loose {
+  --sos-stack-gap: var(--sos-space-6);
+}
+
+.sos-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sos-inline-gap, var(--sos-space-3));
+}
+
+.sos-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: var(--sos-cluster-align, center);
+  justify-content: var(--sos-cluster-justify, space-between);
+  gap: var(--sos-cluster-gap, var(--sos-space-4));
+}
+
+.sos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--sos-grid-min, 16rem)), 1fr));
+  gap: var(--sos-grid-gap, var(--sos-space-4));
+}
+
+.sos-split {
+  display: grid;
+  grid-template-columns: minmax(0, var(--sos-split-left, 1fr)) minmax(
+      0,
+      var(--sos-split-right, 1fr)
+    );
+  gap: var(--sos-split-gap, var(--sos-space-6));
+  align-items: var(--sos-split-align, start);
+}
+
+.sos-surface {
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-card-radius);
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-primary);
+}
+
+.sos-surface--subtle {
+  background: var(--sos-bg-subtle);
+}
+
+.sos-surface--raised {
+  box-shadow: var(--sos-card-shadow);
+}
+
+.sos-media-frame {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: var(--sos-media-aspect, 4 / 3);
+  border-radius: var(--sos-media-radius);
+  background: var(--sos-bg-subtle);
+}
+
+.sos-media-frame > img,
+.sos-media-frame > video,
+.sos-media-frame > picture,
+.sos-media-frame > picture > img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.sos-media-frame[data-ratio='1:1'] {
+  --sos-media-aspect: 1 / 1;
+}
+
+.sos-media-frame[data-ratio='4:3'] {
+  --sos-media-aspect: 4 / 3;
+}
+
+.sos-media-frame[data-ratio='3:4'] {
+  --sos-media-aspect: 3 / 4;
+}
+
+.sos-media-frame[data-ratio='2:3'] {
+  --sos-media-aspect: 2 / 3;
+}
+
+.sos-state-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
 .sos-eyebrow {
   display: inline-flex;
   align-items: center;
