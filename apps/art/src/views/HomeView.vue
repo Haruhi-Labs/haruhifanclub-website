@@ -353,6 +353,7 @@ function releaseShiftCapture(event) {
 
 function showShiftWheel(event) {
   if (event?.button !== undefined && event.button !== 0) return
+  if (shiftHovering.value) return
   cancelShiftInertia()
   shiftHovering.value = true
 }
