@@ -1,51 +1,7 @@
 <template>
   <div class="news-home-flow">
-    <section v-if="viewType === 'home'" class="news-hero">
-      <header class="sos-page-header news-page-header">
-        <div class="sos-page-header__content">
-          <p class="sos-eyebrow sos-page-header__eyebrow">News Desk</p>
-          <h1 class="sos-page-header__title">春日团报</h1>
-          <p class="sos-page-header__copy">
-            记录社团项目、活动通知和成员投稿。标题、摘要、日期和来源优先，明黄色只做置顶和重点线索。
-          </p>
-          <p class="sos-page-header__meta">
-            {{ filteredArticles.length }} 篇文章 · {{ store.allTags.length }} 个标签 · 发布时间倒序
-          </p>
-        </div>
-        <div class="sos-page-header__actions">
-          <button
-            class="sos-button sos-button--secondary"
-            type="button"
-            @click="store.toggleSearch"
-          >
-            搜索团报
-          </button>
-          <router-link class="sos-button sos-button--primary" to="/submit">我要投稿</router-link>
-        </div>
-      </header>
-
-      <div class="sos-toolbar sos-toolbar--surface news-toolbar">
-        <div class="sos-toolbar__group">
-          <span class="sos-badge sos-badge--signal">置顶优先</span>
-          <span class="sos-badge sos-badge--outline">双栏阅读流</span>
-          <span class="sos-badge sos-badge--outline">真实日期</span>
-        </div>
-        <div class="sos-toolbar__group news-toolbar__tags">
-          <button
-            v-for="t in store.allTags.slice(0, 5)"
-            :key="t"
-            class="news-chip"
-            type="button"
-            @click="$router.push(`/tag/${t}`)"
-          >
-            #{{ t }}
-          </button>
-        </div>
-      </div>
-    </section>
-
     <section
-      v-else-if="viewType === 'author'"
+      v-if="viewType === 'author'"
       class="news-context-header news-context-header--author"
     >
       <img
@@ -54,23 +10,21 @@
         class="author-avatar"
       />
       <div>
-        <p class="sos-eyebrow">Author</p>
+        <p class="sos-eyebrow">作者</p>
         <h1>{{ route.params.author }}</h1>
-        <p>{{ filteredArticles.length }} 篇文章 · 默认作者为凉宫春日应援团</p>
+        <p>{{ filteredArticles.length }} 篇文章</p>
       </div>
     </section>
 
     <section v-else-if="viewType === 'search'" class="news-context-header">
       <div>
-        <p class="sos-eyebrow">Search</p>
-        <h1>搜索结果：“{{ store.searchQuery }}”</h1>
-        <p>{{ filteredArticles.length }} 篇文章匹配当前关键词</p>
+        <h1>搜索结果: "{{ store.searchQuery }}"</h1>
+        <p>{{ filteredArticles.length }} 篇文章</p>
       </div>
     </section>
 
-    <section v-else :class="headerClass" class="news-context-header">
+    <section v-else-if="viewType !== 'home'" :class="headerClass" class="news-context-header">
       <div>
-        <p class="sos-eyebrow">{{ viewType === 'tag' ? 'Tag' : 'Participant' }}</p>
         <h1>{{ headerTitle }}</h1>
         <p>{{ filteredArticles.length }} 篇相关文章</p>
       </div>
@@ -78,6 +32,34 @@
 
     <div class="content-columns">
       <div class="column-left">
+        <div
+          v-if="viewType === 'home'"
+          class="home-banner"
+        >
+          <div class="banner-bg">
+            <div class="banner-radial-gradient"></div>
+            <svg class="banner-noise-svg">
+              <filter id="noiseFilter">
+                <feTurbulence
+                  type="fractalNoise"
+                  baseFrequency="0.8"
+                  numOctaves="3"
+                  stitchTiles="stitch"
+                />
+              </filter>
+              <rect
+                width="100%"
+                height="100%"
+                filter="url(#noiseFilter)"
+              />
+            </svg>
+          </div>
+
+          <div class="banner-logo-wrapper">
+            <img src="/春日团报白.png" alt="春日团报 Logo" class="banner-logo-img">
+          </div>
+        </div>
+
         <NewsCard
           v-for="article in leftCol"
           :key="article.id"
@@ -206,7 +188,7 @@ const filteredArticles = computed(() => {
     const defaultName = '凉宫春日应援团'
 
     list = list.filter((a) => {
-      // 如果文章没有作者，则视为默认作者
+      // 后端旧数据可能没有显式作者字段。
       const articleAuthor = a.author || defaultName
       return articleAuthor === targetAuthor
     })
@@ -301,7 +283,6 @@ watch(
   gap: var(--sos-space-8);
 }
 
-.news-hero,
 .news-context-header {
   border: 1px solid var(--sos-border-strong);
   border-radius: var(--sos-radius-sm);
@@ -309,26 +290,6 @@ watch(
   box-shadow: var(--sos-shadow-hairline);
 }
 
-.news-hero {
-  display: grid;
-  gap: var(--sos-space-5);
-  padding: var(--sos-space-6);
-}
-
-.news-page-header {
-  padding-block: 0;
-}
-
-.news-toolbar {
-  border-color: var(--sos-border-default);
-  border-radius: var(--sos-radius-sm);
-}
-
-.news-toolbar__tags {
-  justify-content: flex-end;
-}
-
-.news-chip,
 .tag-item,
 .page-btn {
   border: 1px solid var(--sos-border-default);
@@ -345,12 +306,10 @@ watch(
     transform var(--sos-duration-fast) var(--sos-ease-out);
 }
 
-.news-chip,
 .tag-item {
   padding: 0.45rem 0.7rem;
 }
 
-.news-chip:hover,
 .tag-item:hover,
 .page-btn:hover {
   border-color: var(--sos-ink-950);
@@ -396,6 +355,63 @@ watch(
   border: 1px solid var(--sos-border-default);
   border-radius: var(--sos-radius-full);
   background: var(--sos-bg-subtle);
+}
+
+.home-banner {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 10rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--sos-border-strong);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-ink-950);
+  box-shadow: var(--sos-shadow-hairline);
+}
+
+.banner-bg,
+.banner-radial-gradient,
+.banner-noise-svg {
+  position: absolute;
+  inset: 0;
+}
+
+.banner-bg {
+  background: #171717;
+}
+
+.banner-radial-gradient {
+  opacity: 0.2;
+  background: radial-gradient(circle at center, #374151, #000, #000);
+}
+
+.banner-noise-svg {
+  width: 100%;
+  height: 100%;
+  opacity: 0.2;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+.banner-logo-wrapper {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sos-space-4);
+}
+
+.banner-logo-img {
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
 }
 
 .content-columns {
@@ -495,7 +511,6 @@ watch(
 }
 
 @media (max-width: 767px) {
-  .news-hero,
   .news-context-header {
     padding: var(--sos-space-5);
   }

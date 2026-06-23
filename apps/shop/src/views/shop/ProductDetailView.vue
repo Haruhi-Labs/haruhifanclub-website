@@ -44,13 +44,13 @@
                                 <span class="detail-presale-label">开做条件</span>
                                 <span class="detail-presale-value">支付件数达到 {{ presaleProgress.target }}</span>
                             </div>
-                            <SosProgress
-                                class="detail-presale-progress"
-                                :value="presaleProgress.paidCount"
-                                :max="presaleProgress.target || 1"
-                                label="预售进度"
-                                :value-label="`${presaleProgress.paidCount}/${presaleProgress.target || '-'} · ${Math.round(presaleProgress.percent)}%`"
-                            />
+                            <div class="detail-presale-progress-track">
+                                <span :style="{ width: `${presaleProgress.percent}%` }"></span>
+                            </div>
+                            <div class="detail-presale-progress-meta">
+                                <span>已支付 {{ presaleProgress.paidCount }} / {{ presaleProgress.target }}</span>
+                                <span>{{ presaleProgress.percent }}%</span>
+                            </div>
                             <p class="detail-presale-note">
                                 {{ presaleProgress.reached ? '已达到开做目标，正在推进生产。' : '进度会随着已支付订单实时更新。' }}
                             </p>
@@ -138,7 +138,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useShopStore } from '@/stores/shopStore'
-import { SosButton, SosProgress } from '@haruhi/ui'
+import { SosButton } from '@haruhi/ui'
 
 const route = useRoute()
 const router = useRouter()

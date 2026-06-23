@@ -17,7 +17,10 @@ const router = useRouter()
 
 const open = ref(false)
 const user = computed(() => session.state.user)
-const initial = computed(() => (user.value?.nickname || user.value?.email || 'U').slice(0, 1).toUpperCase())
+const initial = computed(() =>
+  (user.value?.nickname || user.value?.email || 'U').slice(0, 1).toUpperCase()
+)
+const accountLabel = computed(() => user.value?.nickname || user.value?.email || '')
 
 onMounted(() => {
   if (!session.state.ready) session.refresh()
@@ -41,25 +44,34 @@ async function logout() {
 </script>
 
 <template>
-  <div class="hauth-root hauth-menu" ref="rootEl">
+  <div ref="rootEl" class="hauth-root hauth-menu">
     <!-- 未登录 -->
-    <button v-if="!user" class="hauth-btn hauth-btn--sm" @click="goLogin">登录 / 注册</button>
+    <button v-if="!user" class="hauth-account-action" @click="goLogin">登录 / 注册</button>
 
     <!-- 已登录 -->
     <template v-else>
-      <button class="hauth-trigger" @click="open = !open" aria-haspopup="true" :aria-expanded="open">
+      <button
+        class="hauth-trigger"
+        aria-haspopup="true"
+        :aria-expanded="open"
+        @click="open = !open"
+      >
         <img v-if="user.avatar" :src="user.avatar" class="hauth-avatar" alt="" />
         <span v-else class="hauth-avatar">{{ initial }}</span>
-        <span class="hauth-trigger-name">{{ user.nickname || user.email }}</span>
+        <span v-if="accountLabel" class="hauth-trigger-name">{{ accountLabel }}</span>
       </button>
       <div v-if="open" class="hauth-dropdown">
         <div class="hauth-dropdown-head">
           <div class="hauth-dropdown-name">{{ user.nickname || '未命名' }}</div>
           <div class="hauth-dropdown-mail">{{ user.email || user.username }}</div>
-          <span v-if="!user.emailVerified" class="hauth-badge hauth-badge--warn" style="margin-top:6px">邮箱未验证</span>
+          <span v-if="!user.emailVerified" class="hauth-badge hauth-badge--warn"> 邮箱未验证 </span>
         </div>
-        <router-link class="hauth-item" :to="profilePath" @click="open = false">个人资料</router-link>
-        <router-link class="hauth-item" :to="settingsPath" @click="open = false">账号设置</router-link>
+        <router-link class="hauth-item" :to="profilePath" @click="open = false">
+          个人资料
+        </router-link>
+        <router-link class="hauth-item" :to="settingsPath" @click="open = false">
+          账号设置
+        </router-link>
         <button class="hauth-item hauth-item--danger" @click="logout">退出登录</button>
       </div>
     </template>

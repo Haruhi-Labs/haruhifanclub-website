@@ -32,8 +32,8 @@ articles = [
         "type": "news",
         "title": "北高校园祭筹备进入最终检查",
         "subtitle": "活动组完成摊位、排队和志愿者排班复核",
-        "preview": "团报页面强调标题、摘要与日期。置顶文章要在不依赖 hover 的情况下显示专题、参与者、标签和发布时间。",
-        "summary": "团报页面强调标题、摘要与日期。",
+        "preview": "校园祭摊位复核完成，志愿者排班表已同步到活动组。",
+        "summary": "校园祭摊位复核完成。",
         "date": "2026-06-23",
         "isPinned": True,
         "pinOrder": 1,
@@ -49,7 +49,7 @@ articles = [
         "type": "news",
         "title": "凉宫春日动画台词匹配站发布",
         "subtitle": "支持凉宫与京阿尼作品台词查询",
-        "preview": "工具类项目需要把来源、发布时间和标签放在用户可以扫读的位置。界面不能用装饰盖过真实内容。",
+        "preview": "台词匹配站新增作品筛选和出处跳转，首批数据已经开放查询。",
         "date": "2026-06-20",
         "tags": ["技术", "工具", "发布"],
         "participants": [{"name": "开发组", "role": "检索系统", "project": "台词匹配"}],
@@ -60,7 +60,7 @@ articles = [
         "type": "post",
         "title": "长门有希的书架维护记录",
         "subtitle": "阅读区目录、书签与返回动作调整",
-        "preview": "长文和书目需要连续阅读线索。摘要区域保持高对比，标签和日期保留在卡片底部。",
+        "preview": "书架目录重新整理，部分长文补充了书签和返回入口。",
         "date": "2026-06-18",
         "author": "长门有希的书架",
         "tags": ["阅读", "书架", "维护"],
@@ -70,7 +70,7 @@ articles = [
         "type": "news",
         "title": "投稿审核规则更新：授权字段必须完整",
         "subtitle": "个人作品、网络转载和社团授权分开记录",
-        "preview": "上传、审核和授权必须有明确文字证据。错误、空状态和待处理状态不能只用颜色表达。",
+        "preview": "投稿表单新增授权来源字段，待审核作品会按来源分组记录。",
         "date": "2026-06-16",
         "tags": ["投稿", "审核", "授权"],
         "participants": [{"name": "美术部审核", "role": "授权核验", "project": "作品投稿"}],
@@ -80,8 +80,8 @@ articles = [
         "id": 5,
         "type": "post",
         "title": "奖品兑换库存每周复核",
-        "subtitle": "预售、现货和发货状态必须常驻",
-        "preview": "交易信息需要被比较和追踪。价格、库存和订单状态应当在商城切片中进一步重构。",
+        "subtitle": "预售、现货和发货状态每周同步",
+        "preview": "本周库存已复核，部分兑换品补充了发货说明。",
         "date": "2026-06-12",
         "author": "春日商城",
         "tags": ["商城", "库存", "订单"],
@@ -109,7 +109,7 @@ def check_page(page, name):
     metrics = page.evaluate("""() => ({
         overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         cardCount: document.querySelectorAll('.news-card').length,
-        hasHero: !!document.querySelector('.news-hero'),
+        hasHomeBanner: !!document.querySelector('.home-banner .banner-logo-img'),
         firstCardText: document.querySelector('.news-card')?.innerText || '',
     })""")
     print(f"{name}: {metrics}")
@@ -117,8 +117,8 @@ def check_page(page, name):
         raise AssertionError(f"{name} overflowX={metrics['overflowX']}")
     if metrics["cardCount"] < 4:
         raise AssertionError(f"{name} cardCount={metrics['cardCount']}")
-    if not metrics["hasHero"]:
-        raise AssertionError(f"{name} missing .news-hero")
+    if not metrics["hasHomeBanner"]:
+        raise AssertionError(f"{name} missing home banner")
     if "2026-06-23" not in metrics["firstCardText"] or "置顶" not in metrics["firstCardText"]:
         raise AssertionError(f"{name} first card missing stable date or pinned state")
     return path

@@ -39,13 +39,9 @@
                             {{ getPresaleProgress(item).paidCount }}/{{ getPresaleProgress(item).target }}
                         </span>
                     </div>
-                    <SosProgress
-                        class="shop-product-progress"
-                        :value="getPresaleProgress(item).paidCount"
-                        :max="getPresaleProgress(item).target || 1"
-                        label="预售进度"
-                        :value-label="getPresaleValueLabel(item)"
-                    />
+                    <div class="card-presale-track">
+                        <span :style="{ width: `${getPresaleProgress(item).percent}%` }"></span>
+                    </div>
                     <p class="card-presale-tip">
                         {{ getPresaleProgress(item).reached ? '已达标' : '订单持续累计中' }}
                     </p>
@@ -77,7 +73,7 @@
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useShopStore } from '@/stores/shopStore'
-import { SosButton, SosProgress } from '@haruhi/ui'
+import { SosButton } from '@haruhi/ui'
 
 const store = useShopStore()
 const router = useRouter()
@@ -115,10 +111,6 @@ const hasDiscount = (item) => store.hasProductDiscount(item)
 const getDisplayPrice = (item) => store.resolveProductPrice(item)
 const getPresaleProgress = (item) => store.getPresaleProgress(item)
 const getFixedPresaleDateText = (item) => store.formatFixedPresaleDate(item)
-const getPresaleValueLabel = (item) => {
-    const progress = getPresaleProgress(item)
-    return `${progress.paidCount}/${progress.target || '-'} · ${Math.round(progress.percent)}%`
-}
 const goToProduct = (item) => {
     router.push(`/product/${item.id}`)
 }

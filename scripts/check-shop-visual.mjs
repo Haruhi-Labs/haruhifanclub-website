@@ -43,7 +43,7 @@ products = [
     {
         "id": 1,
         "name": "朝比奈实玖瑠 fufu",
-        "desc": "达到目标后进入统一排产，订单持续累计中。",
+        "desc": "达标后统一排产，订单持续累计中。",
         "price": 168,
         "discountPrice": 147,
         "stock": 0,
@@ -58,7 +58,7 @@ products = [
             {"key": "尺寸", "val": "约 20cm"},
             {"key": "发货", "val": "达标后统一排产"}
         ],
-        "detailText": "预售进度、价格、运费和购买动作必须在详情页常驻展示。",
+        "detailText": "实玖瑠 fufu 预售中，达标后统一排产。",
         "detailImages": [svg_data("#f7f8f9", "#3478f6", "detail")]
     },
     {
@@ -74,7 +74,7 @@ products = [
         "shippingCost": 8,
         "presaleMode": "none",
         "specs": [{"key": "材质", "val": "金属烤漆"}],
-        "detailText": "现货商品必须显示库存和购买动作。",
+        "detailText": "现货少量补充，适合作为活动签到纪念。",
         "detailImages": []
     },
     {
@@ -92,7 +92,7 @@ products = [
         "presaleFixedDateType": "month_end",
         "presaleFixedDateValue": "2026-07",
         "specs": [{"key": "规格", "val": "12 枚/组"}],
-        "detailText": "排期预售需要明确发货时间。",
+        "detailText": "排期预售，活动前集中发货。",
         "detailImages": []
     },
     {
@@ -108,7 +108,7 @@ products = [
         "shippingCost": 10,
         "presaleMode": "none",
         "specs": [{"key": "尺寸", "val": "A4"}],
-        "detailText": "文具类商品需要稳定的图片比例和价格可读性。",
+        "detailText": "日常文具周边，适合与徽章一起结算。",
         "detailImages": []
     },
 ]
@@ -145,7 +145,7 @@ def check_home(page, name):
                 return rect.width > 0 && rect.height > 0
             }).length,
             overlayDisplay: overlay ? getComputedStyle(overlay).display : 'missing',
-            hasHeaderBrand: !!document.querySelector('.shop-header-brand .sos-brand-lockup__mark img'),
+            hasHeaderBrand: !!document.querySelector('.shop-header-brand .brand-logo-img'),
         }
     }""")
     print(f"{name}: {metrics}")
@@ -154,7 +154,7 @@ def check_home(page, name):
     if metrics["cardCount"] < 4:
         raise AssertionError(f"{name} cardCount={metrics['cardCount']}")
     first_text = metrics["firstCardText"]
-    for expected in ["朝比奈实玖瑠 fufu", "¥147", "¥168", "预售进度", "126/200", "预售商品", "加入购物车"]:
+    for expected in ["朝比奈实玖瑠 fufu", "¥147", "¥168", "进度预售", "126/200", "预售商品", "加入购物车"]:
         if expected not in first_text:
             raise AssertionError(f"{name} first card missing {expected}")
     if metrics["visibleActions"] < 4:
@@ -175,7 +175,7 @@ def check_detail(page):
         price: document.querySelector('.price-box')?.innerText || '',
         presale: document.querySelector('.detail-presale-card')?.innerText || '',
         actions: Array.from(document.querySelectorAll('.action-row .sos-button')).map((el) => el.innerText).join(' / '),
-        hasHeaderBrand: !!document.querySelector('.mini-header-detail .shop-header-brand .sos-brand-lockup__mark img'),
+        hasHeaderBrand: !!document.querySelector('.mini-header-detail .shop-header-brand .brand-logo-img'),
     })""")
     print(f"detail: {metrics}")
     if metrics["overflowX"] != 0:
@@ -185,7 +185,7 @@ def check_detail(page):
     for expected in ["应援价", "¥147", "¥168", "预售"]:
         if expected not in metrics["price"]:
             raise AssertionError(f"detail price box missing {expected}")
-    for expected in ["开做条件", "126/200", "预售进度"]:
+    for expected in ["开做条件", "已支付 126 / 200"]:
         if expected not in metrics["presale"]:
             raise AssertionError(f"detail presale missing {expected}")
     for expected in ["立即购买", "加入购物车"]:

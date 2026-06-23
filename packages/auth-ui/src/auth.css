@@ -12,6 +12,17 @@
   --hauth-ok: #16a34a;
   --hauth-radius: 14px;
   --hauth-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  --hauth-menu-bg: rgba(255, 255, 255, 0.9);
+  --hauth-menu-bg-hover: #ffffff;
+  --hauth-menu-fg: #1f2328;
+  --hauth-menu-border: rgba(17, 24, 39, 0.14);
+  --hauth-menu-border-hover: rgba(17, 24, 39, 0.22);
+  --hauth-menu-shadow: 0 8px 22px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  --hauth-menu-shadow-hover:
+    0 10px 24px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  --hauth-avatar-bg: #ffffff;
+  --hauth-avatar-fg: var(--hauth-accent);
+  --hauth-avatar-border: rgba(17, 24, 39, 0.12);
 
   color: var(--hauth-fg);
   font-family: inherit;
@@ -100,7 +111,9 @@
   font-size: 0.95rem;
   color: var(--hauth-fg);
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
   font-family: inherit;
 }
 .hauth-input:focus,
@@ -123,7 +136,9 @@
   padding: 12px;
   border-radius: 10px;
   cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
 }
 .hauth-btn:hover:not(:disabled) {
   background: var(--hauth-accent-hover);
@@ -213,40 +228,109 @@
 /* 头部账号菜单 */
 .hauth-menu {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   font-family: inherit;
 }
+
+.hauth-account-action,
+.hauth-trigger {
+  min-height: 36px;
+  border: 1px solid var(--hauth-menu-border);
+  border-radius: 999px;
+  background: var(--hauth-menu-bg);
+  box-shadow: var(--hauth-menu-shadow);
+  color: var(--hauth-menu-fg);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+}
+
+.hauth-account-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 750;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.hauth-account-action:hover,
+.hauth-trigger:hover {
+  border-color: var(--hauth-menu-border-hover);
+  background: var(--hauth-menu-bg-hover);
+  box-shadow: var(--hauth-menu-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.hauth-account-action:focus-visible,
+.hauth-trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--hauth-accent) 52%, transparent);
+  outline-offset: 2px;
+}
+
+.hauth-account-action:active,
+.hauth-trigger:active {
+  transform: translateY(0);
+}
+
 .hauth-avatar {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid var(--hauth-border);
-  background: var(--hauth-field-bg);
+  border: 1px solid var(--hauth-avatar-border);
+  background: var(--hauth-avatar-bg);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  color: var(--hauth-accent);
+  color: var(--hauth-avatar-fg);
   cursor: pointer;
   user-select: none;
 }
 .hauth-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  background: 0;
-  border: 0;
-  cursor: pointer;
-  color: inherit;
-  font: inherit;
+  gap: 7px;
+  padding: 3px 10px 3px 4px;
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 750;
+  line-height: 1;
 }
 .hauth-trigger-name {
-  font-size: 0.9rem;
+  font-size: 0.84rem;
   max-width: 8em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .hauth-account-action {
+    min-height: 34px;
+    padding-inline: 12px;
+    font-size: 0.78rem;
+  }
+
+  .hauth-trigger {
+    min-height: 34px;
+    padding-right: 4px;
+  }
+
+  .hauth-trigger-name {
+    display: none;
+  }
 }
 .hauth-dropdown {
   position: absolute;
@@ -275,6 +359,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.hauth-dropdown-head .hauth-badge {
+  margin-top: 6px;
 }
 .hauth-item {
   display: block;
