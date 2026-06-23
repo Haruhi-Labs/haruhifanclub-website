@@ -66,7 +66,7 @@ from playwright.sync_api import sync_playwright
 base_url = os.environ.get("DESIGN_SYSTEM_URL", "http://127.0.0.1:5206/design-system/")
 sections = os.environ.get(
     "DESIGN_SYSTEM_SECTIONS",
-    "overview,manual,adoption,playbook,foundations,tokens,content,layout,components,api,patterns,a11y,quality,migration",
+    "overview,manual,adoption,playbook,foundations,tokens,content,layout,components,recipes,api,patterns,a11y,quality,migration",
 ).split(",")
 widths = [int(value) for value in os.environ.get("DESIGN_SYSTEM_WIDTHS", "390,768,1280,1440").split(",")]
 

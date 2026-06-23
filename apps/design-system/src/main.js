@@ -152,6 +152,7 @@ const navItems = [
   ['content', '内容数据'],
   ['layout', '布局原语'],
   ['components', '基础组件'],
+  ['recipes', '业务 Recipe'],
   ['contracts', '组件契约'],
   ['api', 'UI 路线'],
   ['usage', '组件用法'],
@@ -583,6 +584,161 @@ const uiDecisionMatrix = [
     'L3 · Candidate',
     '只有当多页面共享同一数据契约和状态机时，才进入产品组件评估。',
   ],
+]
+
+const businessRecipes = [
+  {
+    id: 'shop-product',
+    mode: 'shop',
+    title: 'ShopProductCard 商品卡',
+    source: 'apps/shop/src/views/shop/HomeView.vue',
+    purpose:
+      '商品列表首屏必须能比较商品名、价格、预售进度、分类和库存。加入购物车可以是主行动，但价格和库存不能只在 hover 出现。',
+    rules: [
+      '媒体固定 1:1；图片可裁切，卡片高度由内容自然撑开。',
+      '价格、原价、库存、预售目标和发货时间必须常驻。',
+      'hover 只增强可点击感和图片反馈，不新增关键交易信息。',
+    ],
+    sample: `
+      <article class="sos-card sos-product-card sos-card--interactive ds-shop-product-recipe">
+        <div class="sos-product-card__media">
+          <img alt="朝比奈实玖瑠 fufu 商品示意" src="${productImage}">
+          <span class="ds-recipe-floating-badge sos-badge sos-badge--signal">进度预售</span>
+        </div>
+        <div class="sos-card__body">
+          <div class="sos-product-card__title-row">
+            <h3 class="sos-product-card__title">朝比奈实玖瑠 fufu</h3>
+            <div class="ds-price-stack">
+              <strong class="sos-product-card__price">¥ 147</strong>
+              <span>¥ 168</span>
+            </div>
+          </div>
+          <p class="sos-product-card__description">达到目标后进入统一排产，订单持续累计中。</p>
+          <div class="sos-progress">
+            <div class="sos-progress__meta"><span>预售进度</span><strong>126/200 · 63%</strong></div>
+            <div class="sos-progress__track"><span class="sos-progress__fill" style="width:63%"></span></div>
+          </div>
+          <footer class="sos-card__footer ds-recipe-footer">
+            <span class="sos-badge sos-badge--accent">fufu</span>
+            <span class="ds-meta">预售商品</span>
+            <button class="sos-button sos-button--primary sos-button--sm">加入购物车</button>
+          </footer>
+        </div>
+      </article>`,
+  },
+  {
+    id: 'shop-order',
+    mode: 'shop',
+    title: 'OrderStatusRow 订单状态',
+    source: 'apps/shop/src/views/admin/OrdersView.vue',
+    purpose:
+      '后台订单不是普通表格。它同时承载订单号、时间、商品构成、收货信息、金额、状态和批量操作，密度要高但不能丢状态证据。',
+    rules: [
+      '状态标签要同时有文字和 tone，不能只靠颜色区分。',
+      '金额、数量、订单号使用等宽数字，便于扫读和核对。',
+      '批量工具条与筛选区分层，避免把导出、导入、收款混成同一按钮层级。',
+    ],
+    sample: `
+      <article class="ds-order-recipe sos-surface">
+        <header>
+          <div>
+            <strong>#HF20260623017</strong>
+            <span>2026-06-23 21:08</span>
+          </div>
+          <span class="sos-badge sos-badge--accent">待发货</span>
+        </header>
+        <div class="ds-order-recipe__body">
+          <div>
+            <span class="ds-order-recipe__label">商品概览</span>
+            <p>朝比奈实玖瑠 fufu x1<br>团长推荐徽章 x2 <span class="sos-badge sos-badge--outline">预售</span></p>
+          </div>
+          <div>
+            <span class="ds-order-recipe__label">收货信息</span>
+            <p>凉宫春日 · 138****0723<br>兵库县西宫市北高附近</p>
+          </div>
+          <div>
+            <span class="ds-order-recipe__label">金额</span>
+            <strong>¥ 231</strong>
+          </div>
+        </div>
+        <footer>
+          <button class="sos-button sos-button--secondary sos-button--sm">修改收货</button>
+          <button class="sos-button sos-button--primary sos-button--sm">发货</button>
+        </footer>
+      </article>`,
+  },
+  {
+    id: 'art-card',
+    mode: 'art',
+    title: 'ArtworkCard 作品卡',
+    source: 'apps/art/src/components/ArtworkGrid.vue',
+    purpose:
+      '作品是主语，但作者、来源、点赞、标签和审核语义必须可见。画廊可以有悬浮和磨砂，但不能让背景动效破坏阅读。',
+    rules: [
+      '作品媒体使用稳定比例；大图在详情页展示，卡片不靠不定高图片撑布局。',
+      '点赞、作者和标签常驻在媒体之外或可读 scrim 内。',
+      'hover 可以抬升作品，不改变卡片尺寸，不让标签胶囊被拉伸。',
+    ],
+    sample: `
+      <article class="sos-art-card sos-card--interactive ds-art-recipe">
+        <div class="sos-art-card__frame">
+          <img alt="放学后的未知信号作品示意" src="${artImage}">
+          <div class="sos-art-card__veil">
+            <span class="sos-badge sos-badge--signal">个人作品</span>
+            <h3 class="sos-art-card__title">放学后的未知信号</h3>
+          </div>
+        </div>
+        <div class="ds-art-recipe__body">
+          <div class="sos-art-card__meta"><span>上传者：SOS-0001</span><span>24 赞</span></div>
+          <div class="ds-recipe-tags">
+            <span class="sos-badge sos-badge--outline">#凉宫</span>
+            <span class="sos-badge sos-badge--outline">#放课后</span>
+            <span class="sos-badge sos-badge--outline">#插画</span>
+          </div>
+        </div>
+      </article>`,
+  },
+  {
+    id: 'art-upload',
+    mode: 'art',
+    title: 'ArtworkUploadForm 投稿表单',
+    source: 'apps/art/src/views/UploadView.vue',
+    purpose:
+      '投稿表单需要连续完成基础信息、来源、标签、授权和文件上传。视觉可以轻盈，但 label、条件字段和授权说明必须稳定。',
+    rules: [
+      '分段控件表达互斥选择；复选授权使用卡片化 checkbox，不藏在长段落里。',
+      'UID 检测、授权提示和上传进度都要给文字证据。',
+      '移动端按区块纵向展开，不把两个长字段硬塞成双列。',
+    ],
+    sample: `
+      <form class="ds-upload-recipe sos-surface" aria-label="投稿上传示例">
+        <label class="sos-field">
+          <span class="sos-field__label">作品名称 <span class="sos-field__required">*</span></span>
+          <input class="sos-input" value="放学后的未知信号">
+        </label>
+        <div class="ds-recipe-segments" role="group" aria-label="图片来源">
+          <button class="sos-button sos-button--primary sos-button--sm" type="button">个人作品</button>
+          <button class="sos-button sos-button--secondary sos-button--sm" type="button">网络转载</button>
+        </div>
+        <label class="sos-field">
+          <span class="sos-field__label">创作者唯一 ID</span>
+          <input class="sos-input" value="SOS-0001">
+          <span class="sos-field__help">检测通过后才允许提交个人作品。</span>
+        </label>
+        <div class="sos-notice sos-notice--warning">
+          <span class="sos-notice__icon">!</span>
+          <div>
+            <h4 class="sos-notice__title">授权信息会进入审核</h4>
+            <p class="sos-notice__copy">转载作品必须填写来源；个人作品可单独设置公开授权和社团内部授权。</p>
+          </div>
+        </div>
+        <div class="ds-file-drop">
+          <strong>封面图已选择</strong>
+          <span>haruhi-after-school.webp · 2.4 MB</span>
+        </div>
+        <button class="sos-button sos-button--primary" type="button">提交投稿</button>
+      </form>`,
+  },
 ]
 
 const componentGuides = [
@@ -1649,6 +1805,34 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
                 <div class="sos-progress__track"><span class="sos-progress__fill" style="width:40%"></span></div>
               </div>
             </article>
+          </div>
+        </section>
+
+        <section class="ds-section" id="recipes">
+          <div class="ds-section__header">
+            <p class="sos-eyebrow">Business Recipes</p>
+            <h2>用真实业务组件验收设计系统</h2>
+            <p>基础组件只有放进真实页面才知道是否成立。第一批 recipe 来自 <code>shop</code> 和 <code>art</code>：商品、订单、作品和投稿表单。它们暂时不进入共享 UI 包，而是作为规范页样本和站点迁移验收对象。</p>
+          </div>
+          <div class="ds-recipe-grid">
+            ${businessRecipes
+              .map(
+                ({ mode, title, source, purpose, rules, sample }) => `
+              <article class="ds-recipe-card" data-sos-site="${mode}">
+                <div class="ds-recipe-card__copy">
+                  <span class="sos-badge sos-badge--solid">${mode}</span>
+                  <h3>${title}</h3>
+                  <code>${source}</code>
+                  <p>${purpose}</p>
+                  <ul>
+                    ${rules.map((rule) => `<li>${rule}</li>`).join('')}
+                  </ul>
+                </div>
+                <div class="ds-recipe-preview">${sample}</div>
+              </article>
+            `
+              )
+              .join('')}
           </div>
         </section>
 

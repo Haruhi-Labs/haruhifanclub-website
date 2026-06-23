@@ -646,6 +646,8 @@ Badge 不处理点击行为。需要点击、提交或导航时使用 Button、L
 
 ## 14. 业务 Compositions
 
+业务 Composition 是基础组件在真实页面里的组合规则，不等于共享 UI 组件。第一批应作为 recipe 留在规范页和业务 app 中验证，只有在多个页面反复出现相同数据契约、状态和交互边界后，才评估进入 `@haruhi/ui` 或独立业务包。
+
 | Composition       | Anatomy                                                                | 关键要求                                         |
 | ----------------- | ---------------------------------------------------------------------- | ------------------------------------------------ |
 | `NewsArticleCard` | `Type -> Title -> Summary -> Tags -> Date`                             | 支持无图、横图、专题、置顶；默认无阴影           |
@@ -653,6 +655,23 @@ Badge 不处理点击行为。需要点击、提交或导航时使用 Button、L
 | `ArtworkCard`     | `Artwork -> Overlay Title / Tags -> Artist / Action`                   | Overlay 需有足够 Scrim；详情不能被玻璃层永久遮挡 |
 | `LibraryBookCard` | `Cover -> Title -> Author`                                             | 书名与作者必须是独立文本，不能只存在于图片内     |
 | `ExamPaperCard`   | `Status -> Title -> Meta -> Progress / Score -> Action`                | 视觉可模拟纸张，交互必须稳定、可聚焦、可恢复     |
+
+### 14.1 第一批真实业务 Recipe
+
+| Recipe              | 来源文件                                   | 设计验收重点                                                                  |
+| ------------------- | ------------------------------------------ | ----------------------------------------------------------------------------- |
+| `ShopProductCard`   | `apps/shop/src/views/shop/HomeView.vue`    | 1:1 商品图、价格/原价、库存、预售目标和分类常驻；hover 只增强反馈             |
+| `OrderStatusRow`    | `apps/shop/src/views/admin/OrdersView.vue` | 订单号、时间、商品构成、收货信息、金额、状态和操作可扫读；批量工具不混层级    |
+| `ArtworkCard`       | `apps/art/src/components/ArtworkGrid.vue`  | 作品媒体比例稳定；作者、来源、点赞和标签可读；悬浮不改变卡片尺寸              |
+| `ArtworkUploadForm` | `apps/art/src/views/UploadView.vue`        | Label、条件字段、授权说明、UID 检测和上传文件状态都有文字证据，移动端自然单列 |
+
+这些 recipe 的共同要求：
+
+1. 关键业务字段不能只在 hover、浮层或图片内部出现。
+2. 媒体比例由 `MediaFrame` 或 recipe 容器约束，不靠固定高度补丁。
+3. 卡片内部节奏使用 12 / 16 / 20 / 24px 级别，不为单张卡片写临时 margin。
+4. 移动端先保证字段顺序和操作可达，再考虑视觉装饰。
+5. 暂不把 `ShopProductCard`、`ArtworkCard` 直接抽成共享组件；先通过真实页面截图和状态矩阵验证。
 
 ## 15. 页面 Patterns
 
