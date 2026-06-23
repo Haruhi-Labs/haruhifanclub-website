@@ -140,14 +140,19 @@
           <h2>重复观测记录</h2>
         </div>
         <div class="record-list">
-          <div class="record-row" v-for="record in repeatRecords" :key="record.code">
+          <RouterLink
+            v-for="record in repeatRecords"
+            :key="record.code"
+            class="record-row"
+            :to="{ name: 'gallery', query: { artwork: record.id } }"
+          >
             <span class="record-code">{{ record.code }}</span>
             <div>
               <strong>{{ record.title }}</strong>
               <small>{{ record.meta }}</small>
             </div>
             <span class="record-time">{{ record.time }}</span>
-          </div>
+          </RouterLink>
         </div>
       </article>
 
@@ -499,6 +504,7 @@ const repeatRecords = approvedArtworks
   .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   .slice(0, 4)
   .map((item, index) => ({
+    id: item.id,
     code: `OBS-${String(index + 1).padStart(2, '0')}`,
     title: item.title,
     meta: `${item.content_type === 'haruhi' ? '凉宫线' : '支线'} / ${(item.tags || []).slice(0, 2).join(' · ') || '未标记'}`,
@@ -1551,13 +1557,18 @@ const stageStyle = {
   border: 1px solid rgba(116, 231, 255, 0.14);
   border-radius: 10px;
   background: rgba(6, 16, 34, 0.56);
-  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.art-home .record-row:hover {
+.art-home .record-row:hover,
+.art-home .record-row:focus-visible {
   border-color: rgba(116, 231, 255, 0.36);
   background: rgba(11, 28, 58, 0.7);
   box-shadow: 0 0 22px rgba(116, 231, 255, 0.08);
+  transform: translateY(-1px);
+  outline: none;
 }
 
 .art-home .record-code {
