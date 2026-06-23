@@ -7,7 +7,13 @@ const Reader = () => import('../views/Reader.vue')
 const Admin = () => import('../views/Admin.vue')
 const FeedbackView = () => import('../views/FeedbackView.vue')
 // 统一账号 UI
-import { LoginView, ProfileView, SettingsView, VerifyEmailView, ResetPasswordView } from '@haruhi/auth-ui'
+import {
+  LoginView,
+  ProfileView,
+  SettingsView,
+  VerifyEmailView,
+  ResetPasswordView,
+} from '@haruhi/auth-ui'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -16,12 +22,27 @@ const router = createRouter({
     { path: '/read/:id', name: 'Reader', component: Reader, props: true },
     { path: '/admin', name: 'Admin', component: Admin },
     { path: '/feedback', name: 'Feedback', component: FeedbackView }, // 顺便大小写统一一下
-    { path: '/login', name: 'login', component: LoginView },
-    { path: '/account', name: 'account', component: ProfileView },
-    { path: '/account/settings', name: 'account-settings', component: SettingsView },
-    { path: '/verify-email', name: 'verify-email', component: VerifyEmailView },
-    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView }
-  ]
+    { path: '/login', name: 'login', component: LoginView, props: { site: 'library' } },
+    { path: '/account', name: 'account', component: ProfileView, props: { site: 'library' } },
+    {
+      path: '/account/settings',
+      name: 'account-settings',
+      component: SettingsView,
+      props: { site: 'library' },
+    },
+    {
+      path: '/verify-email',
+      name: 'verify-email',
+      component: VerifyEmailView,
+      props: { site: 'library' },
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: ResetPasswordView,
+      props: { site: 'library' },
+    },
+  ],
 })
 
 export default router
