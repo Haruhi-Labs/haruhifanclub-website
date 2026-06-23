@@ -19,6 +19,10 @@
     "./components": {
       "types": "./src/components/index.d.ts",
       "import": "./src/components/index.js"
+    },
+    "./recipes": {
+      "types": "./src/recipes/index.d.ts",
+      "import": "./src/recipes/index.js"
     }
   },
   "dependencies": {
