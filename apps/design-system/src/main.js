@@ -226,9 +226,16 @@ const componentContracts = [
   [
     'Progress',
     '.sos-progress > meta/track/fill',
-    'default · compact · segmented later',
+    'default · success · danger · compact later',
     '0 · in-progress · complete · error',
     '进度数字常驻显示，不能只依赖颜色或 hover。',
+  ],
+  [
+    'EmptyState',
+    '.sos-empty-state > icon/title/copy/action',
+    'default',
+    'empty · no-result · permission-missing',
+    '必须说明为空原因，并提供清晰下一步。',
   ],
 ]
 
@@ -239,6 +246,146 @@ const stateRows = [
   ['Disabled', '降低可操作性但保留 label，必要时说明原因。'],
   ['Loading', '锁定重复提交，保留当前上下文和进度反馈。'],
   ['Empty / Error', '给出下一步动作；错误不能只用红色表达。'],
+]
+
+const componentStateExamples = [
+  {
+    name: 'Button',
+    rule: '命令状态要保留标签和尺寸；loading 锁定重复提交，disabled 仍能读出动作含义。',
+    cases: [
+      ['Default', '<button class="sos-button sos-button--primary">提交审核</button>'],
+      [
+        'Hover',
+        '<button class="sos-button sos-button--primary" data-state="hover">悬停预览</button>',
+      ],
+      [
+        'Focus',
+        '<button class="sos-button sos-button--secondary" data-state="focus">键盘焦点</button>',
+      ],
+      [
+        'Loading',
+        '<button class="sos-button sos-button--primary" aria-busy="true" disabled>提交中</button>',
+      ],
+      ['Disabled', '<button class="sos-button sos-button--secondary" disabled>不可提交</button>'],
+    ],
+  },
+  {
+    name: 'Badge',
+    rule: '短标签可以表达分类、选中和不可用，但不能替代按钮或段落标题。',
+    cases: [
+      ['Default', '<span class="sos-badge">普通</span>'],
+      ['Accent', '<span class="sos-badge sos-badge--accent">分类</span>'],
+      ['Selected', '<span class="sos-badge" aria-selected="true">已选</span>'],
+      ['Signal', '<span class="sos-badge sos-badge--signal">重点</span>'],
+      ['Disabled', '<span class="sos-badge sos-badge--outline" aria-disabled="true">已过期</span>'],
+    ],
+  },
+  {
+    name: 'Field',
+    rule: '输入状态必须同时有 label、控件边界和帮助/错误文字，placeholder 不承担 label。',
+    cases: [
+      [
+        'Default',
+        '<label class="sos-field"><span class="sos-field__label">标题</span><input class="sos-input" value="北高校园祭专题"><span class="sos-field__help">可在发布前修改。</span></label>',
+      ],
+      [
+        'Focus',
+        '<label class="sos-field"><span class="sos-field__label">搜索</span><input class="sos-input" data-state="focus" value="长门"><span class="sos-field__help">焦点外环可截图验收。</span></label>',
+      ],
+      [
+        'Error',
+        '<label class="sos-field sos-field--error"><span class="sos-field__label">库存</span><input class="sos-input" aria-invalid="true" value="-1"><span class="sos-field__help">库存不能小于 0。</span></label>',
+      ],
+      [
+        'Disabled',
+        '<label class="sos-field"><span class="sos-field__label">审核编号</span><input class="sos-input" value="AUTO-042" disabled><span class="sos-field__help">由系统生成。</span></label>',
+      ],
+    ],
+  },
+  {
+    name: 'Notice',
+    rule: '系统提示用 tone 表达语义，并始终保留标题和正文证据。',
+    cases: [
+      [
+        'Info',
+        '<div class="sos-notice"><span class="sos-notice__icon">i</span><div><h4 class="sos-notice__title">保存成功</h4><p class="sos-notice__copy">草稿已进入待审核列表。</p></div></div>',
+      ],
+      [
+        'Success',
+        '<div class="sos-notice sos-notice--success"><span class="sos-notice__icon">✓</span><div><h4 class="sos-notice__title">流程完成</h4><p class="sos-notice__copy">可以继续发布下一条内容。</p></div></div>',
+      ],
+      [
+        'Warning',
+        '<div class="sos-notice sos-notice--warning"><span class="sos-notice__icon">!</span><div><h4 class="sos-notice__title">库存偏低</h4><p class="sos-notice__copy">继续售卖前请确认补货计划。</p></div></div>',
+      ],
+      [
+        'Danger',
+        '<div class="sos-notice sos-notice--danger"><span class="sos-notice__icon">!</span><div><h4 class="sos-notice__title">提交失败</h4><p class="sos-notice__copy">网络超时，请保留当前内容后重试。</p></div></div>',
+      ],
+    ],
+  },
+  {
+    name: 'Progress',
+    rule: '进度数字常驻显示；完成和错误不能只靠色彩表达。',
+    cases: [
+      [
+        'Active',
+        '<div class="sos-progress"><div class="sos-progress__meta"><span>预售进度</span><strong>63%</strong></div><div class="sos-progress__track"><span class="sos-progress__fill" style="width:63%"></span></div></div>',
+      ],
+      [
+        'Complete',
+        '<div class="sos-progress sos-progress--success"><div class="sos-progress__meta"><span>上传完成</span><strong>100%</strong></div><div class="sos-progress__track"><span class="sos-progress__fill" style="width:100%"></span></div></div>',
+      ],
+      [
+        'Error',
+        '<div class="sos-progress sos-progress--danger"><div class="sos-progress__meta"><span>导入失败</span><strong>第 7 行错误</strong></div><div class="sos-progress__track"><span class="sos-progress__fill" style="width:72%"></span></div></div>',
+      ],
+      [
+        'Zero',
+        '<div class="sos-progress"><div class="sos-progress__meta"><span>尚未开始</span><strong>0%</strong></div><div class="sos-progress__track"><span class="sos-progress__fill" style="width:0%"></span></div></div>',
+      ],
+    ],
+  },
+  {
+    name: 'Card',
+    rule: '卡片状态只增强容器反馈；标题、状态和下一步动作必须常驻。',
+    cases: [
+      [
+        'Default',
+        '<article class="sos-card"><div class="sos-card__body"><h4 class="ds-state-card-title">待审核稿件</h4><p class="ds-state-card-copy">标题、摘要和日期常驻。</p></div></article>',
+      ],
+      [
+        'Hover',
+        '<article class="sos-card sos-card--interactive" data-state="hover"><div class="sos-card__body"><h4 class="ds-state-card-title">可打开卡片</h4><p class="ds-state-card-copy">hover 只增强可点击感。</p></div></article>',
+      ],
+      [
+        'Selected',
+        '<article class="sos-card" aria-selected="true"><div class="sos-card__body"><h4 class="ds-state-card-title">已选内容</h4><p class="ds-state-card-copy">选中态有边界和色块证据。</p></div></article>',
+      ],
+      [
+        'Loading',
+        '<article class="sos-card" aria-busy="true"><div class="sos-card__body"><h4 class="ds-state-card-title">同步状态</h4><p class="ds-state-card-copy">上下文仍在原位。</p></div></article>',
+      ],
+    ],
+  },
+  {
+    name: 'EmptyState',
+    rule: '空状态解释为什么为空，并给出一个真实下一步，不能只是插画或口号。',
+    cases: [
+      [
+        'No Data',
+        '<section class="sos-empty-state"><span class="sos-empty-state__icon">0</span><h4 class="sos-empty-state__title">暂无投稿</h4><p class="sos-empty-state__copy">当前筛选条件下没有作品。</p><div class="sos-empty-state__actions"><button class="sos-button sos-button--secondary sos-button--sm">清除筛选</button></div></section>',
+      ],
+      [
+        'No Result',
+        '<section class="sos-empty-state"><span class="sos-empty-state__icon">?</span><h4 class="sos-empty-state__title">没有匹配结果</h4><p class="sos-empty-state__copy">换一个关键词，或回到全部列表。</p></section>',
+      ],
+      [
+        'Permission',
+        '<section class="sos-empty-state"><span class="sos-empty-state__icon">!</span><h4 class="sos-empty-state__title">需要登录</h4><p class="sos-empty-state__copy">登录后才能查看订单和投稿记录。</p><div class="sos-empty-state__actions"><button class="sos-button sos-button--primary sos-button--sm">去登录</button></div></section>',
+      ],
+    ],
+  },
 ]
 
 const responsiveRules = [
@@ -320,7 +467,7 @@ app.innerHTML = `
             <article>
               <span>Vue MVP</span>
               <h3>packages/ui</h3>
-              <p>导出 Button、Badge、Field、Notice、Progress、Card、HeaderBrand 和布局 wrapper。它只输出既有 class，不重新定义视觉。</p>
+              <p>导出 Button、Badge、Field、Notice、Progress、Card、EmptyState、HeaderBrand 和布局 wrapper。它只输出既有 class，不重新定义视觉。</p>
             </article>
           </div>
           <pre class="ds-code"><code>// CSS-first 接入
@@ -526,7 +673,7 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
             <div>
               <span class="sos-badge sos-badge--signal">UI MVP</span>
               <h3>先抽基础件，不抽业务卡片</h3>
-              <p>Button、Badge、Field、Notice、Progress、Card、HeaderBrand、Stack、Inline、Surface 和 MediaFrame 已进入 <code>@haruhi/ui</code>。每个 wrapper 只负责 props、slot、可访问性和 class 组合。</p>
+              <p>Button、Badge、Field、Notice、Progress、Card、EmptyState、HeaderBrand、Stack、Inline、Surface 和 MediaFrame 已进入 <code>@haruhi/ui</code>。每个 wrapper 只负责 props、slot、可访问性和 class 组合。</p>
             </div>
             <pre class="ds-code ds-code--compact"><code>&lt;SosStack gap="loose" data-sos-site="shop"&gt;
   &lt;SosField label="商品标题" help="Label 不被 placeholder 替代"&gt;
@@ -680,15 +827,31 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'</code></pre>
               </div>
             </article>
           </div>
-          <div class="ds-state-demo sos-surface sos-surface--raised">
-            <button class="sos-button sos-button--primary">Default</button>
-            <button class="sos-button sos-button--secondary">Secondary</button>
-            <button class="sos-button sos-button--primary" disabled>Disabled</button>
-            <label class="sos-field">
-              <span class="sos-field__label">Focus / Help</span>
-              <input class="sos-input" value="状态必须可见" aria-label="状态矩阵示例">
-              <span class="sos-field__help">状态样式要能被键盘、截图和读屏验收。</span>
-            </label>
+          <div class="ds-state-matrix" aria-label="基础组件状态矩阵">
+            ${componentStateExamples
+              .map(
+                (component) => `
+              <article class="ds-state-component">
+                <header>
+                  <h3>${component.name}</h3>
+                  <p>${component.rule}</p>
+                </header>
+                <div class="ds-state-cases">
+                  ${component.cases
+                    .map(
+                      ([label, sample]) => `
+                    <div class="ds-state-case">
+                      <strong>${label}</strong>
+                      <div class="ds-state-preview">${sample}</div>
+                    </div>
+                  `
+                    )
+                    .join('')}
+                </div>
+              </article>
+            `
+              )
+              .join('')}
           </div>
         </section>
 

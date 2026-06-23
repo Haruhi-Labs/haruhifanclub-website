@@ -6,9 +6,13 @@ type BadgeVariant = 'default' | 'accent' | 'solid' | 'outline' | 'signal'
 const props = withDefaults(
   defineProps<{
     variant?: BadgeVariant
+    selected?: boolean
+    disabled?: boolean
   }>(),
   {
     variant: 'default',
+    selected: false,
+    disabled: false,
   }
 )
 
@@ -19,7 +23,11 @@ const classes = computed(() => [
 </script>
 
 <template>
-  <span :class="classes">
+  <span
+    :class="classes"
+    :aria-selected="props.selected ? 'true' : undefined"
+    :aria-disabled="props.disabled ? 'true' : undefined"
+  >
     <slot />
   </span>
 </template>

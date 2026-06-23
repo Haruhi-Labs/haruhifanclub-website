@@ -5,10 +5,14 @@ const props = withDefaults(
   defineProps<{
     as?: string
     interactive?: boolean
+    selected?: boolean
+    loading?: boolean
   }>(),
   {
     as: 'article',
     interactive: false,
+    selected: false,
+    loading: false,
   }
 )
 
@@ -19,7 +23,12 @@ const classes = computed(() => ({
 </script>
 
 <template>
-  <component :is="props.as" :class="classes">
+  <component
+    :is="props.as"
+    :class="classes"
+    :aria-selected="props.selected ? 'true' : undefined"
+    :aria-busy="props.loading ? 'true' : undefined"
+  >
     <slot name="media" />
     <div class="sos-card__body">
       <slot />

@@ -7,11 +7,13 @@ const props = withDefaults(
     max?: number
     label?: string
     valueLabel?: string
+    tone?: 'default' | 'success' | 'danger'
   }>(),
   {
     max: 100,
     label: undefined,
     valueLabel: undefined,
+    tone: 'default',
   }
 )
 
@@ -21,11 +23,15 @@ const percent = computed(() => {
 })
 const readableValue = computed(() => props.valueLabel || `${Math.round(percent.value)}%`)
 const fillStyle = computed(() => ({ width: `${percent.value}%` }))
+const classes = computed(() => [
+  'sos-progress',
+  props.tone !== 'default' ? `sos-progress--${props.tone}` : undefined,
+])
 </script>
 
 <template>
   <div
-    class="sos-progress"
+    :class="classes"
     role="progressbar"
     :aria-label="props.label"
     :aria-valuenow="props.value"

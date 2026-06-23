@@ -11,6 +11,7 @@ import {
   SosBadge,
   SosButton,
   SosCard,
+  SosEmptyState,
   SosField,
   SosHeaderBrand,
   SosInline,
@@ -34,6 +35,7 @@ import {
 | `SosNotice`      | 系统提示，支持 info / success / warning / danger        |
 | `SosProgress`    | 常驻数值的进度反馈                                      |
 | `SosCard`        | 基础卡片 anatomy，不封装业务卡片                        |
+| `SosEmptyState`  | 空状态说明和下一步动作                                  |
 | `SosHeaderBrand` | Header 中 logo + 标题文字组合                           |
 | `SosStack`       | 纵向内容节奏                                            |
 | `SosInline`      | 可换行同行操作                                          |
@@ -60,6 +62,7 @@ import { SosButton, SosField, SosStack } from '@haruhi/ui'
 ## 边界
 
 - 不封装 `NewsArticleCard`、`ShopProductCard`、`ArtworkCard`、`LibraryBookCard`、`ExamPaperCard` 等业务卡片。
+- `SosEmptyState` 是系统状态模式，不是营销卡片或落地页模块。
 - 不新增独立主题变量；表达模式仍由外层 `data-sos-site` 和 `@haruhi/design-system` token 控制。
 - 不把页面特例做成组件 variant。新增 variant 前必须先更新规范页和状态矩阵。
 - 不替代 `@haruhi/auth-ui`。鉴权 UI 仍由 `packages/auth-ui` 维护，后续可逐步消费本包基础件。

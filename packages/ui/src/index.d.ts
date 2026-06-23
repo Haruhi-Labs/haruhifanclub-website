@@ -7,9 +7,12 @@ export type SosNoticeTone = 'info' | 'success' | 'warning' | 'danger'
 export type SosStackGap = 'default' | 'tight' | 'loose'
 export type SosMediaRatio = '1:1' | '4:3' | '3:4' | '2:3'
 export type SosSurfaceVariant = 'default' | 'subtle' | 'raised'
+export type SosProgressTone = 'default' | 'success' | 'danger'
 
 export const SosBadge: DefineComponent<{
   variant?: SosBadgeVariant
+  selected?: boolean
+  disabled?: boolean
 }>
 export const SosButton: DefineComponent<{
   as?: 'button' | 'a'
@@ -23,6 +26,12 @@ export const SosButton: DefineComponent<{
 export const SosCard: DefineComponent<{
   as?: string
   interactive?: boolean
+  selected?: boolean
+  loading?: boolean
+}>
+export const SosEmptyState: DefineComponent<{
+  title: string
+  copy?: string
 }>
 export const SosField: DefineComponent<{
   label?: string
@@ -57,6 +66,7 @@ export const SosProgress: DefineComponent<{
   max?: number
   label?: string
   valueLabel?: string
+  tone?: SosProgressTone
 }>
 export const SosStack: DefineComponent<{
   as?: string

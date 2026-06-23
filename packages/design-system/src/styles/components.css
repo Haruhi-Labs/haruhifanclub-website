@@ -233,12 +233,36 @@
 .sos-button:hover:not(:disabled) {
   transform: translateY(-1px);
 }
+.sos-button[data-state='hover']:not(:disabled) {
+  transform: translateY(-1px);
+}
 .sos-button:active:not(:disabled) {
   transform: translateY(1px) scale(0.99);
 }
-.sos-button:disabled {
+.sos-button[data-state='active']:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+}
+.sos-button[data-state='focus'] {
+  outline: 3px solid color-mix(in srgb, var(--sos-focus) 58%, transparent);
+  outline-offset: 3px;
+}
+.sos-button:disabled,
+.sos-button[aria-disabled='true'] {
   opacity: 0.46;
   cursor: not-allowed;
+}
+.sos-button[aria-busy='true'] {
+  cursor: wait;
+  opacity: 0.78;
+}
+.sos-button[aria-busy='true']::before {
+  content: '';
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--sos-radius-full);
+  animation: sos-spin 900ms linear infinite;
 }
 
 .sos-button--primary {
@@ -329,6 +353,14 @@
   background: var(--sos-signal);
   color: var(--sos-ink-950);
 }
+.sos-badge[aria-selected='true'] {
+  border-color: color-mix(in srgb, var(--sos-accent) 55%, var(--sos-border-strong));
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
+}
+.sos-badge[aria-disabled='true'] {
+  opacity: 0.52;
+}
 
 /* Cards */
 .sos-card {
@@ -347,10 +379,39 @@
 .sos-card--interactive {
   cursor: pointer;
 }
-.sos-card--interactive:hover {
+.sos-card--interactive:hover,
+.sos-card--interactive[data-state='hover'] {
   transform: translateY(-4px);
   border-color: color-mix(in srgb, var(--sos-accent) 24%, var(--sos-border-subtle));
   box-shadow: var(--sos-hover-shadow);
+}
+.sos-card:focus-within,
+.sos-card[data-state='focus'] {
+  outline: 3px solid color-mix(in srgb, var(--sos-focus) 40%, transparent);
+  outline-offset: 3px;
+}
+.sos-card[aria-selected='true'] {
+  border-color: color-mix(in srgb, var(--sos-accent) 58%, var(--sos-border-strong));
+  box-shadow:
+    var(--sos-card-shadow),
+    0 0 0 3px color-mix(in srgb, var(--sos-accent) 18%, transparent);
+}
+.sos-card[aria-busy='true'] {
+  pointer-events: none;
+}
+.sos-card[aria-busy='true']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--sos-bg-surface) 82%, transparent);
+  background-image: linear-gradient(
+    110deg,
+    transparent 0%,
+    color-mix(in srgb, var(--sos-accent) 18%, transparent) 45%,
+    transparent 80%
+  );
+  background-size: 220% 100%;
+  animation: sos-skeleton 1.2s ease-in-out infinite;
 }
 
 .sos-card__body {
@@ -415,12 +476,24 @@
 }
 .sos-input:focus,
 .sos-textarea:focus,
-.sos-select:focus {
+.sos-select:focus,
+.sos-input[data-state='focus'],
+.sos-textarea[data-state='focus'],
+.sos-select[data-state='focus'] {
   border-color: var(--sos-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--sos-focus) 18%, transparent);
   outline: none;
 }
-.sos-field--error :is(.sos-input, .sos-textarea, .sos-select) {
+.sos-input:disabled,
+.sos-textarea:disabled,
+.sos-select:disabled {
+  background: var(--sos-bg-subtle);
+  color: var(--sos-text-tertiary);
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+.sos-field--error :is(.sos-input, .sos-textarea, .sos-select),
+:is(.sos-input, .sos-textarea, .sos-select)[aria-invalid='true'] {
   border-color: var(--sos-danger);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--sos-danger) 14%, transparent);
 }
@@ -519,10 +592,57 @@
   background: color-mix(in srgb, var(--sos-border-default) 55%, transparent);
 }
 .sos-progress__fill {
+  display: block;
   height: 100%;
   border-radius: inherit;
   background: var(--sos-accent);
   transition: width var(--sos-duration-slow) var(--sos-ease-out);
+}
+.sos-progress--success .sos-progress__fill {
+  background: var(--sos-success);
+}
+.sos-progress--danger .sos-progress__fill {
+  background: var(--sos-danger);
+}
+
+/* Empty state */
+.sos-empty-state {
+  display: grid;
+  justify-items: start;
+  gap: var(--sos-space-3);
+  border: 1px dashed color-mix(in srgb, var(--sos-accent) 36%, var(--sos-border-default));
+  border-radius: var(--sos-radius-md);
+  background: color-mix(in srgb, var(--sos-accent-soft) 42%, var(--sos-bg-surface));
+  padding: var(--sos-space-6);
+}
+.sos-empty-state__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-bg-surface);
+  color: var(--sos-link);
+  box-shadow: var(--sos-shadow-hairline);
+}
+.sos-empty-state__title {
+  margin: 0;
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-md);
+  font-weight: 850;
+  line-height: 1.3;
+}
+.sos-empty-state__copy {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.6;
+}
+.sos-empty-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sos-space-3);
+  margin-top: var(--sos-space-1);
 }
 
 /* Brand expression helpers */
@@ -607,6 +727,18 @@
   font: 900 var(--sos-text-xs) / 1 var(--sos-font-sans);
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+@keyframes sos-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes sos-skeleton {
+  to {
+    background-position: -220% 0;
+  }
 }
 
 .sos-divider {
@@ -895,6 +1027,30 @@
     transform: none;
   }
   .sos-card--interactive:hover,
+  .sos-art-card:hover .sos-art-card__frame,
+  .sos-book-card:hover .sos-book-card__cover,
+  .sos-exam-card:hover .sos-exam-card__paper {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sos-button,
+  .sos-button[aria-busy='true']::before,
+  .sos-card,
+  .sos-card[aria-busy='true']::after,
+  .sos-progress__fill,
+  .sos-product-card__actions,
+  .sos-art-card__frame,
+  .sos-book-card__cover,
+  .sos-exam-card__paper {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+  }
+  .sos-button:hover:not(:disabled),
+  .sos-button[data-state='hover']:not(:disabled),
+  .sos-card--interactive:hover,
+  .sos-card--interactive[data-state='hover'],
   .sos-art-card:hover .sos-art-card__frame,
   .sos-book-card:hover .sos-book-card__cover,
   .sos-exam-card:hover .sos-exam-card__paper {

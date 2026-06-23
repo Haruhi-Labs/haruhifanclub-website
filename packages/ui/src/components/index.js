@@ -2,6 +2,7 @@ export {
   SosBadge,
   SosButton,
   SosCard,
+  SosEmptyState,
   SosField,
   SosHeaderBrand,
   SosInline,
