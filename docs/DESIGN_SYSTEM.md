@@ -1,1007 +1,262 @@
-# SOS / Parallel Design System 项目设计规范
+# SOS / Parallel Design System
 
-版本：`0.2.1`
+> **一套脊柱，五个平行世界。**
+> 凉宫春日应援团的统一设计系统：团报、商城、美术部、书库、考场共享同一套结构、状态、可访问性与组件契约，各自保留自己的气质。
 
-适用范围：`news`、`shop`、`art`、`novel`、`exam` 以及项目内新增页面。`console` 是运维管理界面，默认采用克制的中性界面，不单独建立角色化 Expression Mode。
+系统**统一**的是：结构、节奏、组件解剖、状态、焦点与无障碍、响应式。
+系统**允许变化**的是：每个站点的配色、局部强调、媒体处理、阅读字体与材质。
+`data-sos-site` 是「换气质」而不是「整站换肤」。
 
-规范展示页：`apps/design-system`，部署子路径为 `/design-system/`。
+## 交互式规范页是唯一权威
 
-共享样式包：`packages/design-system`，包名为 `@haruhi/design-system`。
+```sh
+pnpm dev:design-system     # → http://localhost:5206/design-system/
+```
 
-共享 Vue 基础组件包：`packages/ui`，包名为 `@haruhi/ui`。
+规范页用真实组件搭建（dogfood `@haruhi/ui`），顶栏可**实时切换表达模式 / 密度 / 明暗**，覆盖每个组件、状态、五个平行世界与组合范式。**组件的真实外观以规范页为准**；本文是参考与原则，不重复粘贴像素值。
 
-## 0. 文档定位
+---
 
-这份文档首先是项目内的设计手册，其次才是 monorepo 接入说明。它要回答“页面应该怎么长、组件应该怎么用、信息应该怎么组织”，再回答“这些规则如何在当前工程里落地”。
+## 1. 架构
 
-因此阅读顺序调整为：
+### 1.1 包与分层
 
-1. **设计主线**：命题、品牌、色彩、排版、间距、媒体几何、界面对象、基础组件、业务 recipe、页面 pattern。
-2. **质量主线**：状态矩阵、响应式、可访问性、Do / Don’t 和上线验收。
-3. **工程附录**：包结构、monorepo 接入矩阵、bridge、UI 库准入和迁移 playbook。
+| 包                      | 层  | 职责                                                                                                                              |
+| ----------------------- | --- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `@haruhi/design-system` | L0  | CSS-first 契约：`tokens.css`（token）、`components.css`（基础组件 class）、`recipes.css`（业务卡片）、`bridges.css`（旧站变量桥） |
+| `@haruhi/ui`            | L1  | Vue 封装（~41 组件 + `useToast`）。只输出 L0 的 class，不重定义视觉                                                               |
+| `@haruhi/ui/recipes`    | L2  | 业务卡片组件：`SosArticleCard` / `SosProductCard` / `SosArtworkCard` / `SosBookCard` / `SosExamCard`                              |
+| `@haruhi/auth-ui`       | —   | 全站共享账号 UI（登录/注册/找回/资料/设置/账户菜单），构建于上面两层之上                                                          |
 
-当前版本曾经把很多篇幅放在接入结构、包治理和迁移策略上，这对工程落地有必要，但不足以对标成熟设计系统。后续增厚优先级如下：
-
-1. **设计对象前置**：颜色、排版、按钮、导航、卡片、表单、间距、圆角、深度、动效、响应式先讲清楚。
-2. **真实业务优先**：规范示例来自 `shop` 商品/订单、`art` 作品/上传、`news` 文章/发布、`novel` 阅读、`exam` 答题等真实路径。
-3. **工程治理后置**：包结构、bridge、版本规则、迁移证据保留，但不抢占设计规范主线。
-4. **UI 库谨慎扩张**：先让基础组件和真实站点互相校验，业务卡片继续作为 recipe 验证，不把尚未稳定的信息结构抽成共享组件。
-
-### 0.1 成熟案例对标结论
-
-`getdesign.md` 的 Airbnb 与 Apple/Lumora 预览页提供的主要启发不是某种具体视觉风格，而是内容组织方式：
-
-- Airbnb 案例以 18 个 section 展开：颜色、排版、按钮、顶部导航、搜索、分类、房源卡、体验卡、评分、设施、预订栏、日期、表单、城市链接、间距、圆角、深度、响应式。
-- Apple/Lumora 案例以 12 个 section 展开：颜色、排版、按钮、产品 tile、商店卡片、配置器/搜索/粘性栏、导航、表单、间距、圆角、深度、响应式。
-- 两个案例都把“设计对象”放在主线，把组件放进真实页面语境，并给出具体尺寸、状态和响应式变化。
-
-因此本项目后续的规范页应减少纯架构表格的占比，增加真实组件、真实页面模式、真实内容字段和真实响应式行为的展示。
-
-### 0.2 站点审计和试点选择
-
-已审计入口、壳层、主要视图和样式文件后，早期曾以 `shop` 与 `art` 做过浅层接入试点，并暴露出视觉退化问题。当前规范以此为反面约束：不能把“用了 token / class / wrapper”视为通过，必须用完整业务切片和视觉证据重新证明。
-
-| App               | 真实 UI 主语                         | 设计风险                                                 | 当前证据状态                                                               |
-| ----------------- | ------------------------------------ | -------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `@haruhi/news`    | 导航、文章卡、搜索、发布后台         | 内容结构清楚且已有强烈报纸风格，直接套基础卡片会造成退化 | 已完成首页阅读流重设计切片；`pnpm check:news:visual` 覆盖桌面/移动/hover。 |
-| `@haruhi/shop`    | 商品卡、筛选、购物车、订单、后台表单 | 旧蓝色大 header 和交易卡片容易削弱购买信任               | 已完成前台交易流切片；`pnpm check:shop:visual` 覆盖首页、详情和 hover。    |
-| `@haruhi/art`     | 作品网格、筛选、上传、审核、弹窗     | 媒体比例和磨砂质感原本较成熟，错误接入会削弱作品主位     | 暂停应用改造；下一步先建立 art visual baseline 和媒体优先视觉稿。          |
-| `@haruhi/exam`    | 试卷、题目、批阅、音频、编辑后台     | 表达很强但状态复杂，适合在基础规范稳定后验证动效和状态   | 待做：答题页状态矩阵和恢复进度验收。                                       |
-| `@haruhi/novel`   | 书架、阅读页、反馈                   | Tailwind 和阅读体验已有独立节奏，适合验证阅读规范        | 待做：阅读 token、目录、阅读位置和 HeaderBrand 接入。                      |
-| `@haruhi/console` | 控制台、表格、审核、通知             | 中性后台，不需要角色化 expression                        | 待做：按 compact density 处理表格、筛选和批量操作。                        |
-
-### 0.3 视觉基线先于接入
-
-设计系统接入不能以“用了 token / class / wrapper”为成功标准。对于已经有明确风格的页面，第一步是保存原站点视觉基线，并列出必须保留的优秀部分。接入后如果信息层级、卡片节奏、hover 状态、首屏识别或移动端操作比原站点更差，即使技术上接入成功，也视为设计验收失败。
-
-正式接入只有两种合格模式：
-
-- **基线接入**：只接入 token、bridge、状态文案和工程边界，不主动改变既有布局、卡片比例、hover、表面质感和页面节奏。
-- **重设计切片**：选择一个完整业务流程，按新设计系统重新设计 Header、内容对象、表单/状态、响应式和交互反馈，再一次性落地验证。
-
-禁止第三种模式：把现有布局局部套上新的 `sos-*` class，既没有保留旧界面的成熟气质，也没有形成新设计系统的完整界面。
-
-正式接入前必须先完成：
-
-1. **基线截图**：保存目标页面 390 / 768 / 1280px 的当前截图，至少覆盖首屏、列表、详情或核心流程。
-2. **内容不变**：应用接入不得新增规范说明、验收口号、营销占位或虚构字段；业务标题、摘要、按钮和状态文案保持原语义，除非产品需求本身要求改文案。
-3. **保护清单**：写清楚原页面哪些部分必须保留，例如 news 的报纸感、art 的作品主位、shop 的交易信息密度。
-4. **接入模式选择**：决定本次是“无视觉变化的基线接入”，还是“完整流程重设计切片”，不能混成浅层套壳。
-5. **退化即回退**：如果新版本只是“更统一”但更丑、更松散或信息更难扫读，必须回退并调整规范，而不是继续扩大接入。
-
-## 1. 设计命题
-
-SOS / Parallel Design System 的核心命题是：
-
-> 一套骨架，五个平行世界。
-
-它不是把五个站点统一套成同一种黄色主题，也不是再做第六套孤立视觉。系统统一的是结构、状态、可访问性、响应式和组件契约；系统允许变化的是每个业务站点的表达音量、局部强调色、媒体处理、阅读字体和组件级材质。站点模式不等于整站换肤。
-
-设计识别来自以下稳定线索：
-
-- **Signal Yellow**：少量、稳定、可记忆的品牌信号。
-- **Confident Rhythm**：强标题、稳定网格和足够留白。
-- **Tactile Feedback**：明确但克制的按压、上浮和进度反馈。
-- **Content Structure**：内容、数据和操作关系清楚，装饰不得改变阅读路径。
-- **Project Fit**：规范必须能被现有 monorepo 渐进接入，而不是要求业务站点重写。
-
-### 1.1 设计调性
-
-这套系统的基础调性是：**明亮、可靠、有社团感，但不幼稚**。
-
-它应该像一个认真运行的社团工作台：真实内容清楚、关键动作可靠、状态反馈明确，同时保留少量属于 Haruhi Fan Club 的识别线索。它不是泛用蓝白后台，也不是二次元贴纸包。
-
-视觉语言：
-
-- **统一中性底色**：默认使用暖白、白色、墨色和浅灰建立页面秩序。不要给每个站点铺一套大面积主色。
-- **少量强调色**：蓝、青绿、琥珀、批改红只用于操作、选中、标签、进度、状态和局部内容，不作为整页背景。
-- **Signal Yellow 是线索**：明黄色适合像 news 黑白主题里的重点线索、编号、置顶和品牌信号；不要把它扩成主按钮、价格或整页主题。
-- **真实内容优先**：商品图、作品、文章、题目和书目是第一视觉对象。背景、纹理、玻璃和阴影只服务内容层级。
-- **材质局部使用**：纸张感、磨砂、试卷感、画廊感都只能出现在对应组件或流程局部，不能由 `data-sos-site` 自动铺满页面。
-- **紧而不挤**：社团运营、商城交易、投稿审核和答题都需要效率。使用稳定间距和清晰分组，不用过大留白或过度装饰制造“高级感”。
-
-站点表达边界：
-
-| Mode      | 调性     | 允许的强调方式                                               | 禁止做法                         |
-| --------- | -------- | ------------------------------------------------------------ | -------------------------------- |
-| `news`    | 清晰团报 | 黑白结构中点缀少量 Signal Yellow，用于专题、置顶和重点线索   | 彩色大背景、玻璃化正文           |
-| `shop`    | 可信交易 | 行动蓝用于购买、链接和交易进度；商品图、价格、库存优先       | 把整站染成蓝色或隐藏价格库存     |
-| `art`     | 作品主位 | 青绿用于筛选、标签和成功反馈；背景保持中性或由作品局部决定   | 把画廊背景改成青绿色、背景抢作品 |
-| `library` | 安静阅读 | 琥珀用于书封、摘录、目录线索；长文保持高对比和稳定行高       | 全站纸纹铺底影响阅读             |
-| `exam`    | 稳定考试 | 批改红用于考试状态、分数、危险反馈；试卷感服务题目和批阅状态 | 木桌舞台铺满页面、动效干扰答题   |
-
-### 1.2 品牌标志
-
-设计系统不重新定义站群 logo。项目默认使用现有 `haruhi-logo-192.png` 作为品牌标志资产，规范只约束它的使用方式：
-
-- 导航和工具栏中的 logo 建议显示为 `40-48px`。
-- 应用图标、PWA icon、分享图标优先使用原始 `192px` 资产。
-- 不重绘、不描边、不套不规则几何外框、不拉伸变形。
-- 不把 logo 当作页面装饰重复铺满；一个视口内只保留必要的品牌识别。
-- 若某个 app 暂未放置该文件，先复制现有 `public/haruhi-logo-192.png`，不要临时生成新标志。
-
-Header 中使用“logo + 标题文字”的组合：
-
-- logo 放左侧，标题文字放右侧，二者间距使用 `12px` 或 `16px`。
-- 常规导航使用 `44-48px` logo；紧凑工具栏可降到 `40px`。
-- 标题文字可以按站点气质变化，例如 `春日团报`、`春日商城`、`长门有希的书架`，但行高保持 `1.2-1.45`。
-- 双行组合第一行是站点名，第二行是短描述；第二行可省略，但不要超过一行。
-- 标题文字可使用当前 Expression Mode 的 `--sos-link` 或 `--sos-text-primary`，不要给每个站点临时发明新色值。
-
-### 1.3 界面对象目录
-
-设计系统要先讲清楚真实界面对象，再决定哪些对象进入组件库。当前主线优先覆盖以下对象：
-
-| 对象             | 职责                         | Anatomy                                       | 必须覆盖的状态                              | 设计规则                                             |
-| ---------------- | ---------------------------- | --------------------------------------------- | ------------------------------------------- | ---------------------------------------------------- |
-| Global Header    | 站点入口和身份识别           | logo + 标题文字 + 主导航 + 工具动作           | default / compact / mobile / scrolled       | `haruhi-logo-192.png` 保持一致，站点文字允许适度变声 |
-| Channel Header   | 列表、专题和管理页上下文标题 | eyebrow + title + summary + primary action    | with-filter / with-meta / empty-result      | 普通页面不用 hero 级大标题；主动作与标题关系清楚     |
-| Content Card     | 新闻、商品、作品、书籍和试卷 | media? + title + summary/meta + status/action | hover / selected / loading / empty          | 媒体比例按业务语义决定，hover 不显示新增关键信息     |
-| Filter Bar       | 搜索、筛选和批量动作入口     | search + chips/tabs + count + actions         | active / no-result / sticky                 | 筛选数常驻，筛选动作和批量动作分层                   |
-| Data Row / Table | 订单、审核、后台核对         | identifier + primary data + state + actions   | selected / pending / error / bulk           | 订单号、金额、日期、数量使用等宽数字                 |
-| Form Flow        | 投稿、发布、结账、答题       | section + field group + help/error + action   | focus / invalid / disabled / saving/success | Label 常驻；错误说明原因和下一步                     |
-| System State     | 加载、空、错误、权限、维护   | context + reason + preserved data? + action   | loading / empty / no-result / error         | 不只写“暂无数据”或“未知错误”，必须提供下一步         |
-
-这些对象比“某个 Vue 组件”更稳定。进入 `@haruhi/ui` 前，先在规范页和真实业务页面验证 anatomy、状态和响应式。
-
-## 2. 工程附录：项目接入判断
-
-这份规范的来源材料并不了解本仓库的多 app 结构；本仓库此前的说明也没有预设要接入一套正式设计系统。因此落地时不照搬任一边的表述，而以当前 monorepo 的真实约束为准：
-
-- 现有业务 app 已经分别承担生产能力，不能把设计系统接入变成一次性重写。
-- `packages/design-system` 继续承担框架无关 token 和 class contract；`packages/ui` 已启用 Vue wrapper MVP，但只封装稳定基础件。
-- 外部 preview 中的 React 示例只作为规范演示参考，不作为本仓库必须采用的技术栈。
-- 设计系统先稳定 token、布局原语、基础组件 anatomy、界面对象、状态矩阵和文档页；业务卡片要等跨 app 形态稳定后再抽象。
-
-## 3. 工程附录：项目接入约束
-
-当前仓库是多前端应用 monorepo，现有 app 以 Vue 为主，样式技术包含原生 CSS、SCSS、Tailwind 和 CSS 变量。设计系统的第一阶段交付不是共享 Vue 组件库，而是框架无关的 CSS Token、基础 class contract 和兼容 bridge。
-
-正式约束：
-
-- `packages/design-system` 是当前设计系统落地点，导出 CSS。
-- `packages/ui` 是 Vue 基础组件 MVP，依赖 `@haruhi/design-system` 的 class contract，不重新定义视觉。
-- 业务 app 可以先直接消费 CSS；引入 `@haruhi/ui` 必须以替换稳定基础件为目标，不为了单页特例新增 wrapper。
-- 新页面优先消费 Semantic Token，例如 `--sos-bg-page`、`--sos-accent`、`--sos-text-primary`。
-- 业务代码不得新增散落的 Hex、RGB、任意阴影、任意圆角和非 4px 网格间距。
-- 现有页面迁移从 Token Bridge 开始，第一阶段不强制改变视觉。
-- 设计规范页是静态文档 app，不依赖后端 API，不参与 RBAC。
-- v0.2 先补齐 layout primitives、component contract、state matrix、responsive gates 和 UI MVP；业务 recipe 继续在规范页验证。
-
-CSS 入口：
+入口：
 
 ```js
-import '@haruhi/design-system/tokens.css'
-import '@haruhi/design-system/components.css'
-import '@haruhi/design-system/bridges.css'
+import '@haruhi/design-system/tokens.css' // 仅 token（浅层接入用）
+import '@haruhi/design-system/components.css' // token + 基础组件（已 @import tokens + recipes）
+import '@haruhi/design-system/bridges.css' // 旧站变量桥，仅渐进迁移时加载
+import { SosButton, SosCard /* … */ } from '@haruhi/ui'
+import { SosProductCard } from '@haruhi/ui/recipes'
 ```
 
-`bridges.css` 只用于渐进迁移。新页面不应把 bridge 变量当成新的设计系统变量。
+### 1.2 三层 token 模型
 
-### 3.1 Monorepo 接入矩阵
-
-每个 app 先在入口样式和一个代表性业务路径接入 Token、布局原语和基础组件，再根据证据扩大范围。
-
-| App               | Mode             | 入口                                      | 首批对象                                   | 验收路径                         |
-| ----------------- | ---------------- | ----------------------------------------- | ------------------------------------------ | -------------------------------- |
-| `@haruhi/news`    | `news`           | `apps/news/src/main.js` + `style.css`     | NavBar、SiteFooter、文章列表、后台发布表单 | 发布/阅读路径，列表与详情截图    |
-| `@haruhi/shop`    | `shop`           | `apps/shop/src/main.js` + `assets/*.css`  | 商品卡、预售进度、订单状态、管理后台表单   | 下单、订单查看、库存编辑路径     |
-| `@haruhi/art`     | `art`            | `apps/art/src/main.js` + `style.css`      | TopBar、FilterPanel、ArtworkGrid、上传审核 | 上传、筛选、审核、作品详情路径   |
-| `@haruhi/novel`   | `library`        | `apps/novel/src/main.js` + `assets/*.css` | 书架、Reader、目录、阅读位置和反馈状态     | 书架进入阅读、目录跳转、阅读恢复 |
-| `@haruhi/exam`    | `exam`           | `apps/exam/src/main.ts` + `style.css`     | HomeView、ExamPaper、QuestionRenderer      | 开始答题、恢复进度、提交和批阅   |
-| `@haruhi/console` | `base + compact` | `apps/console/src/main.ts` + `style.css`  | Dashboard、Audit、Notify、Users 表格表单   | 审核、通知、用户管理路径         |
-
-`console` 是管理后台，不强行套某个业务表达模式。它默认使用基础语义 token，可按页面密度加 `data-sos-density="compact"`。
-
-### 3.2 包治理
-
-| Package                 | Level             | 规则                                                                            |
-| ----------------------- | ----------------- | ------------------------------------------------------------------------------- |
-| `@haruhi/design-system` | L0 · CSS Contract | 新增 token/class 走 minor；删除或改名必须先 deprecate，并保留 bridge 删除计划。 |
-| `@haruhi/ui`            | L1 · Vue Wrapper  | 新增 props/variant 前先更新规范页、状态矩阵和 a11y 证据。                       |
-| `@haruhi/auth-ui`       | Auth Domain       | 继续维护登录/会话 UI；可以消费基础件，但不合并进通用 UI 包。                    |
-| `@haruhi/api-client`    | Data Contract     | 不依赖视觉样式；只和内容数据格式、错误文案和状态字段对齐。                      |
-
-版本规则：
-
-- Minor：新增 token、class、wrapper、文档 section 或非破坏性 recipe。
-- Patch：修复样式 bug、补状态、补文档、修响应式和 a11y 问题。
-- Breaking：删除 token/class、改变 anatomy、改变 variant 语义；必须给迁移步骤和回滚边界。
-
-### 3.3 接入 Playbook
-
-最小迁移切片按以下顺序执行：
-
-0. 视觉基线：保存原页面截图，列出必须保留的视觉和信息结构，确认接入后不能比原页面退化。
-1. 内容不变：不向业务页面新增规范说明、验收口号或虚构字段；业务标题、摘要、按钮和状态文案保持原语义。
-2. 入口导入：在目标 app 入口样式或 main 文件导入 `tokens.css` 和 `components.css`；旧变量多的页面才临时导入 `bridges.css`。
-3. 根节点加 scope：给页面根容器加 `class="sos-scope"` 和对应 `data-sos-site`；`console` 可只用 `sos-scope` 加 `data-sos-density="compact"`。
-4. 选择接入模式：基线接入不改 UI；视觉接入必须进入完整流程重设计切片。
-5. 重设计完整对象：按新设计系统同时处理 Header、内容卡片/数据行、表单、状态、响应式和交互反馈。
-6. 保留业务 recipe：商品卡、作品卡、书封卡、试卷卡先作为业务 recipe 完整设计，不直接抽成共享组件。
-7. 提交证据：PR 附接入前后 390 / 768 / 1280px 截图、状态矩阵、a11y 检查、bridge 删除计划和回滚步骤。
-
-入口 import 顺序：
-
-```js
-import '@haruhi/design-system/tokens.css'
-import '@haruhi/design-system/components.css'
-// 仅渐进迁移旧变量时加载
-import '@haruhi/design-system/bridges.css'
+```
+Primitive（物理色板，不在业务里直接用）
+  → Semantic（语义变量，业务只消费这层）
+    → Expression（站点表达，[data-sos-site] 只覆盖语义层）
 ```
 
-业务站点根 scope：
+业务代码**只写语义变量**（`var(--sos-link)`），不写物理色值，也不直接读 primitive。
 
-```vue
-<template>
-  <main class="sos-scope" data-sos-site="shop">
-    <RouterView />
-  </main>
-</template>
-```
+---
 
-管理后台：
+## 2. 设计调性与品牌
 
-```vue
-<template>
-  <main class="sos-scope" data-sos-density="compact">
-    <RouterView />
-  </main>
-</template>
-```
+基础调性：**明亮、可靠、有社团感，但不幼稚**。像一个认真运行的社团工作台——真实内容清楚、关键动作可靠、状态反馈明确，保留少量 Haruhi Fan Club 的识别线索。不是泛用蓝白后台，也不是二次元贴纸包。
 
-Bridge 规则：
+稳定识别线索：
 
-- 允许：旧页面变量多、需要先接入 token 但不改变外观；必须记录 owner、范围和删除计划。
-- 禁止：新页面、新组件和新 wrapper 不能把 bridge 变量当成正式接口。
-- 回滚：移除 app 入口 import 或 bridge 文件即可回退视觉接入，不改 API 和数据结构。
+- **Signal Yellow（`#fbbf24`）**：少量、稳定、可记忆的品牌信号——用于 news 的专题/置顶线索、eyebrow 的小色条、重点标记。**不要**扩成主按钮、价格或整页主题。
+- **Confident Rhythm**：强 display 标题、稳定 4px 网格、足够留白。
+- **Tactile Feedback**：明确但克制的按压、上浮与进度反馈。
+- **Content Structure**：内容、数据、操作关系清楚，装饰不改变阅读路径。
+- **真实内容优先**：商品图、作品、文章、题目、书目是第一视觉对象；背景/纹理/玻璃/阴影只服务内容层级。
 
-### 3.4 当前业务研究记录
+**品牌标志**：不重绘 logo，使用现有 `haruhi-logo-192.png`。Header 用「logo + 标题文字」锁头，logo `40–48px`（紧凑 `40px`），标题行高 `1.2–1.45`，颜色用当前模式的 `--sos-text-primary` / `--sos-link`，不临时发明色值。
 
-本阶段不再以“哪个页面最容易套 class”为准，而是先看业务对象、现有视觉质量和新调性的契合度。
+---
 
-| App            | 现有优势                                              | 主要风险                                                           | 当前判断                                                                  |
-| -------------- | ----------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| `@haruhi/news` | 黑白团报感、真实文章字段、标签/作者/日期/置顶结构清楚 | 首页大 logo banner 偏装饰；Nav 未按 logo+标题规范；卡片 hover 偏旧 | 先做首页阅读流深度切片：Nav、页面标题、工具条、NewsCard、分页和热门标签。 |
-| `@haruhi/shop` | 价格、库存、预售进度和订单路径真实                    | 旧蓝色大 header 和交易卡片需要整体重设计，浅接会削弱购买信任       | 第二切片选择前台交易流：Header、筛选、商品列表、商品详情和购物车入口。    |
-| `@haruhi/art`  | 作品网格、上传、审核和作品详情已有真实流程            | 画廊容易被青绿色背景、玻璃和动效抢走作品主位                       | 暂不再浅改；下一阶段先定义作品卡、筛选条、上传表单的完整视觉稿再接入。    |
+## 3. Tokens
 
-`news` 的第一切片不是把页面改成全新站点，而是保留已有的团报黑白阅读气质，把它纳入设计系统：`SosPage` 输出页面 scope，`SosHeaderBrand` 落实 header 的 logo+标题文字，首页使用 PageHeader + Toolbar 组织信息，业务新闻卡仍留在 app 内作为 recipe 验证。
+完整清单见 `tokens.css`；下面是结构与约定。
 
-`shop` 的第二切片用于验证设计系统能不能真正解决交易页面问题，而不是只换颜色。前台商城保留明亮中性底，行动蓝只用于购买、链接、当前筛选和交易进度；商品图、商品名、价格、原价、库存、分类、预售目标和发货信息必须常驻。商品卡和详情页可以使用 `SosButton`、`SosProgress`、`SosHeaderBrand` 这些稳定基础件，但 `ShopProductCard` 仍作为业务 recipe 留在 app 内，不进入共享 UI 库。
+### 3.1 语义颜色（业务只用这些）
 
-`art` 暂不进入本轮改造，是因为作品页面需要先做媒体优先的视觉研究：作品本身、作者、来源、授权和审核状态必须压过任何背景色或玻璃材质。不能把青绿色推成画廊大背景，也不能把“每站一个主色/纹理”当成设计结论。
+| Token                                                              | 用途                                   |
+| ------------------------------------------------------------------ | -------------------------------------- |
+| `--sos-bg-page` / `-surface` / `-subtle` / `-muted` / `-strong`    | 页面 / 承载面 / 弱背景 / 更弱 / 强背景 |
+| `--sos-text-primary` / `-secondary` / `-tertiary` / `-disabled`    | 主 / 次 / 弱 / 禁用文本                |
+| `--sos-border-subtle` / `-default` / `-strong`                     | 三档边界                               |
+| `--sos-accent` / `-hover` / `-soft` / `-contrast` / `-2`           | 当前模式强调色 + 辅色                  |
+| `--sos-link` / `-hover`，`--sos-focus`，`--sos-signal`             | 链接 / 焦点 / 品牌信号                 |
+| `--sos-danger` / `-success` / `-warning` / `-info`（各带 `-soft`） | 跨站点一致的状态色                     |
 
-本阶段在预览页补一层“业务路径蓝图”，把通用界面对象落到真实路径：
+### 3.2 排版
 
-| 路径      | 当前状态 | 真实文件                                                                        | 设计重点                                                                   |
-| --------- | -------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| News 阅读 | 已接入   | `apps/news/src/views/HomeView.vue`、`apps/news/src/components/NewsCard.vue`     | 团报黑白阅读气质、标题/摘要/日期/标签/置顶常驻，黄色只作为信号。           |
-| Shop 交易 | 已接入   | `apps/shop/src/layouts/ShopLayout.vue`、`HomeView.vue`、`ProductDetailView.vue` | 明亮中性交易面，行动蓝只用于购买、链接、筛选和预售进度，关键交易字段常驻。 |
-| Art 投稿  | 下一轮   | `apps/art/src/components/ArtworkGrid.vue`、`apps/art/src/views/UploadView.vue`  | 作品主位、作者/来源/授权/审核状态可读；先做媒体优先视觉研究再接入。        |
+- **流体字阶**：标题用 `clamp()` 随视口平滑缩放（`--sos-text-xl … -hero`），小字固定（`-2xs … -lg`）。无断点跳变。
+- **字重**：`--sos-weight-regular(400) … -black(900)`。
+- **字距**：`--sos-tracking-tighter … -wider`（标题收紧、eyebrow 大写放宽）。
+- **行高**：`--sos-leading-tight … -reading`。
+- **字体族**：`--sos-font-sans`（界面）/ `--sos-font-reading`（衬线长文）/ `--sos-font-mono`（数据等宽）。display 与 reading 可被站点覆盖（library/exam 用衬线标题）。
 
-视觉验收使用可控文章数据跑浏览器截图：
+### 3.3 间距 · 圆角 · 层次 · 动效 · 层级
 
-```sh
-pnpm dev:news
-pnpm check:news:visual
-```
+- **间距**：4px 基准网格 `--sos-space-0 … -32`。不写非网格间距。
+- **圆角**：`--sos-radius-xs(4) / sm(8) / md(12) / lg(18) / xl(24) / 2xl(32) / full`。
+- **层次**：双层柔光 `--sos-shadow-hairline / -xs / -sm / -card / -float / -overlay`（环境光 + 主光，克制不发黑）。
+- **动效**：`--sos-duration-fast/base/slow` + `--sos-ease-out/-standard/-spring`；`prefers-reduced-motion` 自动降级。
+- **焦点环**：统一用 `--sos-ring`（`focus-visible`），不在业务里自定义 outline。
+- **浮层层级**：`--sos-z-sticky(1100) < -dropdown(1200) < -overlay(1300) < -modal(1400) < -popover(1500) < -toast(1600) < -tooltip(1700)`。
 
-该检查会输出桌面、移动和 hover 截图到 `tmp/visual-checks/news/`，并验证无横向溢出、首卡日期和置顶状态常驻。
+---
 
-商城交易切片同样用 mock 商品数据跑浏览器截图：
+## 4. 五个平行世界（Expression Modes）
 
-```sh
-pnpm dev:shop
-pnpm check:shop:visual
-```
+每个模式只覆盖语义层（配色 / 表面 / 圆角 / 字体 / 肌理），组件解剖不变。**各站气质提炼自「接入设计系统之前的原始站点」的优点，再统一进同一套脊柱**——不是把五个站染成同一种黄，也不是照搬原站的艳度。
 
-该检查会输出首页桌面、首页移动、商品详情和 hover 截图到 `tmp/visual-checks/shop/`，并验证商品卡、价格/原价、库存/分类、预售进度和详情页购买动作常驻。
+| Mode      | 站点           | 气质（提炼自原站）                                                       | 强调 / 信号              | 禁止                       |
+| --------- | -------------- | ------------------------------------------------------------------------ | ------------------------ | -------------------------- |
+| `news`    | 春日团报       | 纯净白纸编辑部、毛笔报头；锐利小圆角、无卡片阴影、正文衬线               | 墨色 accent / 黄色信号   | 彩色大背景、玻璃化正文     |
+| `shop`    | 春日商城       | 晴空蓝（沿用原站 `#3498db` 一脉）、圆润亲和、柔软投影；价格/库存优先     | 行动蓝 / 黄色信号        | 整站染蓝、隐藏价格库存     |
+| `art`     | 美术部         | 梦幻渐变氛围（克制的粉/青柔光）、玻璃感内高光面板、大圆角；作品主位      | 青绿 + 粉色辅 / 黄色信号 | 渐变过艳、背景抢作品       |
+| `library` | 长门有希的书架 | 温润奶油纸、衬线标题、极简留白；书封与连续阅读线索                       | 琥珀 / 黄色信号          | 全站纸纹铺底影响阅读       |
+| `exam`    | 春日试卷中心   | 暖木米白试卷、答题横格（卡片上）、阅卷红 + 学生藏蓝 + 金色信号；衬线标题 | 阅卷红 / 金色信号        | 木桌铺满页面、动效干扰答题 |
 
-## 4. Token 架构
+> 历史教训：`exam` 原站曾混用 B 站粉 `#FB7299` 与小红书红 `#FF2442` 两套不搭的红——设计系统的价值之一就是**把它统一成一套「阅卷红 + 藏蓝 + 金」语言**，这正是「抽共性 + 改掉原设计不合理处」。
 
-### 4.1 三层模型
+**明暗与密度**：`data-sos-theme="dark"` 只重映射语义层；`data-sos-density="compact|spacious"` 只调控件节奏。建议把 `data-sos-theme` 挂在 `documentElement` 上，让 Teleport 到 body 的弹层/toast 也继承。
 
-1. **Primitive Token**：物理色值、字号、间距、圆角、阴影、时长。
-2. **Semantic Token**：业务可读变量，例如 `--sos-bg-page`、`--sos-text-secondary`、`--sos-border-default`、`--sos-accent`。
-3. **Expression Mapping**：通过 `data-sos-site="news | shop | art | library | exam"` 将 Semantic Token 映射到不同业务表达。
+---
 
-业务组件只读取 Semantic Token：
+## 5. 组件
+
+### 5.1 成熟度分级（抽象边界）
+
+| Level | 名称                   | 落点                                 | 准入                                                             |
+| ----- | ---------------------- | ------------------------------------ | ---------------------------------------------------------------- |
+| L0    | Token / Class Contract | `@haruhi/design-system`              | 颜色、间距、圆角、布局原语、基础 class                           |
+| L1    | Primitive Wrapper      | `@haruhi/ui`                         | 跨站重复、语义稳定、状态明确；只输出 class / props / slot / aria |
+| L2    | Composition Recipe     | `recipes.css` + `@haruhi/ui/recipes` | 五类业务卡片；只定义 anatomy / 母题 / 状态，业务字段由调用方传入 |
+| L3    | Product Component      | 未来评估                             | 多页面共享同一信息结构、状态机、数据契约后再评估                 |
+
+### 5.2 @haruhi/ui 组件清单（~41）
+
+- **布局**：Page · PageHeader · Toolbar · Stack · Inline · Cluster · Grid · Split · Surface · MediaFrame · Divider
+- **排印**：Eyebrow · Title · Copy
+- **控件**：Button · Badge · Chip · Tabs（pill / underline）
+- **表单**：Field · Input · Textarea · Select · Checkbox · Switch（均 v-model）
+- **数据陈列**：Card · Avatar · Table · Tooltip · Skeleton · Spinner
+- **反馈**：Notice · Progress · EmptyState · ToastRegion（配 `useToast`）
+- **导航**：Appbar · NavLink · Breadcrumb · Pagination · HeaderBrand
+- **浮层**：Modal（Teleport + 焦点/滚动锁）· Dropdown（点击外关闭）
+
+### 5.3 API 设计守则
+
+- Props 只暴露稳定语义：`variant` / `size` / `tone` / `ratio` / `gap` / `selected` / `loading`；页面级 wrapper 用 `site` / `density` / `contained` / `gap`。
+- **不接受** `color` / `shadow` / `radius` 等视觉 props——表达由 token + `data-sos-site` 决定。
+- Slot 对应稳定 anatomy 槽位，不用任意 slot 绕过结构。
+- 状态 props 必须同步无障碍证据：`aria-busy` / `aria-invalid` / `disabled` / `aria-current`。
+- **按钮变体用双类选择器**（`.sos-button.sos-button--primary`）以胜过 app 内嵌的 normalize 式 `[type=submit]{background-color:transparent}` 元素级 reset——否则同特异性 + 后加载会把按钮背景压没。
+
+---
+
+## 6. 业务卡片 recipe
+
+`recipes.css` 沉淀「共享卡片解剖 + 五个内容类型特化 recipe」，由 `@haruhi/ui/recipes` 的 prop 驱动组件输出；内容仍由业务传入。
+
+| Recipe              | 站点    | 母题                                        |
+| ------------------- | ------- | ------------------------------------------- |
+| `.sos-article-card` | news    | 顶部信号细线、墨色描边标签、衬线摘要        |
+| `.sos-product-card` | shop    | 方形媒体、角标、预售进度、价格、悬浮动作    |
+| `.sos-artwork-card` | art     | 玻璃画框 + 深色信息条（题注/标签/粉色点赞） |
+| `.sos-book-card`    | library | 书脊高光、竖排书名、卷册角标                |
+| `.sos-exam-card`    | exam    | 答题横格、阅卷红印章、折角、藏蓝分割线      |
+
+共享解剖（`.sos-card__media/kicker/heading/excerpt/tags`、`.sos-price`、`.sos-ribbon`、`.sos-stat`）可跨 recipe 复用。每张卡片消费当前 `data-sos-site` 的表达 token，放进对应站点即天然契合。
+
+> 卡片是核心场景：版式、换行、尺寸比例、内部间距都要随内容类型打磨；不要把一种卡硬套到另一种内容上。
+
+---
+
+## 7. 接入
+
+### 7.1 两种接入深度
+
+| 深度             | 做法                                                                          | 例子                             |
+| ---------------- | ----------------------------------------------------------------------------- | -------------------------------- |
+| **浅层（基线）** | 只引 `tokens.css` + 根节点 `data-sos-site`；用站点自有组件/布局，仅消费 token | `news`（保留团报自有编辑部设计） |
+| **深度**         | 引 `components.css` + `@haruhi/ui` / recipes，用 DS 组件搭页面                | 规范页、`auth-ui`                |
+| **桥接**         | 引 `bridges.css`，把旧站变量映射到 token（仅 shop / art）                     | `shop` / `art`                   |
+
+### 7.2 铁律：接入不得同化既有站点的字体
+
+`.sos-scope` 自带一套 DS 基础排版。把它整块罩在「自带成熟排版的旧站」上会**覆盖原字体气质、造成视觉倒退**（如 shop 原 Helvetica + 1px 字距被换成 Inter）。设计系统应只经 `data-sos-site` + bridges 提供**配色/几何**，不强行同化字体。`.sos-scope` 的字体/行高因此可覆盖：
 
 ```css
-.product-price {
-  color: var(--sos-link);
+/* 旧站在自己的根上保留原排版，仅吃 DS 的配色/几何 */
+.shop-app.sos-scope {
+  --sos-scope-font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --sos-scope-leading: 1.6;
 }
-
-.product-card {
-  background: var(--sos-bg-surface);
-  border-color: var(--sos-border-subtle);
-}
-```
-
-### 4.2 Semantic Token 使用表
-
-| 语义层     | Token                                    | 业务用途                             | 边界                         |
-| ---------- | ---------------------------------------- | ------------------------------------ | ---------------------------- |
-| 页面底色   | `--sos-bg-page`                          | 页面根背景、全局区段背景             | 不用于卡片内部或按钮         |
-| 承载面     | `--sos-bg-surface`                       | 卡片、表单、弹层、Notice             | 不直接替代 `--sos-bg-page`   |
-| 弱承载面   | `--sos-bg-subtle`                        | 筛选条、空状态、状态格、局部衬底     | 不用于强调状态               |
-| 主文本     | `--sos-text-primary`                     | 标题、强数字、按钮内文、主要链接文本 | 不用于 disabled 文案         |
-| 辅助文本   | `--sos-text-secondary`                   | 摘要、说明、meta、help text          | 不承载主要操作               |
-| 边界       | `--sos-border-subtle / default / strong` | 分隔信息关系、承载面边界、焦点补强   | 焦点态不能只靠边框变浅       |
-| 局部强调   | `--sos-accent`                           | Primary button、当前 tab、关键进度   | 强调色不是整站主色           |
-| 品牌信号   | `--sos-signal`                           | 少量 Badge、编号、重要线索           | 不用于价格、错误或大面积 CTA |
-| 跨站状态   | `--sos-danger / --sos-success`           | 错误、成功、危险操作、完成反馈       | 不随站点气质改变语义         |
-| 几何与深度 | `--sos-card-radius / --sos-card-shadow`  | 卡片、浮层、媒体承载面               | 不在业务里新增临时半径或阴影 |
-
-### 4.3 Expression Mapping 边界
-
-Expression Mode 只允许映射局部强调色、链接色、控件圆角、媒体圆角、组件级阴影和阅读字体。它不改变组件 anatomy、不改变状态意义、不改变业务信息结构，也不自动给整站铺主色或纹理。
-
-| Mode      | 强调语言        | 卡片圆角 | 深度                 | 验收重点                         |
-| --------- | --------------- | -------- | -------------------- | -------------------------------- |
-| `news`    | 墨色 + 明黄线索 | `8px`    | 默认平面             | 列表、长文和后台审核能快速扫读   |
-| `shop`    | 行动蓝强调      | `18px`   | 柔和交易卡片阴影     | 商品图 1:1，价格、库存、进度常驻 |
-| `art`     | 青绿局部强调    | `24px`   | 作品局部可轻磨砂     | 作品占视觉主位，界面只承载       |
-| `library` | 琥珀局部强调    | `8px`    | 书封和摘录可有纸张感 | 阅读栈、书封比例和目录连续       |
-| `exam`    | 批改红局部强调  | `12px`   | 试卷组件可有纸张感   | 题目、选项、倒计时和批阅稳定     |
-
-需要站点气质时先定义局部强调语言，不在组件里写 `[data-sos-site='shop'] .product-card { color: #3478f6; }` 这类业务覆盖，也不把 `data-sos-site` 当作整站换肤开关。
-
-不要在业务组件中直接写物理值：
-
-```css
-.product-price {
-  color: #3478f6;
-}
-
-.product-card {
-  box-shadow: 0 12px 33px rgba(0, 0, 0, 0.14);
+.sos-scope[data-sos-site='news'] {
+  --sos-scope-font: var(--font-sans); /* 团报的 Noto Sans SC */
 }
 ```
 
-### 4.4 上下文注入
-
-页面或局部区域通过 `data-sos-site` 注入表达模式：
-
-```html
-<main class="sos-scope" data-sos-site="shop">
-  <button class="sos-button sos-button--primary">加入购物车</button>
-</main>
-```
-
-密度使用独立属性，不参与主题语义：
-
-```html
-<section data-sos-site="exam" data-sos-density="compact">...</section>
-```
-
-`data-sos-density` 只允许影响控件高度、局部间距和列表密度，不允许改变颜色、状态、信息结构和组件层级。
-
-## 5. 核心色彩
-
-| Token              | 色值      | 用途                                        |
-| ------------------ | --------- | ------------------------------------------- |
-| `--sos-yellow-500` | `#FFC83D` | Signal Yellow，品牌记忆、重要标签、全局提示 |
-| `--sos-sky-500`    | `#4B9FE8` | 天空蓝，导航、轻快链接、默认焦点            |
-| `--sos-blue-500`   | `#3478F6` | 行动蓝，商城主行动与交易信息                |
-| `--sos-teal-500`   | `#159A90` | 画廊青，美术部主行动与成功语义              |
-| `--sos-amber-600`  | `#9D5D16` | 书脊棕，图书馆、档案、历史内容              |
-| `--sos-red-600`    | `#C8171E` | 批改红，考试、危险、强提醒                  |
-| `--sos-ink-950`    | `#171A22` | 标题、深色表面、团报主行动                  |
-| `--sos-warm-50`    | `#FFFAF2` | 默认社团背景                                |
-| `--sos-paper-100`  | `#F4ECDC` | 书籍、便签、试卷纸张                        |
-| `--sos-mint-500`   | `#61C8A9` | 成功、完成、积极状态                        |
-
-使用规则：
-
-- 一个 Expression Mode 只有一个主行动色。
-- Signal Yellow 不用于大段正文、错误信息或商城价格。
-- Danger 与 Success 是跨站语义，不随主题重新定义意义。
-- 焦点环必须比背景和控件边界更清晰，不能只改变阴影。
-- 状态不得只依赖颜色，同时使用文字、图标、形状或位置。
-
-## 6. 排版
-
-字体栈：
-
-- UI / 正文：`Inter, system-ui, -apple-system, PingFang SC, Microsoft YaHei, sans-serif`
-- 阅读：`Noto Serif SC, Songti SC, STSong, Georgia, serif`
-- 代码：`SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace`
-
-层级：
-
-| 层级      | 尺寸      | 字重      | 行高        | 用途                      |
-| --------- | --------- | --------- | ----------- | ------------------------- |
-| `hero`    | `48-96px` | `850`     | `0.98-1.08` | 宣言式 Hero，每页最多一次 |
-| `display` | `36-56px` | `800`     | `1.08`      | 频道标题、专题标题        |
-| `section` | `28-36px` | `800`     | `1.20`      | 模块标题                  |
-| `title`   | `18-22px` | `700-800` | `1.35`      | 卡片标题                  |
-| `body`    | `16-17px` | `400`     | `1.65`      | 默认正文                  |
-| `reading` | `17px`    | `400-500` | `1.90`      | 图书馆与长文阅读          |
-| `caption` | `12-14px` | `600`     | `1.50`      | 日期、库存、帮助、元数据  |
-
-排版约束：
-
-- 正文不能依靠 `font-weight: 700+` 维持层级。
-- 新闻摘要、图书正文使用阅读行高；商城和筛选界面可更紧凑。
-- 纯大写只用于 2-8 个字符的英文标签。
-- 价格、分数、进度应启用等宽数字：`font-variant-numeric: tabular-nums`。
-- 规范页和新代码不使用负字距，不使用随视口连续缩放的字号。
-
-## 7. 间距、网格与容器
-
-采用 4px 网格。合法间距：
-
-`4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 48 / 64 / 80 / 96px`
-
-推荐使用：
-
-| 场景              | 间距          |
-| ----------------- | ------------- |
-| 控件内部          | `8-16px`      |
-| 卡片内部          | `16-24px`     |
-| 卡片之间          | `16-32px`     |
-| 页面模块          | `48-96px`     |
-| 移动端左右 gutter | `10-16px`     |
-| 桌面内容容器      | 最大 `1248px` |
-| 画廊与大网格      | 最大 `1472px` |
-| 长文阅读          | 最大 `736px`  |
-
-形状梯度固定为：
-
-`4 / 8 / 12 / 18 / 24 / full`
-
-Expression Mode 可以把 `--sos-card-radius` 映射到上述任一值，但不能新增 13px、17px 等临时半径。
-
-### 7.1 Layout Primitives
-
-v0.2 新增框架无关的布局原语。它们是 UI 库之前的地基，用于稳定间距、对齐、媒体比例和卡片承载面。
-
-| Primitive          | 用途                     | 规则                                                     |
-| ------------------ | ------------------------ | -------------------------------------------------------- |
-| `.sos-stack`       | 纵向信息组               | 通过 `--sos-stack-gap` 控制间距，不在子元素上追加 margin |
-| `.sos-inline`      | 行内操作组               | 允许换行，不拉伸 Badge、按钮和短标签                     |
-| `.sos-cluster`     | 两端或多组对齐           | 用于卡片 footer、标题栏、统计行                          |
-| `.sos-grid`        | 自适应卡片网格           | 通过 `--sos-grid-min` 和 `--sos-grid-gap` 控制列宽与间距 |
-| `.sos-split`       | 双栏布局                 | 只用于稳定双栏，不用于强行制造 hero split                |
-| `.sos-surface`     | 有边界的承载面           | 统一背景、边框、圆角和 elevation                         |
-| `.sos-media-frame` | 媒体比例容器             | 使用 `data-ratio="1:1 / 4:3 / 3:4 / 2:3"` 声明比例       |
-| `.sos-state-row`   | 数值、进度、库存等状态行 | 数字使用等宽；状态不能只靠颜色                           |
-
-使用示例：
-
-```html
-<article class="sos-card">
-  <div class="sos-media-frame" data-ratio="1:1">
-    <img src="/product.png" alt="商品图" />
-  </div>
-  <div class="sos-card__body sos-stack">
-    <div class="sos-cluster">
-      <h3>朝比奈实玖瑠 fufu</h3>
-      <strong>¥147</strong>
-    </div>
-    <p>达到目标后进入统一排产。</p>
-  </div>
-</article>
-```
-
-禁止在页面里临时写固定高度来“修正”卡片比例。卡片形态应由 `MediaFrame` 比例、卡片 anatomy 和容器宽度共同决定。
-
-## 8. 媒体几何
-
-| 模式      | 媒体几何                          |
-| --------- | --------------------------------- |
-| `news`    | 自由横图或无图，边角 4px          |
-| `shop`    | 商品主图 1:1，卡片内媒体圆角 14px |
-| `art`     | 4:3、3:4 或原图比例，作品优先     |
-| `library` | 书封 2:3                          |
-| `exam`    | 纸张卡，内容区不裁切              |
-
-图片、书封、文章标题和试卷内容是第一视觉对象。角色图、贴纸和装饰不能替代业务内容。
-
-## 9. Elevation
-
-系统只有三个正式层级：
-
-| 层级    | 用途                          |
-| ------- | ----------------------------- |
-| `Flat`  | 页面、新闻正文、列表、分隔区  |
-| `Card`  | 商品、作品、浮层菜单、书封    |
-| `Float` | Dialog、Popover、拖拽中的卡片 |
-
-额外表达性效果：
-
-- `--sos-shadow-paper`：只用于书封与试卷纸张。
-
-禁止为每个组件临时发明不同阴影值。
-
-## 10. Motion
-
-| Token  | 时长    | 用途                         |
-| ------ | ------- | ---------------------------- |
-| `fast` | `120ms` | 按压、图标、颜色反馈         |
-| `base` | `200ms` | hover、focus、Popover        |
-| `slow` | `420ms` | 页面进入、大图切换、进度变化 |
-
-规则：
-
-- Button `active` 最大位移 1px。
-- Card hover 最大上浮 4-6px。
-- 关键数据、计时、考试选择不得延迟显示。
-- `prefers-reduced-motion: reduce` 下移除位移、旋转、视差与平滑滚动。
-
-## 11. Expression Modes
-
-### 11.1 `news`，春日团报
-
-- 基底：中性灰白，平面为主。
-- 强调：墨色主要操作，Signal Yellow 只作局部线索。
-- Signal Yellow：只作左边线、重要标记、专题编号。
-- 圆角：4-8px。
-- Elevation：默认无阴影。
-- 长文可使用衬线字体。
-- 禁止：玻璃、彩色大背景、倾斜正文。
-
-### 11.2 `shop`，春日商城
-
-- 基底：暖白或中性浅底，不把整站染成蓝色。
-- 强调：行动蓝用于购买、链接、交易进度和当前筛选。
-- Signal Yellow：新品、限时、团长推荐。
-- 卡片：18px，商品图优先。
-- 交易信息必须高可读、数字等宽。
-- 预售进度为正式共享组件。
-- 禁止：把品牌黄用于所有价格和购买按钮。
-
-### 11.3 `art`，春日美术部
-
-- 基底：中性页面底，作品图像是主视觉。
-- 强调：青绿色只用于筛选、标签、成功反馈和局部操作。
-- 卡片：24px，高质量媒体优先。
-- 允许：作品局部一层磨砂、一层柔和悬浮、轻微透视。
-- 禁止：青绿色整页背景、每层容器都玻璃化、模糊正文、背景图抢作品。
-
-### 11.4 `library`，长门有希的书架
-
-- 基底：中性页面底，长文区域保持高对比。
-- 强调：琥珀色用于书封、摘录、目录线索和阅读状态。
-- 书封：2:3，可有轻微书脊与纸张阴影。
-- 正文：衬线字体、最大 736px、1.9 行高。
-- 禁止：整页米纸纹理、重木纹、颗粒超过 5% 对比度、卡片大幅悬浮。
-
-### 11.5 `exam`，春日试卷中心
-
-- 基底：中性页面底，题目区域保持稳定。
-- 局部表面：试卷组件可用高对比纸张。
-- 强调：批改红用于考试状态、分数、危险反馈。
-- 辅助角色色：学生蓝。
-- 允许：纸张层级、批注、分数标记。
-- 试题、选项、倒计时和分数区域不得倾斜。
-- 禁止：整页木桌舞台、动效干扰答题；移动端优先答题效率。
-
-## 12. 内容与数据表达
-
-设计系统约束的不只是颜色和组件，也包括页面承载的信息结构。标题、状态、价格、日期、进度和空状态必须来自真实业务字段，并在移动端、加载态和错误态保持可读。
-
-### 12.1 内容原则
-
-| 原则             | 规则                                                                     |
-| ---------------- | ------------------------------------------------------------------------ |
-| 应用内容不变     | 接入设计系统不新增规范解释、验收说明或虚构信息；改文案必须来自产品需求。 |
-| 真实对象先于装饰 | 标题、日期、价格、进度、作者、状态来自业务字段，不用虚造站点或口号。     |
-| 一条信息一个职责 | 标题识别对象，摘要解释差异，状态说明阶段，操作只指向下一步。             |
-| 关键数据常驻     | 价格、库存、倒计时、审核状态、答题进度不能只在 hover 或浮层出现。        |
-| 语气具体克制     | 错误、空状态和成功反馈说清原因与下一步，不写泛泛口号。                   |
-
-### 12.2 数据格式
-
-| 类型 | 示例                | 规则                                                         |
-| ---- | ------------------- | ------------------------------------------------------------ |
-| 日期 | `2026-06-23`        | 列表、审核、订单默认使用稳定日期；相对时间只用于动态流。     |
-| 价格 | `¥ 147`             | 金额使用等宽数字；品牌黄不作为价格色，折扣和总价必须可比较。 |
-| 进度 | `126/200 · 63%`     | 预售、答题、迁移进度同时保留当前值、目标值或百分比。         |
-| 库存 | `现货 12 / 预售中`  | 库存状态用文字常驻，不只显示色点或图标。                     |
-| 作者 | `显示名 / 匿名投稿` | 投稿、审核和系统内容要区分来源；匿名不是空字段。             |
-
-### 12.3 状态文案
-
-| 状态        | 规则                                                                 |
-| ----------- | -------------------------------------------------------------------- |
-| Loading     | 保留原布局骨架和上下文标题；不要用大面积转场替代关键数据位置。       |
-| Empty       | 说明为空原因，例如筛选无结果、权限不足或尚未创建，并提供真实下一步。 |
-| Error       | 说明失败原因、当前内容是否已保留，以及重试、返回或联系支持的动作。   |
-| Unavailable | 下架、维护、暂停售卖和审核中必须有不同文案，不能统一写“暂无”。       |
-
-### 12.4 五个站点的信息主语
-
-| Site      | 必备字段                           | 规则                                                  |
-| --------- | ---------------------------------- | ----------------------------------------------------- |
-| `news`    | 标题、摘要、来源、日期、专题       | 阅读流先证明信息来源和发布时间，再考虑专题视觉。      |
-| `shop`    | 商品名、价格、库存、进度、订单状态 | 交易信息必须可比较、可追踪，不能被装饰和 hover 隐藏。 |
-| `art`     | 作品、作者、版权状态、审核状态     | 作品是主语，界面只补充作者、筛选、审核和操作。        |
-| `library` | 书名、作者、目录、阅读位置         | 长文和书目需要连续阅读线索，不能只展示封面。          |
-| `exam`    | 题目、选项、倒计时、分数、恢复状态 | 考试信息不可延迟出现，移动端优先答题效率。            |
-
-## 13. 基础组件
-
-### 13.0 UI 库准入边界
-
-`packages/ui` 已开始做 Vue MVP，但只封装稳定基础组件，不封装业务卡片。每个进入 UI 库的组件必须持续满足：
-
-- anatomy 稳定：DOM 结构、slot、可访问名称和 class contract 清楚。
-- variants 有限：不能把页面特例做成组件 variant。
-- states 完整：default、hover、focus-visible、disabled、loading、empty、error 至少有定义。
-- responsive 明确：320 / 390 / 768 / 1280px 下不溢出、不遮挡、不依赖 hover。
-- 视觉证据可复查：规范预览页或 story 能展示状态矩阵。
-
-第一批已进入 UI MVP：`Page`、`PageHeader`、`Toolbar`、`Button`、`Badge`、`Field`、`Notice`、`Progress`、`Card`、`EmptyState`、`HeaderBrand`、`Stack / Inline / Cluster / Grid / Split / Surface / MediaFrame`。
-
-暂不进入 UI 库：`NewsArticleCard`、`ShopProductCard`、`ArtworkCard`、`LibraryBookCard`、`ExamPaperCard`。它们先作为 recipe 验证。
-
-### 13.0.1 组件成熟度分级
-
-UI 库不是所有重复 UI 的收纳箱。v0.2 使用五级成熟度管理抽象边界：
-
-| Level | 名称                   | 落点              | 准入规则                                                                  |
-| ----- | ---------------------- | ----------------- | ------------------------------------------------------------------------- |
-| L0    | Token / Class Contract | CSS 包            | 颜色、间距、圆角、布局原语和基础 class；业务迁移可以先 CSS-first 接入。   |
-| L1    | Primitive Wrapper      | `@haruhi/ui`      | 跨站重复、语义稳定、状态明确；wrapper 只输出 class、props、slot 和 aria。 |
-| L1.5  | Page Structure Wrapper | `@haruhi/ui`      | 页面根容器、频道标题和工具区先统一 anatomy，让重设计切片有稳定骨架。      |
-| L2    | Composition Recipe     | 规范页 + 业务 app | 新闻卡、商品卡、作品卡、书封卡、试卷卡先用真实数据验证，不进入 UI 包。    |
-| L3    | Product Component      | 未来评估          | 至少三个页面共享同一信息结构、状态机和数据契约后，才评估升级。            |
-
-当前判断：
-
-| 对象                                | 分级                  | 原因                                                                       |
-| ----------------------------------- | --------------------- | -------------------------------------------------------------------------- |
-| `SosPage / SosPageHeader / Toolbar` | L1.5 · Page Structure | 统一页面骨架、频道标题和筛选工具条；帮助应用做深度重设计但不决定业务字段。 |
-| `SosButton / SosBadge / SosField`   | L1 · UI Wrapper       | 跨站重复、语义稳定、状态明确，可以由 Vue wrapper 输出统一 class。          |
-| `SosCard / SosMediaFrame`           | L1 · Anatomy Wrapper  | 只封装边界、媒体比例和 body/footer 槽位，不决定新闻、商品或作品信息结构。  |
-| `SosStack / Inline / Grid / Split`  | L1 · Layout Wrapper   | 允许 gap、min、ratio 等布局参数；不暴露颜色和材质。                        |
-| `ShopProductCard / ArtworkCard`     | L2 · Recipe           | 需要真实数据、媒体比例和流程状态继续验证，暂不进入共享 UI 包。             |
-| `CheckoutRail / ExamQuestion`       | L3 · Candidate        | 只有当多页面共享同一数据契约和状态机时，才进入产品组件评估。               |
-
-### 13.0.2 API 设计守则
-
-- Props 只暴露稳定语义：`variant`、`size`、`tone`、`ratio`、`gap`、`selected`、`loading`。
-- 页面级 wrapper 只暴露 `site`、`density`、`contained`、`gap` 等结构语义，不接收视觉色值。
-- Slot 对应 anatomy 槽位；不能用任意 slot 绕过结构约束。
-- 组件不接受 `color`、`shadow`、`radius` 等视觉 props；这些由 Semantic Token 决定。
-- 状态 props 必须同步 `aria`、`disabled`、`aria-busy`、`aria-invalid` 等可访问性证据。
-- 新增组件或 variant 前，必须先更新规范页、状态矩阵和响应式截图证据。
-
-| 组件                        | Anatomy                              | Variants                                      | States                                                | 规则                                            |
-| --------------------------- | ------------------------------------ | --------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------- |
-| Page / PageHeader / Toolbar | `page -> header -> toolbar/content`  | `contained / wide / reading / tight / loose`  | `responsive wrap / scoped mode / action overflow`     | 统一页面骨架，不生成业务内容或营销文案          |
-| Button                      | `button / a.sos-button`              | `primary / secondary / ghost / danger`        | `hover / active / focus-visible / disabled / loading` | 只承载明确命令；图标按钮以后单独封装            |
-| Badge                       | `span.sos-badge`                     | `default / accent / solid / outline / signal` | `default / selected / disabled by parent`             | 只表达状态、分类或短标签                        |
-| Field                       | `label -> control -> help/error`     | `input / textarea / select`                   | `focus / disabled / error / help / required`          | Label 不被 placeholder 替代                     |
-| Card                        | `card -> media/body/footer`          | `flat / raised / interactive / recipe`        | `hover / focus-within / selected / loading / empty`   | 内部节奏由 anatomy 管理，不在页面临时改 padding |
-| Notice                      | `icon -> content -> optional action` | `info / warning / success / danger`           | `dismissible / action / compact`                      | 用于系统提示，不用于普通营销文案                |
-| Progress                    | `meta -> track -> fill`              | `default / success / danger`                  | `0 / in-progress / complete / error`                  | 数值常驻显示，不能只依赖颜色或 hover            |
-| EmptyState                  | `icon -> title -> copy -> action`    | `default`                                     | `empty / no result / permission missing`              | 说明原因，并给出下一步动作                      |
-
-每个进入 UI MVP 的组件在规范页中必须有组件用法卡，至少包含：
-
-- Anatomy：root、slot、状态属性和关键子元素。
-- Use：适用场景和组件职责。
-- Do：推荐写法、文案和状态证据。
-- Don’t：禁止把组件挪作其他语义，禁止页面特例变成 variant。
-- Example：CSS-first HTML 和 Vue wrapper 代码至少给出一种。
-
-### 13.1 Page Structure
-
-`Page / PageHeader / Toolbar` 是页面级 wrapper，不是业务页面模板。它们负责统一页面根容器、宽度、标题区、工具区和响应式换行，让后续应用重设计不再从散落布局开始。
-
-规则：
-
-- `SosPage` 可以设置 `site`、`density`、`contained` 和 `gap`，但不接收颜色、阴影或圆角 props。
-- `SosPageHeader` 只承载当前页面的标题、说明、meta 和动作，不写泛营销口号。
-- `SosToolbar` 只组织搜索、筛选、结果数、排序和批量动作，不决定业务筛选语义。
-- 移动端标题动作允许换行到下方，不能压缩文字或拉高空白区域。
-- 业务卡片、数据行和表单内容仍由 recipe 或页面自身定义。
-
-### 13.2 Button
-
-Variants：`primary / secondary / ghost / danger`
-
-States：`rest / hover / pressed / focus-visible / loading / disabled`
-
-规则：
-
-- 默认高度 44px；关键 CTA 48px。
-- 标签使用动词开头。
-- Loading 保持按钮宽度。
-- Disabled 不能成为解释错误的唯一方式。
-- 同一视口只允许一个最高行动层级 CTA。
-- 不用于普通状态标签、长句提示或卡片标题。
-
-### 13.3 Badge
-
-Variants：`neutral / accent / solid / outline / signal`
-
-Badge 只承载短状态或类别，不承载句子。Signal Badge 一屏不超过 3 个。
-
-Badge 不处理点击行为。需要点击、提交或导航时使用 Button、Link 或 Tab。
-
-### 13.4 Field / Input / Select / Textarea
-
-稳定 anatomy：`Label -> Control -> Help / Error`
-
-规则：
-
-- Label 永不只用 placeholder 替代。
-- Focus 为清晰边界加外环。
-- Error 同时显示图标、文字和颜色。
-- 移动端输入类型与键盘类型匹配。
-- 一个 Field 只绑定一个主要输入意图，复合表单用 Stack 分组。
-
-### 13.5 Tabs / FilterBar
-
-- 支持键盘方向键。
-- 移动端横向滚动，不强行缩小字号。
-- 选中态至少有两种线索：背景、下划线、字重或图标。
-
-### 13.6 Notice / Toast / Dialog
-
-- Notice：常驻上下文信息。
-- Toast：动作结果，自动消失前可暂停。
-- Dialog：需要决策或高风险确认。
-- 不用 Toast 承载需要复制、比较或长期阅读的信息。
-- Notice 必须保留标题和正文，不能只显示一个彩色图标。
-
-### 13.7 Progress
-
-- `determinate`：预售、下载、答题完成度。
-- `indeterminate`：无法估算的加载。
-- 必须提供文字数值或可读描述。
-- 色彩含义不得随站点变化。
-- 错误态必须说明失败位置、原因或下一步。
-
-### 13.8 EmptyState
-
-- 空状态不是装饰区块，必须解释为什么为空。
-- 至多给一个主行动和一个次行动，避免把空状态做成营销页。
-- `no result` 优先给清除筛选、返回全部或换关键词。
-- `permission missing` 必须说明需要登录、验证或权限申请，不能只显示锁图标。
-
-### 13.9 Card
-
-- Card 是内容容器，不是业务组件边界。
-- 必须让标题、关键状态和主信息常驻。
-- 图片、作品、书封和试卷纸张比例交给 `MediaFrame` 或业务 recipe。
-- 不允许通过页面局部 CSS 临时改 `sos-card__body` padding 来修单张卡片。
-
-## 14. 业务 Compositions
-
-业务 Composition 是基础组件在真实页面里的组合规则，不等于共享 UI 组件。第一批应作为 recipe 留在规范页和业务 app 中验证，只有在多个页面反复出现相同数据契约、状态和交互边界后，才评估进入 `@haruhi/ui` 或独立业务包。
-
-| Composition       | Anatomy                                                                | 关键要求                                         |
-| ----------------- | ---------------------------------------------------------------------- | ------------------------------------------------ |
-| `NewsArticleCard` | `Type -> Title -> Summary -> Tags -> Date`                             | 支持无图、横图、专题、置顶；默认无阴影           |
-| `ShopProductCard` | `Media -> Title + Price -> Description -> Presale -> Category + Stock` | 商品图必须保留；预售信息不能只在 hover 出现      |
-| `ArtworkCard`     | `Artwork -> Overlay Title / Tags -> Artist / Action`                   | Overlay 需有足够 Scrim；详情不能被玻璃层永久遮挡 |
-| `LibraryBookCard` | `Cover -> Title -> Author`                                             | 书名与作者必须是独立文本，不能只存在于图片内     |
-| `ExamPaperCard`   | `Status -> Title -> Meta -> Progress / Score -> Action`                | 视觉可模拟纸张，交互必须稳定、可聚焦、可恢复     |
-
-### 14.1 第一批真实业务 Recipe
-
-| Recipe              | 来源文件                                   | 设计验收重点                                                                  |
-| ------------------- | ------------------------------------------ | ----------------------------------------------------------------------------- |
-| `ShopProductCard`   | `apps/shop/src/views/shop/HomeView.vue`    | 1:1 商品图、价格/原价、库存、预售目标和分类常驻；hover 只增强反馈             |
-| `OrderStatusRow`    | `apps/shop/src/views/admin/OrdersView.vue` | 订单号、时间、商品构成、收货信息、金额、状态和操作可扫读；批量工具不混层级    |
-| `ArtworkCard`       | `apps/art/src/components/ArtworkGrid.vue`  | 作品媒体比例稳定；作者、来源、点赞和标签可读；悬浮不改变卡片尺寸              |
-| `ArtworkUploadForm` | `apps/art/src/views/UploadView.vue`        | Label、条件字段、授权说明、UID 检测和上传文件状态都有文字证据，移动端自然单列 |
-
-这些 recipe 的共同要求：
-
-1. 关键业务字段不能只在 hover、浮层或图片内部出现。
-2. 媒体比例由 `MediaFrame` 或 recipe 容器约束，不靠固定高度补丁。
-3. 卡片内部节奏使用 12 / 16 / 20 / 24px 级别，不为单张卡片写临时 margin。
-4. 移动端先保证字段顺序和操作可达，再考虑视觉装饰。
-5. 暂不把 `ShopProductCard`、`ArtworkCard` 直接抽成共享组件；先通过真实页面截图和状态矩阵验证。
-
-## 15. 页面 Patterns
-
-页面模式不是新组件库，而是把基础组件组织成真实流程的结构协议。它们可以在不同站点自然变声，但信息顺序、状态证据和断点行为必须一致。
-
-| Pattern       | Anatomy                                  | 验收要求                                                         |
-| ------------- | ---------------------------------------- | ---------------------------------------------------------------- |
-| AppShell      | `BrandLockup / Nav / Account / Footer`   | 全站 Header 使用同一 logo + 标题组合，站点差异只改变文字和语义色 |
-| ChannelHeader | `Title / Description / Primary / Meta`   | 频道名是首屏信号，说明当前页面任务，不写泛营销口号               |
-| FilterBar     | `Search / Category / Sort / ResultCount` | 筛选和结果数量同区，移动端可换行或折叠，但顺序不反转             |
-| ContentGrid   | `Grid / RecipeCard / Empty / Loading`    | 列数由 `--sos-grid-min` 驱动，不压缩标题、价格或按钮             |
-| DetailLayout  | `Main / Rail / RelatedAction`            | 双栏只在空间足够时出现；窄屏 Rail 下移                           |
-| StickyAction  | `State / PrimaryAction / SafeArea`       | 移动端可 sticky，但不能遮挡内容或替代页面状态说明                |
-| SystemState   | `Notice / EmptyState / Progress / Error` | 跨站统一状态体验，只让 tone 和上下文文案变化                     |
-
-业务 app 迁移页面模式时，优先用 `Stack / Inline / Cluster / Grid / Split / Surface / MediaFrame` 组合，不为单页新建布局组件。
-
-## 16. 响应式
-
-| 范围         | 关键策略                                                                        |
-| ------------ | ------------------------------------------------------------------------------- |
-| `< 640px`    | 单列；移动导航；44-48px 控件；主操作可 Sticky Bottom；减少背景纹理和 hover 依赖 |
-| `640-960px`  | 2 列卡片；筛选折叠；保留频道导航；详情 Rail 可下移                              |
-| `960-1280px` | 3-4 列；完整过滤；详情双栏                                                      |
-| `> 1280px`   | 内容容器封顶；画廊可 4-5 列；不无限拉宽正文                                     |
-
-卡片网格按内容自然降列，不允许把卡片压缩到标题、价格或按钮无法阅读。
-
-### 16.1 状态矩阵
-
-所有进入 UI 库的组件必须覆盖以下状态。业务 recipe 至少覆盖受影响状态。
-
-规范页或 Story 必须展示真实 DOM 状态，不能只在表格里写状态名称。为了截图和视觉回归，可在文档预览中使用 `data-state="hover"`、`data-state="focus"` 强制展示伪类状态；业务代码不得依赖这些属性完成交互逻辑。
-
-| 状态           | 验收要求                                   |
-| -------------- | ------------------------------------------ |
-| Default        | 信息完整、操作可用、无悬浮依赖             |
-| Hover          | 只增强可点击感；不能出现新关键信息         |
-| Focus-visible  | 键盘焦点必须比边框清晰，不能只靠阴影       |
-| Disabled       | 降低可操作性但保留 label，必要时说明原因   |
-| Loading        | 锁定重复提交，保留当前上下文和进度反馈     |
-| Empty          | 说明为空原因，并给出下一步动作             |
-| Error          | 同时使用文字、位置和颜色；不能只把边框改红 |
-| Reduced Motion | 位移、旋转和视差降级；信息时序不变         |
-| Forced Colors  | 边框、文字、焦点和可点击区域仍可辨认       |
-
-当前 UI MVP 的状态证据范围：
-
-- `Page / PageHeader / Toolbar`：contained、wide、reading、tight、loose、移动端换行、actions overflow。
-- `Button`：default、hover、focus、loading、disabled。
-- `Badge`：default、accent、selected、signal、disabled。
-- `Field`：default、focus、error、disabled。
-- `Notice`：info、success、warning、danger。
-- `Progress`：active、complete、error、zero。
-- `Card`：default、hover、selected、loading。
-- `EmptyState`：no data、no result、permission missing。
-
-### 16.2 断点 gates
-
-| Gate     | 规则                                               |
-| -------- | -------------------------------------------------- |
-| `320px`  | 无横向溢出；核心按钮和输入不小于 44px              |
-| `390px`  | 移动主路径可完成；卡片不依赖 hover                 |
-| `768px`  | 工具组换行后仍保持顺序；详情 Rail 可下移           |
-| `1024px` | 双栏布局可用；侧栏 sticky 不遮挡内容               |
-| `1280px` | 常规内容锁定 1248px；不无限拉宽正文                |
-| `1440px` | 只增加留白、网格列数或媒体展示面积，不放大基础字号 |
-
-路径级 QA 不能只引用通用断点。每次接入都要说明被改路径在移动端、桌面端和状态证据上如何成立：
-
-| 路径           | Phone gate                                                     | Desktop gate                                                     | 状态证据                                            | 证明方式                   |
-| -------------- | -------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------- | -------------------------- |
-| news 阅读流    | 390px 单列阅读，标题、日期、置顶、标签和摘要常驻。             | 保留团报阅读宽度和工具条，不把正文拉成营销卡片。                 | hover 只增强可点击感；空结果保留筛选语境。          | `pnpm check:news:visual`   |
-| shop 交易流    | 商品卡单列；筛选不撑空白；加入购物车和价格不依赖 hover。       | 商品列表可比较；详情页主图、价格盒、预售进度和购买动作并列稳定。 | 库存、分类、预售进度、原价和购买动作常驻。          | `pnpm check:shop:visual`   |
-| art 作品投稿流 | 先保存现状基线；作品卡、作者、来源、标签和上传状态在窄屏可读。 | 作品媒体和审核信息优先，不把强调色扩成整页背景。                 | 待审、通过、驳回、权限缺失和 UID 检测都有文字证据。 | 待建立 art visual baseline |
-
-## 17. 可访问性
-
-可访问性是上线门槛，不是发布前最后修饰。涉及 UI MVP、页面模式或业务 recipe 的 PR 必须提供可复查证据。
-
-| Gate           | 验收要求                                                       |
-| -------------- | -------------------------------------------------------------- |
-| Text Contrast  | 普通文本达到 WCAG AA；弱文本不承担唯一状态证据                 |
-| Keyboard       | 全流程可键盘操作；Tab 顺序与视觉顺序一致；`focus-visible` 明确 |
-| Touch Target   | 可点击元素最小 44px；核心 CTA 48px；相邻目标有足够间距         |
-| State Evidence | 状态不只靠颜色，必须有文字、图标、位置或形状证据               |
-| Dialog / Toast | Dialog 管理焦点、关闭与背景 inert；Toast 使用适当 `aria-live`  |
-| Media          | 图片提供有意义的 alt；装饰图使用空 alt                         |
-| Reduced Motion | 位移、旋转和视差降级；信息时序和操作反馈不改变                 |
-| Forced Colors  | 边框、文字、焦点和可点击区域仍可辨认                           |
-| Zoom           | 200% 缩放不遮挡正文、表单、按钮和关键状态                      |
-| Locale         | 中文页面设置正确 `lang="zh-CN"`                                |
-
-## 18. 迁移策略
-
-### Phase 0：Inventory
-
-统计旧变量、组件、页面模式和状态。建立视觉回归基线。
-
-### Phase 1：Token Bridge
-
-引入设计系统 token，再按需加载兼容桥，把旧变量指向新 Semantic Token。第一阶段不改变视觉。
-
-```css
-[data-sos-site='shop'] {
-  --primary-color: var(--sos-accent);
-  --primary-dark: var(--sos-accent-hover);
-  --text-main: var(--sos-text-primary);
-  --text-secondary: var(--sos-text-secondary);
-  --bg-body: var(--sos-bg-page);
-  --bg-white: var(--sos-bg-surface);
-  --border-color: var(--sos-border-default);
-}
-```
-
-### Phase 2：Shared Primitives
-
-按 `Button -> Badge -> Input -> Tabs -> Notice -> Progress` 的顺序迁移。优先处理状态复杂、跨站重复的组件。
-
-### Phase 3：Business Compositions
-
-每个站点迁移一张代表性业务卡片，以真实数据验证表达模式，而不是只在孤立组件里看效果。
-
-### Phase 4：Page Patterns
-
-统一 Header、Container、FilterBar、DetailLayout、StickyAction 和系统状态。首页编排保持业务独立。
-
-### Phase 5：QA and Removal
-
-完成视觉回归、键盘、读屏、响应式和 Reduced Motion 测试后，删除旧变量和重复 CSS。
-
-### 18.1 PR 证据包
-
-涉及设计系统接入、UI MVP、页面模式或业务 recipe 的 PR 必须提供可复查证据，而不是只写“已适配设计系统”。
-
-| 证据组      | 内容                                                                     | 载体                |
-| ----------- | ------------------------------------------------------------------------ | ------------------- |
-| Scope       | app、路由、组件、旧变量 bridge、未迁移项和回滚入口                       | PR 描述 + diff 链接 |
-| Visual      | 390 / 768 / 1280px 前后截图，检查首屏主操作、关键数据和信息层级          | Playwright 截图     |
-| Interaction | 键盘路径、hover、focus-visible、loading、disabled、empty、error 可见证据 | 状态矩阵截图        |
-| A11y        | 触控目标、读屏名称、aria-live、Reduced Motion、Forced Colors、200% Zoom  | 检查记录 + 截图     |
-| CSS Debt    | 无 raw hex、临时阴影、临时圆角；bridge 变量有 owner 和删除计划           | `rg` 输出 + 说明    |
-| Rollback    | 如何移除入口 import 或 bridge 文件回滚视觉接入，不影响 API 和数据结构    | 回滚步骤            |
-
-### 18.2 合并门槛
-
-| Level  | 判断     | 规则                                                                        |
-| ------ | -------- | --------------------------------------------------------------------------- |
-| Pass   | 可以合并 | 核心路径可完成；无横向溢出；截图、状态、a11y 和 token 证据齐全。            |
-| Review | 设计复核 | 存在轻微视觉差异，但不影响核心任务、状态证据、响应式和回滚边界。            |
-| Block  | 不得上线 | 核心路径断裂、移动端依赖 hover、状态只靠颜色、关键数据消失或新增 CSS 债务。 |
-
-### 18.3 自动化检查
-
-设计系统相关 PR 至少运行本地基线命令：
-
-```sh
-pnpm check:design-system
-```
-
-它会执行 Prettier、规范页 ESLint、规范页 build 和 `@haruhi/ui` typecheck。
-
-涉及规范页布局、断点、内容展示或组件状态的 PR，需要先启动本地预览，再运行浏览器断点检查：
-
-```sh
-pnpm dev:design-system -- --host 127.0.0.1 --port 5206
-pnpm check:design-system:browser
-```
-
-浏览器检查默认访问 `http://127.0.0.1:5206/design-system/`，并验证关键 section 在 `390 / 768 / 1280 / 1440px` 下没有横向溢出。
-
-## 19. Do / Don’t
-
-Do：
-
-- 用一个强品牌时刻建立记忆，其他区域保持克制。
-- 让图片、书封、文章标题和试卷内容成为第一层。
-- 通过 Semantic Token 切换模式。
-- 保留现有站点真正独特的内容展示方式。
-- 在真实页面和真实数据中验收组件。
-- 先解决状态、触控与阅读问题，再增加装饰。
-
-Don’t：
-
-- 不要把所有网站改成黄色暖白卡片。
-- 不要在业务代码硬编码颜色、阴影、圆角和间距。
-- 不要用角色图替代品牌系统。
-- 不要用玻璃拟态覆盖所有面板。
-- 不要让移动端依赖 hover。
-- 不要移动正文、表单或考试选项来制造动感。
-- 不要同时出现多个同等级主按钮。
-- 不要把主题切换当成可访问性的替代方案。
-
-## 20. 上线验收
-
-上线验收不使用“看起来接了设计系统”的抽象目标，而要求能复查的证据：
-
-- [ ] PR 说明列出接入的 app、页面、旧变量 bridge 范围和明确未迁移项。
-- [ ] 涉及的真实业务路径可完成：news 发布或阅读、shop 下单、art 上传或审核、library 阅读、exam 答题，按变更范围至少覆盖一个核心路径。
-- [ ] 被改页面保存 390 / 768 / 1280px 截图，对比接入前后信息层级、首屏主操作和关键数据位置。
-- [ ] 新增样式只使用设计系统 token；确需保留的 bridge 变量有 owner 和删除计划。
-- [ ] hover、focus-visible、loading、disabled、empty、error 在受影响组件中可见且有明确文案。
-- [ ] 键盘可到达主要操作，焦点不丢失；状态变化不能只靠颜色表达。
-- [ ] 320px 无横向溢出；核心按钮和输入控件不小于 44px；购买、提交、继续答题等动作不依赖 hover。
-- [ ] 回滚边界清楚：能通过移除 app 入口 import 或 bridge 文件回滚视觉接入，不影响后端 API 和数据结构。
+新建的 DS 原生页（规范页、auth-ui）不设这两个变量，自然采用设计系统字体。
+**接旧站只加 `data-sos-site`，别盲目套 `.sos-scope` 全量重置。**
+
+### 7.3 当前各站接入状态
+
+| App       | 模式    | 接入深度                                 |
+| --------- | ------- | ---------------------------------------- |
+| `shop`    | shop    | 桥接（bridges 全量映射）+ 个别 SosButton |
+| `news`    | news    | **浅层**（仅 token，自有编辑部设计）     |
+| `art`     | art     | 桥接                                     |
+| `novel`   | library | 未接入                                   |
+| `exam`    | exam    | 未接入                                   |
+| `console` | base    | 未接入                                   |
+| `auth-ui` | 随站点  | 深度（DS 原生），由各 app 路由传 `site`  |
+
+---
+
+## 8. 内容与数据表达
+
+设计系统约束的不只是颜色和组件，也包括页面承载的信息结构。
+
+**内容原则**
+
+| 原则             | 规则                                                           |
+| ---------------- | -------------------------------------------------------------- |
+| 真实对象先于装饰 | 标题、日期、价格、进度、作者、状态来自业务字段，不造站点或口号 |
+| 一条信息一个职责 | 标题识别对象，摘要解释差异，状态说明阶段，操作指向下一步       |
+| 关键数据常驻     | 价格、库存、倒计时、审核、答题进度不能只在 hover 或浮层出现    |
+| 语气具体克制     | 错误、空、成功反馈说清原因与下一步，不写泛口号                 |
+
+**数据格式**
+
+| 类型 | 示例               | 规则                                                 |
+| ---- | ------------------ | ---------------------------------------------------- |
+| 日期 | `2026-06-23`       | 列表/审核/订单默认稳定日期；相对时间只用于动态流     |
+| 价格 | `¥147`             | 等宽数字（`--sos-numeric-tabular`）；折扣/总价可比较 |
+| 进度 | `126/200 · 63%`    | 同时保留当前值、目标值或百分比                       |
+| 库存 | `现货 12 / 预售中` | 文字常驻，不只显示色点或图标                         |
+
+**状态文案**：Loading 保留骨架与上下文标题；Empty 说明为空原因 + 真实下一步；Error 说明失败原因 + 内容是否保留 + 重试/返回；Unavailable（下架/维护/暂停/审核中）必须有不同文案，不能统一写「暂无」。
+
+---
+
+## 9. 可访问性（上线门槛）
+
+| Gate           | 验收                                                                  |
+| -------------- | --------------------------------------------------------------------- |
+| Text Contrast  | 普通文本达 WCAG AA；弱文本不承担唯一状态证据                          |
+| Keyboard       | 全流程可键盘操作；Tab 顺序与视觉一致；`focus-visible` 用 `--sos-ring` |
+| Touch Target   | 可点击元素 ≥44px；核心 CTA 48px；相邻目标有间距                       |
+| State Evidence | 状态不只靠颜色，需文字/图标/位置/形状证据                             |
+| Dialog / Toast | Dialog 管理焦点、关闭、背景 inert；Toast 用 `aria-live`               |
+| Media          | 有意义的 `alt`；装饰图空 `alt`                                        |
+| Reduced Motion | 位移/旋转降级，信息时序不变                                           |
+| Forced Colors  | 边框/文字/焦点/可点区仍可辨认                                         |
+| Zoom           | 200% 缩放不遮挡正文、表单、按钮与状态                                 |
+| Locale         | 中文页面 `lang="zh-CN"`                                               |
+
+---
+
+## 10. 变更纪律
+
+- 改 token / 组件 / recipe 后，先在规范页 `pnpm dev:design-system` 自查五个模式 + 明暗 + 密度。
+- 本地门禁：`pnpm check:design-system`（prettier + eslint + 规范页 build + `@haruhi/ui` typecheck）。
+- 视觉回归（免后端，Playwright 拦截 `/api/**` 注入 fixture）：`pnpm check:news:visual` / `check:shop:visual`，先起对应 `pnpm dev:<app>`。
+- 不新增 raw hex、临时阴影、非 4px 间距、临时圆角；表达走 token，不发明视觉 props。
+- 业务卡片属 L2，先用真实数据在 recipe / 业务页验证，再考虑升级。
