@@ -866,7 +866,7 @@ const stageStyle = {
   left: 0;
   top: 0;
   z-index: 9;
-  width: 44px;
+  width: min(18vw, 156px);
   height: 100dvh;
   pointer-events: auto;
   background: transparent;
