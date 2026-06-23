@@ -120,22 +120,22 @@ const highlight = (text) => {
 </script>
 
 <style scoped>
+/* 团报原生卡片：纯白、无边框、hover 柔和投影、无圆角（与接入设计系统前一致）。 */
 .news-card {
   height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  border-color: var(--sos-border-strong);
-  border-radius: var(--sos-radius-sm);
-  background: var(--sos-bg-surface);
-  box-shadow: none;
+  background: #ffffff;
+  transition:
+    box-shadow 300ms ease,
+    transform 200ms ease;
 }
 
 .news-card:hover,
 .news-card:focus-visible {
-  transform: translateY(-2px);
-  border-color: var(--sos-ink-950);
-  box-shadow: 4px 4px 0 color-mix(in srgb, var(--sos-signal) 70%, transparent);
+  box-shadow:
+    0 10px 15px rgba(0, 0, 0, 0.1),
+    0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .news-card__body {
@@ -153,31 +153,24 @@ const highlight = (text) => {
   gap: var(--sos-space-2);
 }
 
+/* NEWS 标签：1px 黑色描边小框 + 黑色大写文字（与接入前一致）。 */
 .news-label {
-  display: inline-flex;
+  display: inline-block;
   width: fit-content;
-  align-items: center;
-  border-left: 6px solid var(--sos-signal);
-  background: var(--sos-ink-950);
-  color: var(--sos-white);
-  padding: 0.35rem 0.55rem;
-  font-size: var(--sos-text-2xs);
-  font-weight: 850;
-  letter-spacing: 0;
-  line-height: 1;
+  border: 1px solid #000000;
+  padding: 0.05rem 0.3rem;
+  font-size: var(--sos-text-xs);
+  font-weight: 700;
+  color: #000000;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .news-pin {
-  display: inline-flex;
-  align-items: center;
-  border-radius: var(--sos-radius-full);
-  background: var(--sos-signal);
-  color: var(--sos-ink-950);
-  padding: 0.2rem 0.55rem;
   font-size: var(--sos-text-2xs);
-  font-weight: 900;
-  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--sos-amber-700);
 }
 
 .image-container {
