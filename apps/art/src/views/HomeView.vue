@@ -138,6 +138,7 @@
                   '--scale': layer.scale,
                   '--alpha': layer.alpha,
                   '--layer-width': `${layer.width}px`,
+                  '--layer-height': `${layer.height}px`,
                   '--z': layer.z,
                   pointerEvents: layer.hitEvents,
                 }"
@@ -149,7 +150,6 @@
                 @pointercancel="onGalleryOrbitGrabCancel"
               >
                 <img :src="layer.imageUrl" :alt="layer.title" draggable="false" />
-                <span class="gallery-orbit-layer__glow"></span>
                 <span class="gallery-orbit-layer__title">{{ layer.title }}</span>
               </button>
             </div>
@@ -406,6 +406,7 @@ const galleryOrbitLayers = computed(() => {
     const inVisibleSide = sideDistance <= SHIFT_VISIBLE_SIDE
     const edgeWeight = inVisibleSide ? Math.max(0, 1 - sideDistance / SHIFT_VISIBLE_SIDE) : 0
     const depthWeight = Math.max(0, Math.cos(radians))
+    const layerHeight = 154 + depthWeight * 82
 
     return {
       id: `gallery-orbit-${index}-${artwork.id}`,
@@ -418,8 +419,9 @@ const galleryOrbitLayers = computed(() => {
       depth: Number((Math.cos(radians) * SHIFT_WHEEL_DEPTH).toFixed(2)),
       scale: Number((0.72 + depthWeight * 0.32).toFixed(3)),
       alpha: Number((inVisibleSide ? 0.36 + edgeWeight * 0.62 : 0).toFixed(3)),
-      width: Number((252 + depthWeight * 96).toFixed(2)),
-      z: Math.round(20 + depthWeight * 120),
+      width: Number((layerHeight * 1.05).toFixed(2)),
+      height: Number(layerHeight.toFixed(2)),
+      z: Math.round(20 + depthWeight * 260),
       hitEvents: galleryOrbitVisible.value && inVisibleSide ? 'auto' : 'none',
     }
   })
@@ -1514,13 +1516,13 @@ const stageStyle = {
   width: 760px;
   height: min(96dvh, 940px);
   min-height: 760px;
-  transform: translate3d(804px, -50%, 0) rotateY(36deg);
+  transform: translate3d(760px, -50%, 0) rotateY(32deg);
   transform-origin: right center;
   transform-style: preserve-3d;
   perspective: 1400px;
   pointer-events: none;
-  opacity: 0.24;
-  filter: saturate(0.64) brightness(0.78);
+  opacity: 0.52;
+  filter: saturate(0.86) brightness(0.92);
   isolation: isolate;
   will-change: transform, opacity, filter;
   backface-visibility: hidden;
@@ -1535,7 +1537,7 @@ const stageStyle = {
 .art-home .gallery-art-stack.is-hovering {
   opacity: 0.98;
   filter: saturate(1.16) brightness(1.08) contrast(1.08);
-  transform: translate3d(732px, -50%, 0) rotateY(22deg);
+  transform: translate3d(604px, -50%, 0) rotateY(14deg);
 }
 
 .art-home .gallery-art-stack.is-dragging {
@@ -1613,7 +1615,7 @@ const stageStyle = {
 .art-home .gallery-art-stack.is-hovering .gallery-module-shell {
   opacity: 0.86;
   filter: saturate(1.16) brightness(1.08) contrast(1.06);
-  transform: translate3d(50%, -50%, -260px) rotateY(10deg);
+  transform: translate3d(50%, -50%, -260px) rotateY(6deg);
 }
 
 .art-home .gallery-art-stack.is-dragging .gallery-module-shell,
@@ -1702,7 +1704,7 @@ const stageStyle = {
   top: 50%;
   z-index: var(--z);
   width: var(--layer-width);
-  height: 118px;
+  height: var(--layer-height);
   display: block;
   overflow: hidden;
   padding: 0;
@@ -1762,27 +1764,18 @@ const stageStyle = {
   height: 100%;
   display: block;
   object-fit: contain;
-  transform: translateZ(0.02px) scale(0.96);
+  transform: translateZ(0.02px) scale(0.92);
   backface-visibility: hidden;
   -webkit-font-smoothing: antialiased;
-  filter: saturate(1.08) contrast(1.06) brightness(0.94);
+  filter: saturate(1.08) contrast(1.04) brightness(1);
   pointer-events: none;
 }
 
-.art-home .gallery-orbit-layer__glow,
 .art-home .gallery-orbit-layer__title {
   position: absolute;
   pointer-events: none;
   transform: translateZ(0.03px);
   backface-visibility: hidden;
-}
-
-.art-home .gallery-orbit-layer__glow {
-  inset: 0;
-  background:
-    linear-gradient(90deg, rgba(2, 8, 20, 0.34), rgba(2, 8, 20, 0.06) 48%, rgba(255, 99, 125, 0.14)),
-    linear-gradient(0deg, rgba(2, 8, 20, 0.74), rgba(2, 8, 20, 0.22) 34%, transparent 68%);
-  mix-blend-mode: multiply;
 }
 
 .art-home .gallery-orbit-layer__title {
@@ -1822,7 +1815,7 @@ const stageStyle = {
 }
 
 .art-home .gallery-orbit-layer:hover img {
-  filter: saturate(1.18) contrast(1.08) brightness(0.98);
+  filter: saturate(1.18) contrast(1.08) brightness(1.03);
 }
 
 .art-home .time-device {
@@ -2383,8 +2376,8 @@ const stageStyle = {
 }
 
 :global(html.art-lights-out) .art-home .gallery-art-stack {
-  opacity: 0.28;
-  filter: saturate(0.72) brightness(0.82);
+  opacity: 0.54;
+  filter: saturate(0.9) brightness(0.92);
 }
 
 :global(html.art-lights-out) .art-home .gallery-art-stack.is-hovering {
