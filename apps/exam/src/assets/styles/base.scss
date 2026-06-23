@@ -28,11 +28,12 @@ html, body {
 }
 
 body {
-  /* * 基础背景色：作为所有页面的默认底色 
-   * HomeView 会用覆盖层盖住它，但这个颜色在图片加载前或侧边露底时会显示
+  /* * 基础背景色：作为所有页面的默认底色（接入设计系统后改吃 exam 表达 token，
+   * 即暖木米白；html[data-sos-site=exam] 已定义）。HomeView 用覆盖层盖住它，
+   * 编辑/审核页则直接以此为页面底色。
    */
-  background-color: #F3F4F6;
-  color: #1f2937; /* 默认文字颜色调整为深灰，适应浅色背景 */
+  background-color: var(--sos-bg-page);
+  color: var(--sos-text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }

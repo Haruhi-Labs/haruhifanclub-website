@@ -37,11 +37,26 @@ const router = createRouter({
       name: 'admin',
       component: AdminView
     },
-    { path: '/login', name: 'login', component: LoginView },
-    { path: '/account', name: 'account', component: ProfileView },
-    { path: '/account/settings', name: 'account-settings', component: SettingsView },
-    { path: '/verify-email', name: 'verify-email', component: VerifyEmailView },
-    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView }
+    { path: '/login', name: 'login', component: LoginView, props: { site: 'exam' } },
+    { path: '/account', name: 'account', component: ProfileView, props: { site: 'exam' } },
+    {
+      path: '/account/settings',
+      name: 'account-settings',
+      component: SettingsView,
+      props: { site: 'exam' }
+    },
+    {
+      path: '/verify-email',
+      name: 'verify-email',
+      component: VerifyEmailView,
+      props: { site: 'exam' }
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: ResetPasswordView,
+      props: { site: 'exam' }
+    }
   ]
 });
 

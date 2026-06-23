@@ -17,7 +17,7 @@ const showFooter = computed(() => {
 </script>
 
 <template>
-  <div class="app-wrapper">
+  <div class="app-wrapper sos-scope" data-sos-site="exam">
     <!-- 右上角统一账号入口（全屏试卷页隐藏，避免遮挡） -->
     <div v-if="showFooter" class="account-corner">
       <AccountMenu />
@@ -57,11 +57,21 @@ const showFooter = computed(() => {
   position: relative; /* 建立层级上下文 */
 }
 
+/* 设计系统接入：exam 表达提供配色/几何，但保留考场原有的系统界面字体
+   与行距，遵守「接入不得同化既有站点字体」铁律。标题衬线由 exam 表达的
+   --sos-display-family 决定；试卷页 .desk 自带木纹背景与配色不受影响。 */
+.app-wrapper.sos-scope {
+  --sos-scope-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --sos-scope-leading: 1.5;
+  background: transparent; /* 让 HomeView 固定背景层/试卷木纹透出 */
+}
+
 .account-corner {
   position: fixed;
   top: 12px;
   right: 16px;
-  z-index: 1000;
+  z-index: var(--sos-z-sticky);
 }
 
 .app-main {
