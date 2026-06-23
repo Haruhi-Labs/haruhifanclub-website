@@ -2,10 +2,17 @@
   <section class="container-card art-home">
     <div class="endless-screen" :style="stageStyle">
       <div class="space-field" aria-hidden="true">
+        <span class="star-dust"></span>
         <span class="star-layer star-layer-a"></span>
         <span class="star-layer star-layer-b"></span>
+        <span class="star-layer star-layer-c"></span>
         <span class="nebula nebula-a"></span>
         <span class="nebula nebula-b"></span>
+        <span class="galaxy-halo halo-a"></span>
+        <span class="galaxy-halo halo-b"></span>
+        <span class="bright-stars"></span>
+        <span class="void-shadow"></span>
+        <span class="viewport-glass"></span>
       </div>
 
       <div class="screen-header">
@@ -220,6 +227,8 @@ const stageStyle = {
 .art-home {
   width: min(1500px, calc(100% - 32px));
   padding-top: 8px;
+  position: relative;
+  isolation: isolate;
   --space-bg: #050814;
   --space-bg-2: #091427;
   --space-bg-3: #150d2a;
@@ -235,6 +244,35 @@ const stageStyle = {
   --hud-red: #ff637d;
 }
 
+.art-home::before,
+.art-home::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.art-home::before {
+  inset: -80px -90px -60px;
+  z-index: -2;
+  border-radius: 34px;
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(72, 158, 255, 0.12), transparent 34%),
+    radial-gradient(ellipse at 22% 70%, rgba(177, 140, 255, 0.1), transparent 30%),
+    radial-gradient(ellipse at 82% 78%, rgba(255, 99, 125, 0.05), transparent 28%),
+    linear-gradient(145deg, #01030a 0%, #060b18 42%, #0b0716 100%);
+}
+
+.art-home::after {
+  inset: -40px -44px -48px;
+  z-index: -1;
+  border-radius: 30px;
+  background:
+    radial-gradient(ellipse at center, transparent 0 55%, rgba(0, 0, 0, 0.38) 86%, rgba(0, 0, 0, 0.66) 100%),
+    radial-gradient(circle at 16% 24%, rgba(0, 0, 0, 0.48), transparent 24%),
+    radial-gradient(circle at 84% 66%, rgba(0, 0, 0, 0.36), transparent 22%);
+  opacity: 0.86;
+}
+
 .art-home .endless-screen {
   position: relative;
   min-height: 720px;
@@ -242,9 +280,10 @@ const stageStyle = {
   border: 1px solid var(--hud-line);
   border-radius: 22px;
   background:
-    radial-gradient(circle at 50% 42%, rgba(71, 165, 255, 0.16), transparent 30%),
-    radial-gradient(circle at 18% 16%, rgba(116, 231, 255, 0.13), transparent 28%),
-    radial-gradient(circle at 82% 16%, rgba(177, 140, 255, 0.17), transparent 31%),
+    radial-gradient(ellipse at 48% 40%, rgba(116, 231, 255, 0.12), transparent 31%),
+    radial-gradient(ellipse at 22% 16%, rgba(116, 231, 255, 0.09), transparent 29%),
+    radial-gradient(ellipse at 82% 18%, rgba(177, 140, 255, 0.12), transparent 32%),
+    radial-gradient(ellipse at 55% 88%, rgba(0, 0, 0, 0.55), transparent 42%),
     linear-gradient(135deg, var(--space-bg), var(--space-bg-2) 54%, var(--space-bg-3));
   box-shadow:
     0 34px 120px rgba(0, 0, 0, 0.44),
@@ -292,49 +331,151 @@ const stageStyle = {
 
 .art-home .space-field {
   z-index: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 46% 44%, transparent 0 30%, rgba(0, 0, 0, 0.16) 62%, rgba(0, 0, 0, 0.5) 100%),
+    linear-gradient(135deg, rgba(1, 4, 13, 0.16), rgba(3, 7, 18, 0.7));
 }
 
+.art-home .star-dust,
 .art-home .star-layer {
   background-repeat: repeat;
-  opacity: 0.8;
+  will-change: background-position, transform;
+}
+
+.art-home .star-dust {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.42) 0 0.55px, transparent 0.9px),
+    radial-gradient(circle, rgba(156, 214, 255, 0.34) 0 0.45px, transparent 0.85px),
+    radial-gradient(circle, rgba(210, 196, 255, 0.28) 0 0.4px, transparent 0.8px);
+  background-position: 0 0, 37px 24px, 83px 58px;
+  background-size: 76px 68px, 112px 104px, 148px 132px;
+  opacity: 0.62;
+  animation: homeStarDrift 240s linear infinite;
 }
 
 .art-home .star-layer-a {
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.92) 0 1px, transparent 1.4px),
-    radial-gradient(circle, rgba(116, 231, 255, 0.76) 0 1px, transparent 1.5px);
-  background-position: 0 0, 60px 38px;
-  background-size: 118px 92px, 174px 136px;
+    radial-gradient(circle, rgba(255, 255, 255, 0.78) 0 0.9px, transparent 1.35px),
+    radial-gradient(circle, rgba(116, 231, 255, 0.54) 0 1px, transparent 1.55px);
+  background-position: 0 0, 64px 38px;
+  background-size: 132px 104px, 192px 148px;
+  opacity: 0.7;
+  animation: homeStarDrift 310s linear infinite reverse;
 }
 
 .art-home .star-layer-b {
   background-image:
-    radial-gradient(circle, rgba(177, 140, 255, 0.58) 0 1px, transparent 1.5px),
-    radial-gradient(circle, rgba(255, 99, 125, 0.42) 0 1px, transparent 1.5px);
-  background-position: 32px 20px, 20px 70px;
-  background-size: 214px 188px, 290px 220px;
-  opacity: 0.55;
+    radial-gradient(circle, rgba(177, 140, 255, 0.58) 0 1.1px, transparent 1.7px),
+    radial-gradient(circle, rgba(255, 99, 125, 0.36) 0 0.95px, transparent 1.55px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.74) 0 1.2px, transparent 1.9px);
+  background-position: 32px 20px, 20px 70px, 140px 92px;
+  background-size: 236px 196px, 318px 236px, 420px 360px;
+  opacity: 0.5;
+  animation: homeStarFloat 360s linear infinite;
+}
+
+.art-home .star-layer-c {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.9) 0 1.4px, transparent 2.4px),
+    radial-gradient(circle, rgba(141, 240, 255, 0.72) 0 1.2px, transparent 2.2px),
+    radial-gradient(circle, rgba(255, 224, 176, 0.58) 0 1px, transparent 2px);
+  background-position: 90px 80px, 270px 150px, 520px 310px;
+  background-size: 540px 420px, 680px 520px, 760px 580px;
+  opacity: 0.58;
+  filter: drop-shadow(0 0 4px rgba(141, 240, 255, 0.32));
+  animation: homeStarFloat 420s linear infinite reverse;
+}
+
+.art-home .nebula,
+.art-home .galaxy-halo {
+  inset: auto;
+  border-radius: 50%;
+  mix-blend-mode: screen;
 }
 
 .art-home .nebula {
-  filter: blur(2px);
-  opacity: 0.9;
+  filter: blur(20px);
+  opacity: 0.74;
+  will-change: transform, opacity;
+  animation: homeNebulaDrift 170s ease-in-out infinite alternate;
 }
 
 .art-home .nebula-a {
-  width: 56%;
-  height: 56%;
-  right: -16%;
-  top: -20%;
-  background: radial-gradient(circle, rgba(119, 85, 255, 0.25), transparent 62%);
+  width: 68%;
+  height: 66%;
+  right: -18%;
+  top: -22%;
+  background:
+    radial-gradient(ellipse at 42% 42%, rgba(147, 112, 255, 0.28), transparent 46%),
+    radial-gradient(ellipse at 68% 34%, rgba(91, 167, 255, 0.16), transparent 38%),
+    radial-gradient(ellipse at 34% 68%, rgba(255, 99, 125, 0.08), transparent 38%);
 }
 
 .art-home .nebula-b {
-  width: 46%;
-  height: 46%;
-  left: -15%;
-  bottom: -18%;
-  background: radial-gradient(circle, rgba(0, 196, 255, 0.18), transparent 64%);
+  width: 58%;
+  height: 54%;
+  left: -16%;
+  bottom: -20%;
+  background:
+    radial-gradient(ellipse at 46% 48%, rgba(28, 180, 255, 0.18), transparent 48%),
+    radial-gradient(ellipse at 62% 62%, rgba(177, 140, 255, 0.13), transparent 40%);
+  animation-duration: 210s;
+}
+
+.art-home .galaxy-halo {
+  width: 168px;
+  height: 70px;
+  opacity: 0.58;
+  filter: blur(0.4px) drop-shadow(0 0 18px rgba(141, 240, 255, 0.16));
+  background:
+    radial-gradient(ellipse at center, rgba(255, 255, 255, 0.62), rgba(141, 240, 255, 0.18) 18%, rgba(177, 140, 255, 0.08) 42%, transparent 70%),
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  animation: homeGalaxyDrift 260s ease-in-out infinite alternate;
+}
+
+.art-home .halo-a {
+  top: 18%;
+  left: 12%;
+  transform: rotate(-14deg);
+}
+
+.art-home .halo-b {
+  right: 10%;
+  bottom: 20%;
+  width: 124px;
+  height: 52px;
+  opacity: 0.38;
+  transform: rotate(18deg);
+  animation-name: homeGalaxyDriftB;
+  animation-duration: 320s;
+}
+
+.art-home .bright-stars {
+  background:
+    radial-gradient(circle at 18% 28%, rgba(255, 255, 255, 0.96) 0 1.6px, rgba(141, 240, 255, 0.42) 2px, transparent 9px),
+    radial-gradient(circle at 76% 22%, rgba(255, 255, 255, 0.9) 0 1.4px, rgba(177, 140, 255, 0.32) 2px, transparent 11px),
+    radial-gradient(circle at 66% 72%, rgba(255, 255, 255, 0.82) 0 1px, rgba(116, 231, 255, 0.26) 2px, transparent 8px),
+    radial-gradient(circle at 34% 74%, rgba(255, 233, 191, 0.78) 0 1px, rgba(255, 99, 125, 0.18) 2px, transparent 7px);
+  opacity: 0.78;
+  filter: drop-shadow(0 0 8px rgba(141, 240, 255, 0.25));
+}
+
+.art-home .void-shadow {
+  background:
+    radial-gradient(ellipse at 42% 54%, transparent 0 34%, rgba(0, 0, 0, 0.14) 58%, rgba(0, 0, 0, 0.56) 100%),
+    radial-gradient(circle at 18% 78%, rgba(0, 0, 0, 0.56), transparent 26%),
+    radial-gradient(circle at 84% 52%, rgba(0, 0, 0, 0.42), transparent 24%);
+  opacity: 0.86;
+}
+
+.art-home .viewport-glass {
+  z-index: 1;
+  background:
+    radial-gradient(ellipse at center, transparent 0 58%, rgba(0, 0, 0, 0.36) 86%, rgba(0, 0, 0, 0.68) 100%),
+    linear-gradient(115deg, transparent 18%, rgba(255, 255, 255, 0.06) 48%, transparent 72%);
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.52);
+  opacity: 0.92;
 }
 
 .art-home .screen-header {
@@ -719,6 +860,8 @@ const stageStyle = {
 }
 
 .art-home .bottom-grid {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
@@ -871,20 +1014,41 @@ const stageStyle = {
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
+:global(html.art-lights-out) .art-home .star-dust {
+  opacity: 0.78;
+}
+
 :global(html.art-lights-out) .art-home .star-layer-a {
-  opacity: 0.96;
+  opacity: 0.9;
 }
 
 :global(html.art-lights-out) .art-home .star-layer-b {
-  opacity: 0.72;
+  opacity: 0.66;
+}
+
+:global(html.art-lights-out) .art-home .star-layer-c {
+  opacity: 0.76;
+}
+
+:global(html.art-lights-out) .art-home .bright-stars {
+  opacity: 0.86;
+}
+
+:global(html.art-lights-out) .art-home .galaxy-halo {
+  opacity: 0.66;
 }
 
 :global(html.art-lights-out) .art-home .nebula-a {
-  background: radial-gradient(circle, rgba(105, 80, 255, 0.32), transparent 62%);
+  background:
+    radial-gradient(ellipse at 42% 42%, rgba(105, 80, 255, 0.34), transparent 46%),
+    radial-gradient(ellipse at 68% 34%, rgba(85, 185, 255, 0.18), transparent 38%),
+    radial-gradient(ellipse at 34% 68%, rgba(255, 99, 125, 0.1), transparent 38%);
 }
 
 :global(html.art-lights-out) .art-home .nebula-b {
-  background: radial-gradient(circle, rgba(0, 216, 255, 0.24), transparent 64%);
+  background:
+    radial-gradient(ellipse at 46% 48%, rgba(0, 216, 255, 0.24), transparent 48%),
+    radial-gradient(ellipse at 62% 62%, rgba(177, 140, 255, 0.16), transparent 40%);
 }
 
 :global(html.art-lights-out) .art-home .time-device::before {
@@ -904,6 +1068,54 @@ const stageStyle = {
   background: conic-gradient(from 0deg, transparent 0 284deg, rgba(141, 240, 255, 0.3) 318deg, transparent 350deg);
 }
 
+@keyframes homeStarDrift {
+  to {
+    background-position: 180px 96px, 260px 174px, 340px 220px;
+  }
+}
+
+@keyframes homeStarFloat {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(-32px, 18px, 0);
+  }
+}
+
+@keyframes homeNebulaDrift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.62;
+  }
+
+  100% {
+    transform: translate3d(28px, -18px, 0) scale(1.04);
+    opacity: 0.78;
+  }
+}
+
+@keyframes homeGalaxyDrift {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(-14deg);
+  }
+
+  100% {
+    transform: translate3d(18px, -10px, 0) rotate(-11deg);
+  }
+}
+
+@keyframes homeGalaxyDriftB {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(18deg);
+  }
+
+  100% {
+    transform: translate3d(-14px, 12px, 0) rotate(21deg);
+  }
+}
+
 @keyframes homeOrbit {
   to {
     transform: rotate(360deg);
@@ -913,6 +1125,17 @@ const stageStyle = {
 @keyframes homeOrbitReverse {
   to {
     transform: rotate(-360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .art-home .star-dust,
+  .art-home .star-layer,
+  .art-home .nebula,
+  .art-home .galaxy-halo,
+  .art-home .orbit,
+  .art-home .scan-sweep {
+    animation: none !important;
   }
 }
 
@@ -956,6 +1179,37 @@ const stageStyle = {
   .art-home {
     width: min(100% - 20px, 1500px);
     padding: 0;
+  }
+
+  .art-home::before {
+    inset: -42px -28px -34px;
+  }
+
+  .art-home .star-dust {
+    opacity: 0.34;
+    background-size: 118px 104px, 168px 142px, 220px 188px;
+  }
+
+  .art-home .star-layer-a {
+    opacity: 0.48;
+  }
+
+  .art-home .star-layer-b,
+  .art-home .star-layer-c {
+    opacity: 0.28;
+  }
+
+  .art-home .bright-stars {
+    opacity: 0.46;
+  }
+
+  .art-home .nebula {
+    opacity: 0.46;
+    filter: blur(28px);
+  }
+
+  .art-home .galaxy-halo {
+    display: none;
   }
 
   .art-home .screen-header {
