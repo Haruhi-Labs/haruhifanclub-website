@@ -431,7 +431,7 @@
  * ============================================================ */
 .sos-book-card {
   display: grid;
-  gap: var(--sos-space-3);
+  gap: var(--sos-space-4);
   text-align: center;
   overflow: visible;
   border: 0;
@@ -488,7 +488,7 @@
   margin: 0;
   font-size: var(--sos-text-sm);
   font-weight: var(--sos-weight-bold);
-  line-height: 1.4;
+  line-height: 1.3;
   color: var(--sos-text-primary);
   transition: color var(--sos-duration-fast) var(--sos-ease-out);
 }
@@ -496,7 +496,7 @@
   color: var(--sos-link);
 }
 .sos-book-card__author {
-  margin: 0.3rem 0 0;
+  margin: 0.1rem 0 0;
   color: var(--sos-text-tertiary);
   font-size: var(--sos-text-xs);
 }
