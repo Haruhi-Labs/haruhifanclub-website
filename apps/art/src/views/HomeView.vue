@@ -308,7 +308,7 @@ const SHIFT_MAX_VELOCITY = 1.25
 const SHIFT_INERTIA_DECAY = 0.94
 const SHIFT_STOP_VELOCITY = 0.012
 const LIGHT_GEAR_COPY_COUNT = 4
-const LIGHT_GEAR_TILE_STEP = 176
+const LIGHT_GEAR_TILE_STEP = 344
 const LIGHT_GEAR_MAX_VELOCITY = 1.8
 const LIGHT_GEAR_INERTIA_DECAY = 0.92
 const LIGHT_GEAR_STOP_VELOCITY = 0.018
@@ -1075,15 +1075,16 @@ const stageStyle = {
 }
 
 .art-home .home-lights-on-ui {
+  --light-home-pad: clamp(28px, 4.5vw, 64px);
   position: relative;
   min-height: calc(100dvh - 136px);
   overflow: hidden;
   display: grid;
-  grid-template-rows: minmax(148px, 1fr) auto minmax(148px, 1fr);
+  grid-template-rows: minmax(260px, 1fr) auto minmax(260px, 1fr);
   align-items: center;
   justify-items: center;
   gap: clamp(16px, 3vw, 30px);
-  padding: clamp(28px, 4.5vw, 64px);
+  padding: var(--light-home-pad);
   border: 1px solid rgba(42, 110, 116, 0.16);
   border-radius: 28px;
   background:
@@ -1101,18 +1102,14 @@ const stageStyle = {
 }
 
 .art-home .light-gear {
-  width: min(1160px, 100%);
-  height: clamp(142px, 18dvh, 190px);
+  width: calc(100% + var(--light-home-pad) + var(--light-home-pad));
+  height: clamp(260px, 32dvh, 380px);
+  margin-inline: calc(0px - var(--light-home-pad));
   overflow: hidden;
-  border: 1px solid rgba(42, 110, 116, 0.16);
-  border-radius: 24px;
-  background:
-    repeating-linear-gradient(90deg, rgba(25, 90, 104, 0.12) 0 8px, transparent 8px 22px),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.48), rgba(235, 250, 248, 0.34));
-  box-shadow:
-    0 20px 54px rgba(26, 71, 80, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    inset 0 -1px 0 rgba(42, 110, 116, 0.08);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -1124,7 +1121,7 @@ const stageStyle = {
 
 .art-home .light-gear::before,
 .art-home .light-gear::after {
-  content: "";
+  content: none;
   position: absolute;
   left: 0;
   right: 0;
@@ -1152,34 +1149,35 @@ const stageStyle = {
 
 .art-home .light-gear__belt {
   position: absolute;
-  top: 22px;
+  top: 50%;
   left: 0;
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 28px;
   width: max-content;
-  height: calc(100% - 44px);
+  height: 236px;
   will-change: transform;
   transform-style: preserve-3d;
+  margin-top: -118px;
 }
 
 .art-home .light-gear__tile {
   position: relative;
-  flex: 0 0 158px;
-  width: 158px;
-  height: 118px;
+  flex: 0 0 316px;
+  width: 316px;
+  height: 236px;
   margin: 0;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 16px;
+  border-radius: 22px;
   background: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 14px 34px rgba(26, 71, 80, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  box-shadow: 0 24px 58px rgba(26, 71, 80, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.78);
   transform: translateZ(0);
 }
 
 .art-home .light-gear__tile::before,
 .art-home .light-gear__tile::after {
-  content: "";
+  content: none;
   position: absolute;
   left: 12px;
   right: 12px;
@@ -1208,16 +1206,16 @@ const stageStyle = {
 
 .art-home .light-gear__tile figcaption {
   position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 9px;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
   z-index: 3;
   overflow: hidden;
-  padding: 5px 8px;
+  padding: 7px 11px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
   color: rgba(18, 51, 60, 0.78);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 950;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1225,9 +1223,7 @@ const stageStyle = {
 }
 
 .art-home .light-gear--bottom {
-  background:
-    repeating-linear-gradient(90deg, rgba(217, 70, 103, 0.12) 0 8px, transparent 8px 22px),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(255, 240, 244, 0.3));
+  background: transparent;
 }
 
 .art-home .day-hero-panel {
@@ -3032,32 +3028,33 @@ const stageStyle = {
 
   .art-home .home-lights-on-ui {
     min-height: calc(100dvh - 118px);
-    grid-template-rows: 126px auto 126px;
+    --light-home-pad: 16px;
+    grid-template-rows: 190px auto 190px;
     gap: 18px;
-    padding: 24px 16px;
+    padding: 24px var(--light-home-pad);
     border-radius: 20px;
   }
 
   .art-home .light-gear {
-    height: 126px;
-    border-radius: 18px;
+    height: 190px;
   }
 
   .art-home .light-gear__belt {
-    top: 18px;
-    gap: 14px;
-    height: calc(100% - 36px);
+    top: 50%;
+    gap: 20px;
+    height: 156px;
+    margin-top: -78px;
   }
 
   .art-home .light-gear__tile {
-    flex-basis: 128px;
-    width: 128px;
-    height: 88px;
-    border-radius: 13px;
+    flex-basis: 220px;
+    width: 220px;
+    height: 156px;
+    border-radius: 18px;
   }
 
   .art-home .light-gear__tile figcaption {
-    font-size: 10px;
+    font-size: 11px;
   }
 
   .art-home .day-hero-panel {
