@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import TheFooter from '@/components/TheFooter.vue';
+import { AccountMenu } from '@haruhi/auth-ui';
 
 const route = useRoute();
 
@@ -17,6 +18,10 @@ const showFooter = computed(() => {
 
 <template>
   <div class="app-wrapper">
+    <!-- 右上角统一账号入口（全屏试卷页隐藏，避免遮挡） -->
+    <div v-if="showFooter" class="account-corner">
+      <AccountMenu />
+    </div>
     <!-- 主内容区：自动伸展 -->
     <div class="app-main">
       <router-view></router-view>
@@ -50,6 +55,13 @@ const showFooter = computed(() => {
   flex-direction: column;
   min-height: 100vh; /* 确保至少占满一屏 */
   position: relative; /* 建立层级上下文 */
+}
+
+.account-corner {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 1000;
 }
 
 .app-main {
