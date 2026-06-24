@@ -618,19 +618,30 @@ html.art-home-route .main {
 }
 
 html.art-home-route .art-home .home-lights-out-ui {
-  display: none !important;
-}
-
-html.art-home-route:not(.art-lights-out) .art-home .home-lights-on-ui {
-  display: grid !important;
-}
-
-html.art-home-route.art-lights-out .art-home .home-lights-out-ui {
   display: block !important;
 }
 
-html.art-home-route.art-lights-out .art-home .home-lights-on-ui {
-  display: none !important;
+html.art-home-route .art-home .home-lights-on-ui {
+  display: grid !important;
+}
+
+html.art-home-route .art-home .home-lights-out-ui,
+html.art-home-route .art-home .home-lights-on-ui {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    visibility 0s linear 0.18s;
+  will-change: opacity;
+}
+
+html.art-home-route:not(.art-lights-out) .art-home .home-lights-on-ui,
+html.art-home-route.art-lights-out .art-home .home-lights-out-ui {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
 }
 
 html.art-home-route:not(.art-lights-out) .gallery-bg {

@@ -1,18 +1,21 @@
 <template>
-  <section ref="artHomeRef" class="container-card art-home">
+  <section ref="artHomeRef" class="container-card art-home" :class="{ 'is-light-gear-ready': lightGearReady }">
     <div class="haruhi-text-field" aria-hidden="true">
-      <div
-        v-for="row in haruhiTextRows"
-        :key="row.id"
-        class="haruhi-text-row"
-        :style="{
-          '--row-y': `${row.y}px`,
-          '--row-offset': `${row.offset}px`,
-          '--row-alpha': row.alpha,
-        }"
-      >
-        <span>{{ row.text }}</span>
-        <span>{{ row.text }}</span>
+      <div class="haruhi-text-flow" :style="{ '--haruhi-text-duration': `${HARUHI_TEXT_DRIFT_SECONDS}s` }">
+        <div v-for="copy in haruhiTextCopies" :key="copy" class="haruhi-text-sheet">
+          <div
+            v-for="row in haruhiTextRows"
+            :key="`${copy}-${row.id}`"
+            class="haruhi-text-row"
+            :style="{
+              '--row-y': `${row.y}px`,
+              '--row-offset': `${row.offset}px`,
+              '--row-alpha': row.alpha,
+            }"
+          >
+            <span>{{ row.text }}</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -372,17 +375,18 @@ const LIGHT_GEAR_MAX_VELOCITY = 3.2
 const LIGHT_GEAR_THROW_BOOST = 1.35
 const LIGHT_GEAR_INERTIA_DECAY = 0.982
 const LIGHT_GEAR_STOP_VELOCITY = 0.0035
-const LIGHT_GEAR_AUTO_SECONDS = 120
-const HARUHI_TEXT_DRIFT_SECONDS = 540
-const HARUHI_TEXT_ROW_COUNT = 31
+const LIGHT_GEAR_AUTO_SECONDS = 84
+const HARUHI_TEXT_DRIFT_SECONDS = 900
+const HARUHI_TEXT_ROW_COUNT = 27
 const HARUHI_TEXT_ROW_GAP = 58
 const HARUHI_TEXT_ROW_STAGGER = 104
-const HARUHI_TEXT_LINE_LENGTH = 380
+const HARUHI_TEXT_LINE_LENGTH = 320
 const HARUHI_TEXT_SOURCE_URLS = [
   `${import.meta.env.BASE_URL}haruhi-background.txt`,
   `${import.meta.env.BASE_URL}haruhi-background.local`,
 ]
 const HARUHI_TEXT_FALLBACK = '凉宫春日 '.repeat(64)
+const haruhiTextCopies = [0, 1]
 const haruhiTextSource = ref(HARUHI_TEXT_FALLBACK)
 const haruhiTextCorpus = computed(() => normalizeHaruhiText(haruhiTextSource.value) || HARUHI_TEXT_FALLBACK)
 const haruhiTextRows = computed(() => {
@@ -535,6 +539,7 @@ let galleryOrbitSuppressClickUntil = 0
 const artHomeRef = ref(null)
 const lightGearDragging = ref(false)
 const lightGearDragRow = ref('top')
+const lightGearReady = ref(false)
 let lightGearOffset = 0
 let lightGearPointerId = null
 let lightGearLastX = null
@@ -550,6 +555,8 @@ let lightGearTopBelts = []
 let lightGearBottomBelts = []
 let lightGearMeasuredCycleWidth = 0
 let lightGearBaseOffset = 0
+let lightGearResizeObserver = null
+let lightGearLayoutFrame = 0
 let homeViewMounted = false
 
 function normalizeShiftAngle(value) {
@@ -700,9 +707,42 @@ function syncLightGearOffset() {
   }
 }
 
+function refreshLightGearLayout() {
+  lightGearLayoutFrame = 0
+  cacheLightGearBelts()
+  syncLightGearOffset()
+}
+
+function scheduleLightGearLayoutRefresh() {
+  if (typeof window === 'undefined' || lightGearLayoutFrame) return
+  lightGearLayoutFrame = window.requestAnimationFrame(refreshLightGearLayout)
+}
+
 function scheduleLightGearOffsetSync() {
   if (typeof window === 'undefined' || lightGearRenderFrame) return
   lightGearRenderFrame = window.requestAnimationFrame(syncLightGearOffset)
+}
+
+function startLightGearResizeObserver() {
+  if (typeof window === 'undefined' || typeof window.ResizeObserver === 'undefined') return
+
+  lightGearResizeObserver = new window.ResizeObserver(scheduleLightGearLayoutRefresh)
+  if (artHomeRef.value) {
+    lightGearResizeObserver.observe(artHomeRef.value)
+    for (const gear of artHomeRef.value.querySelectorAll('.light-gear')) {
+      lightGearResizeObserver.observe(gear)
+    }
+  }
+}
+
+function stopLightGearResizeObserver() {
+  lightGearResizeObserver?.disconnect()
+  lightGearResizeObserver = null
+
+  if (lightGearLayoutFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(lightGearLayoutFrame)
+  }
+  lightGearLayoutFrame = 0
 }
 
 function cancelLightGearRender() {
@@ -1216,7 +1256,13 @@ onMounted(() => {
   homeViewMounted = true
   loadHaruhiBackgroundText()
   syncLightGearOffset()
-  preloadLightGearImages().finally(startLightGearAuto)
+  startLightGearResizeObserver()
+  preloadLightGearImages().finally(() => {
+    if (!homeViewMounted) return
+    lightGearReady.value = true
+    refreshLightGearLayout()
+    startLightGearAuto()
+  })
   window.addEventListener('contextmenu', onGlobalShiftContextMenu, true)
 })
 
@@ -1227,6 +1273,7 @@ onBeforeUnmount(() => {
   cancelLightGearInertia()
   cancelLightGearAuto()
   cancelLightGearRender()
+  stopLightGearResizeObserver()
   window.removeEventListener('contextmenu', onGlobalShiftContextMenu, true)
 })
 
@@ -1311,6 +1358,9 @@ const stageStyle = {
   width: min(1500px, calc(100% - 32px));
   padding-top: 8px;
   position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
   isolation: isolate;
   --space-bg: #050814;
   --space-bg-2: #091427;
@@ -1342,18 +1392,18 @@ const stageStyle = {
 }
 
 .art-home .haruhi-text-field {
-  --haruhi-text-duration: 540s;
+  --haruhi-text-duration: 900s;
   position: fixed;
   inset: -46vmax;
   z-index: 1;
   overflow: hidden;
   pointer-events: none;
-  opacity: 0.34;
+  opacity: 0.28;
   mix-blend-mode: multiply;
   transform: rotate(-35deg) translateZ(0);
   transform-origin: center;
-  filter: drop-shadow(0 0 18px rgba(255, 83, 124, 0.08));
   mask-image: linear-gradient(90deg, transparent 0%, black 13%, black 86%, transparent 100%);
+  contain: strict;
 }
 
 .art-home .haruhi-text-field::before,
@@ -1388,6 +1438,23 @@ const stageStyle = {
   opacity: 0.55;
 }
 
+.art-home .haruhi-text-flow {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  width: max-content;
+  transform: translate3d(0, 0, 0);
+  animation: haruhiTextDrift var(--haruhi-text-duration) linear infinite;
+  will-change: transform;
+}
+
+.art-home .haruhi-text-sheet {
+  position: relative;
+  flex: 0 0 max(220vw, 3200px);
+  height: 100%;
+  overflow: hidden;
+}
+
 .art-home .haruhi-text-row {
   position: absolute;
   top: calc(50% + var(--row-y));
@@ -1406,8 +1473,7 @@ const stageStyle = {
     0 0 18px rgba(217, 70, 103, 0.18),
     0 0 34px rgba(27, 139, 155, 0.08);
   transform: translate3d(var(--row-offset), 0, 0);
-  animation: haruhiTextDrift var(--haruhi-text-duration) linear infinite;
-  will-change: transform;
+  contain: layout paint style;
 }
 
 .art-home .haruhi-text-row::before {
@@ -1432,6 +1498,8 @@ const stageStyle = {
 .art-home .home-lights-out-ui,
 .art-home .home-lights-on-ui {
   position: relative;
+  grid-area: 1 / 1;
+  min-width: 0;
   z-index: 2;
 }
 
@@ -1441,11 +1509,8 @@ const stageStyle = {
 }
 
 :global(html.art-home-route.art-lights-out .art-home .haruhi-text-field) {
-  opacity: 0.44;
+  opacity: 0.38;
   mix-blend-mode: screen;
-  filter:
-    drop-shadow(0 0 20px rgba(255, 83, 124, 0.12))
-    drop-shadow(0 0 32px rgba(141, 240, 255, 0.08));
 }
 
 :global(html.art-home-route.art-lights-out .art-home .haruhi-text-row) {
@@ -1546,6 +1611,12 @@ const stageStyle = {
   backface-visibility: hidden;
   transform-style: preserve-3d;
   margin-top: -118px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.art-home.is-light-gear-ready .light-gear__belt {
+  opacity: 1;
 }
 
 .art-home .light-gear--top .light-gear__belt {
@@ -1599,6 +1670,8 @@ const stageStyle = {
   object-fit: cover;
   pointer-events: none;
   transform: scale(1.02);
+  backface-visibility: hidden;
+  contain: paint;
 }
 
 .art-home .light-gear__tile figcaption {
@@ -3378,11 +3451,11 @@ const stageStyle = {
 
 @keyframes haruhiTextDrift {
   from {
-    transform: translate3d(var(--row-offset), 0, 0);
+    transform: translate3d(0, 0, 0);
   }
 
   to {
-    transform: translate3d(calc(var(--row-offset) - 50%), 0, 0);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
@@ -3393,7 +3466,7 @@ const stageStyle = {
   .art-home .galaxy-halo,
   .art-home .orbit,
   .art-home .scan-sweep,
-  .art-home .haruhi-text-row {
+  .art-home .haruhi-text-flow {
     animation: none !important;
   }
 
