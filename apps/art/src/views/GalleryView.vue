@@ -36,6 +36,7 @@
       class="main-grid"
       :items="store.list"
       :page="store.page"
+      :pageCount="pageCount"
       :hasMore="store.hasMore"
       :loading="store.loading"
       @open="openItem"
@@ -44,6 +45,7 @@
       @author="onAuthor"
       @prevPage="handlePrevPage"
       @nextPage="handleNextPage"
+      @goPage="handleGoPage"
     />
 
     <div class="statusRow footer-mode">
@@ -89,6 +91,12 @@ const sortLabel = computed(() => {
   return '随机'
 })
 
+// 总页数：由总条数 / 每页数推导，供统一分页组件使用
+const pageCount = computed(() => {
+  const limit = store.limit || 12
+  return Math.max(1, Math.ceil((store.total || 0) / limit))
+})
+
 // --- 翻页处理 ---
 async function handlePrevPage() {
   if (store.page > 1) {
@@ -104,6 +112,15 @@ async function handleNextPage() {
     await store.load()
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+}
+
+// 跳转到指定页（统一分页组件 .sos-pagination 触发）
+async function handleGoPage(p) {
+  const target = Math.min(Math.max(1, p), pageCount.value)
+  if (target === store.page) return
+  store.page = target
+  await store.load()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 // --- 响应式 PageSize 逻辑 ---

@@ -12,6 +12,7 @@ const props = defineProps({
 
   // --- 新增：分页相关 Props ---
   page: { type: Number, default: 1 },
+  pageCount: { type: Number, default: 1 },
   hasMore: { type: Boolean, default: false },
   loading: { type: Boolean, default: false },
 
@@ -25,7 +26,7 @@ const emit = defineEmits([
   'open', 'like', 'tag',
   'select', 'itemClick', 'click', 'likeArtwork', 'tagClick',
   'author',
-  'prevPage', 'nextPage' // --- 新增：翻页事件 ---
+  'prevPage', 'nextPage', 'goPage' // --- 新增：翻页事件 ---
 ])
 
 // const router = useRouter() 
@@ -33,6 +34,33 @@ const emit = defineEmits([
 const list = computed(() => {
   return props.items ?? props.artworks ?? props.list ?? props.data ?? []
 })
+
+// 分页页码列表（含省略号），逻辑对齐设计系统 SosPagination
+const pageList = computed(() => {
+  const total = props.pageCount
+  const current = props.page
+  const span = 1
+  if (total <= 1) return [1]
+  const range = new Set([1, total])
+  for (let i = current - span; i <= current + span; i += 1) {
+    if (i >= 1 && i <= total) range.add(i)
+  }
+  const sorted = [...range].sort((a, b) => a - b)
+  const out = []
+  let prev = 0
+  for (const p of sorted) {
+    if (prev && p - prev > 1) out.push('…')
+    out.push(p)
+    prev = p
+  }
+  return out
+})
+
+function goPage(p) {
+  if (typeof p !== 'number') return
+  const next = Math.min(Math.max(p, 1), props.pageCount)
+  if (next !== props.page) emit('goPage', next)
+}
 
 function imgSrc(item){
   return item?.image_url || item?.imageUrl || item?.url || ''
@@ -262,35 +290,37 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="pagination-twin" v-if="page > 1 || hasMore">
-      <div class="twin-branch left" :class="{ disabled: page <= 1 }">
-        <button 
-          class="twin-btn prev" 
-          @click="emit('prevPage')" 
-          :disabled="page <= 1 || loading"
+    <!-- 翻页：采用设计系统统一分页规范 .sos-pagination 外观（桥接，随 art 表达主题化） -->
+    <nav class="gallery-pager sos-pagination" v-if="pageCount > 1" aria-label="分页">
+      <button
+        type="button"
+        class="sos-pagination__item"
+        :disabled="page <= 1 || loading"
+        aria-label="上一页"
+        data-sfx="click"
+        @click="goPage(page - 1)"
+      >‹</button>
+      <template v-for="(p, i) in pageList">
+        <span v-if="p === '…'" :key="`gap-${i}`" class="sos-pagination__item" aria-hidden="true">…</span>
+        <button
+          v-else
+          :key="p"
+          type="button"
+          class="sos-pagination__item"
+          :aria-current="p === page ? 'page' : undefined"
           data-sfx="click"
-        >
-          <span class="icon">←</span>
-          <span class="text">PREV</span>
-        </button>
-      </div>
-
-      <div class="twin-knot">
-        <span class="page-num">{{ page }}</span>
-      </div>
-
-      <div class="twin-branch right" :class="{ disabled: !hasMore }">
-        <button 
-          class="twin-btn next" 
-          @click="emit('nextPage')" 
-          :disabled="!hasMore || loading"
-          data-sfx="click"
-        >
-          <span class="text">NEXT</span>
-          <span class="icon">→</span>
-        </button>
-      </div>
-    </div>
+          @click="goPage(p)"
+        >{{ p }}</button>
+      </template>
+      <button
+        type="button"
+        class="sos-pagination__item"
+        :disabled="page >= pageCount || loading"
+        aria-label="下一页"
+        data-sfx="click"
+        @click="goPage(page + 1)"
+      >›</button>
+    </nav>
 
   </div>
 </template>
@@ -321,14 +351,8 @@ onBeforeUnmount(() => {
 
   --shadow-media: 0 14px 32px -10px rgba(18, 50, 60, 0.5);
 
-  /* Twin Theme Colors (Green) */
-  --twin-primary: var(--sos-success); /* Emerald 500 */
-  --twin-dark: #064e3b;    /* Emerald 900 */
-  --twin-light: #a7f3d0;   /* Emerald 200 */
-  --twin-glow: rgba(16, 185, 129, 0.5);
-
   width: min(1450px, calc(100% - 40px));
-  margin: 60px auto 120px; 
+  margin: 60px auto 120px;
 }
 
 /* =========================
@@ -657,102 +681,13 @@ body.modal-open .art-card-wrap {
 }
 
 /* =========================
-   Twin Pagination (艺术化双子翻页)
+   翻页：采用设计系统统一分页规范 .sos-pagination（随 art 表达主题化）
    ========================= */
-.pagination-twin {
+.gallery-pager {
   display: flex;
   justify-content: center;
-  align-items: center;
-  margin-top: 80px;
-  margin-bottom: 40px;
-  gap: 0; /* 必须为0，确保视觉连接 */
-  position: relative;
-  height: 60px;
-}
-
-/* 中心的核心结 */
-.twin-knot {
-  position: relative;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--twin-light), var(--twin-primary));
-  box-shadow: 0 0 20px var(--twin-glow), inset 0 0 10px rgba(255,255,255,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 5;
-  border: 2px solid var(--sos-bg-surface);
-}
-
-.page-num {
-  font-family: monospace;
-  font-weight: 900;
-  font-size: 18px;
-  color: var(--twin-dark);
-}
-
-/* 左右分支容器 */
-.twin-branch {
-  position: relative;
-  display: flex;
-  align-items: center;
-  transition: all 0.4s ease;
-  opacity: 1;
-}
-
-/* 不可用时隐藏分支 */
-.twin-branch.disabled {
-  opacity: 0;
-  pointer-events: none;
-  transform: scale(0.8);
-}
-
-/* 按钮基础样式 */
-.twin-btn {
-  background: transparent;
-  border: 2px solid var(--twin-primary);
-  color: var(--twin-light);
-  height: 40px;
-  padding: 0 24px;
-  font-family: monospace;
-  font-weight: 700;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  position: relative;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  overflow: hidden;
-  background: rgba(0, 0, 0, 0.15);
-}
-
-.twin-btn:hover {
-  background: var(--twin-primary);
-  color: var(--twin-dark);
-  box-shadow: 0 0 15px var(--twin-glow);
-  text-shadow: none;
-}
-
-.twin-btn:active {
-  transform: scale(0.95);
-}
-
-/* 左侧按钮：连接到右侧结 */
-.twin-branch.left .twin-btn {
-  border-right: none; 
-  border-radius: 20px 0 0 20px;
-  padding-right: 30px; /* 留出空间给结 */
-  margin-right: -10px; /* 缩进 */
-}
-
-/* 右侧按钮：连接到左侧结 */
-.twin-branch.right .twin-btn {
-  border-left: none; 
-  border-radius: 0 20px 20px 0;
-  padding-left: 30px; /* 留出空间给结 */
-  margin-left: -10px; /* 缩进 */
+  margin-top: 72px;
+  margin-bottom: 24px;
 }
 
 </style>
