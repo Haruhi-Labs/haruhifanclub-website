@@ -32,7 +32,10 @@ withDefaults(
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(row, index) in rows" :key="rowKey ? String(row[rowKey]) : index">
+        <tr
+          v-for="(row, index) in rows"
+          :key="rowKey && row[rowKey] != null ? String(row[rowKey]) : index"
+        >
           <td v-for="col in columns" :key="col.key" :class="{ 'sos-num': col.numeric }">
             <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]">
               {{ row[col.key] }}

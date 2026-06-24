@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -12,7 +12,9 @@ if (!python) {
   process.exit(1)
 }
 
-const scriptPath = join(tmpdir(), 'haruhi-news-visual-check.py')
+// 每次运行独占一个临时目录，避免共享 tmp 下固定脚本名被并发覆盖或符号链接劫持
+const scriptDir = mkdtempSync(join(tmpdir(), 'haruhi-news-visual-'))
+const scriptPath = join(scriptDir, 'check.py')
 
 writeFileSync(
   scriptPath,

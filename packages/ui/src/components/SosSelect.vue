@@ -5,7 +5,7 @@ interface SosSelectOption {
   disabled?: boolean
 }
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     modelValue?: string | number
     options?: SosSelectOption[]
@@ -23,11 +23,14 @@ withDefaults(
 )
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
+  'update:modelValue': [value: string | number]
 }>()
 
 function onChange(event: Event) {
-  emit('update:modelValue', (event.target as HTMLSelectElement).value)
+  const raw = (event.target as HTMLSelectElement).value
+  // 还原选项原始类型，避免 number 选项被强制转成 string
+  const matched = props.options.find((opt) => String(opt.value) === raw)
+  emit('update:modelValue', matched ? matched.value : raw)
 }
 </script>
 

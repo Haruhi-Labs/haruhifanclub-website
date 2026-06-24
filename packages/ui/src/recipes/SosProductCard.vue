@@ -49,16 +49,21 @@ const fmt = (value: number | string | undefined) => {
 }
 const nowPrice = computed(() => fmt(props.price))
 const wasPrice = computed(() => fmt(props.originalPrice))
-const pct = computed(() =>
-  props.progress ? Math.min(100, Math.round((props.progress.value / props.progress.max) * 100)) : 0
-)
+const pct = computed(() => {
+  if (!props.progress || props.progress.max <= 0) return 0
+  return Math.min(100, Math.max(0, Math.round((props.progress.value / props.progress.max) * 100)))
+})
 </script>
 
 <template>
   <article
     class="sos-card sos-product-card"
     :class="{ 'sos-card--interactive': interactive }"
+    :role="interactive ? 'button' : undefined"
+    :tabindex="interactive ? 0 : undefined"
     @click="interactive && emit('click')"
+    @keydown.enter.self="interactive && emit('click')"
+    @keydown.space.prevent.self="interactive && emit('click')"
   >
     <div class="sos-product-card__media">
       <span v-if="badge" class="sos-ribbon" :class="`sos-ribbon--${badgeTone}`">{{ badge }}</span>

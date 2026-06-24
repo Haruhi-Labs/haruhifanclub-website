@@ -25,6 +25,7 @@ function onChange(event: Event) {
       type="checkbox"
       role="switch"
       :checked="modelValue"
+      :aria-checked="modelValue ? 'true' : 'false'"
       :disabled="disabled"
       @change="onChange"
     />

@@ -27,6 +27,7 @@ const emit = defineEmits<{
     tabindex="0"
     @click="emit('click')"
     @keydown.enter.self="emit('click')"
+    @keydown.space.prevent.self="emit('click')"
   >
     <div class="sos-book-card__cover" :style="color ? { '--book-color': color } : undefined">
       <span v-if="badge" class="sos-book-card__badge sos-badge sos-badge--solid">{{ badge }}</span>

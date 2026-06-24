@@ -25,8 +25,8 @@ const classes = computed(() => [
 <template>
   <span
     :class="classes"
-    :aria-selected="props.selected ? 'true' : undefined"
-    :aria-disabled="props.disabled ? 'true' : undefined"
+    :data-selected="props.selected ? 'true' : undefined"
+    :data-disabled="props.disabled ? 'true' : undefined"
   >
     <slot />
   </span>

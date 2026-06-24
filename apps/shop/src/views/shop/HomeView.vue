@@ -14,8 +14,8 @@
             tabindex="0"
             :aria-label="`查看 ${item.name} 商品详情`"
             @click="goToProduct(item)"
-            @keydown.enter.prevent="goToProduct(item)"
-            @keydown.space.prevent="goToProduct(item)"
+            @keydown.enter.prevent.self="goToProduct(item)"
+            @keydown.space.prevent.self="goToProduct(item)"
         >
             <div class="card-image-wrapper">
                 <picture>

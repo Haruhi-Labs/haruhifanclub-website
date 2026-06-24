@@ -43,6 +43,7 @@
           <a
             href="/exam/"
             target="_blank"
+            rel="noopener noreferrer"
             class="nav-right-link"
             :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'"
           >
@@ -53,6 +54,7 @@
           <router-link
             :to="{ name: 'quiz' }"
             target="_blank"
+            rel="noopener noreferrer"
             class="nav-right-link"
             :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'"
           >

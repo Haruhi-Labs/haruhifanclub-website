@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { safeUrl } from '../internal/safe-url'
 
 type ButtonElement = 'button' | 'a'
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
@@ -32,6 +33,10 @@ const emit = defineEmits<{
 }>()
 
 const isUnavailable = computed(() => props.disabled || props.loading)
+// 仅在链接形态且可用时输出 href，并经协议白名单过滤，拦截 javascript: 等注入
+const safeHref = computed(() =>
+  props.as === 'a' && !isUnavailable.value ? safeUrl(props.href) : undefined
+)
 const classes = computed(() => [
   'sos-button',
   `sos-button--${props.variant}`,
@@ -54,7 +59,7 @@ function onClick(event: MouseEvent) {
     :is="props.as"
     :class="classes"
     :type="props.as === 'button' ? props.type : undefined"
-    :href="props.as === 'a' ? props.href : undefined"
+    :href="safeHref"
     :disabled="props.as === 'button' ? isUnavailable : undefined"
     :aria-disabled="props.as === 'a' && isUnavailable ? 'true' : undefined"
     :aria-busy="props.loading ? 'true' : undefined"

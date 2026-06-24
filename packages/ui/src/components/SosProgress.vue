@@ -17,9 +17,11 @@ const props = withDefaults(
   }
 )
 
+// 把 value 夹到 [0, max]，让 ARIA 与视觉读到同一组归一化值
+const clampedValue = computed(() => Math.min(Math.max(props.value, 0), Math.max(props.max, 0)))
 const percent = computed(() => {
   if (props.max <= 0) return 0
-  return Math.min(100, Math.max(0, (props.value / props.max) * 100))
+  return (clampedValue.value / props.max) * 100
 })
 const readableValue = computed(() => props.valueLabel || `${Math.round(percent.value)}%`)
 const fillStyle = computed(() => ({ width: `${percent.value}%` }))
@@ -34,9 +36,9 @@ const classes = computed(() => [
     :class="classes"
     role="progressbar"
     :aria-label="props.label"
-    :aria-valuenow="props.value"
+    :aria-valuenow="clampedValue"
     aria-valuemin="0"
-    :aria-valuemax="props.max"
+    :aria-valuemax="Math.max(props.max, 0)"
   >
     <div v-if="props.label || readableValue" class="sos-progress__meta">
       <span>{{ props.label }}</span>

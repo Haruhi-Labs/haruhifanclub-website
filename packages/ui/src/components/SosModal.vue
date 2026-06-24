@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { watch, onBeforeUnmount } from 'vue'
+import { lockScroll, unlockScroll } from '../internal/scroll-lock'
 
 const props = withDefaults(
   defineProps<{
@@ -30,24 +31,37 @@ function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') close()
 }
 
+// 本实例当前是否持有滚动锁，确保解锁次数与加锁次数对齐
+let locked = false
+
 watch(
   () => props.open,
   (open) => {
     if (typeof document === 'undefined') return
     if (open) {
       document.addEventListener('keydown', onKeydown)
-      document.body.style.overflow = 'hidden'
+      if (!locked) {
+        lockScroll()
+        locked = true
+      }
     } else {
       document.removeEventListener('keydown', onKeydown)
-      document.body.style.overflow = ''
+      if (locked) {
+        unlockScroll()
+        locked = false
+      }
     }
-  }
+  },
+  { immediate: true }
 )
 
 onBeforeUnmount(() => {
   if (typeof document === 'undefined') return
   document.removeEventListener('keydown', onKeydown)
-  document.body.style.overflow = ''
+  if (locked) {
+    unlockScroll()
+    locked = false
+  }
 })
 </script>
 

@@ -41,6 +41,7 @@ const emit = defineEmits<{
     :tabindex="interactive ? 0 : undefined"
     @click="interactive && emit('click')"
     @keydown.enter.self="interactive && emit('click')"
+    @keydown.space.prevent.self="interactive && emit('click')"
   >
     <div v-if="image" class="sos-card__media sos-article-card__media">
       <img :src="image" :alt="imageAlt || title" />

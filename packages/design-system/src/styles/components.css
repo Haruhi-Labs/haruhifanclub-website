@@ -690,12 +690,12 @@
   border-radius: var(--sos-radius-full);
   background: currentColor;
 }
-.sos-badge[aria-selected='true'] {
+.sos-badge[data-selected='true'] {
   border-color: color-mix(in srgb, var(--sos-accent) 55%, var(--sos-border-strong));
   background: var(--sos-accent);
   color: var(--sos-accent-contrast);
 }
-.sos-badge[aria-disabled='true'] {
+.sos-badge[data-disabled='true'] {
   opacity: 0.52;
 }
 

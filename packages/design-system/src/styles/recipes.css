@@ -172,10 +172,6 @@
   gap: var(--sos-space-2);
   flex: 1;
 }
-/* 标题与副标题成组，正文摘要后留更大间距 */
-.sos-article-card__subtitle {
-  margin-bottom: var(--sos-space-1);
-}
 /* footer 置于 body 内并贴底，继承 body 横向内距，不再贴边 */
 .sos-article-card__footer {
   margin-top: auto;
@@ -222,7 +218,8 @@
   overflow: hidden;
 }
 .sos-article-card__subtitle {
-  margin: 0;
+  /* 标题与副标题成组，副标题下留出小间距（合并自此前被覆盖的重复规则） */
+  margin: 0 0 var(--sos-space-1);
   color: var(--sos-text-secondary);
   font-size: var(--sos-text-sm);
   font-weight: var(--sos-weight-bold);

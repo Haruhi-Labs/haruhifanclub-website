@@ -37,6 +37,7 @@ const ratioValue = computed(() => props.ratio.replace(':', ' / '))
     tabindex="0"
     @click="emit('click')"
     @keydown.enter.self="emit('click')"
+    @keydown.space.prevent.self="emit('click')"
   >
     <div class="sos-artwork-card__frame" :style="{ '--sos-artwork-ratio': ratioValue }">
       <img v-if="image" :src="image" :alt="imageAlt || title" />

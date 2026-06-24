@@ -18,7 +18,9 @@ const router = useRouter()
 
 const open = ref(false)
 const user = computed(() => session.state.user)
-const accountLabel = computed(() => user.value?.nickname || user.value?.email || '')
+const accountLabel = computed(
+  () => user.value?.nickname || user.value?.email || user.value?.username || ''
+)
 
 onMounted(() => {
   if (!session.state.ready) session.refresh()

@@ -72,6 +72,11 @@
 .hauth-pw__toggle:hover {
   color: var(--sos-text-primary);
 }
+.hauth-pw__toggle:focus-visible {
+  outline: none;
+  color: var(--sos-text-primary);
+  box-shadow: var(--sos-ring);
+}
 
 /* ---------- 头像 / 身份信息 ---------- */
 .hauth-identity {

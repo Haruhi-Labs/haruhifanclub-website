@@ -145,7 +145,7 @@ const viewType = computed(() => {
 // 获取头像 URL 的辅助函数
 const getAvatarUrl = (authorName) => {
   const seed = authorName || 'default'
-  return `https://api.dicebear.com/7.x/notionists/svg?seed=${seed}&backgroundColor=c0aede`
+  return `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(seed)}&backgroundColor=c0aede`
 }
 
 // 动态 Header 内容 (用于非作者页的普通Header)
@@ -258,7 +258,8 @@ watch(
   () => {
     pageNum.value = 1
     scrollToTop()
-    // 注意：这里不再清空 searchQuery，改为在 onMounted 中处理，或由 NavBar 控制
+    // 非搜索页清空残留搜索词，避免组件复用时 NewsCard.highlight() 继续高亮旧关键词
+    if (route.name !== 'search') store.searchQuery = ''
   }
 )
 

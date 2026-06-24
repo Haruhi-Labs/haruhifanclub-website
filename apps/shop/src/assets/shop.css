@@ -2578,6 +2578,7 @@ textarea.input-field {
     }
 
     .shop-app .product-grid {
+        display: grid;
         grid-template-columns: 1fr;
         gap: var(--sos-space-4);
     }

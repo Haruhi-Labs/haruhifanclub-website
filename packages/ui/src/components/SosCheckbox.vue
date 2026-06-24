@@ -1,7 +1,9 @@
 <script setup lang="ts">
-withDefaults(
+import { computed } from 'vue'
+
+const props = withDefaults(
   defineProps<{
-    modelValue?: boolean
+    modelValue?: boolean | string | number
     type?: 'checkbox' | 'radio'
     value?: string | number
     name?: string
@@ -17,11 +19,21 @@ withDefaults(
 )
 
 const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
+  'update:modelValue': [value: boolean | string | number]
 }>()
 
+// radio 用「当前选中值」表达选择，checkbox 用布尔
+const isChecked = computed(() =>
+  props.type === 'radio' ? props.modelValue === props.value : Boolean(props.modelValue)
+)
+
 function onChange(event: Event) {
-  emit('update:modelValue', (event.target as HTMLInputElement).checked)
+  const el = event.target as HTMLInputElement
+  if (props.type === 'radio') {
+    if (el.checked && props.value !== undefined) emit('update:modelValue', props.value)
+  } else {
+    emit('update:modelValue', el.checked)
+  }
 }
 </script>
 
@@ -31,7 +43,7 @@ function onChange(event: Event) {
       :type="type"
       :name="name"
       :value="value"
-      :checked="modelValue"
+      :checked="isChecked"
       :disabled="disabled"
       @change="onChange"
     />

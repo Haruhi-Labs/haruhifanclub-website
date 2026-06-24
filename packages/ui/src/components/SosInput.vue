@@ -1,5 +1,5 @@
 <script setup lang="ts">
-withDefaults(
+const props = withDefaults(
   defineProps<{
     modelValue?: string | number
     type?: string
@@ -19,11 +19,16 @@ withDefaults(
 )
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
+  'update:modelValue': [value: string | number]
 }>()
 
 function onInput(event: Event) {
-  emit('update:modelValue', (event.target as HTMLInputElement).value)
+  const el = event.target as HTMLInputElement
+  // number 类型按数值发射（空值除外），保持与 modelValue 的类型契约一致
+  emit(
+    'update:modelValue',
+    props.type === 'number' && el.value !== '' ? el.valueAsNumber : el.value
+  )
 }
 </script>
 

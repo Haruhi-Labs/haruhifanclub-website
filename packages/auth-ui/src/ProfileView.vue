@@ -31,6 +31,7 @@ const saving = ref(false)
 const error = ref('')
 const okMsg = ref('')
 const resendMsg = ref('')
+const resendTone = ref('success')
 
 const user = computed(() => session.state.user)
 
@@ -78,8 +79,10 @@ async function resend() {
   resendMsg.value = ''
   try {
     await session.resendVerification()
+    resendTone.value = 'success'
     resendMsg.value = '验证邮件已重新发送，请查收。'
   } catch (e) {
+    resendTone.value = 'danger'
     resendMsg.value = e?.message || '发送失败'
   }
 }
@@ -124,7 +127,7 @@ async function resend() {
             <SosButton variant="secondary" size="sm" @click="resend">重发验证邮件</SosButton>
           </template>
         </SosNotice>
-        <SosNotice v-if="resendMsg" tone="success" style="margin-top: var(--sos-space-3)">
+        <SosNotice v-if="resendMsg" :tone="resendTone" style="margin-top: var(--sos-space-3)">
           {{ resendMsg }}
         </SosNotice>
       </SosCard>

@@ -92,7 +92,7 @@ apps/*
 packages/*
 ```
 
-当前实际被 app 依赖的共享包包括 `packages/api-client` 和 `packages/design-system`。`packages/ui` 和 `packages/config` 没有 `package.json`，属于预留目录。
+当前实际被 app 依赖的共享包包括 `packages/api-client`、`packages/design-system`、`packages/ui` 和 `packages/auth-ui`。`packages/config` 没有 `package.json`，属于预留目录。
 
 | app           | 子路径            | dev 端口 | 主要特点                         |
 | ------------- | ----------------- | -------- | -------------------------------- |

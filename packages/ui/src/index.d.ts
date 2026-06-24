@@ -152,7 +152,7 @@ export const SosSelect: DefineComponent<{
   id?: string
 }>
 export const SosCheckbox: DefineComponent<{
-  modelValue?: boolean
+  modelValue?: boolean | string | number
   type?: 'checkbox' | 'radio'
   value?: string | number
   name?: string

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 
 const props = withDefaults(
   defineProps<{
@@ -18,8 +18,10 @@ const props = withDefaults(
   }
 )
 
+// 每个实例唯一 id，避免多个未传 forId 的字段共享同一 help id
+const autoId = useId()
 const describedBy = computed(() =>
-  props.help || props.error ? `${props.forId || 'sos-field'}-help` : undefined
+  props.help || props.error ? `${props.forId || autoId}-help` : undefined
 )
 </script>
 

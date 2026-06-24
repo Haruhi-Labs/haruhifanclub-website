@@ -96,10 +96,11 @@ const parseInlineStyles = (html) => {
     .replace(/\*(.*?)\*/g, '<i>$1</i>')
     .replace(/__(.*?)__/g, '<u>$1</u>')
     .replace(/~~(.*?)~~/g, '<s>$1</s>')
-    .replace(
-      /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" target="_blank" class="inline-link" onclick="event.stopPropagation()">$1</a>'
-    )
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label, url) => {
+      // 协议白名单：拦截 javascript: 等可执行 URL；并补 rel 隔离新标签页的 opener
+      const safe = /^(?:https?:|mailto:)/i.test(url) || /^[/#]/.test(url) ? url : '#'
+      return `<a href="${safe}" target="_blank" rel="noopener noreferrer" class="inline-link" onclick="event.stopPropagation()">${label}</a>`
+    })
 }
 
 const highlight = (text) => {

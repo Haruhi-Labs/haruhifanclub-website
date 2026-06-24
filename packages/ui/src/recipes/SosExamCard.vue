@@ -28,6 +28,7 @@ const emit = defineEmits<{
     :tabindex="interactive ? 0 : undefined"
     @click="interactive && emit('click')"
     @keydown.enter.self="interactive && emit('click')"
+    @keydown.space.prevent.self="interactive && emit('click')"
   >
     <div class="sos-exam-card__paper">
       <span v-if="score" class="sos-exam-card__stamp">{{ score }}</span>
