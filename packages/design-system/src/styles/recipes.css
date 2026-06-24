@@ -438,59 +438,42 @@
   background: transparent;
   box-shadow: none;
 }
+/* 封面是主角：填满栅格单元呈现大尺寸封面，无硬描边/书脊装裱，
+   仅以一层极轻柔光与栅格留白分隔，hover 简单上浮。 */
 .sos-book-card__cover {
   position: relative;
-  width: min(100%, 11rem);
+  width: 100%;
   aspect-ratio: 2 / 3;
-  margin-inline: auto;
   overflow: hidden;
   border-radius: var(--sos-media-radius);
-  border: 1px solid rgba(88, 58, 28, 0.18);
   background: var(--book-color, var(--sos-paper-100));
-  box-shadow: var(--sos-card-shadow);
+  box-shadow: var(--sos-book-cover-shadow, 0 6px 16px -8px rgba(40, 28, 12, 0.28));
   transition:
     transform var(--sos-duration-base) var(--sos-ease-out),
-    box-shadow var(--sos-duration-base);
+    box-shadow var(--sos-duration-base) var(--sos-ease-out);
 }
 .sos-book-card:hover .sos-book-card__cover {
-  transform: translateY(-5px) rotate(-0.6deg);
-  box-shadow: var(--sos-hover-shadow);
+  transform: translateY(-6px);
+  box-shadow: var(--sos-book-cover-shadow-hover, 0 16px 30px -12px rgba(40, 28, 12, 0.34));
 }
 .sos-book-card__cover > img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-/* 书脊阴影 */
-.sos-book-card__cover::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 0.85rem;
-  z-index: 2;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.22), transparent);
-}
-/* 高光 */
-.sos-book-card__cover::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  background: linear-gradient(105deg, rgba(255, 255, 255, 0.32), transparent 30%);
-  pointer-events: none;
-}
+/* 无封面占位：纯净纸色面 + 居中书名首字，克制优雅，不做实体书脊
+   （完整书名与作者在封面下方陈列，封面上只留一个识别字） */
 .sos-book-card__vertical {
   position: absolute;
-  inset: var(--sos-space-4);
-  z-index: 1;
+  inset: 0;
   display: grid;
   place-items: center;
-  writing-mode: vertical-rl;
-  color: color-mix(in srgb, var(--sos-ink-950) 84%, transparent);
+  color: color-mix(in srgb, var(--sos-ink-950) 30%, transparent);
   font-family: var(--sos-font-reading);
-  font-size: 1.25rem;
-  font-weight: var(--sos-weight-heavy);
-  letter-spacing: 0.1em;
+  font-size: clamp(2.25rem, 1.4rem + 3.4vw, 3.25rem);
+  font-weight: var(--sos-weight-bold);
+  line-height: 1;
 }
 .sos-book-card__badge {
   position: absolute;
@@ -498,16 +481,21 @@
   right: var(--sos-space-2);
   z-index: 3;
 }
+/* 标题不强制衬线，沿用所在 scope 的界面字体；字重克制，位置呼吸感更好 */
 .sos-book-card__title {
   margin: 0;
-  font-family: var(--sos-font-reading);
   font-size: var(--sos-text-sm);
-  font-weight: var(--sos-weight-heavy);
-  line-height: 1.3;
+  font-weight: var(--sos-weight-bold);
+  line-height: 1.4;
+  color: var(--sos-text-primary);
+  transition: color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.sos-book-card:hover .sos-book-card__title {
+  color: var(--sos-link);
 }
 .sos-book-card__author {
-  margin: 0.2rem 0 0;
-  color: var(--sos-text-secondary);
+  margin: 0.3rem 0 0;
+  color: var(--sos-text-tertiary);
   font-size: var(--sos-text-xs);
 }
 

@@ -92,8 +92,8 @@
                   :alt="book.title"
                   loading="lazy"
                 />
-                <span v-else class="sos-book-card__vertical">{{
-                  book.title
+                <span v-else class="sos-book-card__vertical" aria-hidden="true">{{
+                  book.title.charAt(0)
                 }}</span>
               </div>
               <div>
@@ -422,28 +422,31 @@ onMounted(fetchBooks);
   font-size: var(--sos-text-xl);
 }
 
-/* 书架网格：随容器自动密排，少量书目也左对齐不撑大 */
+/* 书架网格：一行 2/3/4/5 个大尺寸封面，留白克制优雅（沿用原版节奏） */
 .shelf-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
-  gap: var(--sos-space-6) var(--sos-space-5);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sos-space-8) var(--sos-space-6);
   align-items: start;
+}
+@media (min-width: 640px) {
+  .shelf-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 960px) {
+  .shelf-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1200px) {
+  .shelf-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 
 .shelf-chevron {
   width: 0.85rem;
   height: 0.85rem;
-}
-
-/* 长标题占位封面：竖排书脊保持在框内，溢出收口 */
-.sos-book-card__vertical {
-  max-block-size: calc(100% - var(--sos-space-6));
-  overflow: hidden;
-}
-
-@media (max-width: 640px) {
-  .shelf-grid {
-    grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
-  }
 }
 </style>

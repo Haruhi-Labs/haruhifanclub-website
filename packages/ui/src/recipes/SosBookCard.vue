@@ -32,7 +32,7 @@ const emit = defineEmits<{
     <div class="sos-book-card__cover" :style="color ? { '--book-color': color } : undefined">
       <span v-if="badge" class="sos-book-card__badge sos-badge sos-badge--solid">{{ badge }}</span>
       <img v-if="cover" :src="cover" :alt="title" />
-      <span v-else class="sos-book-card__vertical">{{ title }}</span>
+      <span v-else class="sos-book-card__vertical" aria-hidden="true">{{ title.charAt(0) }}</span>
     </div>
     <div>
       <h3 class="sos-book-card__title">{{ title }}</h3>
