@@ -949,8 +949,10 @@
   font: inherit;
   padding: 0;
 }
-.sos-input-affix > input:focus {
+.sos-input-affix > input:focus,
+.sos-input-affix > input:focus-visible {
   outline: none;
+  box-shadow: none;
 }
 
 /* ============================================================
@@ -1003,6 +1005,17 @@
 }
 .sos-search__input::placeholder {
   color: var(--sos-text-tertiary);
+}
+/* 隐藏 type=search 的浏览器原生清除按钮，避免与 .sos-search__clear 重复 */
+.sos-search__input::-webkit-search-cancel-button {
+  display: none;
+}
+/* 焦点环由外层 .sos-search:focus-within 统一提供，内部输入不再单独出环，
+   避免 .sos-scope 的 :focus-visible 与外层叠成双重高亮边框 */
+.sos-search__input:focus,
+.sos-search__input:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 .sos-search__input:disabled {
   cursor: not-allowed;
