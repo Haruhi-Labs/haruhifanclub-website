@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ShopLayout from '../layouts/ShopLayout.vue'
+import ShopAuthLayout from '../layouts/ShopAuthLayout.vue'
 import AdminLayout from '../layouts/AdminLayout.vue'
 import { trackEvent } from '@/utils/analytics'
 import { hasValidAdminToken, verifyShopAccess } from '@/utils/adminAuth'
@@ -20,26 +21,35 @@ const router = createRouter({
       name: 'admin-login',
       component: () => import('../views/admin/AdminLoginView.vue'),
     },
-    // 终端用户账号系统（独立全页，不套商城布局）
-    { path: '/login', name: 'login', component: LoginView, props: { site: 'shop' } },
-    { path: '/account', name: 'account', component: ProfileView, props: { site: 'shop' } },
+    // 终端用户账号系统：套专门的 ShopAuthLayout（精简页头 + 满屏 shop 主题背景），
+    // 既补上之前缺失的页头，也消除登录页「下半截颜色不同的底」。
+    // 用「哑父路径 + 绝对路径子路由」包裹布局，避免与 ShopLayout 的 '/' 首页冲突。
     {
-      path: '/account/settings',
-      name: 'account-settings',
-      component: SettingsView,
-      props: { site: 'shop' },
-    },
-    {
-      path: '/verify-email',
-      name: 'verify-email',
-      component: VerifyEmailView,
-      props: { site: 'shop' },
-    },
-    {
-      path: '/reset-password',
-      name: 'reset-password',
-      component: ResetPasswordView,
-      props: { site: 'shop' },
+      path: '/account-portal',
+      component: ShopAuthLayout,
+      redirect: '/login',
+      children: [
+        { path: '/login', name: 'login', component: LoginView, props: { site: 'shop' } },
+        { path: '/account', name: 'account', component: ProfileView, props: { site: 'shop' } },
+        {
+          path: '/account/settings',
+          name: 'account-settings',
+          component: SettingsView,
+          props: { site: 'shop' },
+        },
+        {
+          path: '/verify-email',
+          name: 'verify-email',
+          component: VerifyEmailView,
+          props: { site: 'shop' },
+        },
+        {
+          path: '/reset-password',
+          name: 'reset-password',
+          component: ResetPasswordView,
+          props: { site: 'shop' },
+        },
+      ],
     },
     // 前台商城路由
     {
