@@ -1318,6 +1318,26 @@ const stageStyle = {
   font-weight: 950;
 }
 
+:global(html.art-home-route.art-lights-out .art-home .day-kicker) {
+  color: rgba(141, 240, 255, 0.86);
+  text-shadow: 0 0 18px rgba(141, 240, 255, 0.28);
+}
+
+:global(html.art-home-route.art-lights-out .art-home .day-visitor) {
+  color: rgba(248, 252, 255, 0.98);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.16),
+    0 0 20px rgba(141, 240, 255, 0.24),
+    0 16px 38px rgba(0, 0, 0, 0.54);
+}
+
+:global(html.art-home-route.art-lights-out .art-home .day-visitor strong) {
+  color: #ffffff;
+  text-shadow:
+    0 0 14px rgba(255, 255, 255, 0.46),
+    0 0 28px rgba(141, 240, 255, 0.3);
+}
+
 .art-home::before {
   inset: -80px -90px -60px;
   z-index: -2;
