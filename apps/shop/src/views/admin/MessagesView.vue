@@ -80,7 +80,7 @@
             </td>
           </tr>
           <tr v-if="messages.length === 0">
-            <td colspan="6" style="text-align: center; color: #9ca3af;">暂无留言数据</td>
+            <td colspan="6" style="text-align: center; color: var(--sos-text-tertiary);">暂无留言数据</td>
           </tr>
         </tbody>
       </table>
@@ -192,7 +192,7 @@ onMounted(() => {
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.5;
-  color: #374151;
+  color: var(--sos-text-secondary);
 }
 
 .pagination-row {

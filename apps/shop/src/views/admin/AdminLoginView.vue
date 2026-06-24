@@ -56,14 +56,14 @@ const submit = async () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(160deg, #1f2937 0%, #2563eb 100%);
+    background: linear-gradient(160deg, var(--sos-text-primary) 0%, var(--sos-accent) 100%);
     padding: 1rem;
 }
 
 .login-card {
     width: 100%;
     max-width: 360px;
-    background: #fff;
+    background: var(--sos-bg-surface);
     border-radius: 12px;
     padding: 1.5rem;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
@@ -71,25 +71,25 @@ const submit = async () => {
 
 h2 {
     margin: 0 0 0.25rem 0;
-    color: #1f2937;
+    color: var(--sos-text-primary);
 }
 
 .hint {
     margin: 0 0 1rem 0;
-    color: #6b7280;
+    color: var(--sos-text-tertiary);
     font-size: 0.875rem;
 }
 
 .label {
     display: block;
     font-size: 0.875rem;
-    color: #374151;
+    color: var(--sos-text-secondary);
     margin-bottom: 0.25rem;
 }
 
 .input {
     width: 100%;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--sos-border-strong);
     border-radius: 8px;
     padding: 0.625rem 0.75rem;
     margin-bottom: 0.875rem;
@@ -97,7 +97,7 @@ h2 {
 }
 
 .input:focus {
-    border-color: #2563eb;
+    border-color: var(--sos-accent);
 }
 
 .login-btn,
@@ -110,8 +110,8 @@ h2 {
 }
 
 .login-btn {
-    background: #2563eb;
-    color: #fff;
+    background: var(--sos-accent);
+    color: var(--sos-bg-surface);
     margin-top: 0.25rem;
 }
 
@@ -122,7 +122,7 @@ h2 {
 
 .back-btn {
     margin-top: 0.625rem;
-    background: #f3f4f6;
-    color: #374151;
+    background: var(--sos-bg-muted);
+    color: var(--sos-text-secondary);
 }
 </style>
