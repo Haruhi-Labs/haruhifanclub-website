@@ -81,7 +81,8 @@ const quickSearch = (term) => {
     right: 0;
     bottom: 0;
     left: 0;
-    z-index: 50;
+    /* 高于统一页头（z-sticky 1100），覆盖页头并露出右上角关闭按钮 */
+    z-index: var(--sos-z-overlay);
     display: flex;
     flex-direction: column;
     align-items: center;
