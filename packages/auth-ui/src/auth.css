@@ -5,6 +5,13 @@
   color: var(--sos-text-primary);
   font-family: var(--sos-font-sans);
 }
+/* 账号页不自绘 bg-page，改为继承所在 app 的真实页面底色：
+   避免在「纯白纸」站点（团报）的白色 body 上叠出 off-white 区块、显得发灰；
+   其它站点祖先底色本就与此一致，无视觉变化。仍保留 .sos-scope 的 token 以主题化。 */
+.hauth-root.sos-scope {
+  background-color: transparent;
+  background-image: none;
+}
 
 /* ---------- 居中页（登录 / 重置 / 验证） ---------- */
 .hauth-shell {
