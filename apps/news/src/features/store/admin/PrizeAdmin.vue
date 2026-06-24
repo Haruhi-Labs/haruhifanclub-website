@@ -50,7 +50,7 @@
             <td class="td-cell td-cell-xs">
               <div class="attr-tags">
                 <span class="attr-tag-gray">{{ prize.category }}</span>
-                <span class="attr-tag-color" :style="{ backgroundColor: prize.color || '#999', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }">{{ prize.rarity }}</span>
+                <span class="attr-tag-color" :style="{ backgroundColor: prize.color || 'var(--sos-text-tertiary)', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }">{{ prize.rarity }}</span>
                 <span class="attr-tag-outline">{{ prize.size }}</span>
               </div>
             </td>
@@ -424,7 +424,7 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .icon-drag:hover {
-  color: #000;
+  color: var(--sos-text-primary);
 }
 
 /* ==================== Tab Content ==================== */
@@ -457,11 +457,11 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .table-head {
-  background-color: #f9fafb;
+  background-color: var(--sos-bg-subtle);
   font-size: 0.75rem;
   line-height: 1rem;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 .table-body {
@@ -487,7 +487,7 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .table-row {
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--sos-bg-muted);
   transition: color 150ms, background-color 150ms, border-color 150ms;
 }
 
@@ -505,7 +505,7 @@ const onDrop = async (e, dropIndex, type) => {
   padding: 0.75rem;
   padding-left: 1rem;
   cursor: grab;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
 }
 
 .td-drag:active {
@@ -515,7 +515,7 @@ const onDrop = async (e, dropIndex, type) => {
 .td-order {
   padding: 0.75rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
 }
 
 .td-cell {
@@ -555,9 +555,9 @@ const onDrop = async (e, dropIndex, type) => {
   width: 3rem;
   height: 3rem;
   border-radius: 0.25rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   overflow: hidden;
-  background-color: #f3f4f6;
+  background-color: var(--sos-bg-muted);
   position: relative;
 }
 
@@ -577,20 +577,20 @@ const onDrop = async (e, dropIndex, type) => {
 .attr-tag-gray {
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
-  background-color: #f3f4f6;
-  color: #4b5563;
+  background-color: var(--sos-bg-muted);
+  color: var(--sos-text-secondary);
 }
 
 .attr-tag-color {
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
-  color: #fff;
+  color: var(--sos-bg-surface);
 }
 
 .attr-tag-outline {
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
 }
 
 /* ==================== Action Links ==================== */
@@ -607,7 +607,7 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .link-delete {
-  color: #ef4444;
+  color: var(--sos-danger);
   font-weight: 700;
   font-size: 0.75rem;
   line-height: 1rem;
@@ -618,32 +618,32 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 /* ==================== Utility Colors ==================== */
-.text-success { color: #16a34a; }
+.text-success { color: var(--sos-success); }
 
-.text-danger { color: #ef4444; }
+.text-danger { color: var(--sos-danger); }
 
 /* ==================== Option Active/Inactive ==================== */
 .opt-active {
-  background-color: #000;
-  color: #fff;
-  border-color: #000;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
+  border-color: var(--sos-text-primary);
 }
 
 .opt-inactive {
-  background-color: #fff;
-  color: #4b5563;
-  border-color: #e5e7eb;
+  background-color: var(--sos-bg-surface);
+  color: var(--sos-text-secondary);
+  border-color: var(--sos-border-default);
 }
 
 .opt-inactive:hover {
-  border-color: #9ca3af;
+  border-color: var(--sos-text-tertiary);
 }
 
 /* ==================== Buttons ==================== */
 .btn-primary-sm {
   padding: 0.5rem 1rem;
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   border-radius: 0.5rem;
   font-size: 0.875rem;
   line-height: 1.25rem;
@@ -655,7 +655,7 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .btn-primary-sm:hover {
-  background-color: #1f2937;
+  background-color: var(--sos-text-primary);
 }
 
 /* ==================== Modal Overlay ==================== */
@@ -689,7 +689,7 @@ const onDrop = async (e, dropIndex, type) => {
   font-size: 0.75rem;
   line-height: 1rem;
   font-weight: 700;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 0.25rem;
@@ -698,7 +698,7 @@ const onDrop = async (e, dropIndex, type) => {
 .form-input {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 0.25rem;
 }
 
@@ -717,7 +717,7 @@ const onDrop = async (e, dropIndex, type) => {
 .form-textarea-sm {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 0.25rem;
   font-size: 0.875rem;
   line-height: 1.25rem;
@@ -726,9 +726,9 @@ const onDrop = async (e, dropIndex, type) => {
 .form-select {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 0.25rem;
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
 }
 
 .form-grid-2col-equal {
@@ -747,28 +747,28 @@ const onDrop = async (e, dropIndex, type) => {
   flex: 1;
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 0.5rem;
   font-weight: 700;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 .btn-cancel:hover {
-  background-color: #f9fafb;
+  background-color: var(--sos-bg-subtle);
 }
 
 .btn-submit {
   flex: 1;
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   border-radius: 0.5rem;
   font-weight: 700;
 }
 
 .btn-submit:hover {
-  background-color: #1f2937;
+  background-color: var(--sos-text-primary);
 }
 
 .btn-submit:disabled {
@@ -777,7 +777,7 @@ const onDrop = async (e, dropIndex, type) => {
 
 /* ==================== Prize Modal ==================== */
 .modal-prize {
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
   border-radius: 0.75rem;
   box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
   width: 100%;
@@ -796,13 +796,13 @@ const onDrop = async (e, dropIndex, type) => {
 
 .prize-modal-left {
   width: 100%;
-  background-color: #f3f4f6;
+  background-color: var(--sos-bg-muted);
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--sos-border-default);
   position: relative;
 }
 
@@ -810,7 +810,7 @@ const onDrop = async (e, dropIndex, type) => {
   .prize-modal-left {
     width: 50%;
     border-bottom: 0;
-    border-right: 1px solid #e5e7eb;
+    border-right: 1px solid var(--sos-border-default);
   }
 }
 
@@ -864,7 +864,7 @@ const onDrop = async (e, dropIndex, type) => {
 .cropper-frame {
   position: absolute;
   z-index: 20;
-  border: 2px solid #fff;
+  border: 2px solid var(--sos-bg-surface);
   pointer-events: none;
   box-shadow: 0 0 0 9999px rgba(0,0,0,0.6);
 }
@@ -882,8 +882,8 @@ const onDrop = async (e, dropIndex, type) => {
 
 .btn-crop-confirm {
   flex: 1;
-  background-color: #16a34a;
-  color: #fff;
+  background-color: var(--sos-success);
+  color: var(--sos-bg-surface);
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
   border-radius: 0.25rem;
@@ -900,8 +900,8 @@ const onDrop = async (e, dropIndex, type) => {
 .btn-crop-cancel {
   padding-left: 1rem;
   padding-right: 1rem;
-  background-color: #fff;
-  color: #374151;
+  background-color: var(--sos-bg-surface);
+  color: var(--sos-text-secondary);
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
   border-radius: 0.25rem;
@@ -912,7 +912,7 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .btn-crop-cancel:hover {
-  background-color: #f3f4f6;
+  background-color: var(--sos-bg-muted);
 }
 
 /* Prize Upload */
@@ -930,8 +930,8 @@ const onDrop = async (e, dropIndex, type) => {
 .prize-upload-placeholder {
   width: 10rem;
   height: 10rem;
-  background-color: #fff;
-  border: 2px dashed #d1d5db;
+  background-color: var(--sos-bg-surface);
+  border: 2px dashed var(--sos-border-strong);
   border-radius: 0.5rem;
   margin-bottom: 1rem;
   display: flex;
@@ -941,7 +941,7 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .prize-upload-plus {
-  color: #d1d5db;
+  color: var(--sos-border-strong);
   font-size: 2.25rem;
   line-height: 2.5rem;
 }
@@ -949,14 +949,14 @@ const onDrop = async (e, dropIndex, type) => {
 .prize-upload-hint {
   font-size: 0.875rem;
   line-height: 1.25rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   margin-bottom: 1rem;
 }
 
 .btn-upload {
   padding: 0.5rem 1.5rem;
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   border-radius: 0.5rem;
   cursor: pointer;
   transition: color 150ms, background-color 150ms, border-color 150ms;
@@ -966,7 +966,7 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .btn-upload:hover {
-  background-color: #1f2937;
+  background-color: var(--sos-text-primary);
 }
 
 .hidden-input {
@@ -1009,10 +1009,10 @@ const onDrop = async (e, dropIndex, type) => {
 
 .bg-checkerboard {
   background-image: 
-    linear-gradient(45deg, #ccc 25%, transparent 25%), 
-    linear-gradient(-45deg, #ccc 25%, transparent 25%), 
-    linear-gradient(45deg, transparent 75%, #ccc 75%), 
-    linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    linear-gradient(45deg, var(--sos-border-strong) 25%, transparent 25%), 
+    linear-gradient(-45deg, var(--sos-border-strong) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, var(--sos-border-strong) 75%), 
+    linear-gradient(-45deg, transparent 75%, var(--sos-border-strong) 75%);
   background-size: 20px 20px;
   background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
 }

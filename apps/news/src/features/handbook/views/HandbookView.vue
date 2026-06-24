@@ -386,10 +386,10 @@ onMounted(() => {
 <style scoped>
 /* ========== Page Root ========== */
 .handbook-page {
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
   min-height: 100vh;
   font-family: "Noto Sans SC", sans-serif;
-  color: #111;
+  color: var(--sos-text-primary);
 }
 
 /* ========== Header ========== */
@@ -401,14 +401,14 @@ onMounted(() => {
   padding-right: 1rem;
   max-width: 48rem;
   margin: 0 auto;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--sos-bg-muted);
   margin-bottom: 3rem;
 }
 
 .handbook-title {
   font-size: 1.875rem;
   font-weight: 900;
-  color: #111;
+  color: var(--sos-text-primary);
   margin-bottom: 1.5rem;
   letter-spacing: 0.025em;
 }
@@ -421,7 +421,7 @@ onMounted(() => {
 
 .handbook-subtitle {
   font-size: 1.125rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   font-family: "Noto Serif SC", serif;
   font-style: italic;
   line-height: 1.625;
@@ -476,19 +476,19 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  border-left: 1px solid #e5e7eb;
+  border-left: 1px solid var(--sos-border-default);
   padding-left: 1rem;
 }
 
 .sidebar-link {
   display: block;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   transition: color 0.15s, font-weight 0.15s;
 }
 
 .sidebar-link:hover {
-  color: #000;
+  color: var(--sos-text-primary);
   font-weight: 700;
 }
 
@@ -515,11 +515,11 @@ onMounted(() => {
 
 .content-article :deep(p) {
   text-align: justify;
-  color: #374151;
+  color: var(--sos-text-secondary);
 }
 
 .content-article :deep(li) {
-  color: #374151;
+  color: var(--sos-text-secondary);
 }
 
 /* ========== Sections ========== */
@@ -532,14 +532,14 @@ onMounted(() => {
 .lead-text {
   font-size: 1.25rem;
   font-family: "Noto Serif SC", serif;
-  color: #000;
+  color: var(--sos-text-primary);
   font-weight: 700;
 }
 
 /* ========== Section Subtitle ========== */
 .section-subtitle {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   font-style: italic;
   margin-bottom: 1.5rem;
 }
@@ -565,10 +565,10 @@ onMounted(() => {
 
 /* ========== Achievement Card ========== */
 .achievement-card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   padding: 1.5rem;
   border-radius: 0.75rem;
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
   display: flex;
   flex-direction: column;
   transition: all 300ms;
@@ -582,7 +582,7 @@ onMounted(() => {
 .card-icon {
   width: 2.5rem;
   height: 2.5rem;
-  background-color: #f9fafb;
+  background-color: var(--sos-bg-subtle);
   border-radius: 9999px;
   display: flex;
   align-items: center;
@@ -593,8 +593,8 @@ onMounted(() => {
 }
 
 .achievement-card:hover .card-icon {
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
 }
 
 .card-title {
@@ -611,7 +611,7 @@ onMounted(() => {
 
 .card-list {
   font-size: 0.875rem;
-  color: #4b5563;
+  color: var(--sos-text-secondary);
   flex-grow: 1;
   padding-left: 0;
   list-style: none;
@@ -629,7 +629,7 @@ onMounted(() => {
 
 .bullet {
   margin-right: 0.5rem;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
 }
 
 /* ========== Group Grid (Environment) ========== */
@@ -648,10 +648,10 @@ onMounted(() => {
 }
 
 .group-card {
-  background-color: #f9fafb;
+  background-color: var(--sos-bg-subtle);
   padding: 1.5rem;
   border-radius: 0.5rem;
-  border: 1px solid #f3f4f6;
+  border: 1px solid var(--sos-bg-muted);
   display: flex;
   flex-direction: column;
 }
@@ -667,10 +667,10 @@ onMounted(() => {
 .group-id {
   font-size: 0.75rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   margin-bottom: 0.75rem;
-  background-color: #fff;
-  border: 1px solid #e5e7eb;
+  background-color: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-default);
   display: inline-block;
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
@@ -679,7 +679,7 @@ onMounted(() => {
 
 .group-desc {
   font-size: 0.875rem;
-  color: #4b5563;
+  color: var(--sos-text-secondary);
   line-height: 1.625;
   flex-grow: 1;
 }
@@ -704,7 +704,7 @@ onMounted(() => {
 }
 
 .department-card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 0.75rem;
   padding: 1.5rem;
   transition: box-shadow 0.15s;
@@ -741,7 +741,7 @@ onMounted(() => {
 .department-title {
   font-weight: 700;
   font-size: 1.125rem;
-  color: #000;
+  color: var(--sos-text-primary);
   margin-top: 0;
   margin-bottom: 0.5rem;
 }
@@ -749,9 +749,9 @@ onMounted(() => {
 .department-id {
   font-size: 0.75rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   margin-bottom: 1rem;
-  background-color: #f3f4f6;
+  background-color: var(--sos-bg-muted);
   display: inline-block;
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
@@ -763,7 +763,7 @@ onMounted(() => {
 
 .department-desc {
   font-size: 0.875rem;
-  color: #4b5563;
+  color: var(--sos-text-secondary);
   line-height: 1.625;
 }
 
@@ -777,8 +777,8 @@ onMounted(() => {
 
 /* ========== Contact Box ========== */
 .contact-box {
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background-color: var(--sos-bg-subtle);
+  border: 1px solid var(--sos-border-default);
   border-radius: 0.75rem;
   padding: 1.5rem;
   margin-top: 1.5rem;
@@ -786,7 +786,7 @@ onMounted(() => {
 
 .contact-box-title {
   font-weight: 700;
-  color: #1f2937;
+  color: var(--sos-text-primary);
   margin-bottom: 1rem;
 }
 
@@ -794,7 +794,7 @@ onMounted(() => {
   list-style: none;
   padding-left: 0;
   font-size: 0.875rem;
-  color: #4b5563;
+  color: var(--sos-text-secondary);
 }
 
 .contact-list > * + * {
@@ -829,7 +829,7 @@ onMounted(() => {
 }
 
 .philosophy-card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   padding: 1.5rem;
   border-radius: 0.5rem;
   transition: box-shadow 0.15s;
@@ -840,12 +840,12 @@ onMounted(() => {
 }
 
 .philosophy-card--highlight {
-  background-color: #f3f4f6;
-  color: #111;
+  background-color: var(--sos-bg-muted);
+  color: var(--sos-text-primary);
 }
 
 .philosophy-card--highlight .philosophy-card-title {
-  color: #111;
+  color: var(--sos-text-primary);
 }
 
 .philosophy-card-title {
@@ -859,7 +859,7 @@ onMounted(() => {
   margin-top: 1rem;
   padding-left: 0;
   list-style: none;
-  color: #374151;
+  color: var(--sos-text-secondary);
 }
 
 .philosophy-list > * + * {
@@ -869,19 +869,19 @@ onMounted(() => {
 .philosophy-body {
   font-size: 0.875rem;
   margin-top: 1rem;
-  color: #374151;
+  color: var(--sos-text-secondary);
   line-height: 1.625;
 }
 
 .bold-goal {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--sos-border-default);
 }
 
 .bold-goal-label {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 700;
@@ -895,7 +895,7 @@ onMounted(() => {
 
 /* ========== Organization Block ========== */
 .org-block {
-  background-color: #f9fafb;
+  background-color: var(--sos-bg-subtle);
   padding: 2rem;
   border-radius: 1rem;
 }
@@ -905,13 +905,13 @@ onMounted(() => {
   font-size: 1.125rem;
   font-family: "Noto Serif SC", serif;
   font-style: italic;
-  color: #1f2937;
+  color: var(--sos-text-primary);
   padding-left: 1rem;
-  border-left: 4px solid #000;
+  border-left: 4px solid var(--sos-text-primary);
 }
 
 .org-text {
-  color: #374151;
+  color: var(--sos-text-secondary);
   margin-bottom: 1rem;
 }
 
@@ -924,8 +924,8 @@ onMounted(() => {
   text-align: center;
   margin-top: 5rem;
   padding-top: 2.5rem;
-  border-top: 1px solid #f3f4f6;
-  color: #9ca3af;
+  border-top: 1px solid var(--sos-bg-muted);
+  color: var(--sos-text-tertiary);
   font-size: 0.875rem;
   font-family: "Noto Serif SC", serif;
   font-style: italic;
@@ -938,11 +938,11 @@ onMounted(() => {
   margin-top: 3em;
   margin-bottom: 1em;
   padding-bottom: 0.5em;
-  border-bottom: 2px solid #eee;
+  border-bottom: 2px solid var(--sos-border-subtle);
 }
 
 .prose strong {
-  color: #111;
+  color: var(--sos-text-primary);
   font-weight: 700;
 }
 </style>

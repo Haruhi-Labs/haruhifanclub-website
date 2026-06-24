@@ -968,14 +968,14 @@ const publishArticle = async () => {
 /* ===== Editor Header ===== */
 .editor-header {
     margin-bottom: 2rem;
-    border-bottom: 2px solid #000;
+    border-bottom: 2px solid var(--sos-text-primary);
     padding-bottom: 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: sticky;
     top: 0;
-    background-color: #fff;
+    background-color: var(--sos-bg-surface);
     z-index: 20;
     padding-top: 1rem;
 }
@@ -1002,27 +1002,27 @@ const publishArticle = async () => {
 }
 
 .admin-toggle--on {
-    background-color: #000;
-    color: #fff;
+    background-color: var(--sos-text-primary);
+    color: var(--sos-bg-surface);
 }
 
 .admin-toggle--off {
-    background-color: #e5e7eb;
-    color: #6b7280;
+    background-color: var(--sos-border-default);
+    color: var(--sos-text-secondary);
 }
 
 .admin-login-btn {
     font-size: 0.75rem;
     line-height: 1rem;
-    border: 1px solid #d1d5db;
-    color: #9ca3af;
+    border: 1px solid var(--sos-border-strong);
+    color: var(--sos-text-tertiary);
     padding: 0.25rem 0.5rem;
     transition: border-color 0.15s, color 0.15s;
 }
 
 .admin-login-btn:hover {
-    border-color: #000;
-    color: #000;
+    border-color: var(--sos-text-primary);
+    color: var(--sos-text-primary);
 }
 
 .editor-header-right {
@@ -1035,7 +1035,7 @@ const publishArticle = async () => {
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    border-right: 1px solid #e5e7eb;
+    border-right: 1px solid var(--sos-border-default);
     padding-right: 0.75rem;
     margin-right: 0.25rem;
 }
@@ -1051,7 +1051,7 @@ const publishArticle = async () => {
 }
 
 .format-btn:hover {
-    background-color: #f3f4f6;
+    background-color: var(--sos-bg-muted);
 }
 
 .format-btn--bold {
@@ -1068,11 +1068,11 @@ const publishArticle = async () => {
 
 .format-btn--strikethrough {
     text-decoration: line-through;
-    text-decoration-color: #9ca3af;
+    text-decoration-color: var(--sos-text-tertiary);
 }
 
 .format-btn--link {
-    color: #4b5563;
+    color: var(--sos-text-secondary);
 }
 
 /* ===== Icon Sizes ===== */
@@ -1095,8 +1095,8 @@ const publishArticle = async () => {
 .preview-btn {
     font-size: 0.875rem;
     line-height: 1.25rem;
-    background-color: #f3f4f6;
-    color: #000;
+    background-color: var(--sos-bg-muted);
+    color: var(--sos-text-primary);
     padding: 0.5rem 1rem;
     border-radius: 0.25rem;
     font-weight: 700;
@@ -1107,12 +1107,12 @@ const publishArticle = async () => {
 }
 
 .preview-btn:hover {
-    background-color: #e5e7eb;
+    background-color: var(--sos-border-default);
 }
 
 .publish-btn {
-    background-color: #000;
-    color: #fff;
+    background-color: var(--sos-text-primary);
+    color: var(--sos-bg-surface);
     padding: 0.5rem 1.5rem;
     font-size: 0.875rem;
     line-height: 1.25rem;
@@ -1121,7 +1121,7 @@ const publishArticle = async () => {
 }
 
 .publish-btn:hover {
-    background-color: #1f2937;
+    background-color: var(--sos-text-primary);
 }
 
 /* ===== Editor Layout (Grid) ===== */
@@ -1151,7 +1151,7 @@ const publishArticle = async () => {
     font-size: 0.75rem;
     line-height: 1rem;
     color: #854d0e;
-    border: 1px solid #fde68a;
+    border: 1px solid var(--sos-signal-soft, var(--sos-yellow-100));
     border-radius: 0.25rem;
 }
 
@@ -1161,18 +1161,18 @@ const publishArticle = async () => {
     font-size: 0.75rem;
     line-height: 1rem;
     font-weight: 700;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
     text-transform: uppercase;
     margin-bottom: 0.5rem;
 }
 
 .required-mark {
-    color: #ef4444;
+    color: var(--sos-danger);
 }
 
 .admin-badge {
-    color: #000;
-    background-color: #e5e7eb;
+    color: var(--sos-text-primary);
+    background-color: var(--sos-border-default);
     padding: 0 0.25rem;
     font-size: 10px;
     border-radius: 0.25rem;
@@ -1181,13 +1181,13 @@ const publishArticle = async () => {
 
 .field-hint {
     font-size: 10px;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
     margin-top: 0.25rem;
 }
 
 /* ===== Cover Upload Zone ===== */
 .cover-upload-zone {
-    border: 2px dashed #e5e7eb;
+    border: 2px dashed var(--sos-border-default);
     padding: 0.25rem;
     border-radius: 0.25rem;
     transition: border-color 0.15s;
@@ -1196,7 +1196,7 @@ const publishArticle = async () => {
 }
 
 .cover-upload-zone:hover {
-    border-color: #000;
+    border-color: var(--sos-text-primary);
 }
 
 .cover-preview-wrapper {
@@ -1240,17 +1240,17 @@ const publishArticle = async () => {
 }
 
 .cover-action-btn--remove {
-    background-color: #ef4444;
-    color: #fff;
+    background-color: var(--sos-danger);
+    color: var(--sos-bg-surface);
 }
 
 .cover-action-btn--remove:hover {
-    background-color: #dc2626;
+    background-color: var(--sos-danger);
 }
 
 .cover-action-btn--recrop {
     background-color: #3b82f6;
-    color: #fff;
+    color: var(--sos-bg-surface);
 }
 
 .cover-action-btn--recrop:hover {
@@ -1263,11 +1263,11 @@ const publishArticle = async () => {
     align-items: center;
     justify-content: center;
     padding: 2rem 0;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
 }
 
 .cover-upload-zone:hover .cover-placeholder {
-    color: #000;
+    color: var(--sos-text-primary);
 }
 
 .cover-placeholder-icon {
@@ -1300,7 +1300,7 @@ const publishArticle = async () => {
 
 .original-saved-hint {
     font-size: 10px;
-    color: #16a34a;
+    color: var(--sos-success);
     margin-top: 0.25rem;
     display: flex;
     align-items: center;
@@ -1310,7 +1310,7 @@ const publishArticle = async () => {
 /* ===== Type Selector ===== */
 .type-selector {
     display: flex;
-    border: 1px solid #000;
+    border: 1px solid var(--sos-text-primary);
 }
 
 .type-btn {
@@ -1323,23 +1323,23 @@ const publishArticle = async () => {
 }
 
 .type-btn--news {
-    border-left: 1px solid #000;
+    border-left: 1px solid var(--sos-text-primary);
 }
 
 .type-btn--active {
-    background-color: #000;
-    color: #fff;
+    background-color: var(--sos-text-primary);
+    color: var(--sos-bg-surface);
 }
 
 .type-btn--inactive:hover {
-    background-color: #f3f4f6;
+    background-color: var(--sos-bg-muted);
 }
 
 .type-btn--disabled {
     opacity: 0.4;
     cursor: not-allowed;
-    background-color: #f3f4f6;
-    color: #9ca3af;
+    background-color: var(--sos-bg-muted);
+    color: var(--sos-text-tertiary);
 }
 
 .type-admin-hint {
@@ -1353,7 +1353,7 @@ const publishArticle = async () => {
 /* ===== Input Fields ===== */
 .input-title {
     width: 100%;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--sos-border-default);
     padding: 0.5rem 0;
     font-size: 1.25rem;
     line-height: 1.75rem;
@@ -1364,12 +1364,12 @@ const publishArticle = async () => {
 }
 
 .input-title:focus {
-    border-color: #000;
+    border-color: var(--sos-text-primary);
 }
 
 .input-field {
     width: 100%;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--sos-border-default);
     padding: 0.5rem 0;
     font-size: 0.875rem;
     line-height: 1.25rem;
@@ -1378,7 +1378,7 @@ const publishArticle = async () => {
 }
 
 .input-field:focus {
-    border-color: #000;
+    border-color: var(--sos-text-primary);
 }
 
 .input-field--mono {
@@ -1386,23 +1386,23 @@ const publishArticle = async () => {
 }
 
 .input-field--disabled {
-    background-color: #f9fafb;
-    color: #6b7280;
+    background-color: var(--sos-bg-subtle);
+    color: var(--sos-text-secondary);
     cursor: not-allowed;
 }
 
 /* ===== Participants ===== */
 .participants-section {
-    background-color: #f9fafb;
+    background-color: var(--sos-bg-subtle);
     padding: 1rem;
     border-radius: 0.25rem;
-    border: 1px solid #f3f4f6;
+    border: 1px solid var(--sos-bg-muted);
 }
 
 .participant-item {
     margin-bottom: 0.75rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--sos-border-default);
 }
 
 .participant-item:last-child {
@@ -1418,7 +1418,7 @@ const publishArticle = async () => {
 
 .participant-input {
     background-color: transparent;
-    border-bottom: 1px solid #d1d5db;
+    border-bottom: 1px solid var(--sos-border-strong);
     font-size: 0.75rem;
     line-height: 1rem;
     padding: 0.25rem 0;
@@ -1426,7 +1426,7 @@ const publishArticle = async () => {
 }
 
 .participant-input:focus {
-    border-color: #000;
+    border-color: var(--sos-text-primary);
 }
 
 .participant-input--name {
@@ -1441,23 +1441,23 @@ const publishArticle = async () => {
 }
 
 .participant-remove:hover {
-    color: #dc2626;
+    color: var(--sos-danger);
 }
 
 .participant-add {
     width: 100%;
     margin-top: 0.5rem;
-    border: 1px dashed #d1d5db;
+    border: 1px dashed var(--sos-border-strong);
     padding: 0.25rem 0;
     font-size: 0.75rem;
     line-height: 1rem;
-    color: #6b7280;
+    color: var(--sos-text-secondary);
     transition: border-color 0.15s, color 0.15s;
 }
 
 .participant-add:hover {
-    border-color: #000;
-    color: #000;
+    border-color: var(--sos-text-primary);
+    color: var(--sos-text-primary);
 }
 
 /* ===== Pin Toggle ===== */
@@ -1467,14 +1467,14 @@ const publishArticle = async () => {
     gap: 0.5rem;
     margin-top: 0.5rem;
     padding: 0.5rem;
-    background-color: #f9fafb;
+    background-color: var(--sos-bg-subtle);
     border-radius: 0.25rem;
 }
 
 .pin-checkbox {
     width: 1rem;
     height: 1rem;
-    accent-color: #000;
+    accent-color: var(--sos-text-primary);
 }
 
 .pin-label {
@@ -1493,7 +1493,7 @@ const publishArticle = async () => {
 
 .pin-order-input {
     width: 5rem;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--sos-border-default);
     padding: 0.25rem 0;
     font-size: 0.875rem;
     line-height: 1.25rem;
@@ -1501,7 +1501,7 @@ const publishArticle = async () => {
 }
 
 .pin-order-input:focus {
-    border-color: #000;
+    border-color: var(--sos-text-primary);
 }
 
 /* ===== Content Panel (Right) ===== */
@@ -1519,16 +1519,16 @@ const publishArticle = async () => {
     font-size: 0.75rem;
     line-height: 1rem;
     font-weight: 700;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
     text-transform: uppercase;
     margin-bottom: 0.5rem;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--sos-bg-muted);
     padding-bottom: 0.5rem;
 }
 
 .summary-textarea {
     width: 100%;
-    background-color: #f9fafb;
+    background-color: var(--sos-bg-subtle);
     padding: 1rem;
     font-size: 0.875rem;
     line-height: 1.625;
@@ -1540,7 +1540,7 @@ const publishArticle = async () => {
 }
 
 .summary-textarea:focus {
-    border-color: #e5e7eb;
+    border-color: var(--sos-border-default);
 }
 
 /* ===== Content Blocks ===== */
@@ -1560,8 +1560,8 @@ const publishArticle = async () => {
 }
 
 .block-item:hover {
-    border-color: #e5e7eb;
-    background-color: #f9fafb;
+    border-color: var(--sos-border-default);
+    background-color: var(--sos-bg-subtle);
 }
 
 /* ===== Block Toolbar ===== */
@@ -1580,14 +1580,14 @@ const publishArticle = async () => {
 
 .block-action-btn {
     padding: 0.25rem;
-    background-color: #fff;
+    background-color: var(--sos-bg-surface);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     border-radius: 0.25rem;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
 }
 
 .block-action-btn:hover {
-    color: #000;
+    color: var(--sos-text-primary);
 }
 
 .block-action-btn--delete {
@@ -1595,7 +1595,7 @@ const publishArticle = async () => {
 }
 
 .block-action-btn--delete:hover {
-    color: #ef4444;
+    color: var(--sos-danger);
 }
 
 /* ===== Paragraph Block ===== */
@@ -1609,7 +1609,7 @@ const publishArticle = async () => {
     background-color: transparent;
     resize: none;
     outline: none;
-    color: #1f2937;
+    color: var(--sos-text-primary);
     line-height: 1.625;
     font-family: "Noto Serif SC", serif;
     font-size: 1.125rem;
@@ -1617,7 +1617,7 @@ const publishArticle = async () => {
 }
 
 .paragraph-textarea::placeholder {
-    color: #e5e7eb;
+    color: var(--sos-border-default);
 }
 
 .paragraph-preview {
@@ -1626,14 +1626,14 @@ const publishArticle = async () => {
     line-height: 1.625;
     font-family: "Noto Serif SC", serif;
     cursor: text;
-    color: #1f2937;
+    color: var(--sos-text-primary);
     white-space: pre-wrap;
     word-wrap: break-word;
     min-height: 28px;
 }
 
 .paragraph-preview--empty {
-    color: #d1d5db;
+    color: var(--sos-border-strong);
     font-style: italic;
 }
 
@@ -1649,12 +1649,12 @@ const publishArticle = async () => {
 }
 
 .block-heading-input::placeholder {
-    color: #d1d5db;
+    color: var(--sos-border-strong);
 }
 
 /* ===== Image Block ===== */
 .block-image {
-    background-color: #f9fafb;
+    background-color: var(--sos-bg-subtle);
     padding: 1rem;
     border-radius: 0.25rem;
     text-align: center;
@@ -1672,7 +1672,7 @@ const publishArticle = async () => {
     max-height: 16rem;
     object-fit: contain;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    background-color: #fff;
+    background-color: var(--sos-bg-surface);
 }
 
 .block-image-remove {
@@ -1682,7 +1682,7 @@ const publishArticle = async () => {
     background-color: rgba(255, 255, 255, 0.8);
     border-radius: 9999px;
     padding: 0.25rem;
-    color: #ef4444;
+    color: var(--sos-danger);
     opacity: 0;
     transition: opacity 0.15s;
 }
@@ -1692,7 +1692,7 @@ const publishArticle = async () => {
 }
 
 .block-image-placeholder {
-    border: 2px dashed #d1d5db;
+    border: 2px dashed var(--sos-border-strong);
     border-radius: 0.25rem;
     padding: 1.5rem;
     display: flex;
@@ -1705,20 +1705,20 @@ const publishArticle = async () => {
 }
 
 .block-image-placeholder:hover {
-    border-color: #000;
+    border-color: var(--sos-text-primary);
 }
 
 .block-image-placeholder-icon {
     width: 2rem;
     height: 2rem;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
     margin-bottom: 0.5rem;
 }
 
 .block-image-placeholder-text {
     font-size: 0.875rem;
     line-height: 1.25rem;
-    color: #6b7280;
+    color: var(--sos-text-secondary);
     font-weight: 700;
 }
 
@@ -1738,16 +1738,16 @@ const publishArticle = async () => {
     line-height: 1rem;
     text-align: center;
     font-style: italic;
-    color: #6b7280;
+    color: var(--sos-text-secondary);
     outline: none;
     margin-top: 0.5rem;
 }
 
 /* ===== Math Block ===== */
 .block-math {
-    background-color: #f9fafb;
+    background-color: var(--sos-bg-subtle);
     padding: 1rem;
-    border-left: 4px solid #000;
+    border-left: 4px solid var(--sos-text-primary);
 }
 
 .block-math-input {
@@ -1765,13 +1765,13 @@ const publishArticle = async () => {
     background-color: transparent;
     font-size: 0.75rem;
     line-height: 1rem;
-    color: #6b7280;
+    color: var(--sos-text-secondary);
     outline: none;
 }
 
 .block-math-preview {
     text-align: center;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
     font-size: 0.75rem;
     line-height: 1rem;
     margin-top: 0.5rem;
@@ -1784,22 +1784,22 @@ const publishArticle = async () => {
     justify-content: center;
     margin-top: 2rem;
     padding-top: 1rem;
-    border-top: 1px dashed #e5e7eb;
+    border-top: 1px dashed var(--sos-border-default);
 }
 
 .add-block-btn {
     padding: 0.25rem 0.75rem;
     font-size: 0.75rem;
     line-height: 1rem;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--sos-border-default);
     border-radius: 0.25rem;
     transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .add-block-btn:hover {
-    background-color: #000;
-    color: #fff;
-    border-color: #000;
+    background-color: var(--sos-text-primary);
+    color: var(--sos-bg-surface);
+    border-color: var(--sos-text-primary);
 }
 
 /* ===== Preview Overlay ===== */
@@ -1807,15 +1807,15 @@ const publishArticle = async () => {
     position: fixed;
     inset: 0;
     z-index: 50;
-    background-color: #f3f4f6;
+    background-color: var(--sos-bg-muted);
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
 .preview-header {
-    background-color: #fff;
-    border-bottom: 1px solid #e5e7eb;
+    background-color: var(--sos-bg-surface);
+    border-bottom: 1px solid var(--sos-border-default);
     padding: 1rem;
     display: flex;
     justify-content: space-between;
@@ -1838,7 +1838,7 @@ const publishArticle = async () => {
 
 .preview-tabs {
     display: flex;
-    background-color: #f3f4f6;
+    background-color: var(--sos-bg-muted);
     border-radius: 0.25rem;
     padding: 0.25rem;
     font-size: 0.875rem;
@@ -1853,26 +1853,26 @@ const publishArticle = async () => {
 }
 
 .preview-tab--active {
-    background-color: #fff;
+    background-color: var(--sos-bg-surface);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    color: #000;
+    color: var(--sos-text-primary);
 }
 
 .preview-tab--inactive {
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
 }
 
 .preview-tab--inactive:hover {
-    color: #4b5563;
+    color: var(--sos-text-secondary);
 }
 
 .preview-close-btn {
-    color: #6b7280;
+    color: var(--sos-text-secondary);
     padding: 0.5rem;
 }
 
 .preview-close-btn:hover {
-    color: #000;
+    color: var(--sos-text-primary);
 }
 
 /* ===== Preview Content Area ===== */
@@ -1882,7 +1882,7 @@ const publishArticle = async () => {
     padding: 2rem;
     display: flex;
     justify-content: center;
-    background-color: #f3f4f6;
+    background-color: var(--sos-bg-muted);
 }
 
 /* ===== Card Preview ===== */
@@ -1897,7 +1897,7 @@ const publishArticle = async () => {
 
 .preview-card-hint {
     text-align: center;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
     font-size: 0.75rem;
     line-height: 1rem;
     margin-top: 1rem;
@@ -1907,9 +1907,9 @@ const publishArticle = async () => {
 .preview-modal-container {
     width: 100%;
     max-width: 42rem;
-    background-color: #fff;
+    background-color: var(--sos-bg-surface);
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    border: 1px solid #000;
+    border: 1px solid var(--sos-text-primary);
     min-height: 600px;
     display: flex;
     flex-direction: column;
@@ -1937,16 +1937,16 @@ const publishArticle = async () => {
 }
 
 .preview-modal-tag {
-    background-color: #000;
-    color: #fff;
+    background-color: var(--sos-text-primary);
+    color: var(--sos-bg-surface);
     font-size: 0.75rem;
     line-height: 1rem;
     padding: 0.25rem 0.5rem;
 }
 
 .preview-modal-tag--news {
-    border: 1px solid #000;
-    color: #000;
+    border: 1px solid var(--sos-text-primary);
+    color: var(--sos-text-primary);
     font-size: 0.75rem;
     line-height: 1rem;
     padding: 0.25rem 0.5rem;
@@ -1973,13 +1973,13 @@ const publishArticle = async () => {
     align-items: center;
     font-size: 0.875rem;
     line-height: 1.25rem;
-    color: #6b7280;
+    color: var(--sos-text-secondary);
     gap: 1rem;
     margin-bottom: 0.5rem;
 }
 
 .preview-modal-author {
-    color: #000;
+    color: var(--sos-text-primary);
     font-weight: 700;
 }
 
@@ -1993,7 +1993,7 @@ const publishArticle = async () => {
 }
 
 .preview-modal-content {
-    color: #1f2937;
+    color: var(--sos-text-primary);
     font-family: "Noto Serif SC", serif;
     line-height: 2;
     text-align: justify;
@@ -2011,7 +2011,7 @@ const publishArticle = async () => {
 .preview-modal-math {
     margin: 1rem 0;
     padding: 1rem;
-    background-color: #f9fafb;
+    background-color: var(--sos-bg-subtle);
     text-align: center;
 }
 
@@ -2029,7 +2029,7 @@ const publishArticle = async () => {
 .preview-page-container {
     width: 100%;
     max-width: 64rem;
-    background-color: #fff;
+    background-color: var(--sos-bg-surface);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     min-height: 100vh;
 }
@@ -2038,7 +2038,7 @@ const publishArticle = async () => {
     position: relative;
     width: 100%;
     height: 400px;
-    background-color: #d1d5db;
+    background-color: var(--sos-border-strong);
     overflow: hidden;
 }
 
@@ -2063,7 +2063,7 @@ const publishArticle = async () => {
     position: absolute;
     bottom: 2.5rem;
     left: 2.5rem;
-    color: #fff;
+    color: var(--sos-bg-surface);
     z-index: 10;
 }
 
@@ -2116,7 +2116,7 @@ const publishArticle = async () => {
     margin-top: 3rem;
     margin-bottom: 1.5rem;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--sos-border-default);
 }
 
 .preview-page-image {
@@ -2127,20 +2127,20 @@ const publishArticle = async () => {
     width: 100%;
     border-radius: 0.25rem;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--sos-border-default);
 }
 
 .preview-page-image-caption {
     text-align: center;
     font-size: 0.875rem;
     line-height: 1.25rem;
-    color: #6b7280;
+    color: var(--sos-text-secondary);
     margin-top: 0.5rem;
 }
 
 .preview-page-math {
     padding: 2rem;
-    background-color: #f9fafb;
+    background-color: var(--sos-bg-subtle);
     text-align: center;
     font-family: "Noto Serif SC", serif;
     font-size: 1.25rem;
@@ -2149,7 +2149,7 @@ const publishArticle = async () => {
 
 .preview-page-sidebar {
     grid-column: span 3;
-    border-left: 1px solid #e5e7eb;
+    border-left: 1px solid var(--sos-border-default);
     padding-left: 2rem;
     padding-top: 2rem;
 }
@@ -2158,7 +2158,7 @@ const publishArticle = async () => {
     font-size: 0.75rem;
     line-height: 1rem;
     font-weight: 700;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     margin-bottom: 1rem;
@@ -2170,7 +2170,7 @@ const publishArticle = async () => {
 
 .preview-page-sidebar-label {
     display: block;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
     font-size: 0.75rem;
     line-height: 1rem;
 }
@@ -2194,7 +2194,7 @@ const publishArticle = async () => {
 }
 
 .cropper-dialog {
-    background-color: #fff;
+    background-color: var(--sos-bg-surface);
     width: 100%;
     max-width: 42rem;
     border-radius: 0.5rem;
@@ -2207,7 +2207,7 @@ const publishArticle = async () => {
 
 .cropper-header {
     padding: 1rem;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--sos-bg-muted);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -2220,16 +2220,16 @@ const publishArticle = async () => {
 }
 
 .cropper-close {
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
 }
 
 .cropper-close:hover {
-    color: #000;
+    color: var(--sos-text-primary);
 }
 
 .cropper-canvas {
     position: relative;
-    background-color: #f3f4f6;
+    background-color: var(--sos-bg-muted);
     overflow: hidden;
     flex: 1;
     min-height: 400px;
@@ -2257,7 +2257,7 @@ const publishArticle = async () => {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    border: 2px solid #fff;
+    border: 2px solid var(--sos-bg-surface);
     box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
 }
 
@@ -2297,8 +2297,8 @@ const publishArticle = async () => {
 
 .cropper-controls {
     padding: 1.5rem;
-    background-color: #fff;
-    border-top: 1px solid #f3f4f6;
+    background-color: var(--sos-bg-surface);
+    border-top: 1px solid var(--sos-bg-muted);
 }
 
 .cropper-scale-row {
@@ -2312,19 +2312,19 @@ const publishArticle = async () => {
     font-size: 0.75rem;
     line-height: 1rem;
     font-weight: 700;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
 }
 
 .cropper-scale-slider {
     flex: 1;
-    accent-color: #000;
+    accent-color: var(--sos-text-primary);
 }
 
 .cropper-scale-value {
     font-size: 0.75rem;
     line-height: 1rem;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    color: #6b7280;
+    color: var(--sos-text-secondary);
     width: 2rem;
 }
 
@@ -2339,11 +2339,11 @@ const publishArticle = async () => {
     font-size: 0.875rem;
     line-height: 1.25rem;
     font-weight: 700;
-    color: #6b7280;
+    color: var(--sos-text-secondary);
 }
 
 .cropper-cancel-btn:hover {
-    color: #000;
+    color: var(--sos-text-primary);
 }
 
 .cropper-confirm-btn {
@@ -2351,12 +2351,12 @@ const publishArticle = async () => {
     font-size: 0.875rem;
     line-height: 1.25rem;
     font-weight: 700;
-    background-color: #000;
-    color: #fff;
+    background-color: var(--sos-text-primary);
+    color: var(--sos-bg-surface);
 }
 
 .cropper-confirm-btn:hover {
-    background-color: #1f2937;
+    background-color: var(--sos-text-primary);
 }
 
 /* ===== Inline Styles for Rendered Content ===== */
