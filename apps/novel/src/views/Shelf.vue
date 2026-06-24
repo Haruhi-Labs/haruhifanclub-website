@@ -40,8 +40,8 @@
           <!-- 栏目标题行 -->
           <div class="shelf-section__head">
             <div class="shelf-section__title-row">
-              <h2 class="sos-title shelf-section__title">{{ section.label }}</h2>
-              <span class="sos-badge">{{ section.books.length }} 本</span>
+              <h2 class="shelf-section__title">{{ section.label }}</h2>
+              <span class="shelf-section__count">{{ section.books.length }} 本</span>
             </div>
 
             <button
@@ -363,7 +363,7 @@ onMounted(fetchBooks);
 .shelf-brand__name {
   font-family: var(--sos-display-family);
   font-size: var(--sos-text-xl);
-  font-weight: var(--sos-weight-heavy);
+  font-weight: var(--sos-weight-bold);
   letter-spacing: var(--sos-tracking-wide);
   color: var(--sos-text-primary);
   white-space: nowrap;
@@ -412,14 +412,22 @@ onMounted(fetchBooks);
   justify-content: space-between;
   gap: var(--sos-space-4);
 }
+/* 计数小号弱化、相对标题居中错开（沿用原版的层次感，不与标题等重对齐） */
 .shelf-section__title-row {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--sos-space-3);
 }
-/* 栏目标题比页面主标题小一档，保持层级 */
 .shelf-section__title {
-  font-size: var(--sos-text-xl);
+  margin: 0;
+  font-size: var(--sos-text-lg);
+  font-weight: var(--sos-weight-semibold);
+  letter-spacing: var(--sos-tracking-tight);
+  color: var(--sos-text-primary);
+}
+.shelf-section__count {
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-tertiary);
 }
 
 /* 书架网格：一行 2/3/4/5 个大尺寸封面，留白克制优雅（沿用原版节奏） */
