@@ -431,7 +431,9 @@
  * ============================================================ */
 .sos-book-card {
   display: grid;
-  gap: var(--sos-space-4);
+  gap: var(--sos-space-3);
+  /* 作者下方留出呼吸空间，标题/作者不贴卡片底 */
+  padding-bottom: var(--sos-space-3);
   text-align: center;
   overflow: visible;
   border: 0;
