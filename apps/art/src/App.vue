@@ -1,15 +1,15 @@
 <script setup>
 import TopBar from './components/TopBar.vue'
+import SiteFooter from './components/SiteFooter.vue'
 </script>
 
 <template>
   <div class="bg-layer gallery-bg"></div>
   <div class="bg-layer gallery-mask"></div>
-  
+
   <div class="app-shell sos-scope" data-sos-site="art">
-    <header class="topbar">
-      <TopBar />
-    </header>
+    <!-- 统一页头 SosAppbar（art 主题），sticky 在流内 -->
+    <TopBar />
 
     <main class="main">
       <router-view v-slot="{ Component }">
@@ -18,6 +18,9 @@ import TopBar from './components/TopBar.vue'
         </transition>
       </router-view>
     </main>
+
+    <!-- 统一页脚 -->
+    <SiteFooter />
   </div>
 </template>
 
@@ -26,11 +29,13 @@ import TopBar from './components/TopBar.vue'
    全局页面布局约束
    ========================================= */
 .app-shell {
-  /* ⚠️ 重要：因为导航栏是 fixed 定位，必须给内容区一个顶部内边距。
-     数值 = 导航栏高度 (约72px) + 间距 (24px) = 96px */
-  padding-top: 96px;
-  /* Ensure the shell takes full height so short pages don't abruptly end */
+  /* 页头改为流内 sticky（.sos-appbar），不再需要为 fixed 栏留出顶部内边距 */
+  display: flex;
+  flex-direction: column;
   min-height: 100dvh;
+}
+.app-shell > .main {
+  flex: 1; /* 占据剩余空间，把统一页脚推到底部 */
 }
 
 /* =========================================
