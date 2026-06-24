@@ -247,28 +247,8 @@
     </div>
 
     <div class="home-lights-on-ui">
-      <div class="day-gallery-wall" aria-hidden="true">
-        <span class="day-wash"></span>
-        <figure
-          v-for="tile in lightWallTiles"
-          :key="tile.key"
-          class="wall-tile"
-          :class="`wall-tile-${tile.tone}`"
-          :style="{
-            '--tile-x': `${tile.x}%`,
-            '--tile-y': `${tile.y}%`,
-            '--tile-w': `${tile.width}px`,
-            '--tile-r': `${tile.rotate}deg`,
-            '--tile-z': tile.z,
-          }"
-        >
-          <img :src="tile.imageUrl" :alt="tile.title" draggable="false" />
-        </figure>
-      </div>
-
       <section class="day-hero-panel">
         <p class="day-kicker">Haruhi Fanclub Gallery</p>
-        <h1>开灯展厅已就绪</h1>
         <p class="day-visitor">画廊的第 <strong>{{ visitorNumberText }}</strong> 位访问者，你好</p>
         <div class="day-stats" aria-label="本地画廊统计">
           <span v-for="item in lightStats" :key="item.label">
@@ -276,16 +256,6 @@
             <small>{{ item.label }}</small>
           </span>
         </div>
-      </section>
-
-      <section class="day-curation-strip" aria-label="本地 seed 展示">
-        <article v-for="artwork in lightFeaturedArtworks" :key="artwork.id" class="day-art-card">
-          <img :src="artwork.image_url" :alt="artwork.title" draggable="false" />
-          <div>
-            <strong>{{ artwork.title }}</strong>
-            <span>{{ artwork.content_type === 'haruhi' ? '凉宫观测' : '社团应援' }}</span>
-          </div>
-        </article>
       </section>
     </div>
   </section>
@@ -840,51 +810,12 @@ const repeatRecords = approvedArtworks
     time: formatShortTime(item.created_at),
   }))
 
-const lightFeaturedArtworks = (approvedArtworks.length ? approvedArtworks : seedArtworks).slice(0, 5)
-
 const lightStats = [
   { label: '当前画作', value: artworkCount },
   { label: '创作者', value: creatorCount },
   { label: '凉宫占比', value: `${haruhiRatio}%` },
   { label: '最近上传', value: latestUploadText },
 ]
-
-const wallFrames = [
-  { x: 3, y: 4, width: 168, rotate: -15, tone: 'cyan' },
-  { x: 16, y: 10, width: 148, rotate: -15, tone: 'pink' },
-  { x: 28, y: 2, width: 176, rotate: -15, tone: 'violet' },
-  { x: 42, y: 8, width: 154, rotate: -15, tone: 'blue' },
-  { x: 55, y: 1, width: 184, rotate: -15, tone: 'cyan' },
-  { x: 70, y: 8, width: 144, rotate: -15, tone: 'pink' },
-  { x: 82, y: 2, width: 174, rotate: -15, tone: 'violet' },
-  { x: 8, y: 32, width: 182, rotate: -15, tone: 'blue' },
-  { x: 23, y: 27, width: 154, rotate: -15, tone: 'cyan' },
-  { x: 36, y: 35, width: 174, rotate: -15, tone: 'pink' },
-  { x: 52, y: 29, width: 150, rotate: -15, tone: 'violet' },
-  { x: 66, y: 34, width: 188, rotate: -15, tone: 'blue' },
-  { x: 82, y: 28, width: 158, rotate: -15, tone: 'cyan' },
-  { x: 1, y: 64, width: 176, rotate: -15, tone: 'pink' },
-  { x: 17, y: 58, width: 190, rotate: -15, tone: 'violet' },
-  { x: 34, y: 67, width: 152, rotate: -15, tone: 'blue' },
-  { x: 48, y: 60, width: 180, rotate: -15, tone: 'cyan' },
-  { x: 63, y: 70, width: 146, rotate: -15, tone: 'pink' },
-  { x: 75, y: 60, width: 184, rotate: -15, tone: 'violet' },
-  { x: 90, y: 68, width: 152, rotate: -15, tone: 'blue' },
-]
-
-const lightWallSource = approvedArtworks.length ? approvedArtworks : seedArtworks
-const lightWallTiles = lightWallSource.flatMap((artwork, artworkIndex) =>
-  Array.from({ length: 2 }, (_, copyIndex) => {
-    const frame = wallFrames[(artworkIndex * 2 + copyIndex) % wallFrames.length]
-    return {
-      key: `${artwork.id}-${copyIndex}`,
-      title: artwork.title,
-      imageUrl: artwork.image_url,
-      ...frame,
-      z: (artworkIndex + copyIndex) % 6,
-    }
-  })
-)
 
 function getSectorLabelPosition(angle, radius = 34) {
   const radians = (angle * Math.PI) / 180
@@ -962,80 +893,21 @@ const stageStyle = {
   color: #12333c;
 }
 
-.art-home .day-gallery-wall {
-  position: absolute;
-  inset: -8% -7%;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
-  transform: rotate(-15deg) scale(1.06);
-  transform-origin: center;
-}
-
-.art-home .day-wash {
-  position: absolute;
-  inset: -12%;
-  z-index: 5;
-  background:
-    radial-gradient(ellipse at 50% 42%, rgba(255, 255, 255, 0.38), transparent 32%),
-    linear-gradient(90deg, rgba(255, 248, 238, 0.68), rgba(245, 253, 252, 0.38), rgba(255, 246, 238, 0.72));
-}
-
-.art-home .wall-tile {
-  position: absolute;
-  left: var(--tile-x);
-  top: var(--tile-y);
-  z-index: var(--tile-z);
-  width: var(--tile-w);
-  aspect-ratio: 1 / 1;
-  margin: 0;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 18px 42px rgba(39, 86, 95, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.86);
-  transform: translate(-50%, -50%) rotate(var(--tile-r));
-}
-
-.art-home .wall-tile img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: saturate(1.08) contrast(1.02);
-}
-
-.art-home .wall-tile-cyan {
-  box-shadow: 0 18px 44px rgba(50, 177, 194, 0.18);
-}
-
-.art-home .wall-tile-pink {
-  box-shadow: 0 18px 44px rgba(226, 88, 128, 0.16);
-}
-
-.art-home .wall-tile-violet {
-  box-shadow: 0 18px 44px rgba(126, 96, 210, 0.16);
-}
-
-.art-home .wall-tile-blue {
-  box-shadow: 0 18px 44px rgba(74, 132, 210, 0.16);
-}
-
-.art-home .day-hero-panel,
-.art-home .day-curation-strip {
+.art-home .day-hero-panel {
   position: relative;
   z-index: 2;
 }
 
 .art-home .day-hero-panel {
-  width: min(760px, 100%);
+  width: min(900px, 100%);
   padding: clamp(26px, 4vw, 46px);
-  border: 1px solid rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.48);
   border-radius: 26px;
   background:
-    radial-gradient(circle at 14% 0%, rgba(255, 255, 255, 0.92), transparent 32%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(247, 252, 250, 0.68));
-  box-shadow: 0 24px 70px rgba(26, 71, 80, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(18px);
+    radial-gradient(circle at 14% 0%, rgba(255, 255, 255, 0.48), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(247, 252, 250, 0.28));
+  box-shadow: 0 24px 70px rgba(26, 71, 80, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.56);
+  backdrop-filter: blur(12px);
 }
 
 .art-home .day-kicker {
@@ -1047,25 +919,18 @@ const stageStyle = {
   text-transform: uppercase;
 }
 
-.art-home .day-hero-panel h1 {
-  margin: 0;
-  color: #0f2c35;
-  font-size: clamp(42px, 7vw, 86px);
-  line-height: 0.95;
-  font-weight: 950;
-  text-shadow: 0 10px 32px rgba(60, 155, 170, 0.14);
-}
-
 .art-home .day-visitor {
-  margin: 18px 0 0;
+  margin: 0;
   color: rgba(18, 51, 60, 0.76);
-  font-size: clamp(17px, 2vw, 22px);
-  font-weight: 900;
+  font-size: clamp(32px, 5.4vw, 66px);
+  line-height: 1.08;
+  font-weight: 950;
+  text-shadow: 0 12px 34px rgba(60, 155, 170, 0.14);
 }
 
 .art-home .day-visitor strong {
   color: #1b8b9b;
-  font-size: 1.35em;
+  font-size: 1.16em;
   font-weight: 950;
 }
 
@@ -1103,54 +968,6 @@ const stageStyle = {
 .art-home .day-stats small {
   margin-top: 5px;
   color: rgba(18, 51, 60, 0.58);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.art-home .day-curation-strip {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.art-home .day-art-card {
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.74);
-  box-shadow: 0 16px 42px rgba(26, 71, 80, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(14px);
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
-}
-
-.art-home .day-art-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 22px 54px rgba(26, 71, 80, 0.2), 0 0 24px rgba(47, 171, 190, 0.14);
-}
-
-.art-home .day-art-card img {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-}
-
-.art-home .day-art-card div {
-  display: grid;
-  gap: 4px;
-  padding: 12px;
-}
-
-.art-home .day-art-card strong {
-  overflow: hidden;
-  color: #12333c;
-  font-size: 14px;
-  font-weight: 950;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.art-home .day-art-card span {
-  color: rgba(18, 51, 60, 0.6);
   font-size: 12px;
   font-weight: 900;
 }
@@ -2930,27 +2747,12 @@ const stageStyle = {
     border-radius: 20px;
   }
 
-  .art-home .day-gallery-wall {
-    inset: -6% -34%;
-    opacity: 0.82;
-    transform: rotate(-15deg) scale(0.92);
-  }
-
-  .art-home .wall-tile {
-    width: min(var(--tile-w), 130px);
-    border-radius: 14px;
-  }
-
   .art-home .day-hero-panel {
     padding: 24px 18px;
     border-radius: 20px;
   }
 
   .art-home .day-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .art-home .day-curation-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
