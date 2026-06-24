@@ -1061,6 +1061,10 @@ const stageStyle = {
   --hud-red: #ff637d;
 }
 
+:global(html.art-home-route:not(.art-lights-out)) .art-home {
+  margin-bottom: clamp(12px, 2dvh, 40px);
+}
+
 .art-home::before,
 .art-home::after {
   content: "";
@@ -3017,6 +3021,80 @@ const stageStyle = {
   .art-home .gallery-art-stack,
   .art-home .gallery-orbit-field {
     display: none;
+  }
+}
+
+@media (max-height: 820px) and (min-width: 821px) {
+  :global(html.art-home-route:not(.art-lights-out)) .art-home {
+    margin-bottom: 10px;
+  }
+
+  .art-home .home-lights-on-ui {
+    --light-home-pad: clamp(18px, 3dvh, 34px);
+    min-height: calc(100dvh - 126px);
+    grid-template-rows: 205px auto 205px;
+    gap: clamp(8px, 1.6dvh, 16px);
+  }
+
+  .art-home .light-gear {
+    height: 205px;
+  }
+
+  .art-home .light-gear__belt {
+    gap: 22px;
+    height: 176px;
+    margin-top: -88px;
+  }
+
+  .art-home .light-gear__tile {
+    flex-basis: 238px;
+    width: 238px;
+    height: 176px;
+    border-radius: 18px;
+  }
+
+  .art-home .light-gear__tile figcaption {
+    bottom: 11px;
+    font-size: 11px;
+  }
+
+  .art-home .day-visitor {
+    font-size: clamp(20px, 2.35vw, 30px);
+  }
+}
+
+@media (max-height: 700px) and (min-width: 821px) {
+  .art-home .home-lights-on-ui {
+    --light-home-pad: 14px;
+    min-height: calc(100dvh - 118px);
+    grid-template-rows: 162px auto 162px;
+    gap: 8px;
+  }
+
+  .art-home .light-gear {
+    height: 162px;
+  }
+
+  .art-home .light-gear__belt {
+    gap: 18px;
+    height: 132px;
+    margin-top: -66px;
+  }
+
+  .art-home .light-gear__tile {
+    flex-basis: 190px;
+    width: 190px;
+    height: 132px;
+    border-radius: 16px;
+  }
+
+  .art-home .day-kicker {
+    margin-bottom: 6px;
+    font-size: 11px;
+  }
+
+  .art-home .day-visitor {
+    font-size: clamp(18px, 2.1vw, 25px);
   }
 }
 
