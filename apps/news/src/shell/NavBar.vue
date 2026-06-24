@@ -1,667 +1,226 @@
-<template>
-  <header>
-    <div v-if="!overlay" class="nav-spacer"></div>
-
-    <nav
-      :class="[
-        'navbar',
-        isHidden ? 'navbar--hidden' : 'navbar--visible',
-        isScrolled ? 'navbar--scrolled' : 'navbar--top',
-        overlay ? 'navbar--overlay' : 'navbar--default',
-      ]"
-    >
-      <div class="nav-container">
-        <!-- Logo 区域 -->
-        <div class="nav-left">
-          <button class="logo-group" type="button" @click="goHome" aria-label="返回春日团报首页">
-            <span class="news-brand" :class="{ 'is-compact': isScrolled || overlay }">
-              <img :src="logoUrl" alt="" class="news-brand__logo" />
-              <span class="news-brand__text">
-                <strong>春日团报</strong>
-                <small>Haruhi Fan Club</small>
-              </span>
-            </span>
-          </button>
-
-          <div :class="['nav-links', overlay ? 'nav-links--overlay' : 'nav-links--default']">
-            <router-link to="/submit" class="nav-link">我要投稿</router-link>
-            <!-- [新增] 活动列表入口 -->
-            <router-link to="/activity" class="nav-link nav-link--with-icon">
-              <span>活动中心</span>
-            </router-link>
-            <router-link to="/store" class="nav-link nav-link--with-icon">
-              <span>奖品兑换</span>
-            </router-link>
-            <router-link to="/admin" class="nav-link">管理后台</router-link>
-          </div>
-        </div>
-
-        <!-- 右侧功能区 -->
-        <div class="nav-right">
-          <!-- 新增：SOS团期末考试 -->
-          <!-- exam 是独立 app（/exam/），必须用原生 a 整页跳转；router-link 会被解析进 /news/ base 导致跳错 -->
-          <a
-            href="/exam/"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="nav-right-link"
-            :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'"
-          >
-            SOS团期末考试
-          </a>
-
-          <!-- 修改：去掉了 emoji -->
-          <router-link
-            :to="{ name: 'quiz' }"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="nav-right-link"
-            :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'"
-          >
-            凉宫入坑测试
-          </router-link>
-
-          <router-link
-            to="/handbook"
-            class="nav-right-link nav-right-link--no-margin"
-            :class="overlay ? 'nav-right-link--overlay' : 'nav-right-link--default'"
-          >
-            团员手册
-          </router-link>
-
-          <div
-            :class="['nav-divider', overlay ? 'nav-divider--overlay' : 'nav-divider--default']"
-          ></div>
-
-          <button
-            @click="store.toggleSearch"
-            aria-label="搜索团报"
-            :class="[
-              'search-button',
-              overlay ? 'search-button--overlay' : 'search-button--default',
-            ]"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              class="icon-sm"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-              />
-            </svg>
-            <span class="search-button-label">搜索团报</span>
-          </button>
-
-          <AccountMenu />
-
-          <button
-            @click="toggleMobileMenu"
-            class="mobile-menu-button"
-            :class="overlay ? 'mobile-menu-button--overlay' : 'mobile-menu-button--default'"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              class="icon-md"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </nav>
-
-    <Transition name="fade">
-      <div v-if="isMobileMenuOpen" class="mobile-overlay">
-        <button @click="toggleMobileMenu" class="mobile-close-button">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="1.5"
-            stroke="currentColor"
-            class="icon-lg"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-
-        <nav class="mobile-nav serif-font">
-          <router-link to="/" @click="toggleMobileMenu" class="mobile-nav-link">首页</router-link>
-
-          <!-- 移动端菜单也添加了考试入口 -->
-          <a href="/exam/" target="_blank" @click="toggleMobileMenu" class="mobile-nav-link"
-            >SOS团期末考试</a
-          >
-
-          <router-link to="/activity" @click="toggleMobileMenu" class="mobile-nav-link"
-            >活动中心</router-link
-          >
-          <router-link to="/store" @click="toggleMobileMenu" class="mobile-nav-link"
-            >奖品兑换</router-link
-          >
-
-          <router-link
-            :to="{ name: 'quiz' }"
-            target="_blank"
-            @click="toggleMobileMenu"
-            class="mobile-nav-link mobile-nav-link--with-icon"
-          >
-            <span>凉宫入坑测试</span>
-          </router-link>
-
-          <router-link to="/handbook" @click="toggleMobileMenu" class="mobile-nav-link"
-            >团员手册</router-link
-          >
-          <router-link to="/submit" @click="toggleMobileMenu" class="mobile-nav-link"
-            >我要投稿</router-link
-          >
-          <router-link to="/admin" @click="toggleMobileMenu" class="mobile-nav-link"
-            >管理后台</router-link
-          >
-        </nav>
-
-        <div class="mobile-footer">- 凉宫春日应援团 -</div>
-      </div>
-    </Transition>
-  </header>
-</template>
-
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMainStore } from '@/stores/main'
 import { AccountMenu } from '@haruhi/auth-ui'
 
-const props = defineProps({
-  overlay: {
-    type: Boolean,
-    default: false,
-  },
+defineProps({
+  // 博客详情页等深色 hero 之上时，页头转透明叠加态
+  overlay: { type: Boolean, default: false },
 })
 
 const store = useMainStore()
 const router = useRouter()
-
-const isScrolled = ref(false)
-const isHidden = ref(false)
 const isMobileMenuOpen = ref(false)
 const logoUrl = `${import.meta.env.BASE_URL}haruhi-logo-192.png`
-
-let lastScrollY = 0
 
 const goHome = () => {
   store.searchQuery = ''
   router.push('/')
 }
-
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value
-  if (isMobileMenuOpen.value) {
-    document.body.style.overflow = 'hidden'
-  } else {
-    document.body.style.overflow = ''
-  }
+  document.body.style.overflow = isMobileMenuOpen.value ? 'hidden' : ''
+}
+const closeMobile = () => {
+  isMobileMenuOpen.value = false
+  document.body.style.overflow = ''
 }
 
-const handleScroll = () => {
-  const currentScrollY = window.scrollY
-  isScrolled.value = currentScrollY > 20
-  if (currentScrollY > lastScrollY && currentScrollY > 100) {
-    isHidden.value = true
-  } else {
-    isHidden.value = false
-  }
-  lastScrollY = currentScrollY
-}
-
-onMounted(() => window.addEventListener('scroll', handleScroll))
-onUnmounted(() => window.removeEventListener('scroll', handleScroll))
+// 主导航（站内 + 跨站）。exam 是独立 app，必须用原生 a 整页跳转。
+const navLinks = [
+  { label: '活动中心', to: '/activity' },
+  { label: '奖品兑换', to: '/store' },
+  { label: '我要投稿', to: '/submit' },
+  { label: '团员手册', to: '/handbook' },
+]
 </script>
 
+<template>
+  <header class="sos-appbar news-appbar" :class="{ 'news-appbar--overlay': overlay }">
+    <div class="sos-appbar__inner">
+      <button class="sos-brand-lockup news-brand" type="button" @click="goHome" aria-label="返回春日团报首页">
+        <span class="sos-brand-lockup__mark"><img :src="logoUrl" alt="" /></span>
+        <span class="sos-brand-lockup__text">
+          <strong>春日团报</strong>
+          <small>Haruhi Fan Club</small>
+        </span>
+      </button>
+
+      <nav class="sos-navlinks news-appbar__nav">
+        <RouterLink v-for="n in navLinks" :key="n.to" :to="n.to" class="sos-navlink">{{ n.label }}</RouterLink>
+        <RouterLink :to="{ name: 'quiz' }" target="_blank" rel="noopener noreferrer" class="sos-navlink">凉宫入坑测试</RouterLink>
+        <a href="/exam/" target="_blank" rel="noopener noreferrer" class="sos-navlink">SOS团期末考试</a>
+      </nav>
+
+      <div class="news-appbar__right">
+        <!-- 搜索触发：采用统一搜索规范 .sos-search 外观，点击打开全屏搜索 -->
+        <button class="sos-search news-appbar__search" type="button" aria-label="搜索团报" @click="store.toggleSearch">
+          <span class="sos-search__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+            </svg>
+          </span>
+          <span class="news-appbar__search-label">搜索团报</span>
+        </button>
+
+        <AccountMenu />
+
+        <button class="news-appbar__menu" type="button" aria-label="菜单" @click="toggleMobileMenu">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 移动端菜单 -->
+    <Transition name="fade">
+      <div v-if="isMobileMenuOpen" class="news-mobile">
+        <button class="news-mobile__close" type="button" aria-label="关闭菜单" @click="closeMobile">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <path d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <nav class="news-mobile__nav">
+          <RouterLink to="/" class="news-mobile__link" @click="closeMobile">首页</RouterLink>
+          <RouterLink v-for="n in navLinks" :key="n.to" :to="n.to" class="news-mobile__link" @click="closeMobile">{{ n.label }}</RouterLink>
+          <a href="/exam/" target="_blank" rel="noopener noreferrer" class="news-mobile__link" @click="closeMobile">SOS团期末考试</a>
+          <RouterLink :to="{ name: 'quiz' }" target="_blank" rel="noopener noreferrer" class="news-mobile__link" @click="closeMobile">凉宫入坑测试</RouterLink>
+          <RouterLink to="/admin" class="news-mobile__link" @click="closeMobile">管理后台</RouterLink>
+        </nav>
+        <div class="news-mobile__foot">- 凉宫春日应援团 -</div>
+      </div>
+    </Transition>
+  </header>
+</template>
+
 <style scoped>
-.serif-font {
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-/* ===== Nav Spacer ===== */
-.nav-spacer {
-  width: 100%;
-  height: 5rem;
-  background-color: transparent;
-}
-
-@media (min-width: 768px) {
-  .nav-spacer {
-    height: 6rem;
-  }
-}
-
-/* ===== Navbar ===== */
-.navbar {
-  position: fixed;
-  z-index: 40;
-  width: 100%;
-  transition: all 500ms ease-in-out;
-}
-
-.navbar--hidden {
-  transform: translateY(-100%);
-}
-
-.navbar--visible {
-  transform: translateY(0);
-}
-
-.navbar--scrolled {
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.navbar--top {
-  padding-top: 1.25rem;
-  padding-bottom: 1.25rem;
-}
-
-.navbar--overlay {
-  top: 0;
-  left: 0;
-  background-color: transparent;
-  border-bottom: 1px solid transparent;
-  color: var(--sos-bg-surface);
-}
-
-.navbar--default {
-  top: 0;
-  background-color: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--sos-bg-muted);
-  color: var(--sos-text-primary);
-}
-
-/* ===== Nav Container ===== */
-.nav-container {
-  max-width: 1600px;
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: 1rem;
-  padding-right: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-@media (min-width: 768px) {
-  .nav-container {
-    padding-left: 2rem;
-    padding-right: 2rem;
-  }
-}
-
-/* ===== Nav Left ===== */
-.nav-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-@media (min-width: 768px) {
-  .nav-left {
-    gap: 2rem;
-  }
-}
-
-/* ===== Logo Group ===== */
-.logo-group {
-  display: inline-flex;
-  align-items: center;
+/* 在统一 .sos-appbar 基础上补 news 特有部分 */
+.news-brand {
   border: 0;
   background: transparent;
-  padding: 0;
   cursor: pointer;
 }
 
-.logo-group:hover {
-  opacity: 0.8;
+.news-appbar__nav {
+  flex-wrap: wrap;
 }
-
-/* 品牌锁头（news 原生，仅消费 token） */
-.news-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-.news-brand__logo {
-  width: 2.6rem;
-  height: 2.6rem;
-  flex: 0 0 auto;
-  border-radius: 9999px;
-  object-fit: cover;
-  box-shadow: var(--sos-shadow-hairline);
-  transition: width 150ms ease, height 150ms ease;
-}
-.news-brand__text {
-  display: grid;
-  gap: 0.05rem;
-  line-height: 1.12;
-  text-align: left;
-}
-.news-brand__text strong {
-  font-size: var(--sos-text-md);
-  font-weight: 850;
-  letter-spacing: 0;
-  color: var(--sos-text-primary);
-}
-.news-brand__text small {
-  font-size: var(--sos-text-xs);
-  font-weight: 650;
-  color: var(--sos-text-secondary);
-}
-.news-brand.is-compact .news-brand__logo {
-  width: 2.1rem;
-  height: 2.1rem;
-}
-.news-brand.is-compact .news-brand__text strong {
-  font-size: var(--sos-text-sm);
-}
-
-.navbar--overlay .news-brand__text strong,
-.navbar--overlay .news-brand__text small {
-  color: var(--sos-bg-surface);
-}
-
-/* ===== Nav Links (Desktop) ===== */
-.nav-links {
-  display: none;
-  gap: 1.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: color 150ms;
-}
-
-@media (min-width: 768px) {
-  .nav-links {
-    display: flex;
-  }
-}
-
-.nav-links--overlay {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.nav-links--default {
-  color: var(--sos-text-secondary);
-}
-
-/* ===== Nav Link ===== */
-.nav-link {
-  opacity: 0.8;
-  transition: opacity 150ms;
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
-}
-
-.nav-link:hover {
-  opacity: 1;
-}
-
-/* ===== Nav Link with Icon ===== */
-.nav-link--with-icon {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-/* ===== Nav Right ===== */
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-@media (min-width: 768px) {
-  .nav-right {
-    gap: 1.25rem;
-  }
-}
-
-/* ===== Nav Right Link (Desktop) ===== */
-.nav-right-link {
-  display: none;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: opacity 150ms;
-  margin-right: 0.5rem;
-}
-
-@media (min-width: 768px) {
-  .nav-right-link {
-    display: flex;
-  }
-}
-
-.nav-right-link:hover {
-  opacity: 0.8;
-}
-
-.nav-right-link--overlay {
-  color: var(--sos-bg-surface);
-}
-
-.nav-right-link--default {
-  color: var(--sos-text-secondary);
-}
-
-.nav-right-link--no-margin {
-  margin-right: 0;
-}
-
-/* ===== Nav Divider ===== */
-.nav-divider {
-  display: none;
-  height: 1rem;
-  width: 1px;
-}
-
-@media (min-width: 768px) {
-  .nav-divider {
-    display: block;
-  }
-}
-
-.nav-divider--overlay {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
-.nav-divider--default {
-  background-color: var(--sos-border-strong);
-}
-
-/* ===== Search Button ===== */
-.search-button {
-  display: flex;
-  align-items: center;
-  transition: all 300ms;
-  width: 2.25rem;
-  height: 2.25rem;
-  justify-content: center;
-  border-radius: 9999px;
-  border-width: 1px;
-  border-style: solid;
-}
-
-.search-button-label {
-  display: none;
-  font-size: 0.875rem;
-  font-weight: 700;
-}
-
-@media (min-width: 768px) {
-  .search-button {
-    width: 16rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    justify-content: space-between;
-  }
-
-  .search-button-label {
-    display: inline;
-  }
-}
-
-.search-button--overlay {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: var(--sos-bg-surface);
-}
-
-.search-button--default {
-  background-color: var(--sos-bg-subtle);
-  border-color: var(--sos-border-default);
-  color: var(--sos-text-secondary);
-}
-
-/* ===== Mobile Menu Button ===== */
-.mobile-menu-button {
-  width: 2.25rem;
-  height: 2.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9999px;
-  transition: background-color 150ms;
-}
-
-@media (min-width: 768px) {
-  .mobile-menu-button {
+@media (max-width: 1023px) {
+  .news-appbar__nav {
     display: none;
   }
 }
 
-.mobile-menu-button--overlay {
-  color: var(--sos-bg-surface);
+.news-appbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-3);
 }
 
-.mobile-menu-button--overlay:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+/* 搜索触发器：复用 .sos-search 外观，桌面显示占位文案 */
+.news-appbar__search {
+  width: auto;
+  cursor: pointer;
+  color: var(--sos-text-tertiary);
+}
+.news-appbar__search:hover {
+  border-color: var(--sos-text-secondary);
+}
+.news-appbar__search-label {
+  font-size: var(--sos-text-sm);
+}
+@media (max-width: 767px) {
+  .news-appbar__search-label {
+    display: none;
+  }
 }
 
-.mobile-menu-button--default {
+.news-appbar__menu {
+  display: none;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: var(--sos-radius-sm);
+  background: transparent;
   color: var(--sos-text-primary);
+  cursor: pointer;
+}
+@media (max-width: 1023px) {
+  .news-appbar__menu {
+    display: inline-grid;
+  }
 }
 
-.mobile-menu-button--default:hover {
-  background-color: var(--sos-bg-muted);
-}
-
-/* ===== Icons ===== */
-.icon-sm {
-  width: 1rem;
-  height: 1rem;
-}
-
-.icon-md {
-  width: 1.5rem;
-  height: 1.5rem;
-}
-
-.icon-lg {
-  width: 2rem;
-  height: 2rem;
-}
-
-/* ===== Mobile Overlay ===== */
-.mobile-overlay {
+/* 博客详情等深色 hero 上：页头透明浮层 + 浅色文字（不占位，叠在 hero 上） */
+.news-appbar--overlay {
   position: fixed;
   top: 0;
-  right: 0;
-  bottom: 0;
   left: 0;
-  z-index: 50;
-  background-color: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(24px);
+  right: 0;
+  background: transparent;
+  border-bottom-color: transparent;
+  backdrop-filter: none;
+}
+.news-appbar--overlay .sos-brand-lockup__text > strong,
+.news-appbar--overlay .sos-brand-lockup__text > small,
+.news-appbar--overlay .sos-navlink {
+  color: var(--sos-white);
+}
+
+/* 移动端全屏菜单 */
+.news-mobile {
+  position: fixed;
+  inset: 0;
+  z-index: var(--sos-z-overlay);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  text-align: center;
+  gap: var(--sos-space-8);
+  background: color-mix(in srgb, var(--sos-bg-page) 96%, transparent);
+  backdrop-filter: blur(20px);
 }
-
-/* ===== Mobile Close Button ===== */
-.mobile-close-button {
+.news-mobile__close {
   position: absolute;
-  top: 1.5rem;
-  right: 1rem;
-  padding: 0.5rem;
+  top: var(--sos-space-5);
+  right: var(--sos-space-4);
+  border: 0;
+  background: transparent;
   color: var(--sos-text-secondary);
+  cursor: pointer;
 }
-
-.mobile-close-button:hover {
-  color: var(--sos-text-primary);
-}
-
-/* ===== Mobile Nav ===== */
-.mobile-nav {
+.news-mobile__nav {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  font-size: 1.5rem;
-  font-weight: 900;
+  align-items: center;
+  gap: var(--sos-space-6);
+  font-family: var(--sos-font-reading);
+  font-size: var(--sos-text-2xl);
+  font-weight: var(--sos-weight-heavy);
 }
-
-/* ===== Mobile Nav Link ===== */
-.mobile-nav-link {
-  transition: color 150ms;
-}
-
-.mobile-nav-link:hover {
+.news-mobile__link {
   color: var(--sos-text-primary);
+  text-decoration: none;
+}
+.news-mobile__link:hover {
   text-decoration: underline;
   text-decoration-color: var(--sos-signal);
-  text-decoration-thickness: 0.2em;
+  text-decoration-thickness: 0.15em;
   text-underline-offset: 0.2em;
 }
-
-.mobile-nav-link--with-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
+.news-mobile__foot {
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-sm);
 }
 
-/* ===== Mobile Footer ===== */
-.mobile-footer {
-  margin-top: 3rem;
-  font-size: 0.875rem;
-  color: var(--sos-text-tertiary);
-  font-family: 'Noto Sans SC', sans-serif;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--sos-duration-base) ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

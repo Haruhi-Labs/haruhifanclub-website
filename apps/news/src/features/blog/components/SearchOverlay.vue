@@ -13,22 +13,24 @@
             </button>
 
             <div class="search-container animate-up">
-                <div class="search-input-wrapper">
+                <!-- 统一搜索规范 .sos-search（大尺寸，方角贴合编辑部气质） -->
+                <div class="sos-search sos-search--lg sos-search--square overlay-search">
+                    <span class="sos-search__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+                        </svg>
+                    </span>
                     <input
                         ref="inputRef"
-                        type="text"
+                        type="search"
                         v-model="store.searchQuery"
                         @keyup.enter="performSearch"
                         placeholder="搜索: 凉宫春日..."
-                        class="search-input"
+                        class="sos-search__input"
+                        aria-label="搜索团报"
                     >
-
-                    <button
-                        @click="performSearch"
-                        class="search-submit"
-                    >
-                        <span>ENTER</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="submit-icon">
+                    <button class="sos-search__submit" @click="performSearch" aria-label="搜索">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="18" height="18">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
                         </svg>
                     </button>
