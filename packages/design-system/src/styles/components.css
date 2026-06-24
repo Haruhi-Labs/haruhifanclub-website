@@ -1872,8 +1872,10 @@
 }
 .sos-brand-lockup__text {
   display: grid;
+  justify-items: start;
   gap: var(--sos-space-1);
   line-height: 1.2;
+  text-align: left;
 }
 .sos-brand-lockup__text > strong {
   color: var(--sos-text-primary);
