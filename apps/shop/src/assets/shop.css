@@ -2308,8 +2308,9 @@ textarea.input-field {
 }
 
 .shop-app .card-body {
-    display: grid;
-    /* 收紧竖向节奏，贴齐旧版的紧凑感 */
+    /* 纵向流，内容从上往下依次排布（贴齐旧版：短内容卡留白在底部，而非中间撑开） */
+    display: flex;
+    flex-direction: column;
     gap: var(--sos-space-2);
     flex: 1;
     padding: var(--sos-space-4);
@@ -2355,8 +2356,9 @@ textarea.input-field {
     min-height: 0;
     margin: 0;
     color: var(--sos-text-secondary);
-    font-size: var(--sos-text-sm);
-    line-height: 1.55;
+    /* 描述为次要信息，尺寸回到 12px（贴齐旧版），紧跟标题下方 */
+    font-size: var(--sos-text-xs);
+    line-height: 1.5;
     letter-spacing: 0;
     -webkit-line-clamp: 2;
 }
@@ -2399,7 +2401,8 @@ textarea.input-field {
     grid-template-columns: auto minmax(0, 1fr);
     gap: var(--sos-space-2);
     align-items: center;
-    margin-top: auto;
+    /* 不再 margin-top:auto 顶到底——紧跟上方内容，整卡从上往下推 */
+    margin-top: var(--sos-space-1);
 }
 
 .shop-app .badge-tag {
