@@ -686,8 +686,8 @@ onMounted(() => {
   border-radius: 24px;
   border: 2px solid transparent;
   background: linear-gradient(45deg, var(--vine-green), transparent 40%, transparent 60%, var(--vine-green)) border-box; 
-  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(var(--sos-bg-surface) 0 0) padding-box, linear-gradient(var(--sos-bg-surface) 0 0);
+  mask: linear-gradient(var(--sos-bg-surface) 0 0) padding-box, linear-gradient(var(--sos-bg-surface) 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   opacity: 0.5;
@@ -796,7 +796,7 @@ onMounted(() => {
   width: 40px;
   height: 40px;
   background: rgba(0,0,0,0.3);
-  color: #fff;
+  color: var(--sos-bg-surface);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -851,7 +851,7 @@ onMounted(() => {
   background: rgba(0,0,0,0.5);
 }
 .dot.active {
-  background: #fff;
+  background: var(--sos-bg-surface);
   box-shadow: 0 0 4px rgba(0,0,0,0.3);
   transform: scale(1.2);
 }
@@ -876,7 +876,7 @@ onMounted(() => {
   width: 28px; height: 28px;
   border-radius: 50%;
   border: 1px solid rgba(107, 140, 133, 0.2);
-  background: #fff;
+  background: var(--sos-bg-surface);
   color: var(--text-deep);
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -887,7 +887,7 @@ onMounted(() => {
 .zoom-btn:hover {
   background: var(--flower-pink);
   border-color: var(--flower-pink);
-  color: #fff;
+  color: var(--sos-bg-surface);
 }
 .zoom-text {
   font-size: 12px;
@@ -944,7 +944,7 @@ onMounted(() => {
   display: flex; align-items: center; justify-content: center;
 }
 .icon-btn:hover {
-  background: #fff;
+  background: var(--sos-bg-surface);
   box-shadow: 0 0 10px var(--flower-pink);
   transform: rotate(90deg);
   border-color: var(--flower-pink);
@@ -991,7 +991,7 @@ onMounted(() => {
   font-family: sans-serif;
 }
 .tag-chip:hover {
-  background: #fff;
+  background: var(--sos-bg-surface);
   border-color: var(--flower-purple);
   box-shadow: 0 4px 12px rgba(191, 162, 219, 0.2);
   transform: translateY(-1px);
@@ -1046,7 +1046,7 @@ onMounted(() => {
 }
 .input-row { border: none; border-bottom: 1px solid rgba(107, 140, 133, 0.2); }
 .input-row:focus-within {
-  background: #fff;
+  background: var(--sos-bg-surface);
   border-bottom-color: var(--flower-purple);
 }
 
@@ -1065,7 +1065,7 @@ onMounted(() => {
 
 .btn--accent {
   background: linear-gradient(135deg, var(--text-main), var(--text-deep));
-  color: #fff;
+  color: var(--sos-bg-surface);
   border: 0; padding: 6px 20px; border-radius: 999px;
   font-size: 13px; cursor: pointer;
   box-shadow: 0 4px 10px rgba(67, 77, 88, 0.2);
@@ -1090,7 +1090,7 @@ onMounted(() => {
   transition: all 0.2s;
 }
 .like-pill:hover {
-  background: #fff;
+  background: var(--sos-bg-surface);
   color: var(--flower-purple);
   box-shadow: 0 2px 8px rgba(191, 162, 219, 0.2);
 }

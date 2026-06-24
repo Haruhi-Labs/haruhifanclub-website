@@ -66,7 +66,7 @@ function enterAdmin() {
   gap: 12px;
   cursor: pointer;
   user-select: none;
-  color: #fff; 
+  color: var(--sos-bg-surface); 
   text-shadow: 0 2px 4px rgba(0,0,0,0.6);
   
   /* 关键：防止 Logo 被压缩 */

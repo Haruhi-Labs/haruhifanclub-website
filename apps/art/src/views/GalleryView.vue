@@ -286,7 +286,7 @@ onUnmounted(() => {
 .statusRow.footer-mode { margin-top: 30px; border-top: 1px dashed rgba(0,0,0,0.08); padding-top: 20px; }
 .left{ display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
 .errorBox{ padding:12px; background:#fee; color:red; border-radius:8px; }
-.muted{ color:#999; font-size:12px; }
+.muted{ color:var(--sos-text-tertiary); font-size:12px; }
 
 .tag-header {
   display: flex;
@@ -326,8 +326,8 @@ onUnmounted(() => {
 
 .btn-return {
   padding: 10px 20px;
-  background: #ffffff;
-  border: 1px solid #e5e5e5;
+  background: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-default);
   border-radius: 99px;
   cursor: pointer;
   font-weight: 800;
@@ -340,9 +340,9 @@ onUnmounted(() => {
 }
 
 .btn-return:hover {
-  background: #fff;
+  background: var(--sos-bg-surface);
   color: #000;
-  border-color: #ccc;
+  border-color: var(--sos-border-strong);
   transform: translateX(-4px);
   box-shadow: 0 6px 15px rgba(0,0,0,0.08);
 }

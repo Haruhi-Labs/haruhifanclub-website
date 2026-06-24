@@ -340,7 +340,7 @@ function onSortTrackClick(e) {
 }
 .toggle-item:hover { color: rgba(0,0,0,.9); }
 .toggle-item.active {
-  color: #fff;
+  color: var(--sos-bg-surface);
   text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 

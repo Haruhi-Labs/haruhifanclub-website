@@ -314,7 +314,7 @@ onBeforeUnmount(() => {
   --shadow-media: 0 10px 30px -5px rgba(0, 242, 255, 0.15);
 
   /* Twin Theme Colors (Green) */
-  --twin-primary: #10b981; /* Emerald 500 */
+  --twin-primary: var(--sos-success); /* Emerald 500 */
   --twin-dark: #064e3b;    /* Emerald 900 */
   --twin-light: #a7f3d0;   /* Emerald 200 */
   --twin-glow: rgba(16, 185, 129, 0.5);
@@ -550,8 +550,8 @@ body.modal-open .art-card-wrap {
   cursor: pointer;
 }
 .byline__a:hover {
-  color: #fff;
-  border-bottom-color: #fff;
+  color: var(--sos-bg-surface);
+  border-bottom-color: var(--sos-bg-surface);
   text-shadow: 0 0 12px var(--neon-cyan);
 }
 
@@ -642,7 +642,7 @@ body.modal-open .art-card-wrap {
 
 .tag-chip:hover {
   background: rgba(255,255,255,0.1);
-  color: #fff;
+  color: var(--sos-bg-surface);
   border-color: rgba(255,255,255,0.3);
   text-shadow: 0 0 5px rgba(255,255,255,0.5);
 }
@@ -673,7 +673,7 @@ body.modal-open .art-card-wrap {
   align-items: center;
   justify-content: center;
   z-index: 5;
-  border: 2px solid #fff;
+  border: 2px solid var(--sos-bg-surface);
 }
 
 .page-num {
