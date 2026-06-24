@@ -785,12 +785,12 @@ function scheduleHomeEntranceSequence() {
     homeBackdropTimer = 0
     if (!homeViewMounted || homeRouteSuspended.value) return
     homeBackdropVisible.value = true
-  }, 550)
+  }, 120)
   homeGearsTimer = window.setTimeout(() => {
     homeGearsTimer = 0
     if (!homeViewMounted || homeRouteSuspended.value) return
     homeGearsVisible.value = true
-  }, 1050)
+  }, 240)
 }
 
 function refreshLightGearAfterDomUpdate({ includeAll = false, restartObserver = false } = {}) {
