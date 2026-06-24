@@ -931,18 +931,6 @@ const stageStyle = {
   --hud-red: #ff637d;
 }
 
-.art-home .home-lights-out-ui {
-  display: none;
-}
-
-:global(html.art-lights-out) .art-home .home-lights-out-ui {
-  display: block;
-}
-
-:global(html.art-lights-out) .art-home .home-lights-on-ui {
-  display: none;
-}
-
 .art-home::before,
 .art-home::after {
   content: "";

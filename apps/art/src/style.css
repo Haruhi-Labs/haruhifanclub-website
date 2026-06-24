@@ -617,6 +617,22 @@ html.art-home-route .main {
   background: transparent;
 }
 
+html.art-home-route .art-home .home-lights-out-ui {
+  display: none !important;
+}
+
+html.art-home-route:not(.art-lights-out) .art-home .home-lights-on-ui {
+  display: grid !important;
+}
+
+html.art-home-route.art-lights-out .art-home .home-lights-out-ui {
+  display: block !important;
+}
+
+html.art-home-route.art-lights-out .art-home .home-lights-on-ui {
+  display: none !important;
+}
+
 html.art-home-route:not(.art-lights-out) .gallery-bg {
   top: 0;
   bottom: 0;
