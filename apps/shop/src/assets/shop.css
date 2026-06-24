@@ -2309,15 +2309,16 @@ textarea.input-field {
 
 .shop-app .card-body {
     display: grid;
-    gap: var(--sos-space-3);
+    /* 收紧竖向节奏，贴齐旧版的紧凑感 */
+    gap: var(--sos-space-2);
     flex: 1;
-    padding: var(--sos-space-5);
+    padding: var(--sos-space-4);
 }
 
 .shop-app .card-title-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--sos-space-3);
+    gap: var(--sos-space-2);
     align-items: start;
     margin-bottom: 0;
 }
@@ -2344,8 +2345,8 @@ textarea.input-field {
 
 .shop-app .card-price {
     color: var(--sos-link);
-    /* 价格更醒目：商品页的信心来自价格的分量 */
-    font-size: var(--sos-text-xl);
+    /* 价格用粗体 + 链接色突出，尺寸贴齐旧版（text-xl 的 clamp 在桌面会涨到 24px，过大） */
+    font-size: var(--sos-text-md);
     font-weight: var(--sos-weight-bold);
     line-height: 1.1;
 }
