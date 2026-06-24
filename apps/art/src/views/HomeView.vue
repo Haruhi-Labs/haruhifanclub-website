@@ -5,8 +5,13 @@
     :class="{
       'is-light-gear-ready': lightGearReady,
       'is-route-suspended': homeRouteSuspended,
+      'is-home-visuals-visible': homeVisualsVisible,
+      'is-home-backdrop-visible': homeBackdropVisible,
+      'is-home-gears-visible': homeGearsVisible,
     }"
   >
+    <div class="home-arrival-veil" aria-hidden="true"></div>
+
     <div v-if="renderHaruhiTextField && haruhiTextCorpus" class="haruhi-text-field" aria-hidden="true">
       <div class="haruhi-text-flow" :style="{ '--haruhi-text-duration': `${HARUHI_TEXT_DRIFT_SECONDS}s` }">
         <div v-for="copy in haruhiTextCopies" :key="copy" class="haruhi-text-sheet">
@@ -609,6 +614,9 @@ const activeHomeLightsOut = ref(false)
 const renderInactiveHomeUi = ref(false)
 const renderHomeGears = ref(false)
 const renderHaruhiTextField = ref(false)
+const homeVisualsVisible = ref(false)
+const homeBackdropVisible = ref(false)
+const homeGearsVisible = ref(false)
 let lightGearOffset = 0
 let lightGearPointerId = null
 let lightGearLastX = null
@@ -630,6 +638,8 @@ let lightGearAutoPausedForSwitch = false
 let lightGearSwitchResumeTimer = 0
 let inactiveHomeUiIdle = 0
 let inactiveHomeUiTimer = 0
+let homeBackdropTimer = 0
+let homeGearsTimer = 0
 let homeViewMounted = false
 let homeViewHasMounted = false
 let homeViewListenersActive = false
@@ -746,6 +756,41 @@ function clearInactiveHomeUiRender() {
   }
   inactiveHomeUiIdle = 0
   inactiveHomeUiTimer = 0
+}
+
+function clearHomeEntranceTimers() {
+  if (homeBackdropTimer && typeof window !== 'undefined') {
+    window.clearTimeout(homeBackdropTimer)
+  }
+  if (homeGearsTimer && typeof window !== 'undefined') {
+    window.clearTimeout(homeGearsTimer)
+  }
+  homeBackdropTimer = 0
+  homeGearsTimer = 0
+}
+
+function scheduleHomeEntranceSequence() {
+  if (typeof window === 'undefined') return
+  clearHomeEntranceTimers()
+
+  if (prefersReducedMotion()) {
+    homeVisualsVisible.value = true
+    homeBackdropVisible.value = true
+    homeGearsVisible.value = true
+    return
+  }
+
+  homeVisualsVisible.value = true
+  homeBackdropTimer = window.setTimeout(() => {
+    homeBackdropTimer = 0
+    if (!homeViewMounted || homeRouteSuspended.value) return
+    homeBackdropVisible.value = true
+  }, 550)
+  homeGearsTimer = window.setTimeout(() => {
+    homeGearsTimer = 0
+    if (!homeViewMounted || homeRouteSuspended.value) return
+    homeGearsVisible.value = true
+  }, 1050)
 }
 
 function refreshLightGearAfterDomUpdate({ includeAll = false, restartObserver = false } = {}) {
@@ -905,6 +950,7 @@ function clearLightGearSwitchResume() {
 function suspendHomeRouteMotion() {
   homeRouteSuspended.value = true
   clearInactiveHomeUiRender()
+  clearHomeEntranceTimers()
   cancelShiftInertia()
   cancelGalleryOrbitInertia()
   cancelLightGearInertia()
@@ -1468,6 +1514,9 @@ function activateHomeView() {
   renderInactiveHomeUi.value = false
   renderHomeGears.value = false
   renderHaruhiTextField.value = false
+  homeVisualsVisible.value = false
+  homeBackdropVisible.value = false
+  homeGearsVisible.value = false
   lightGearReady.value = false
   addHomeViewListeners()
   loadHaruhiBackgroundText()
@@ -1482,6 +1531,10 @@ function activateHomeView() {
       lightGearReady.value = true
       startLightGearAuto()
       scheduleInactiveHomeUiRender()
+      window.requestAnimationFrame(() => {
+        if (!homeViewMounted || homeRouteSuspended.value) return
+        scheduleHomeEntranceSequence()
+      })
     })
   })
 }
@@ -1493,6 +1546,9 @@ function deactivateHomeView() {
   renderInactiveHomeUi.value = false
   renderHomeGears.value = false
   renderHaruhiTextField.value = false
+  homeVisualsVisible.value = false
+  homeBackdropVisible.value = false
+  homeGearsVisible.value = false
   lightGearReady.value = false
   stopLightGearResizeObserver()
   removeHomeViewListeners()
@@ -1630,6 +1686,33 @@ const stageStyle = {
   pointer-events: none;
 }
 
+.art-home .home-arrival-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 1;
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.34) 24%, transparent 56%),
+    radial-gradient(ellipse at 50% 50%, transparent 0 44%, rgba(255, 246, 238, 0.5) 74%, rgba(255, 246, 238, 0.78) 100%);
+  transform: translateZ(0);
+  transition:
+    opacity 4.8s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 4.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.art-home.is-home-visuals-visible .home-arrival-veil {
+  opacity: 0;
+  transform: translate3d(0, -10px, 0) scale(1.018);
+}
+
+:global(html.art-home-route.art-home-lights-out .art-home .home-arrival-veil) {
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(141, 240, 255, 0.16), rgba(72, 88, 180, 0.14) 24%, transparent 58%),
+    radial-gradient(ellipse at 50% 50%, transparent 0 42%, rgba(2, 8, 22, 0.56) 72%, rgba(1, 4, 13, 0.86) 100%),
+    linear-gradient(135deg, rgba(1, 4, 13, 0.72), rgba(9, 5, 23, 0.7));
+}
+
 .art-home .haruhi-text-field {
   --haruhi-text-duration: 900s;
   position: fixed;
@@ -1637,11 +1720,19 @@ const stageStyle = {
   z-index: 1;
   overflow: hidden;
   pointer-events: none;
-  opacity: 0.28;
+  opacity: 0;
   mix-blend-mode: multiply;
-  transform: rotate(-35deg) translateZ(0);
+  transform: rotate(-35deg) translate3d(0, -18px, 0) scale(1.012);
   transform-origin: center;
   mask-image: linear-gradient(90deg, transparent 0%, black 13%, black 86%, transparent 100%);
+  transition:
+    opacity 4s ease,
+    transform 4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.art-home.is-home-backdrop-visible .haruhi-text-field {
+  opacity: 0.28;
+  transform: rotate(-35deg) translate3d(0, 0, 0) scale(1);
 }
 
 .art-home .haruhi-text-field::before,
@@ -1752,8 +1843,11 @@ const stageStyle = {
 }
 
 :global(html.art-home-route.art-home-lights-out .art-home .haruhi-text-field) {
-  opacity: 0.38;
   mix-blend-mode: screen;
+}
+
+:global(html.art-home-route.art-home-lights-out .art-home.is-home-backdrop-visible .haruhi-text-field) {
+  opacity: 0.38;
 }
 
 :global(html.art-home-route.art-home-lights-out .art-home .haruhi-text-row) {
@@ -1806,6 +1900,16 @@ const stageStyle = {
   cursor: grab;
   touch-action: none;
   user-select: none;
+  opacity: 0;
+  transform: translate3d(0, 26px, 0) scale(0.986);
+  transition:
+    opacity 3.7s ease,
+    transform 3.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.art-home.is-home-gears-visible .light-gear {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
 .art-home .light-gear.is-dragging {
@@ -1855,7 +1959,7 @@ const stageStyle = {
   transform-style: preserve-3d;
   margin-top: -118px;
   opacity: 0;
-  transition: opacity 0.18s ease;
+  transition: opacity 0.8s ease;
 }
 
 .art-home.is-route-suspended .light-gear__belt {
@@ -1945,9 +2049,20 @@ const stageStyle = {
 }
 
 .art-home .day-hero-panel {
+  z-index: 12;
   width: min(620px, 100%);
   padding: 0;
   text-align: center;
+  opacity: 0;
+  transform: translate3d(0, 10px, 0) scale(0.996);
+  transition:
+    opacity 0.85s ease,
+    transform 1.1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.art-home.is-home-visuals-visible .day-hero-panel {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
 .art-home .day-kicker {
@@ -3721,8 +3836,17 @@ const stageStyle = {
   .art-home .shift-layer,
   .art-home .shift-layer::before,
   .art-home .gallery-art-stack,
-  .art-home .gallery-orbit-layer {
+  .art-home .gallery-orbit-layer,
+  .art-home .home-arrival-veil,
+  .art-home .haruhi-text-field,
+  .art-home .day-hero-panel,
+  .art-home .light-gear,
+  .art-home .light-gear__belt {
     transition: none !important;
+  }
+
+  .art-home .home-arrival-veil {
+    opacity: 0 !important;
   }
 }
 
@@ -3890,7 +4014,14 @@ const stageStyle = {
 
   .art-home .haruhi-text-field {
     inset: -64vmax;
+  }
+
+  .art-home.is-home-backdrop-visible .haruhi-text-field {
     opacity: 0.24;
+  }
+
+  :global(html.art-home-route.art-home-lights-out .art-home.is-home-backdrop-visible .haruhi-text-field) {
+    opacity: 0.34;
   }
 
   .art-home .haruhi-text-row {
