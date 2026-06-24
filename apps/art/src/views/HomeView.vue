@@ -267,12 +267,6 @@
       <section class="day-hero-panel">
         <p class="day-kicker">Haruhi Fanclub Gallery</p>
         <p class="day-visitor">画廊的第 <strong>{{ visitorNumberText }}</strong> 位访问者，你好</p>
-        <div class="day-stats" aria-label="本地画廊统计">
-          <span v-for="item in lightStats" :key="item.label">
-            <strong>{{ item.value }}</strong>
-            <small>{{ item.label }}</small>
-          </span>
-        </div>
       </section>
 
       <section
@@ -991,13 +985,6 @@ const repeatRecords = approvedArtworks
     time: formatShortTime(item.created_at),
   }))
 
-const lightStats = [
-  { label: '当前画作', value: artworkCount },
-  { label: '创作者', value: creatorCount },
-  { label: '凉宫占比', value: `${haruhiRatio}%` },
-  { label: '最近上传', value: latestUploadText },
-]
-
 const lightGearSource = approvedArtworks.length ? approvedArtworks : seedArtworks
 const lightGearCycleWidth = Math.max(1, lightGearSource.length) * LIGHT_GEAR_TILE_STEP
 
@@ -1245,14 +1232,7 @@ const stageStyle = {
 
 .art-home .day-hero-panel {
   width: min(620px, 100%);
-  padding: clamp(20px, 3vw, 34px);
-  border: 1px solid rgba(255, 255, 255, 0.48);
-  border-radius: 26px;
-  background:
-    radial-gradient(circle at 14% 0%, rgba(255, 255, 255, 0.48), transparent 34%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(247, 252, 250, 0.28));
-  box-shadow: 0 24px 70px rgba(26, 71, 80, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.56);
-  backdrop-filter: blur(12px);
+  padding: 0;
   text-align: center;
 }
 
@@ -1267,55 +1247,19 @@ const stageStyle = {
 
 .art-home .day-visitor {
   margin: 0;
-  color: rgba(18, 51, 60, 0.76);
+  color: rgba(13, 43, 52, 0.82);
   font-size: clamp(22px, 3.2vw, 38px);
   line-height: 1.18;
   font-weight: 950;
-  text-shadow: 0 12px 34px rgba(60, 155, 170, 0.14);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.92),
+    0 12px 30px rgba(60, 155, 170, 0.18);
 }
 
 .art-home .day-visitor strong {
   color: #1b8b9b;
   font-size: 1.12em;
   font-weight: 950;
-}
-
-.art-home .day-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 20px;
-}
-
-.art-home .day-stats span {
-  min-width: 0;
-  padding: 13px 14px;
-  border: 1px solid rgba(42, 110, 116, 0.14);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.62);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.74);
-}
-
-.art-home .day-stats strong,
-.art-home .day-stats small {
-  display: block;
-}
-
-.art-home .day-stats strong {
-  overflow: hidden;
-  color: #12333c;
-  font-size: clamp(18px, 2vw, 28px);
-  font-weight: 950;
-  line-height: 1.05;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.art-home .day-stats small {
-  margin-top: 5px;
-  color: rgba(18, 51, 60, 0.58);
-  font-size: 12px;
-  font-weight: 900;
 }
 
 .art-home::before {
@@ -3117,12 +3061,7 @@ const stageStyle = {
   }
 
   .art-home .day-hero-panel {
-    padding: 24px 18px;
-    border-radius: 20px;
-  }
-
-  .art-home .day-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: min(92%, 520px);
   }
 
   .art-home::before {
