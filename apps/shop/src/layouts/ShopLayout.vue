@@ -192,7 +192,7 @@
     <!-- Toast -->
     <transition name="fade">
         <div v-if="state.notification" class="toast">
-            <i class="fa fa-info-circle" style="color: #60a5fa;"></i>
+            <i class="fa fa-info-circle" style="color: var(--sos-link);"></i>
             {{ state.notification }}
         </div>
     </transition>

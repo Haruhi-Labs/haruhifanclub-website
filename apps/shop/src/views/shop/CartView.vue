@@ -2,7 +2,7 @@
   <div>
     <div v-if="store.state.cart.length === 0" class="cart-empty">
         <i class="fa fa-shopping-basket cart-icon"></i>
-        <p style="color: #666; margin-bottom: 1.5rem;">购物车空空如也，快去选购吧！</p>
+        <p style="color: var(--sos-text-secondary); margin-bottom: 1.5rem;">购物车空空如也，快去选购吧！</p>
         <button class="market-btn primary-action" @click="$router.push('/')">去逛逛</button>
     </div>
     <div v-else>
@@ -17,15 +17,15 @@
                         <td style="padding-left: 1.5rem;">
                             <div class="product-cell">
                                 <img :src="item.image" class="thumb-img">
-                                <span style="font-weight: bold; color: #374151;">{{ item.name }}</span>
+                                <span style="font-weight: bold; color: var(--sos-text-secondary);">{{ item.name }}</span>
                             </div>
                         </td>
-                        <td class="text-center" style="color: #4b5563;">
+                        <td class="text-center" style="color: var(--sos-text-secondary);">
                             <div style="display: inline-flex; flex-direction: column; align-items: center; line-height: 1.2;">
                                 <span>¥{{ item.price }}</span>
                                 <span
                                     v-if="Number(item.originalPrice) > Number(item.price)"
-                                    style="font-size: 0.75rem; color: #9ca3af; text-decoration: line-through;"
+                                    style="font-size: 0.75rem; color: var(--sos-text-tertiary); text-decoration: line-through;"
                                 >
                                     ¥{{ item.originalPrice }}
                                 </span>
@@ -40,7 +40,7 @@
                         </td>
                         <td class="text-center" style="font-weight: bold; color: var(--primary-color);">¥{{ item.price * item.quantity }}</td>
                         <td class="text-center">
-                            <button @click="store.removeFromCart(index)" style="color: #f87171; background: none; border: none; cursor: pointer;"><i class="fa fa-trash"></i></button>
+                            <button @click="store.removeFromCart(index)" style="color: var(--sos-danger); background: none; border: none; cursor: pointer;"><i class="fa fa-trash"></i></button>
                         </td>
                     </tr>
                 </tbody>
@@ -73,11 +73,11 @@
         </div>
 
         <div class="cart-footer">
-            <div style="font-size: 0.875rem; color: #666;"><i class="fa fa-info-circle mr-1"></i> 满{{ store.freeShippingThreshold }}元包邮，当前运费: ¥{{ store.shippingFee }}</div>
+            <div style="font-size: 0.875rem; color: var(--sos-text-secondary);"><i class="fa fa-info-circle mr-1"></i> 满{{ store.freeShippingThreshold }}元包邮，当前运费: ¥{{ store.shippingFee }}</div>
             <div class="cart-footer-right">
                 <div style="text-align: right;">
-                    <span style="color: #666; margin-right: 0.5rem;">合计 (不含运费):</span>
-                    <span style="font-size: 1.5rem; font-weight: bold; color: #1f2937;">¥{{ store.cartTotal }}</span>
+                    <span style="color: var(--sos-text-secondary); margin-right: 0.5rem;">合计 (不含运费):</span>
+                    <span style="font-size: 1.5rem; font-weight: bold; color: var(--sos-text-primary);">¥{{ store.cartTotal }}</span>
                 </div>
                 <button class="market-btn primary-action" style="padding: 0.5rem 2rem; font-size: 1.125rem;" @click="$router.push('/checkout')">
                     去结算 <i class="fa fa-arrow-right ml-2" style="font-size: 0.875rem;"></i>
@@ -129,7 +129,7 @@ const updateQuantity = (index, delta) => {
         height: 4rem;
         object-fit: cover;
         border-radius: 4px;
-        background: #eee;
+        background: var(--sos-border-default);
         flex-shrink: 0;
     }
     .cart-card-info {
@@ -138,25 +138,25 @@ const updateQuantity = (index, delta) => {
     }
     .cart-card-name {
         font-weight: bold;
-        color: #374151;
+        color: var(--sos-text-secondary);
         display: block;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
     .cart-card-price {
-        color: #4b5563;
+        color: var(--sos-text-secondary);
         font-size: 0.875rem;
         margin-top: 0.25rem;
     }
     .cart-card-original {
         font-size: 0.75rem;
-        color: #9ca3af;
+        color: var(--sos-text-tertiary);
         text-decoration: line-through;
         margin-left: 0.5rem;
     }
     .cart-card-delete {
-        color: #f87171;
+        color: var(--sos-danger);
         background: none;
         border: none;
         cursor: pointer;
@@ -173,7 +173,7 @@ const updateQuantity = (index, delta) => {
         align-items: center;
         margin-top: 0.75rem;
         padding-top: 0.75rem;
-        border-top: 1px solid #f3f4f6;
+        border-top: 1px solid var(--sos-bg-muted);
     }
     .cart-card-subtotal {
         font-weight: bold;
