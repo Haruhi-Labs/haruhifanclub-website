@@ -328,25 +328,34 @@ const closeImportModal = () => {
         </button>
       </div>
 
-      <!-- 搜索框 -->
+      <!-- 搜索框：统一搜索规范 .sos-search -->
       <div class="search-container">
-        <div class="search-box">
+        <div class="sos-search sos-search--lg exam-search">
+          <span class="sos-search__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+            </svg>
+          </span>
           <input
             ref="searchInput"
             v-model="searchKeyword"
-            type="text"
-            class="search-input"
+            type="search"
+            class="sos-search__input"
             placeholder="搜索试卷名称或描述"
+            aria-label="搜索试卷"
             @keydown="handleSearchKeydown"
             :disabled="isSearching || loading"
           />
           <button
-            class="search-btn"
-            @click="performSearch"
+            class="sos-search__submit"
+            aria-label="搜索"
             :disabled="isSearching || loading"
+            @click="performSearch"
           >
-            <span v-if="!isSearching">🔍</span>
-            <span v-else>...</span>
+            <svg v-if="!isSearching" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+            </svg>
+            <span v-else>…</span>
           </button>
         </div>
         <div v-if="searchKeyword" class="search-info">
