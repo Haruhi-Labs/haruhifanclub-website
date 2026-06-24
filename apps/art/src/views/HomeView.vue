@@ -372,18 +372,70 @@ const LIGHT_GEAR_MAX_VELOCITY = 3.2
 const LIGHT_GEAR_THROW_BOOST = 1.35
 const LIGHT_GEAR_INERTIA_DECAY = 0.982
 const LIGHT_GEAR_STOP_VELOCITY = 0.0035
-const HARUHI_TEXT_DRIFT_SECONDS = 82
+const LIGHT_GEAR_AUTO_SECONDS = 120
+const HARUHI_TEXT_DRIFT_SECONDS = 360
 const HARUHI_TEXT_ROW_COUNT = 31
 const HARUHI_TEXT_ROW_GAP = 58
 const HARUHI_TEXT_ROW_STAGGER = 104
-const HARUHI_TEXT_REPEAT = '凉宫春日 '.repeat(34)
-const haruhiTextRows = Array.from({ length: HARUHI_TEXT_ROW_COUNT }, (_, index) => ({
-  id: index,
-  y: (index - Math.floor(HARUHI_TEXT_ROW_COUNT / 2)) * HARUHI_TEXT_ROW_GAP,
-  offset: -((index % 8) * HARUHI_TEXT_ROW_STAGGER),
-  alpha: 0.18 + (index % 4) * 0.035,
-  text: HARUHI_TEXT_REPEAT,
-}))
+const HARUHI_TEXT_LINE_LENGTH = 380
+const HARUHI_TEXT_SOURCE_URLS = [
+  `${import.meta.env.BASE_URL}haruhi-background.txt`,
+  `${import.meta.env.BASE_URL}haruhi-background.local`,
+]
+const HARUHI_TEXT_FALLBACK = '凉宫春日 '.repeat(64)
+const haruhiTextSource = ref(HARUHI_TEXT_FALLBACK)
+const haruhiTextCorpus = computed(() => normalizeHaruhiText(haruhiTextSource.value) || HARUHI_TEXT_FALLBACK)
+const haruhiTextRows = computed(() => {
+  const corpus = haruhiTextCorpus.value
+  return Array.from({ length: HARUHI_TEXT_ROW_COUNT }, (_, index) => ({
+    id: index,
+    y: (index - Math.floor(HARUHI_TEXT_ROW_COUNT / 2)) * HARUHI_TEXT_ROW_GAP,
+    offset: -((index % 8) * HARUHI_TEXT_ROW_STAGGER),
+    alpha: 0.18 + (index % 4) * 0.035,
+    text: getHaruhiTextLine(corpus, index),
+  }))
+})
+
+function normalizeHaruhiText(value) {
+  return String(value || '')
+    .replace(/［＃[^］]*］/g, ' ')
+    .replace(/｜/g, '')
+    .replace(/《[^》]*》/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/　+/g, ' ')
+    .trim()
+}
+
+function getHaruhiTextLine(corpus, index) {
+  const source = corpus || HARUHI_TEXT_FALLBACK
+  if (source.length <= HARUHI_TEXT_LINE_LENGTH) {
+    return `${source} `.repeat(Math.ceil(HARUHI_TEXT_LINE_LENGTH / Math.max(source.length, 1)) + 1)
+  }
+
+  const start = (index * 337) % source.length
+  const doubled = `${source} ${source}`
+  return doubled.slice(start, start + HARUHI_TEXT_LINE_LENGTH)
+}
+
+async function loadHaruhiBackgroundText() {
+  if (typeof window === 'undefined') return
+
+  try {
+    for (const sourceUrl of HARUHI_TEXT_SOURCE_URLS) {
+      const response = await window.fetch(sourceUrl, { cache: 'no-cache' })
+      if (!response.ok) continue
+      if (response.headers.get('content-type')?.includes('text/html')) continue
+
+      const text = await response.text()
+      if (normalizeHaruhiText(text)) {
+        haruhiTextSource.value = text
+        return
+      }
+    }
+  } catch {
+    // Keep the short local fallback when the optional development text file is absent.
+  }
+}
 
 function makeVisitorNumber() {
   const fallback = 5200 + seedArtworks.length * 31 + seedCreators.length * 17
@@ -617,7 +669,7 @@ function cancelLightGearAuto() {
 }
 
 function getLightGearAutoSpeed() {
-  return lightGearCycleWidth / (HARUHI_TEXT_DRIFT_SECONDS * 1000)
+  return lightGearCycleWidth / (LIGHT_GEAR_AUTO_SECONDS * 1000)
 }
 
 function tickLightGearAuto(time) {
@@ -1063,6 +1115,7 @@ function onGlobalShiftContextMenu(event) {
 }
 
 onMounted(() => {
+  loadHaruhiBackgroundText()
   startLightGearAuto()
   window.addEventListener('contextmenu', onGlobalShiftContextMenu, true)
 })
@@ -1195,7 +1248,7 @@ const stageStyle = {
 }
 
 .art-home .haruhi-text-field {
-  --haruhi-text-duration: 82s;
+  --haruhi-text-duration: 360s;
   position: fixed;
   inset: -46vmax;
   z-index: 1;
