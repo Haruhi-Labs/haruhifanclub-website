@@ -247,6 +247,23 @@
     </div>
 
     <div class="home-lights-on-ui">
+      <section
+        class="light-gear light-gear--top"
+        :class="{ 'is-dragging': lightGearDragging && lightGearDragRow === 'top' }"
+        aria-label="上层画作齿轮轨道"
+        @pointerdown="onLightGearPointerDown('top', $event)"
+        @pointermove="onLightGearDrag"
+        @pointerup="onLightGearGrabEnd"
+        @pointercancel="onLightGearGrabCancel"
+      >
+        <div class="light-gear__belt" :style="lightGearTopStyle">
+          <figure v-for="item in lightGearTopItems" :key="item.key" class="light-gear__tile">
+            <img :src="item.imageUrl" :alt="item.title" draggable="false" @dragstart.prevent />
+            <figcaption>{{ item.title }}</figcaption>
+          </figure>
+        </div>
+      </section>
+
       <section class="day-hero-panel">
         <p class="day-kicker">Haruhi Fanclub Gallery</p>
         <p class="day-visitor">画廊的第 <strong>{{ visitorNumberText }}</strong> 位访问者，你好</p>
@@ -255,6 +272,23 @@
             <strong>{{ item.value }}</strong>
             <small>{{ item.label }}</small>
           </span>
+        </div>
+      </section>
+
+      <section
+        class="light-gear light-gear--bottom"
+        :class="{ 'is-dragging': lightGearDragging && lightGearDragRow === 'bottom' }"
+        aria-label="下层画作齿轮轨道"
+        @pointerdown="onLightGearPointerDown('bottom', $event)"
+        @pointermove="onLightGearDrag"
+        @pointerup="onLightGearGrabEnd"
+        @pointercancel="onLightGearGrabCancel"
+      >
+        <div class="light-gear__belt" :style="lightGearBottomStyle">
+          <figure v-for="item in lightGearBottomItems" :key="item.key" class="light-gear__tile">
+            <img :src="item.imageUrl" :alt="item.title" draggable="false" @dragstart.prevent />
+            <figcaption>{{ item.title }}</figcaption>
+          </figure>
         </div>
       </section>
     </div>
@@ -279,6 +313,11 @@ const SHIFT_DRAG_SPEED = 0.34
 const SHIFT_MAX_VELOCITY = 1.25
 const SHIFT_INERTIA_DECAY = 0.94
 const SHIFT_STOP_VELOCITY = 0.012
+const LIGHT_GEAR_COPY_COUNT = 4
+const LIGHT_GEAR_TILE_STEP = 176
+const LIGHT_GEAR_MAX_VELOCITY = 1.8
+const LIGHT_GEAR_INERTIA_DECAY = 0.92
+const LIGHT_GEAR_STOP_VELOCITY = 0.018
 
 function makeVisitorNumber() {
   const fallback = 5200 + seedArtworks.length * 31 + seedCreators.length * 17
@@ -375,6 +414,16 @@ let galleryOrbitInertiaFrame = 0
 let galleryOrbitInertiaLastTime = 0
 let galleryOrbitMoved = false
 let galleryOrbitSuppressClickUntil = 0
+const lightGearDragging = ref(false)
+const lightGearDragRow = ref('top')
+const lightGearOffset = ref(0)
+let lightGearPointerId = null
+let lightGearLastX = null
+let lightGearLastTime = 0
+let lightGearVelocity = 0
+let lightGearMoved = false
+let lightGearInertiaFrame = 0
+let lightGearInertiaLastTime = 0
 
 function normalizeShiftAngle(value) {
   let next = value % 360
@@ -463,6 +512,137 @@ const galleryOrbitStateText = computed(() => {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
+}
+
+function normalizeLightGearOffset(value) {
+  const cycle = lightGearCycleWidth
+  if (!Number.isFinite(cycle) || cycle <= 1) return value
+
+  let next = value % cycle
+  if (next > cycle / 2) next -= cycle
+  if (next < -cycle / 2) next += cycle
+  return next
+}
+
+function applyLightGearDelta(delta) {
+  lightGearOffset.value = normalizeLightGearOffset(lightGearOffset.value + delta)
+}
+
+function cancelLightGearInertia() {
+  if (lightGearInertiaFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(lightGearInertiaFrame)
+  }
+  lightGearInertiaFrame = 0
+  lightGearInertiaLastTime = 0
+}
+
+function releaseLightGearCapture(event) {
+  const target = event.currentTarget
+  if (target?.hasPointerCapture?.(event.pointerId)) {
+    target.releasePointerCapture(event.pointerId)
+  }
+}
+
+function onLightGearPointerDown(row, event) {
+  if (event.button !== undefined && event.button !== 0) return
+
+  event.preventDefault()
+  cancelLightGearInertia()
+  lightGearDragging.value = true
+  lightGearDragRow.value = row
+  lightGearPointerId = event.pointerId
+  lightGearLastX = event.clientX
+  lightGearLastTime = event.timeStamp || performance.now()
+  lightGearVelocity = 0
+  lightGearMoved = false
+  event.currentTarget?.setPointerCapture?.(event.pointerId)
+}
+
+function onLightGearDrag(event) {
+  if (!lightGearDragging.value || event.pointerId !== lightGearPointerId) return
+
+  event.preventDefault()
+  const nowTime = event.timeStamp || performance.now()
+  if (lightGearLastX === null) {
+    lightGearLastX = event.clientX
+    lightGearLastTime = nowTime
+    return
+  }
+
+  const diff = event.clientX - lightGearLastX
+  const elapsed = Math.max(8, nowTime - lightGearLastTime)
+  if (Math.abs(diff) >= 0.2) {
+    const signedDelta = lightGearDragRow.value === 'top' ? diff : -diff
+    const instantVelocity = signedDelta / elapsed
+    applyLightGearDelta(signedDelta)
+    lightGearMoved = true
+    lightGearVelocity = clamp(
+      lightGearVelocity * 0.24 + instantVelocity * 0.76,
+      -LIGHT_GEAR_MAX_VELOCITY,
+      LIGHT_GEAR_MAX_VELOCITY
+    )
+  }
+
+  lightGearLastX = event.clientX
+  lightGearLastTime = nowTime
+}
+
+function stopLightGearInertia() {
+  cancelLightGearInertia()
+  lightGearVelocity = 0
+}
+
+function tickLightGearInertia(time) {
+  if (!lightGearInertiaFrame) return
+
+  if (!lightGearInertiaLastTime) lightGearInertiaLastTime = time
+  const delta = Math.min(40, time - lightGearInertiaLastTime)
+  lightGearInertiaLastTime = time
+
+  applyLightGearDelta(lightGearVelocity * delta)
+  lightGearVelocity *= Math.pow(LIGHT_GEAR_INERTIA_DECAY, delta / 16.67)
+
+  if (Math.abs(lightGearVelocity) <= LIGHT_GEAR_STOP_VELOCITY) {
+    stopLightGearInertia()
+    return
+  }
+
+  lightGearInertiaFrame = window.requestAnimationFrame(tickLightGearInertia)
+}
+
+function startLightGearInertia() {
+  if (typeof window === 'undefined' || !lightGearMoved || Math.abs(lightGearVelocity) <= LIGHT_GEAR_STOP_VELOCITY) {
+    stopLightGearInertia()
+    return
+  }
+
+  lightGearInertiaLastTime = 0
+  lightGearInertiaFrame = window.requestAnimationFrame(tickLightGearInertia)
+}
+
+function onLightGearGrabEnd(event) {
+  if (!lightGearDragging.value || event.pointerId !== lightGearPointerId) return
+
+  if (lightGearMoved) {
+    event.preventDefault()
+  }
+  releaseLightGearCapture(event)
+  lightGearDragging.value = false
+  lightGearPointerId = null
+  lightGearLastX = null
+  lightGearLastTime = 0
+  startLightGearInertia()
+}
+
+function onLightGearGrabCancel(event) {
+  if (event.pointerId !== lightGearPointerId) return
+
+  releaseLightGearCapture(event)
+  stopLightGearInertia()
+  lightGearDragging.value = false
+  lightGearPointerId = null
+  lightGearLastX = null
+  lightGearLastTime = 0
 }
 
 function applyShiftRotation(delta) {
@@ -778,6 +958,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cancelShiftInertia()
   cancelGalleryOrbitInertia()
+  cancelLightGearInertia()
   window.removeEventListener('contextmenu', onGlobalShiftContextMenu, true)
 })
 
@@ -816,6 +997,37 @@ const lightStats = [
   { label: '凉宫占比', value: `${haruhiRatio}%` },
   { label: '最近上传', value: latestUploadText },
 ]
+
+const lightGearSource = approvedArtworks.length ? approvedArtworks : seedArtworks
+const lightGearCycleWidth = Math.max(1, lightGearSource.length) * LIGHT_GEAR_TILE_STEP
+
+function makeLightGearItems(reverse = false) {
+  if (!lightGearSource.length) return []
+  return Array.from({ length: lightGearSource.length * LIGHT_GEAR_COPY_COUNT }, (_, index) => {
+    const sourceIndex = index % lightGearSource.length
+    const artwork = reverse
+      ? lightGearSource[(lightGearSource.length - 1 - sourceIndex + lightGearSource.length) % lightGearSource.length]
+      : lightGearSource[sourceIndex]
+
+    return {
+      key: `${reverse ? 'bottom' : 'top'}-${index}-${artwork.id}`,
+      id: artwork.id,
+      title: artwork.title,
+      imageUrl: artwork.image_url,
+    }
+  })
+}
+
+const lightGearTopItems = makeLightGearItems(false)
+const lightGearBottomItems = makeLightGearItems(true)
+
+const lightGearTopStyle = computed(() => ({
+  transform: `translate3d(calc(-25% + ${lightGearOffset.value}px), 0, 0)`,
+}))
+
+const lightGearBottomStyle = computed(() => ({
+  transform: `translate3d(calc(-25% + ${-lightGearOffset.value}px), 0, 0)`,
+}))
 
 function getSectorLabelPosition(angle, radius = 34) {
   const radians = (angle * Math.PI) / 180
@@ -880,9 +1092,11 @@ const stageStyle = {
   min-height: calc(100dvh - 136px);
   overflow: hidden;
   display: grid;
-  align-content: center;
-  gap: 24px;
-  padding: clamp(36px, 6vw, 84px);
+  grid-template-rows: minmax(148px, 1fr) auto minmax(148px, 1fr);
+  align-items: center;
+  justify-items: center;
+  gap: clamp(16px, 3vw, 30px);
+  padding: clamp(28px, 4.5vw, 64px);
   border: 1px solid rgba(42, 110, 116, 0.16);
   border-radius: 28px;
   background:
@@ -893,14 +1107,145 @@ const stageStyle = {
   color: #12333c;
 }
 
+.art-home .light-gear,
 .art-home .day-hero-panel {
   position: relative;
   z-index: 2;
 }
 
+.art-home .light-gear {
+  width: min(1160px, 100%);
+  height: clamp(142px, 18dvh, 190px);
+  overflow: hidden;
+  border: 1px solid rgba(42, 110, 116, 0.16);
+  border-radius: 24px;
+  background:
+    repeating-linear-gradient(90deg, rgba(25, 90, 104, 0.12) 0 8px, transparent 8px 22px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.48), rgba(235, 250, 248, 0.34));
+  box-shadow:
+    0 20px 54px rgba(26, 71, 80, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -1px 0 rgba(42, 110, 116, 0.08);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.art-home .light-gear.is-dragging {
+  cursor: grabbing;
+}
+
+.art-home .light-gear::before,
+.art-home .light-gear::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  height: 15px;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(27, 139, 155, 0.32) 0 14px,
+      rgba(255, 255, 255, 0.55) 14px 22px,
+      transparent 22px 34px
+    );
+  filter: drop-shadow(0 4px 10px rgba(27, 139, 155, 0.12));
+}
+
+.art-home .light-gear::before {
+  top: 0;
+}
+
+.art-home .light-gear::after {
+  bottom: 0;
+  transform: rotate(180deg);
+}
+
+.art-home .light-gear__belt {
+  position: absolute;
+  top: 22px;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: max-content;
+  height: calc(100% - 44px);
+  will-change: transform;
+  transform-style: preserve-3d;
+}
+
+.art-home .light-gear__tile {
+  position: relative;
+  flex: 0 0 158px;
+  width: 158px;
+  height: 118px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 14px 34px rgba(26, 71, 80, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  transform: translateZ(0);
+}
+
+.art-home .light-gear__tile::before,
+.art-home .light-gear__tile::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  z-index: 2;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  pointer-events: none;
+}
+
+.art-home .light-gear__tile::before {
+  top: 8px;
+}
+
+.art-home .light-gear__tile::after {
+  bottom: 8px;
+}
+
+.art-home .light-gear__tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  transform: scale(1.02);
+}
+
+.art-home .light-gear__tile figcaption {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 9px;
+  z-index: 3;
+  overflow: hidden;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: rgba(18, 51, 60, 0.78);
+  font-size: 11px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+}
+
+.art-home .light-gear--bottom {
+  background:
+    repeating-linear-gradient(90deg, rgba(217, 70, 103, 0.12) 0 8px, transparent 8px 22px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(255, 240, 244, 0.3));
+}
+
 .art-home .day-hero-panel {
-  width: min(900px, 100%);
-  padding: clamp(26px, 4vw, 46px);
+  width: min(620px, 100%);
+  padding: clamp(20px, 3vw, 34px);
   border: 1px solid rgba(255, 255, 255, 0.48);
   border-radius: 26px;
   background:
@@ -908,6 +1253,7 @@ const stageStyle = {
     linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(247, 252, 250, 0.28));
   box-shadow: 0 24px 70px rgba(26, 71, 80, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.56);
   backdrop-filter: blur(12px);
+  text-align: center;
 }
 
 .art-home .day-kicker {
@@ -922,23 +1268,23 @@ const stageStyle = {
 .art-home .day-visitor {
   margin: 0;
   color: rgba(18, 51, 60, 0.76);
-  font-size: clamp(32px, 5.4vw, 66px);
-  line-height: 1.08;
+  font-size: clamp(22px, 3.2vw, 38px);
+  line-height: 1.18;
   font-weight: 950;
   text-shadow: 0 12px 34px rgba(60, 155, 170, 0.14);
 }
 
 .art-home .day-visitor strong {
   color: #1b8b9b;
-  font-size: 1.16em;
+  font-size: 1.12em;
   font-weight: 950;
 }
 
 .art-home .day-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 26px;
+  gap: 8px;
+  margin-top: 20px;
 }
 
 .art-home .day-stats span {
@@ -2742,9 +3088,32 @@ const stageStyle = {
 
   .art-home .home-lights-on-ui {
     min-height: calc(100dvh - 118px);
+    grid-template-rows: 126px auto 126px;
     gap: 18px;
     padding: 24px 16px;
     border-radius: 20px;
+  }
+
+  .art-home .light-gear {
+    height: 126px;
+    border-radius: 18px;
+  }
+
+  .art-home .light-gear__belt {
+    top: 18px;
+    gap: 14px;
+    height: calc(100% - 36px);
+  }
+
+  .art-home .light-gear__tile {
+    flex-basis: 128px;
+    width: 128px;
+    height: 88px;
+    border-radius: 13px;
+  }
+
+  .art-home .light-gear__tile figcaption {
+    font-size: 10px;
   }
 
   .art-home .day-hero-panel {
