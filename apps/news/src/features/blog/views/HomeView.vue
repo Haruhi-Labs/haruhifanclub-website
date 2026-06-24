@@ -30,30 +30,30 @@
       </div>
     </section>
 
-    <!-- 团报报头：仅首页，整宽置顶 -->
-    <div v-if="viewType === 'home'" class="home-banner">
-      <div class="banner-bg">
-        <div class="banner-radial-gradient"></div>
-        <svg class="banner-noise-svg">
-          <filter id="noiseFilter">
-            <feTurbulence
-              type="fractalNoise"
-              baseFrequency="0.8"
-              numOctaves="3"
-              stitchTiles="stitch"
-            />
-          </filter>
-          <rect width="100%" height="100%" filter="url(#noiseFilter)" />
-        </svg>
-      </div>
-      <div class="banner-logo-wrapper">
-        <img src="/春日团报白.png" alt="春日团报 Logo" class="banner-logo-img" />
-      </div>
-    </div>
-
-    <!-- 不等高双列瀑布流：保留宝贵的 Grid Lanes 气质，仅去掉重叠、加间距 -->
+    <!-- 不等高双列瀑布流：保留宝贵的 Grid Lanes 气质，仅去掉重叠、加间距。
+         报头在左列单列内，其高度一同计入瀑布流平衡（见 firstPageLeftOffset）。 -->
     <div class="content-columns">
       <div class="column-left">
+        <div v-if="viewType === 'home'" class="home-banner">
+          <div class="banner-bg">
+            <div class="banner-radial-gradient"></div>
+            <svg class="banner-noise-svg">
+              <filter id="noiseFilter">
+                <feTurbulence
+                  type="fractalNoise"
+                  baseFrequency="0.8"
+                  numOctaves="3"
+                  stitchTiles="stitch"
+                />
+              </filter>
+              <rect width="100%" height="100%" filter="url(#noiseFilter)" />
+            </svg>
+          </div>
+          <div class="banner-logo-wrapper">
+            <img src="/春日团报白.png" alt="春日团报 Logo" class="banner-logo-img" />
+          </div>
+        </div>
+
         <NewsCard
           v-for="article in leftCol"
           :key="article.id"
@@ -201,11 +201,13 @@ const filteredArticles = computed(() => {
 
 // 不等高双列瀑布流（CSS Grid Lanes 式）：按高度把文章分配到左右两列，保留这一宝贵气质；
 // 仅去掉卡片重叠、改为有间距，让有厚度的卡片各自完整呈现。
+// 报头在左列：高度（约 10rem + 列内间距）一同计入，让两列高度平衡
+const BANNER_OFFSET = 184
 const masonryPages = computed(() => {
   const list = filteredArticles.value
   if (!list || list.length === 0) return [{ left: [], right: [] }]
   return buildMasonryPages(list, {
-    firstPageLeftOffset: 0,
+    firstPageLeftOffset: viewType.value === 'home' ? BANNER_OFFSET : 0,
     pageTargetHeight: 1300,
   })
 })
