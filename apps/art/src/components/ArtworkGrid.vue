@@ -304,14 +304,22 @@ onBeforeUnmount(() => {
   --glass-bg: rgba(30, 21, 21, 0.694);
   --glass-border: rgba(151, 68, 68, 0.1);
   
-  --neon-cyan: #00f2ff;
-  --neon-purple: #e9b5fd;
-  --neon-glow: rgba(0, 242, 255, 0.4);
-  
-  --text-main: rgba(255, 255, 255, 0.95);
-  --text-muted: rgba(255, 255, 255, 0.55);
+  /* 弃用电光 neon，改取 art 表达的青绿 / 粉柔光（在暗底上提亮以保证可读） */
+  --neon-cyan: color-mix(in srgb, var(--sos-accent) 48%, white);
+  --neon-purple: color-mix(in srgb, var(--sos-accent-2) 52%, white);
+  --neon-glow: color-mix(in srgb, var(--sos-accent) 38%, transparent);
 
-  --shadow-media: 0 10px 30px -5px rgba(0, 242, 255, 0.15);
+  /* 青调夜色玻璃画框底（对齐 .sos-artwork-card 的 night-900 + accent） */
+  --card-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--sos-night-900) 86%, var(--sos-accent)),
+    var(--sos-night-900)
+  );
+
+  --text-main: rgba(255, 255, 255, 0.96);
+  --text-muted: rgba(255, 255, 255, 0.64);
+
+  --shadow-media: 0 14px 32px -10px rgba(18, 50, 60, 0.5);
 
   /* Twin Theme Colors (Green) */
   --twin-primary: var(--sos-success); /* Emerald 500 */
@@ -384,17 +392,17 @@ body.modal-open .art-card-wrap {
 ========================= */
 .art-card {
   position: relative;
-  background: rgba(30, 21, 21, 0.82);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 24px;
+  background: var(--card-bg);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: var(--sos-card-radius, 24px);
 
   transform-style: preserve-3d;
   /* Flattens preserve-3d (same as the removed backdrop-filter did),
      prevents hover on one card from shifting siblings in the perspective scene */
   isolation: isolate;
 
-  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-  box-shadow: 0 0 20px rgba(0, 242, 255, 0.12), 0 0 10px rgba(188, 19, 254, 0.1), inset 0 0 15px rgba(0,0,0,0.4);
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
+  box-shadow: 0 16px 38px -16px rgba(18, 50, 60, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 
   cursor: pointer;
   outline: none;
@@ -442,7 +450,9 @@ body.modal-open .art-card-wrap {
 }
 
 .art-card:hover .art-card__media {
-  box-shadow: 0 30px 80px rgba(0, 242, 255, 0.4), 0 0 0 1px rgba(255,255,255,0.4);
+  box-shadow:
+    0 30px 70px -20px color-mix(in srgb, var(--sos-accent) 42%, transparent),
+    0 0 0 1px rgba(255, 255, 255, 0.32);
 }
 
 .art-card__img {
@@ -572,17 +582,15 @@ body.modal-open .art-card-wrap {
 }
 
 .badge--network {
-  background: rgba(30, 45, 50, 0.55);
+  background: color-mix(in srgb, var(--sos-night-900) 70%, var(--sos-accent));
   color: var(--neon-cyan);
-  border-color: rgba(29, 170, 178, 0.3);
-  box-shadow: 0 0 10px rgba(0, 242, 255, 0.1);
+  border-color: color-mix(in srgb, var(--sos-accent) 40%, transparent);
 }
 
 .badge--personal {
-  background: rgba(50, 25, 60, 0.55);
+  background: color-mix(in srgb, var(--sos-night-900) 72%, var(--sos-accent-2));
   color: var(--neon-purple);
-  border-color: rgba(188, 19, 254, 0.3);
-  box-shadow: 0 0 10px rgba(188, 19, 254, 0.1);
+  border-color: color-mix(in srgb, var(--sos-accent-2) 40%, transparent);
 }
 
 /* =========================
@@ -594,9 +602,10 @@ body.modal-open .art-card-wrap {
   gap: 6px;
   height: 28px;
   padding: 0 12px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.721);
-  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--sos-radius-full, 16px);
+  /* 暗底上的玻璃片：白计数清晰可读（此前白底白字看不见） */
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   color: var(--text-main);
   cursor: pointer;
   transition: all 0.3s ease;
@@ -606,15 +615,15 @@ body.modal-open .art-card-wrap {
 .like-pill .heart {
   width: 16px;
   height: 16px;
-  color: #ff4757;
+  color: var(--sos-accent-2); /* art 粉色点赞 */
 }
 .like-pill b { display: none; }
-.like-pill .count { font-family: monospace; font-size: 14px; }
+.like-pill .count { font-family: monospace; font-size: 14px; color: var(--text-main); }
 
 .like-pill:hover {
-  background: rgb(105, 216, 244);
-  border-color: #ff4757;
-  box-shadow: 0 0 15px rgba(255, 71, 87, 0.3);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: color-mix(in srgb, var(--sos-accent-2) 55%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--sos-accent-2) 32%, transparent);
 }
 .like-pill:active { transform: scale(0.95); }
 
@@ -630,21 +639,21 @@ body.modal-open .art-card-wrap {
 }
 
 .tag-chip {
-  background: rgba(255, 255, 255, 0.827);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 99px;
+  /* 暗底上的半透明白片 + 浅色字（此前 color:solid(...) 非法 + 近白底，白字白底看不见） */
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--sos-radius-full, 99px);
   padding: 4px 10px;
   font-size: 13px;
-  color: solid(--text-muted);
+  color: rgba(255, 255, 255, 0.9);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .tag-chip:hover {
-  background: rgba(255,255,255,0.1);
-  color: var(--sos-bg-surface);
-  border-color: rgba(255,255,255,0.3);
-  text-shadow: 0 0 5px rgba(255,255,255,0.5);
+  background: rgba(255, 255, 255, 0.24);
+  color: #fff;
+  border-color: color-mix(in srgb, var(--sos-accent) 55%, transparent);
 }
 
 /* =========================
