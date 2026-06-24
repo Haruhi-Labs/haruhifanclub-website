@@ -2276,14 +2276,16 @@ textarea.input-field {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid var(--sos-border-subtle);
+    /* 极淡描边：去掉「框住」感，主要靠 shop 柔和蓝调投影让卡片漂浮（找回旧版大气） */
+    border: 1px solid color-mix(in srgb, var(--sos-border-subtle) 40%, transparent);
     background: var(--sos-bg-surface);
     border-radius: var(--sos-card-radius);
     box-shadow: var(--sos-card-shadow);
 }
 
 .shop-app .shop-product-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-5px);
+    border-color: transparent;
     box-shadow: var(--sos-hover-shadow);
 }
 
@@ -2298,7 +2300,7 @@ textarea.input-field {
 }
 
 .shop-app .shop-product-card:hover .card-image {
-    transform: scale(1.035);
+    transform: scale(1.06);
 }
 
 .shop-app .card-overlay {
@@ -2328,8 +2330,10 @@ textarea.input-field {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     color: var(--sos-text-primary);
-    font-size: var(--sos-text-md);
-    line-height: 1.35;
+    /* 更大胆的标题，建立有底气的层次（贴近旧版 18px 粗体的大气） */
+    font-size: var(--sos-text-lg);
+    font-weight: var(--sos-weight-bold);
+    line-height: 1.3;
     letter-spacing: 0;
 }
 
@@ -2340,7 +2344,9 @@ textarea.input-field {
 
 .shop-app .card-price {
     color: var(--sos-link);
-    font-size: var(--sos-text-lg);
+    /* 价格更醒目：商品页的信心来自价格的分量 */
+    font-size: var(--sos-text-xl);
+    font-weight: var(--sos-weight-bold);
     line-height: 1.1;
 }
 
