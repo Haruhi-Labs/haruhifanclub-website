@@ -372,6 +372,7 @@ const LIGHT_GEAR_MAX_VELOCITY = 3.2
 const LIGHT_GEAR_THROW_BOOST = 1.35
 const LIGHT_GEAR_INERTIA_DECAY = 0.982
 const LIGHT_GEAR_STOP_VELOCITY = 0.0035
+const HARUHI_TEXT_DRIFT_SECONDS = 82
 const HARUHI_TEXT_ROW_COUNT = 31
 const HARUHI_TEXT_ROW_GAP = 58
 const HARUHI_TEXT_ROW_STAGGER = 104
@@ -489,6 +490,8 @@ let lightGearVelocity = 0
 let lightGearMoved = false
 let lightGearInertiaFrame = 0
 let lightGearInertiaLastTime = 0
+let lightGearAutoFrame = 0
+let lightGearAutoLastTime = 0
 
 function normalizeShiftAngle(value) {
   let next = value % 360
@@ -601,6 +604,42 @@ function cancelLightGearInertia() {
   lightGearInertiaLastTime = 0
 }
 
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function cancelLightGearAuto() {
+  if (lightGearAutoFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(lightGearAutoFrame)
+  }
+  lightGearAutoFrame = 0
+  lightGearAutoLastTime = 0
+}
+
+function getLightGearAutoSpeed() {
+  return lightGearCycleWidth / (HARUHI_TEXT_DRIFT_SECONDS * 1000)
+}
+
+function tickLightGearAuto(time) {
+  if (!lightGearAutoFrame) return
+
+  if (!lightGearAutoLastTime) lightGearAutoLastTime = time
+  const delta = Math.min(40, time - lightGearAutoLastTime)
+  lightGearAutoLastTime = time
+
+  if (!lightGearDragging.value && !lightGearInertiaFrame) {
+    applyLightGearDelta(-getLightGearAutoSpeed() * delta)
+  }
+
+  lightGearAutoFrame = window.requestAnimationFrame(tickLightGearAuto)
+}
+
+function startLightGearAuto() {
+  if (typeof window === 'undefined' || lightGearAutoFrame || prefersReducedMotion()) return
+  lightGearAutoLastTime = 0
+  lightGearAutoFrame = window.requestAnimationFrame(tickLightGearAuto)
+}
+
 function releaseLightGearCapture(event) {
   const target = event.currentTarget
   if (target?.hasPointerCapture?.(event.pointerId)) {
@@ -613,6 +652,7 @@ function onLightGearPointerDown(row, event) {
 
   event.preventDefault()
   cancelLightGearInertia()
+  cancelLightGearAuto()
   lightGearDragging.value = true
   lightGearDragRow.value = row
   lightGearPointerId = event.pointerId
@@ -652,9 +692,10 @@ function onLightGearDrag(event) {
   lightGearLastTime = nowTime
 }
 
-function stopLightGearInertia() {
+function stopLightGearInertia({ resumeAuto = false } = {}) {
   cancelLightGearInertia()
   lightGearVelocity = 0
+  if (resumeAuto) startLightGearAuto()
 }
 
 function tickLightGearInertia(time) {
@@ -668,7 +709,7 @@ function tickLightGearInertia(time) {
   lightGearVelocity *= Math.pow(LIGHT_GEAR_INERTIA_DECAY, delta / 16.67)
 
   if (Math.abs(lightGearVelocity) <= LIGHT_GEAR_STOP_VELOCITY) {
-    stopLightGearInertia()
+    stopLightGearInertia({ resumeAuto: true })
     return
   }
 
@@ -677,7 +718,7 @@ function tickLightGearInertia(time) {
 
 function startLightGearInertia() {
   if (typeof window === 'undefined' || !lightGearMoved || Math.abs(lightGearVelocity) <= LIGHT_GEAR_STOP_VELOCITY) {
-    stopLightGearInertia()
+    stopLightGearInertia({ resumeAuto: true })
     return
   }
 
@@ -708,11 +749,11 @@ function onLightGearGrabCancel(event) {
   if (event.pointerId !== lightGearPointerId) return
 
   releaseLightGearCapture(event)
-  stopLightGearInertia()
   lightGearDragging.value = false
   lightGearPointerId = null
   lightGearLastX = null
   lightGearLastTime = 0
+  stopLightGearInertia({ resumeAuto: true })
 }
 
 function applyShiftRotation(delta) {
@@ -1022,6 +1063,7 @@ function onGlobalShiftContextMenu(event) {
 }
 
 onMounted(() => {
+  startLightGearAuto()
   window.addEventListener('contextmenu', onGlobalShiftContextMenu, true)
 })
 
@@ -1029,6 +1071,7 @@ onBeforeUnmount(() => {
   cancelShiftInertia()
   cancelGalleryOrbitInertia()
   cancelLightGearInertia()
+  cancelLightGearAuto()
   window.removeEventListener('contextmenu', onGlobalShiftContextMenu, true)
 })
 
