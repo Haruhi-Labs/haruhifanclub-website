@@ -138,7 +138,11 @@ Primitive（物理色板，不在业务里直接用）
 - **数据陈列**：Card · Avatar · Table · Tooltip · Skeleton · Spinner
 - **反馈**：Notice · Progress · EmptyState · ToastRegion（配 `useToast`）
 - **导航**：Appbar · NavLink · Breadcrumb · Pagination · HeaderBrand
+- **页脚**：`.sos-footer`（统一页脚规范：品牌锁头 + 标语 + 社交 ｜ 自适应多列链接组 + 底部条 + 回到顶部）
 - **浮层**：Modal（Teleport + 焦点/滚动锁）· Dropdown（点击外关闭）
+
+> **统一页头 / 页脚**：`.sos-appbar`（logo 锁头 + 导航 + 账号收进右侧 actions）与 `.sos-footer` 是各站共享的 chrome 规范，全部走 token，挂 `data-sos-site` 即各站主题；社交/分类品牌色经 `--brand` 仅作点缀。品牌字体/字重为表达层旋钮（`--sos-brand-font`/`-weight`，默认随各站 display 字体 + bold）。
+> 应用情况：novel / exam / art 用统一 Appbar；shop 与 news 保留各自功能型页头（招牌），console 保留深色侧栏；**页脚六站统一**（console 用精简底部条）。
 
 ### 5.3 API 设计守则
 
