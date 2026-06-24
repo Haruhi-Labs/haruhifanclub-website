@@ -402,8 +402,9 @@ onMounted(() => {
 }
 
 .points-search-input-wrap:focus-within {
-  border-color: var(--sos-text-primary);
-  box-shadow: 0 0 0 1px var(--sos-text-primary);
+  /* 对齐统一搜索规范的焦点环 */
+  border-color: var(--sos-focus);
+  box-shadow: var(--sos-ring);
 }
 
 .search-icon {
