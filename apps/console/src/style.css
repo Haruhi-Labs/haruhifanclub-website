@@ -278,3 +278,14 @@ table.data th {
 .fade-leave-to {
   opacity: 0;
 }
+
+/* 精简统一页脚：去掉默认大间距与额外容器内边距 */
+.console-footer {
+  margin-top: var(--sos-space-10);
+}
+.console-footer .sos-footer__inner {
+  width: 100%;
+}
+.console-footer .sos-footer__bottom {
+  margin-top: 0;
+}
