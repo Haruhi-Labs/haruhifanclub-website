@@ -51,14 +51,24 @@
       </div>
     </div>
 
-    <!-- 文章网格：每张厚卡片独占一格，留白分隔、不重叠 -->
-    <div class="news-grid">
-      <NewsCard
-        v-for="article in pagedArticles"
-        :key="article.id"
-        :article="article"
-        @click="store.openModal(article)"
-      />
+    <!-- 不等高双列瀑布流：保留宝贵的 Grid Lanes 气质，仅去掉重叠、加间距 -->
+    <div class="content-columns">
+      <div class="column-left">
+        <NewsCard
+          v-for="article in leftCol"
+          :key="article.id"
+          :article="article"
+          @click="store.openModal(article)"
+        />
+      </div>
+      <div class="column-right">
+        <NewsCard
+          v-for="article in rightCol"
+          :key="article.id"
+          :article="article"
+          @click="store.openModal(article)"
+        />
+      </div>
     </div>
 
     <nav class="pagination-bar" aria-label="团报分页">
@@ -105,6 +115,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMainStore } from '@/stores/main'
+import { buildMasonryPages } from '@/utils/masonry'
 import NewsCard from '@/features/blog/components/NewsCard.vue'
 
 const route = useRoute()
@@ -188,13 +199,26 @@ const filteredArticles = computed(() => {
   return sortArticles(list)
 })
 
-// 扁平分页：厚卡片用干净网格陈列，不再按高度做瀑布流密集流
-const PAGE_SIZE = 9
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredArticles.value.length / PAGE_SIZE)))
-const pagedArticles = computed(() => {
-  const start = (pageNum.value - 1) * PAGE_SIZE
-  return filteredArticles.value.slice(start, start + PAGE_SIZE)
+// 不等高双列瀑布流（CSS Grid Lanes 式）：按高度把文章分配到左右两列，保留这一宝贵气质；
+// 仅去掉卡片重叠、改为有间距，让有厚度的卡片各自完整呈现。
+const masonryPages = computed(() => {
+  const list = filteredArticles.value
+  if (!list || list.length === 0) return [{ left: [], right: [] }]
+  return buildMasonryPages(list, {
+    firstPageLeftOffset: 0,
+    pageTargetHeight: 1300,
+  })
 })
+
+const totalPages = computed(() => masonryPages.value.length)
+
+const currentPage = computed(() => {
+  const idx = Math.max(0, Math.min(pageNum.value - 1, totalPages.value - 1))
+  return masonryPages.value[idx] || { left: [], right: [] }
+})
+
+const leftCol = computed(() => currentPage.value.left)
+const rightCol = computed(() => currentPage.value.right)
 
 const visiblePages = computed(() => {
   const p = pageNum.value
@@ -382,25 +406,28 @@ watch(
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
 }
 
-/* 文章网格：厚卡片各占一格，等距留白、不重叠（替代旧的双栏瀑布流密集流）。
-   单列(手机) → 双列(平板/桌面) → 三列(宽屏)，给有厚度的卡片足够空间。 */
-.news-grid {
+/* 不等高双列瀑布流（Grid Lanes）：按高度分配到左右两列，保留这一宝贵气质。
+   去掉旧的 card-overlap(-1px) 密集重叠，改为列间 + 列内卡片都有间距，
+   让有厚度的 recipe 卡片各自完整、不挤压。 */
+.content-columns {
   display: grid;
   grid-template-columns: 1fr;
   align-items: start;
   gap: var(--sos-space-6);
 }
 
-@media (min-width: 720px) {
-  .news-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (min-width: 768px) {
+  .content-columns {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
-@media (min-width: 1280px) {
-  .news-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+.column-left,
+.column-right {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-6);
+  min-width: 0;
 }
 
 .pagination-bar {
