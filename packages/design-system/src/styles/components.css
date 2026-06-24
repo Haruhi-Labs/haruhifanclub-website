@@ -1942,25 +1942,6 @@
     gap: var(--sos-space-12);
   }
 }
-/* 移动端：收紧竖向节奏，链接组固定为整齐两列（避免 auto-fit 在窄屏的零碎留白） */
-@media (max-width: 767px) {
-  .sos-footer {
-    margin-top: var(--sos-space-12);
-  }
-  .sos-footer__inner {
-    padding-block: var(--sos-space-8) var(--sos-space-6);
-  }
-  .sos-footer__top {
-    gap: var(--sos-space-8);
-  }
-  .sos-footer__groups {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--sos-space-7) var(--sos-space-4);
-  }
-  .sos-footer__bottom {
-    margin-top: var(--sos-space-8);
-  }
-}
 
 /* 品牌区 */
 .sos-footer__brand {
@@ -2103,6 +2084,32 @@
 .sos-footer__totop > svg {
   width: 1.1rem;
   height: 1.1rem;
+}
+
+/* 移动端：收紧竖向节奏，链接组固定为整齐两列。
+ * 注意：必须放在以上所有基础 .sos-footer__* 规则之后——同特异性下后写者胜，
+ * 否则 .sos-footer__groups 的 auto-fit 基线会反过来盖掉这里的 repeat(2)。 */
+@media (max-width: 767px) {
+  .sos-footer {
+    margin-top: var(--sos-space-12);
+  }
+  .sos-footer__inner {
+    padding-block: var(--sos-space-8) var(--sos-space-6);
+  }
+  .sos-footer__top {
+    gap: var(--sos-space-8);
+  }
+  .sos-footer__groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sos-space-7) var(--sos-space-5);
+  }
+  /* 去掉链接前的圆点：减少累赘、腾出列宽，让短链接不再折行（圆点是桌面端的品牌点缀） */
+  .sos-footer__dot {
+    display: none;
+  }
+  .sos-footer__bottom {
+    margin-top: var(--sos-space-8);
+  }
 }
 
 .sos-signal-tab {
