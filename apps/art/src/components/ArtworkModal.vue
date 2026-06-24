@@ -115,7 +115,7 @@
         <div class="sep"></div>
 
         <div>
-          <div class="small-muted" style="font-weight: 950; color:var(--accent);">授权许可 (网络/公开)</div>
+          <div class="side-section">授权许可 (网络/公开)</div>
           <div v-if="publicLicenses.length === 0" class="small-muted">（未勾选任何网络公开授权）</div>
           <ul v-else class="license-list">
             <li v-for="x in publicLicenses" :key="x">{{ x }}</li>
@@ -125,7 +125,7 @@
         <div class="sep"></div>
 
         <div>
-          <div class="small-muted" style="font-weight: 950; color:var(--accent);">评论</div>
+          <div class="side-section">评论</div>
 
           <div v-if="loadingComments" class="small-muted" style="margin-top: 6px;">风正在传送回音…</div>
 
@@ -138,9 +138,9 @@
               class="panel comment-card"
             >
               <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                <div style="font-weight:950; color:var(--text-deep);">
+                <div style="font-weight:700; color:var(--text-deep);">
                   {{ c.user_name }}
-                  <span class="small-muted" style="font-weight:400; font-family:serif; margin-left:6px; font-style:italic;">
+                  <span class="small-muted" style="font-weight:400; margin-left:6px;">
                     {{ c.created_at ? new Date(c.created_at).toLocaleString() : '' }}
                   </span>
                 </div>
@@ -670,10 +670,11 @@ onMounted(() => {
   height: 85vh;
   max-width: 1100px;
   position: relative;
-  background: linear-gradient(135deg, #fffcf9 0%, #f7f9fc 100%);
+  background: var(--sos-bg-surface);
   overflow: visible;
-  border: 4px double rgba(107, 140, 133, 0.2); 
-  border-radius: 20px;
+  /* 干净的 DS 卡片描边（弃用 4px 双线"信笺/相框"边） */
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-card-radius, 20px);
   box-shadow: 
     0 20px 60px rgba(0, 0, 0, 0.15),
     0 0 0 1px rgba(255, 255, 255, 0.5) inset;
@@ -692,7 +693,8 @@ onMounted(() => {
   mask: linear-gradient(var(--sos-bg-surface) 0 0) padding-box, linear-gradient(var(--sos-bg-surface) 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  opacity: 0.5;
+  /* 去掉藤蔓相框描边，回到 DS 的简净卡面 */
+  display: none;
   pointer-events: none;
   z-index: 10;
 }
@@ -906,9 +908,9 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.72);
   padding: 24px;
   overflow-y: auto;
-  border-left: 1px solid rgba(107, 140, 133, 0.1);
-  background-image: var(--paper-texture);
-  font-family: "Georgia", "Songti SC", "SimSun", serif;
+  border-left: 1px solid var(--sos-border-subtle);
+  /* 去纸纹噪点、改用设计系统界面字体（art 为 sans），与 DS 风格一致 */
+  font-family: var(--sos-font-sans);
 }
 
 .modal__side::-webkit-scrollbar { width: 4px; }
@@ -921,12 +923,10 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 .modal__head h2 {
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--text-deep);
-  line-height: 1.4;
-  letter-spacing: 0.5px;
-  text-shadow: 0 2px 10px rgba(191, 162, 219, 0.2);
+  font-size: var(--sos-text-2xl);
+  font-weight: var(--sos-weight-bold);
+  color: var(--sos-text-primary);
+  line-height: 1.3;
 }
 
 .actions {
@@ -981,22 +981,30 @@ onMounted(() => {
 }
 
 .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+/* DS 胶囊标签（弃用异形圆角 + 渐变） */
 .tag-chip {
-  border: 1px solid rgba(191, 162, 219, 0.3);
-  background: linear-gradient(to bottom, rgba(255,255,255,0.8), rgba(243, 209, 220, 0.1));
-  padding: 5px 12px;
-  border-radius: 12px 2px 12px 2px;
-  font-size: 12px;
-  color: #7b6c88;
+  border: 1px solid var(--sos-border-default);
+  background: var(--sos-bg-surface);
+  padding: 4px 12px;
+  border-radius: var(--sos-radius-full);
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-secondary);
   cursor: pointer;
   transition: all 0.2s;
-  font-family: sans-serif;
 }
 .tag-chip:hover {
-  background: var(--sos-bg-surface);
-  border-color: var(--flower-purple);
-  box-shadow: 0 4px 12px rgba(191, 162, 219, 0.2);
-  transform: translateY(-1px);
+  color: var(--sos-accent);
+  border-color: color-mix(in srgb, var(--sos-accent) 55%, transparent);
+  background: var(--sos-accent-soft);
+}
+
+/* 侧栏分节标题：DS eyebrow 风（弃用 950 超粗内联） */
+.side-section {
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-heavy);
+  letter-spacing: var(--sos-tracking-wide);
+  text-transform: uppercase;
+  color: var(--sos-accent);
 }
 
 .sep {
@@ -1059,10 +1067,10 @@ onMounted(() => {
 .search input, .search textarea {
   border: none; background: transparent; outline: none;
   flex: 1; font-size: 14px; color: var(--text-deep);
-  font-family: "Georgia", serif;
+  font-family: var(--sos-font-sans);
 }
 .search textarea::placeholder, .search input::placeholder {
-  color: var(--text-main); opacity: 0.4; font-style: italic;
+  color: var(--text-main); opacity: 0.5;
 }
 
 .btn--accent {
