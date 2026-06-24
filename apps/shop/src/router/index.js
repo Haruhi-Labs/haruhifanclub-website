@@ -4,32 +4,81 @@ import AdminLayout from '../layouts/AdminLayout.vue'
 import { trackEvent } from '@/utils/analytics'
 import { hasValidAdminToken, verifyShopAccess } from '@/utils/adminAuth'
 // 统一账号 UI（终端用户登录/资料/设置/邮件链接落地）
-import { LoginView, ProfileView, SettingsView, VerifyEmailView, ResetPasswordView } from '@haruhi/auth-ui'
+import {
+  LoginView,
+  ProfileView,
+  SettingsView,
+  VerifyEmailView,
+  ResetPasswordView,
+} from '@haruhi/auth-ui'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/admin/login', name: 'admin-login', component: () => import('../views/admin/AdminLoginView.vue') },
+    {
+      path: '/admin/login',
+      name: 'admin-login',
+      component: () => import('../views/admin/AdminLoginView.vue'),
+    },
     // 终端用户账号系统（独立全页，不套商城布局）
-    { path: '/login', name: 'login', component: LoginView },
-    { path: '/account', name: 'account', component: ProfileView },
-    { path: '/account/settings', name: 'account-settings', component: SettingsView },
-    { path: '/verify-email', name: 'verify-email', component: VerifyEmailView },
-    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView },
+    { path: '/login', name: 'login', component: LoginView, props: { site: 'shop' } },
+    { path: '/account', name: 'account', component: ProfileView, props: { site: 'shop' } },
+    {
+      path: '/account/settings',
+      name: 'account-settings',
+      component: SettingsView,
+      props: { site: 'shop' },
+    },
+    {
+      path: '/verify-email',
+      name: 'verify-email',
+      component: VerifyEmailView,
+      props: { site: 'shop' },
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: ResetPasswordView,
+      props: { site: 'shop' },
+    },
     // 前台商城路由
     {
       path: '/',
       component: ShopLayout,
       children: [
         { path: '', name: 'home', component: () => import('../views/shop/HomeView.vue') },
-        { path: 'product/:id', name: 'product', component: () => import('../views/shop/ProductDetailView.vue') },
+        {
+          path: 'product/:id',
+          name: 'product',
+          component: () => import('../views/shop/ProductDetailView.vue'),
+        },
         { path: 'cart', name: 'cart', component: () => import('../views/shop/CartView.vue') },
-        { path: 'checkout', name: 'checkout', component: () => import('../views/shop/CheckoutView.vue') },
-        { path: 'payment', name: 'payment', component: () => import('../views/shop/PaymentView.vue') },
-        { path: 'success', name: 'success', component: () => import('../views/shop/SuccessView.vue') },
-        { path: 'query', name: 'query', component: () => import('../views/shop/OrderQueryView.vue') },
-        { path: 'contact', name: 'contact', component: () => import('../views/shop/ContactView.vue') }
-      ]
+        {
+          path: 'checkout',
+          name: 'checkout',
+          component: () => import('../views/shop/CheckoutView.vue'),
+        },
+        {
+          path: 'payment',
+          name: 'payment',
+          component: () => import('../views/shop/PaymentView.vue'),
+        },
+        {
+          path: 'success',
+          name: 'success',
+          component: () => import('../views/shop/SuccessView.vue'),
+        },
+        {
+          path: 'query',
+          name: 'query',
+          component: () => import('../views/shop/OrderQueryView.vue'),
+        },
+        {
+          path: 'contact',
+          name: 'contact',
+          component: () => import('../views/shop/ContactView.vue'),
+        },
+      ],
     },
     // 后台管理路由
     {
@@ -37,19 +86,47 @@ const router = createRouter({
       component: AdminLayout,
       children: [
         { path: '', redirect: '/admin/dashboard' },
-        { path: 'dashboard', name: 'admin-dashboard', component: () => import('../views/admin/DashboardView.vue') },
-        { path: 'orders', name: 'admin-orders', component: () => import('../views/admin/OrdersView.vue') },
-        { path: 'messages', name: 'admin-messages', component: () => import('../views/admin/MessagesView.vue') },
-        { path: 'products', name: 'admin-products', component: () => import('../views/admin/ProductsView.vue') }, // 新增路由
-        { path: 'coupons', name: 'admin-coupons', component: () => import('../views/admin/CouponsView.vue') },
-        { path: 'stats', name: 'admin-stats', component: () => import('../views/admin/StatsView.vue') },
-        { path: 'settings', name: 'admin-settings', component: () => import('../views/admin/SettingsView.vue') }
-      ]
-    }
+        {
+          path: 'dashboard',
+          name: 'admin-dashboard',
+          component: () => import('../views/admin/DashboardView.vue'),
+        },
+        {
+          path: 'orders',
+          name: 'admin-orders',
+          component: () => import('../views/admin/OrdersView.vue'),
+        },
+        {
+          path: 'messages',
+          name: 'admin-messages',
+          component: () => import('../views/admin/MessagesView.vue'),
+        },
+        {
+          path: 'products',
+          name: 'admin-products',
+          component: () => import('../views/admin/ProductsView.vue'),
+        }, // 新增路由
+        {
+          path: 'coupons',
+          name: 'admin-coupons',
+          component: () => import('../views/admin/CouponsView.vue'),
+        },
+        {
+          path: 'stats',
+          name: 'admin-stats',
+          component: () => import('../views/admin/StatsView.vue'),
+        },
+        {
+          path: 'settings',
+          name: 'admin-settings',
+          component: () => import('../views/admin/SettingsView.vue'),
+        },
+      ],
+    },
   ],
   scrollBehavior(to, from, savedPosition) {
     return { top: 0 }
-  }
+  },
 })
 
 router.beforeEach(async (to) => {
@@ -78,7 +155,7 @@ const routeEventMap = {
   payment: 'payment_view',
   success: 'success_view',
   query: 'order_query_view',
-  contact: 'contact_view'
+  contact: 'contact_view',
 }
 
 router.afterEach((to) => {

@@ -479,6 +479,6 @@ onMounted(() => {
   .search-section { padding: 20px; }
   .user-card { flex-direction: column; text-align: center; gap: 16px; }
   .u-info { flex-direction: column; gap: 8px; }
-  .u-score { text-align: center; width: 100%; border-top: 1px dashed var(--line); paddingTop: 16px; }
+  .u-score { text-align: center; width: 100%; border-top: 1px dashed var(--line); padding-top: 16px; }
 }
 </style>

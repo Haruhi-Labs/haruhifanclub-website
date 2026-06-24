@@ -44,6 +44,15 @@ body {
     flex-direction: column;
 }
 
+/* 设计系统接入修正：.sos-scope 会强加 DS 基础排版（Inter 字体族 / 行高），
+   但商城应保留自身的字体气质（Helvetica + 1px 字距 + 1.6 行高）。
+   设计系统只通过 data-sos-site + bridges 提供配色/阴影/圆角，不应同化字体。 */
+.shop-app.sos-scope {
+    --sos-scope-font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --sos-scope-leading: 1.6;
+    letter-spacing: 1px;
+}
+
 /* 布局工具类 */
 .container {
     width: 100%;
@@ -2198,5 +2207,405 @@ textarea.input-field {
     @keyframes cart-panel-in {
         0% { opacity: 0; transform: translateY(20px) scale(0.96); }
         100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+}
+
+/* --- Design system transaction slice: shop front office --- */
+.shop-app {
+    letter-spacing: 0;
+    background: var(--sos-bg-page);
+}
+
+.shop-app .app-header .hauth-menu,
+.shop-app .mini-header-detail .hauth-menu {
+    --hauth-menu-bg: transparent;
+    --hauth-menu-bg-hover: rgba(255, 255, 255, 0.18);
+    --hauth-menu-fg: #ffffff;
+    --hauth-menu-border: rgba(255, 255, 255, 0.8);
+    --hauth-menu-border-hover: #ffffff;
+    --hauth-menu-shadow: none;
+    --hauth-menu-shadow-hover: none;
+    --hauth-avatar-bg: #ffffff;
+    --hauth-avatar-border: rgba(255, 255, 255, 0.82);
+    --hauth-avatar-fg: var(--hauth-accent);
+}
+
+.shop-app .main-content {
+    width: min(var(--sos-container-content), calc(100% - 2rem));
+    max-width: none;
+    padding: var(--sos-space-8) 0 var(--sos-space-12);
+}
+
+.shop-app .home-view {
+    display: grid;
+    gap: var(--sos-space-6);
+}
+
+.shop-app .page-header {
+    align-items: end;
+    margin-bottom: 0;
+    padding-bottom: var(--sos-space-4);
+    border-bottom: 1px solid var(--sos-border-subtle);
+}
+
+.shop-app .page-title {
+    border-left: 0;
+    padding-left: 0;
+    color: var(--sos-text-primary);
+    font-size: var(--sos-text-xl);
+    line-height: var(--sos-leading-heading);
+    letter-spacing: 0;
+}
+
+/* 商品网格：用 flex 让卡片填满整行（3~4 个时自然放大），
+   但用 max-width 封顶——这样只有 1~2 个商品时不会被拉得过大。 */
+.shop-app .product-grid {
+    display: flex;
+    flex-wrap: wrap;
+    grid-template-columns: none;
+    gap: var(--sos-space-5);
+}
+
+.shop-app .product-grid > * {
+    flex: 1 1 15rem;
+    min-width: 0;
+    max-width: 26rem;
+}
+
+.shop-app .shop-product-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--sos-border-subtle);
+    background: var(--sos-bg-surface);
+    border-radius: var(--sos-card-radius);
+    box-shadow: var(--sos-card-shadow);
+}
+
+.shop-app .shop-product-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--sos-hover-shadow);
+}
+
+.shop-app .card-image-wrapper {
+    height: auto;
+    aspect-ratio: 1 / 1;
+    background: var(--sos-bg-subtle);
+}
+
+.shop-app .card-image {
+    transition: transform var(--sos-duration-slow) var(--sos-ease-out);
+}
+
+.shop-app .shop-product-card:hover .card-image {
+    transform: scale(1.035);
+}
+
+.shop-app .card-overlay {
+    display: none;
+}
+
+.shop-app .card-body {
+    display: grid;
+    gap: var(--sos-space-3);
+    flex: 1;
+    padding: var(--sos-space-5);
+}
+
+.shop-app .card-title-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--sos-space-3);
+    align-items: start;
+    margin-bottom: 0;
+}
+
+.shop-app .card-title {
+    width: auto;
+    white-space: normal;
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    color: var(--sos-text-primary);
+    font-size: var(--sos-text-md);
+    line-height: 1.35;
+    letter-spacing: 0;
+}
+
+.shop-app .card-price-wrap {
+    gap: var(--sos-space-1);
+    font-variant-numeric: tabular-nums;
+}
+
+.shop-app .card-price {
+    color: var(--sos-link);
+    font-size: var(--sos-text-lg);
+    line-height: 1.1;
+}
+
+.shop-app .card-desc {
+    min-height: 0;
+    margin: 0;
+    color: var(--sos-text-secondary);
+    font-size: var(--sos-text-sm);
+    line-height: 1.55;
+    letter-spacing: 0;
+    -webkit-line-clamp: 2;
+}
+
+.shop-app .card-presale-box {
+    display: grid;
+    gap: var(--sos-space-2);
+    margin-bottom: 0;
+    padding: var(--sos-space-3);
+    border: 1px solid color-mix(in srgb, var(--sos-accent) 18%, var(--sos-border-subtle));
+    border-radius: var(--sos-radius-md);
+    background: var(--sos-accent-soft);
+}
+
+.shop-app .card-presale-head {
+    min-width: 0;
+}
+
+.shop-app .presale-chip {
+    border-radius: var(--sos-radius-full);
+    background: var(--sos-bg-surface);
+    color: var(--sos-link);
+    font-size: var(--sos-text-2xs);
+    letter-spacing: 0;
+}
+
+.shop-app .card-presale-count,
+.shop-app .card-presale-tip,
+.shop-app .stock-label {
+    color: var(--sos-text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.shop-app .card-presale-tip {
+    margin: 0;
+}
+
+.shop-app .card-footer {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--sos-space-2);
+    align-items: center;
+    margin-top: auto;
+}
+
+.shop-app .badge-tag {
+    border-color: color-mix(in srgb, var(--sos-accent) 36%, var(--sos-border-default));
+    border-radius: var(--sos-radius-full);
+    color: var(--sos-link);
+    background: var(--sos-bg-surface);
+    font-size: var(--sos-text-xs);
+    letter-spacing: 0;
+}
+
+.shop-app .shop-card-action {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-top: var(--sos-space-1);
+}
+
+.shop-app .breadcrumb {
+    margin-bottom: var(--sos-space-5);
+    color: var(--sos-text-secondary);
+    font-size: var(--sos-text-sm);
+    letter-spacing: 0;
+}
+
+.shop-app .detail-card,
+.shop-app .content-card {
+    border: 1px solid var(--sos-border-subtle);
+    border-radius: var(--sos-card-radius);
+    background: var(--sos-bg-surface);
+    box-shadow: var(--sos-card-shadow);
+}
+
+.shop-app .detail-card {
+    padding: var(--sos-space-6);
+}
+
+.shop-app .detail-layout {
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    gap: var(--sos-space-8);
+}
+
+.shop-app .detail-image-box {
+    border-color: var(--sos-border-subtle);
+    border-radius: var(--sos-media-radius);
+    background: var(--sos-bg-subtle);
+}
+
+.shop-app .detail-info {
+    gap: var(--sos-space-6);
+}
+
+.shop-app .detail-title {
+    color: var(--sos-text-primary);
+    font-size: var(--sos-text-2xl);
+    line-height: var(--sos-leading-heading);
+    letter-spacing: 0;
+}
+
+.shop-app .detail-desc {
+    color: var(--sos-text-secondary);
+    font-size: var(--sos-text-md);
+    line-height: 1.65;
+}
+
+.shop-app .price-box {
+    gap: var(--sos-space-3);
+    margin-bottom: var(--sos-space-5);
+    padding: var(--sos-space-4);
+    border: 1px solid color-mix(in srgb, var(--sos-accent) 16%, var(--sos-border-subtle));
+    border-radius: var(--sos-radius-md);
+    background: var(--sos-accent-soft);
+}
+
+.shop-app .price-current {
+    color: var(--sos-link);
+    font-variant-numeric: tabular-nums;
+}
+
+.shop-app .tag-stock {
+    border-radius: var(--sos-radius-full);
+    background: var(--sos-bg-surface);
+    color: var(--sos-link);
+    font-weight: 750;
+}
+
+.shop-app .tag-stock-presale {
+    color: #8a5a00;
+}
+
+.shop-app .detail-presale-card {
+    display: grid;
+    gap: var(--sos-space-3);
+    margin: 0 0 var(--sos-space-5);
+    padding: var(--sos-space-4);
+    border-color: color-mix(in srgb, var(--sos-accent) 18%, var(--sos-border-subtle));
+    border-radius: var(--sos-radius-md);
+    background: var(--sos-accent-soft);
+}
+
+.shop-app .detail-presale-title {
+    margin-bottom: 0;
+    color: var(--sos-link);
+}
+
+.shop-app .detail-presale-row,
+.shop-app .detail-presale-progress-meta {
+    margin-bottom: 0;
+}
+
+.shop-app .detail-presale-note {
+    color: var(--sos-text-secondary);
+}
+
+.shop-app .specs-table td {
+    border-bottom-color: var(--sos-border-subtle);
+}
+
+.shop-app .quantity-control {
+    border-color: var(--sos-border-default);
+    border-radius: var(--sos-radius-md);
+}
+
+.shop-app .action-row {
+    gap: var(--sos-space-3);
+}
+
+.shop-app .action-btn-group {
+    flex: 1 1 0;
+}
+
+.shop-app .tabs-header {
+    border-bottom-color: var(--sos-border-subtle);
+}
+
+.shop-app .tab-item.active {
+    border-bottom-color: var(--sos-accent);
+    background: var(--sos-accent-soft);
+    color: var(--sos-link);
+}
+
+.shop-app .tab-content {
+    background: var(--sos-bg-surface);
+    min-height: 0;
+}
+
+@media (max-width: 767px) {
+    .shop-app .header-expanded,
+    .shop-app .header-collapsed,
+    .shop-app .mini-header-detail {
+        padding: var(--sos-space-4);
+    }
+
+    .shop-app .main-content {
+        width: min(100% - 1.5rem, var(--sos-container-content));
+        padding-block: var(--sos-space-5) var(--sos-space-8);
+    }
+
+    .shop-app .filter-section {
+        margin-top: var(--sos-space-4);
+        padding: var(--sos-space-3);
+    }
+
+    .shop-app .filter-controls {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .shop-app .filter-expand-wrap:not(.is-expanded) {
+        display: none;
+    }
+
+    .shop-app .filter-expand-wrap.is-expanded {
+        display: block;
+        width: 100%;
+    }
+
+    .shop-app .filter-expand-inner {
+        overflow: visible;
+    }
+
+    .shop-app #product-filter-options {
+        width: 100%;
+    }
+
+    .shop-app .product-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: var(--sos-space-4);
+    }
+
+    .shop-app .card-body {
+        padding: var(--sos-space-4);
+    }
+
+    .shop-app .card-title-row {
+        grid-template-columns: 1fr;
+        gap: var(--sos-space-2);
+    }
+
+    .shop-app .card-price-wrap {
+        align-items: flex-start;
+    }
+
+    .shop-app .detail-card {
+        padding: var(--sos-space-4);
+    }
+
+    .shop-app .detail-layout {
+        grid-template-columns: 1fr;
+        gap: var(--sos-space-5);
+    }
+
+    .shop-app .action-row {
+        flex-direction: column;
     }
 }

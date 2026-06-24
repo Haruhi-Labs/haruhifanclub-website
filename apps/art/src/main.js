@@ -1,5 +1,8 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import '@haruhi/design-system/tokens.css'
+import '@haruhi/design-system/components.css'
+import '@haruhi/design-system/bridges.css'
 import './style.css'
 import App from './App.vue'
 import router from './router'

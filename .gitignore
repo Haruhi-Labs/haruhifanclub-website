@@ -1,9 +1,11 @@
 # === Node / 前端 ===
 node_modules/
 dist/
+apps/*/dist/
 .vite/
 *.local
 .eslintcache
+/tmp/
 
 # === Rust / 后端 ===
 target/

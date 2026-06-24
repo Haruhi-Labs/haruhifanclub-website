@@ -95,12 +95,12 @@
                     </div>
 
                     <div class="action-row">
-                        <button class="market-btn primary action-btn-group" style="padding: 0.75rem;" @click="buyNow">
+                        <SosButton class="action-btn-group" size="lg" @click="buyNow">
                             <i class="fa fa-shopping-bag mr-2"></i> 立即购买
-                        </button>
-                        <button class="market-btn outline-blue action-btn-group" style="padding: 0.75rem;" @click="addToCart">
+                        </SosButton>
+                        <SosButton class="action-btn-group" variant="secondary" size="lg" @click="addToCart">
                             <i class="fa fa-cart-plus mr-2"></i> 加入购物车
-                        </button>
+                        </SosButton>
                     </div>
                 </div>
             </div>
@@ -138,6 +138,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useShopStore } from '@/stores/shopStore'
+import { SosButton } from '@haruhi/ui'
 
 const route = useRoute()
 const router = useRouter()

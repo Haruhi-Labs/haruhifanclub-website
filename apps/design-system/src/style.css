@@ -1,0 +1,303 @@
+/* Design system docs — 文档外壳样式。
+ * 外壳本身也消费设计 token，保持与产品界面同一套语言。 */
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+#app {
+  min-height: 100%;
+}
+
+.ds {
+  display: grid;
+  grid-template-columns: 16rem minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--sos-bg-page);
+  color: var(--sos-text-primary);
+}
+
+/* ---------- Sidebar ---------- */
+.ds-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sos-space-6);
+  padding: var(--sos-space-6) var(--sos-space-5);
+  border-right: 1px solid var(--sos-border-subtle);
+  background: var(--sos-bg-surface);
+}
+.ds-nav {
+  display: grid;
+  gap: 0.15rem;
+}
+.ds-nav__group {
+  margin: var(--sos-space-3) 0 var(--sos-space-1);
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-2xs);
+  font-weight: var(--sos-weight-heavy);
+  text-transform: uppercase;
+  letter-spacing: var(--sos-tracking-wider);
+}
+.ds-nav__link {
+  display: block;
+  border-radius: var(--sos-radius-sm);
+  padding: 0.45rem var(--sos-space-3);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  font-weight: var(--sos-weight-medium);
+  text-decoration: none;
+  transition:
+    background-color var(--sos-duration-fast),
+    color var(--sos-duration-fast);
+}
+.ds-nav__link:hover {
+  background: var(--sos-bg-subtle);
+  color: var(--sos-text-primary);
+}
+.ds-nav__link[aria-current='true'] {
+  background: var(--sos-accent-soft);
+  color: var(--sos-text-primary);
+  font-weight: var(--sos-weight-bold);
+}
+
+/* ---------- Main ---------- */
+.ds-main {
+  min-width: 0;
+}
+.ds-topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--sos-z-sticky);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sos-space-4);
+  padding: var(--sos-space-4) clamp(1.5rem, 4vw, 3.5rem);
+  border-bottom: 1px solid var(--sos-border-subtle);
+  background: color-mix(in srgb, var(--sos-bg-page) 84%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px);
+}
+.ds-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sos-space-3);
+}
+.ds-control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-bold);
+  color: var(--sos-text-secondary);
+}
+.ds-control select {
+  min-height: 2.25rem;
+}
+
+.ds-content {
+  padding: clamp(1.5rem, 4vw, 3.5rem);
+  display: grid;
+  gap: var(--sos-space-24);
+}
+
+.ds-section {
+  scroll-margin-top: 6rem;
+  display: grid;
+  gap: var(--sos-space-8);
+}
+.ds-section__head {
+  display: grid;
+  gap: var(--sos-space-3);
+  max-width: 52rem;
+}
+
+/* 演示块：标签 + 承载面 */
+.ds-demo {
+  display: grid;
+  gap: var(--sos-space-4);
+}
+.ds-demo__label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sos-space-3);
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-md);
+  font-weight: var(--sos-weight-heavy);
+}
+.ds-demo__label small {
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-medium);
+}
+.ds-stage {
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-lg);
+  background: var(--sos-bg-page);
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+.ds-stage--surface {
+  background: var(--sos-bg-surface);
+}
+.ds-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sos-space-3);
+}
+
+/* Foundations */
+.ds-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--sos-space-3);
+}
+.ds-swatch {
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  overflow: hidden;
+}
+.ds-swatch__chip {
+  height: 3.5rem;
+}
+.ds-swatch__meta {
+  padding: var(--sos-space-2) var(--sos-space-3);
+  display: grid;
+  gap: 0.1rem;
+}
+.ds-swatch__name {
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-bold);
+}
+.ds-swatch__token {
+  color: var(--sos-text-tertiary);
+  font-family: var(--sos-font-mono);
+  font-size: var(--sos-text-2xs);
+}
+.ds-typescale {
+  display: grid;
+  gap: var(--sos-space-4);
+}
+.ds-typescale__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sos-space-4);
+  border-bottom: 1px dashed var(--sos-border-subtle);
+  padding-bottom: var(--sos-space-3);
+}
+.ds-typescale__tag {
+  flex: 0 0 5rem;
+  color: var(--sos-text-tertiary);
+  font-family: var(--sos-font-mono);
+  font-size: var(--sos-text-xs);
+}
+.ds-spaces {
+  display: grid;
+  gap: var(--sos-space-2);
+}
+.ds-space-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-4);
+  font-family: var(--sos-font-mono);
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-secondary);
+}
+.ds-space-bar {
+  height: 0.75rem;
+  border-radius: var(--sos-radius-xs);
+  background: var(--sos-accent);
+}
+.ds-elevations {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: var(--sos-space-5);
+}
+.ds-elevation {
+  display: grid;
+  place-items: center;
+  height: 6rem;
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-tertiary);
+  font-family: var(--sos-font-mono);
+  font-size: var(--sos-text-2xs);
+}
+
+.ds-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--sos-space-5);
+}
+
+.ds-content code {
+  font-family: var(--sos-font-mono);
+  font-size: 0.86em;
+  background: var(--sos-bg-subtle);
+  padding: 0.08em 0.36em;
+  border-radius: var(--sos-radius-xs);
+}
+
+/* 业务卡片陈列：每张卡置于其原生表达模式 */
+.ds-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: var(--sos-space-5);
+}
+.ds-card-cell {
+  display: grid;
+  gap: var(--sos-space-3);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-lg);
+  background: var(--sos-bg-page);
+  background-image: var(--sos-page-texture);
+  background-size: var(--sos-page-texture-size, auto);
+  padding: var(--sos-space-5);
+}
+.ds-card-cell__bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+}
+.ds-card-cell__name {
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-bold);
+}
+.ds-card-cell__stage {
+  display: grid;
+  align-content: center;
+  min-height: 20rem;
+}
+
+@media (max-width: 900px) {
+  .ds {
+    grid-template-columns: 1fr;
+  }
+  .ds-sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: 0;
+    border-bottom: 1px solid var(--sos-border-subtle);
+  }
+  .ds-nav {
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    overflow-x: auto;
+  }
+  .ds-nav__group {
+    display: none;
+  }
+}

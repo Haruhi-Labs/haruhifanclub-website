@@ -4,7 +4,13 @@ import { createRouter, createWebHistory } from 'vue-router'
 // 尤其 AdminView 较大，避免拖累首屏体积。
 import GalleryView from '../views/GalleryView.vue'
 // 统一账号 UI（登录/资料/设置/邮件链接落地）
-import { LoginView, ProfileView, SettingsView, VerifyEmailView, ResetPasswordView } from '@haruhi/auth-ui'
+import {
+  LoginView,
+  ProfileView,
+  SettingsView,
+  VerifyEmailView,
+  ResetPasswordView,
+} from '@haruhi/auth-ui'
 
 const UploadView = () => import('../views/UploadView.vue')
 const AdminView = () => import('../views/AdminView.vue')
@@ -22,14 +28,29 @@ const router = createRouter({
     { path: '/license', name: 'license', component: LicenseView },
 
     // 统一账号系统
-    { path: '/login', name: 'login', component: LoginView },
-    { path: '/account', name: 'account', component: ProfileView },
-    { path: '/account/settings', name: 'account-settings', component: SettingsView },
-    { path: '/verify-email', name: 'verify-email', component: VerifyEmailView },
-    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView },
+    { path: '/login', name: 'login', component: LoginView, props: { site: 'art' } },
+    { path: '/account', name: 'account', component: ProfileView, props: { site: 'art' } },
+    {
+      path: '/account/settings',
+      name: 'account-settings',
+      component: SettingsView,
+      props: { site: 'art' },
+    },
+    {
+      path: '/verify-email',
+      name: 'verify-email',
+      component: VerifyEmailView,
+      props: { site: 'art' },
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: ResetPasswordView,
+      props: { site: 'art' },
+    },
 
     // fallback
-    { path: '/:pathMatch(.*)*', redirect: '/' }
+    { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) {
@@ -40,7 +61,7 @@ const router = createRouter({
       return false
     }
     return { top: 0 }
-  }
+  },
 })
 
 export default router

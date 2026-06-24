@@ -1,5 +1,5 @@
 <template>
-  <div class="shop-app">
+  <div class="shop-app sos-scope" data-sos-site="shop">
     <!-- Header: 标准版 (首页/其他) -->
     <header v-if="!isDetailPage" :class="['app-header', 'header-bg', isHomePage ? 'header-expanded' : 'header-collapsed']">
         <div ref="mobileMenuWrapRef" class="mobile-menu-wrap standard-menu-wrap">
@@ -51,7 +51,7 @@
 
         <!-- Title Section -->
         <div>
-            <div class="brand-area" @click="$router.push('/')">
+            <div class="brand-area shop-header-brand" @click="$router.push('/')">
                 <div class="brand-logo">
                     <img :src="mainLogoUrl" alt="春日商城 Logo" class="brand-logo-img">
                 </div>
@@ -134,7 +134,7 @@
 
     <!-- Header: 迷你版 (详情页) -->
     <header v-else class="mini-header-detail">
-        <div class="mini-header-brand" @click="$router.push('/')">
+        <div class="mini-header-brand shop-header-brand" @click="$router.push('/')">
             <div class="brand-logo mini-brand-logo">
                 <img :src="miniLogoUrl" alt="春日商城 Mini Logo" class="brand-logo-img">
             </div>
@@ -272,7 +272,7 @@ const router = useRouter()
 const store = useShopStore()
 const { cartCount, state, setProductType } = store
 const mainLogoUrl = `${appBaseUrl}haruhi-logo-192.png`
-const miniLogoUrl = `${appBaseUrl}favicon.ico`
+const miniLogoUrl = mainLogoUrl
 const mobileMenuOpen = ref(false)
 const isFilterExpanded = ref(typeof window !== 'undefined' ? window.innerWidth > 639 : true)
 const mobileMenuWrapRef = ref(null)

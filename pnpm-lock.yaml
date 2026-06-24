@@ -41,6 +41,9 @@ importers:
       '@haruhi/auth-ui':
         specifier: workspace:*
         version: link:../../packages/auth-ui
+      '@haruhi/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.6.3)(vue@3.5.35(typescript@5.6.3))
@@ -82,6 +85,25 @@ importers:
       vue-tsc:
         specifier: ^2.2.0
         version: 2.2.12(typescript@5.6.3)
+
+  apps/design-system:
+    dependencies:
+      '@haruhi/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
+      '@haruhi/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      vue:
+        specifier: ^3.5.22
+        version: 3.5.35(typescript@5.6.3)
+    devDependencies:
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.1
+        version: 6.0.7(vite@7.3.5(@types/node@22.19.19)(jiti@2.6.1)(sass@1.100.0))(vue@3.5.35(typescript@5.6.3))
+      vite:
+        specifier: ^7.1.11
+        version: 7.3.5(@types/node@22.19.19)(jiti@2.6.1)(sass@1.100.0)
 
   apps/exam:
     dependencies:
@@ -137,6 +159,9 @@ importers:
       '@haruhi/auth-ui':
         specifier: workspace:*
         version: link:../../packages/auth-ui
+      '@haruhi/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       dompurify:
         specifier: ^3.4.8
         version: 3.4.8
@@ -226,6 +251,12 @@ importers:
       '@haruhi/auth-ui':
         specifier: workspace:*
         version: link:../../packages/auth-ui
+      '@haruhi/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
+      '@haruhi/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       chart.js:
         specifier: ^4.4.0
         version: 4.5.1
@@ -257,12 +288,36 @@ importers:
       '@haruhi/api-client':
         specifier: workspace:*
         version: link:../api-client
+      '@haruhi/design-system':
+        specifier: workspace:*
+        version: link:../design-system
+      '@haruhi/ui':
+        specifier: workspace:*
+        version: link:../ui
       vue:
         specifier: ^3.0.0
         version: 3.5.35(typescript@5.6.3)
       vue-router:
         specifier: ^4.0.0
         version: 4.6.4(vue@3.5.35(typescript@5.6.3))
+
+  packages/design-system: {}
+
+  packages/ui:
+    dependencies:
+      '@haruhi/design-system':
+        specifier: workspace:*
+        version: link:../design-system
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.35(typescript@5.6.3)
+    devDependencies:
+      typescript:
+        specifier: ~5.6.3
+        version: 5.6.3
+      vue-tsc:
+        specifier: ^2.2.0
+        version: 2.2.12(typescript@5.6.3)
 
 packages:
 

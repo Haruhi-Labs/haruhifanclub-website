@@ -301,7 +301,7 @@ onBeforeUnmount(() => {
 ========================= */
 .gallery {
   --bg-deep: #525289; 
-  --glass-bg: rgba(30, 21, 21, 0.694); 
+  --glass-bg: rgba(30, 21, 21, 0.694);
   --glass-border: rgba(151, 68, 68, 0.1);
   
   --neon-cyan: #00f2ff;
@@ -311,7 +311,7 @@ onBeforeUnmount(() => {
   --text-main: rgba(255, 255, 255, 0.95);
   --text-muted: rgba(255, 255, 255, 0.55);
 
-  --shadow-media: 0 10px 30px -5px rgba(0, 242, 255, 0.15); 
+  --shadow-media: 0 10px 30px -5px rgba(0, 242, 255, 0.15);
 
   /* Twin Theme Colors (Green) */
   --twin-primary: #10b981; /* Emerald 500 */

@@ -49,6 +49,10 @@ export default tseslint.config(
       'vue/multi-word-component-names': 'off',
       // 未用变量降为 warning（不阻断 CI；lint:js 仅 error 失败）。
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      // Vue 模板的纯格式由 Prettier 统一处理，避免 eslint --fix 和 prettier --write 来回改。
+      'vue/html-self-closing': 'off',
+      'vue/max-attributes-per-line': 'off',
+      'vue/singleline-html-element-content-newline': 'off',
       // 旧代码中存量的问题降为 warning：仍在 CI 输出/编辑器/CodeRabbit 中可见，但不阻断，
       // 避免为存量债大改工作正常的组件（新代码请尽量不要触发）。
       'prefer-const': 'warn',
@@ -68,5 +72,5 @@ export default tseslint.config(
       '@typescript-eslint/ban-ts-comment': 'warn',
       '@typescript-eslint/no-unsafe-function-type': 'warn',
     },
-  },
+  }
 )

@@ -6,7 +6,7 @@ import TopBar from './components/TopBar.vue'
   <div class="bg-layer gallery-bg"></div>
   <div class="bg-layer gallery-mask"></div>
   
-  <div class="app-shell">
+  <div class="app-shell sos-scope" data-sos-site="art">
     <header class="topbar">
       <TopBar />
     </header>

@@ -16,6 +16,7 @@ Nginx
   |    /library/  -> apps/novel/dist
   |    /shop/     -> apps/shop/dist
   |    /console/  -> apps/console/dist
+  |    /design-system/ -> apps/design-system/dist
   ├─ /api/*       -> 127.0.0.1:17777
   └─ /uploads/*   -> uploads/<module>/
 
@@ -91,16 +92,17 @@ apps/*
 packages/*
 ```
 
-当前只有 `packages/api-client` 是实际被 app 依赖的共享包。`packages/ui` 和 `packages/config` 没有 `package.json`，属于预留目录。
+当前实际被 app 依赖的共享包包括 `packages/api-client`、`packages/design-system`、`packages/ui` 和 `packages/auth-ui`。`packages/config` 没有 `package.json`，属于预留目录。
 
-| app     | 子路径      | dev 端口 | 主要特点                         |
-| ------- | ----------- | -------- | -------------------------------- |
-| news    | `/news/`    | 5204     | Pinia，内容主站和新闻后台        |
-| art     | `/art/`     | 5201     | Pinia，画廊、投稿、匿名互动      |
-| exam    | `/exam/`    | 5202     | TypeScript，试卷编辑、导出和审核 |
-| novel   | `/library/` | 5203     | Tailwind，EPUB 阅读器和书库后台  |
-| shop    | `/shop/`    | 5205     | reactive store，商城前后台       |
-| console | `/console/` | 5200     | TypeScript，超管台               |
+| app           | 子路径            | dev 端口 | 主要特点                         |
+| ------------- | ----------------- | -------- | -------------------------------- |
+| news          | `/news/`          | 5204     | Pinia，内容主站和新闻后台        |
+| art           | `/art/`           | 5201     | Pinia，画廊、投稿、匿名互动      |
+| exam          | `/exam/`          | 5202     | TypeScript，试卷编辑、导出和审核 |
+| novel         | `/library/`       | 5203     | Tailwind，EPUB 阅读器和书库后台  |
+| shop          | `/shop/`          | 5205     | reactive store，商城前后台       |
+| console       | `/console/`       | 5200     | TypeScript，超管台               |
+| design-system | `/design-system/` | 5206     | 静态设计规范页，不依赖后端 API   |
 
 所有 Vite 配置都代理：
 
@@ -195,18 +197,18 @@ scope_chain("news")          -> ["news"]
 
 ## 稳定性与运行约定
 
-| 关注点    | 实现                                                                                       |
-| --------- | ------------------------------------------------------------------------------------------ |
-| readiness | `/api/health/ready` 查询 `core.db`                                                         |
-| 限流      | 单进程内存滑动窗口（`ratelimit::RateLimiter`）：登录单 IP 10 分钟 10 次；匿名上传 60 次     |
-| 上传校验  | art/exam 匿名上传过 `media::check_image`/`check_media` 类型大小白名单，详见 [SECURITY.md](../SECURITY.md) |
-| body 上限 | axum `DefaultBodyLimit` 设为 256 MiB，Nginx 同步设置                                        |
-| 错误响应  | 4xx 文案给用户；所有 5xx 统一返回「服务器内部错误」，详情只入日志（`core::error`）          |
-| CORS      | 显式 `HARUHI_CORS_ORIGINS` 时一律按白名单（debug 也锁紧）；未设时 debug 放开、release 收敛到 `PUBLIC_SITE_URL` |
-| 不安全默认值 | JWT/ART_COOKIE 密钥、`admin/admin123` 超管仅「debug + 绑定回环」启用；否则要求显式配置  |
-| 邮件      | `haruhi-mail` 只发信；shop 模块维护 `email_jobs` 队列和重试                                 |
-| AI 审核   | 未配置 `DASHSCOPE_API_KEY` 或调用失败时放行，并返回原因                                     |
-| 图片缩略图 | art 画廊：nginx 静态直出 `uploads/art/.thumbs/<w>/`（宽度白名单 320/640/960），未命中回源 `GET /api/art/thumb`，后端用 **libvips 子进程**（流式、内存有界）生成并落盘。应用内信号量限并发=2；上传时预热、删除作品时清理；存量图用 `deploy/backfill-thumbs.sh` 预热。缓存可整目录删除重建 |
+| 关注点       | 实现                                                                                                                                                                                                                                                                                     |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| readiness    | `/api/health/ready` 查询 `core.db`                                                                                                                                                                                                                                                       |
+| 限流         | 单进程内存滑动窗口（`ratelimit::RateLimiter`）：登录单 IP 10 分钟 10 次；匿名上传 60 次                                                                                                                                                                                                  |
+| 上传校验     | art/exam 匿名上传过 `media::check_image`/`check_media` 类型大小白名单，详见 [SECURITY.md](../SECURITY.md)                                                                                                                                                                                |
+| body 上限    | axum `DefaultBodyLimit` 设为 256 MiB，Nginx 同步设置                                                                                                                                                                                                                                     |
+| 错误响应     | 4xx 文案给用户；所有 5xx 统一返回「服务器内部错误」，详情只入日志（`core::error`）                                                                                                                                                                                                       |
+| CORS         | 显式 `HARUHI_CORS_ORIGINS` 时一律按白名单（debug 也锁紧）；未设时 debug 放开、release 收敛到 `PUBLIC_SITE_URL`                                                                                                                                                                           |
+| 不安全默认值 | JWT/ART_COOKIE 密钥、`admin/admin123` 超管仅「debug + 绑定回环」启用；否则要求显式配置                                                                                                                                                                                                   |
+| 邮件         | `haruhi-mail` 只发信；shop 模块维护 `email_jobs` 队列和重试                                                                                                                                                                                                                              |
+| AI 审核      | 未配置 `DASHSCOPE_API_KEY` 或调用失败时放行，并返回原因                                                                                                                                                                                                                                  |
+| 图片缩略图   | art 画廊：nginx 静态直出 `uploads/art/.thumbs/<w>/`（宽度白名单 320/640/960），未命中回源 `GET /api/art/thumb`，后端用 **libvips 子进程**（流式、内存有界）生成并落盘。应用内信号量限并发=2；上传时预热、删除作品时清理；存量图用 `deploy/backfill-thumbs.sh` 预热。缓存可整目录删除重建 |
 
 ## 新模块入口
 
