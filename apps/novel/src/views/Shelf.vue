@@ -1,14 +1,22 @@
 <template>
   <div class="shelf-view">
-    <!-- 顶部导航：奶油纸编辑台气质，标题用 library 衬线 -->
-    <header class="shelf-header">
-      <div class="shelf-header__inner">
-        <router-link to="/" class="shelf-brand">
-          <span class="shelf-brand__name">长门有希的书架</span>
+    <!-- 顶部导航：统一 SosAppbar 规范 + library 主题 -->
+    <header class="sos-appbar shelf-appbar">
+      <div class="sos-appbar__inner">
+        <router-link to="/" class="sos-brand-lockup">
+          <span class="sos-brand-lockup__mark">
+            <img :src="logoSrc" alt="" />
+          </span>
+          <span class="sos-brand-lockup__text">
+            <strong>长门有希的书架</strong>
+            <small>凉宫春日应援团 · 书库</small>
+          </span>
         </router-link>
-        <router-link to="/feedback" class="shelf-header__link">
-          同人投稿 &amp; 问题反馈
-        </router-link>
+        <nav class="sos-navlinks">
+          <router-link to="/feedback" class="sos-navlink">
+            同人投稿 &amp; 问题反馈
+          </router-link>
+        </nav>
       </div>
     </header>
 
@@ -119,6 +127,8 @@ const books = ref([]);
 const loading = ref(true);
 // 统一后端：模块 API 走 /api/novel，静态文件走 /uploads
 const API_BASE = '/api/novel';
+// 页头品牌 logo（部署在 /library/ 子路径，需显式拼 BASE_URL）
+const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`;
 
 // === 书架分栏配置 ===
 const CATEGORY_CONFIG = [
@@ -333,53 +343,14 @@ onMounted(fetchBooks);
   min-height: 100%;
 }
 
-/* 顶栏：半透明奶油纸 + 模糊，sticky 不抢视线 */
-.shelf-header {
-  position: sticky;
-  top: 0;
-  z-index: var(--sos-z-sticky);
-  border-bottom: 1px solid var(--sos-border-subtle);
-  background: color-mix(in srgb, var(--sos-bg-page) 88%, transparent);
-  backdrop-filter: blur(8px);
+/* 统一页头规范（.sos-appbar）：右侧给全局 fixed 账号菜单预留空档 */
+.shelf-appbar {
+  padding-right: 7.5rem;
 }
-.shelf-header__inner {
-  max-width: var(--sos-container-wide);
-  min-height: 4rem;
-  margin-inline: auto;
-  /* 右侧预留固定宽度账号菜单的位置（账号菜单是全局 fixed），避免反馈链接被遮挡；
-     窄屏放不下时整体换行，标题独占一行、账号菜单浮于其右侧空档。 */
-  padding: var(--sos-space-3) 7.5rem var(--sos-space-3) var(--sos-page-gutter);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sos-space-2) var(--sos-space-4);
-}
-.shelf-brand {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-}
-.shelf-brand__name {
+/* library 品牌以衬线呈现、字重收敛（规范默认 black 偏重，这里走优雅一档） */
+.shelf-appbar .sos-brand-lockup__text > strong {
   font-family: var(--sos-display-family);
-  font-size: var(--sos-text-xl);
   font-weight: var(--sos-weight-bold);
-  letter-spacing: var(--sos-tracking-wide);
-  color: var(--sos-text-primary);
-  white-space: nowrap;
-}
-.shelf-brand:hover .shelf-brand__name {
-  color: var(--sos-link);
-}
-.shelf-header__link {
-  font-size: var(--sos-text-sm);
-  color: var(--sos-text-secondary);
-  text-decoration: none;
-  white-space: nowrap;
-  transition: color var(--sos-duration-fast) var(--sos-ease-out);
-}
-.shelf-header__link:hover {
-  color: var(--sos-link);
 }
 
 /* 内容区 */
