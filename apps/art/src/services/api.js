@@ -1,4 +1,4 @@
-import { seedCreators, seedArtworks, seedComments } from '../mock/seedData.js'
+import { seedArtworks, seedComments } from '../mock/seedData.js'
 import { getToken, resolveUploadUrl } from '@haruhi/api-client'
 
 // 统一后端约定：
@@ -9,6 +9,7 @@ import { getToken, resolveUploadUrl } from '@haruhi/api-client'
 const API_PREFIX = '/api/art'
 // 静态资源根：后端库里存的是相对 uploads 根的路径（如 art/2025-11/x.webp）
 const ASSET_BASE = '/uploads'
+const USE_DEV_SEED_ONLY = import.meta.env.DEV && import.meta.env.VITE_ART_USE_BACKEND !== '1'
 
 function buildUrl(path, params) {
   const url = new URL(path, window.location.origin)
@@ -109,6 +110,10 @@ export const api = {
     return data
   },
   getArtwork: async (id) => {
+    if (USE_DEV_SEED_ONLY) {
+      const data = seedArtworks.find((item) => String(item.id) === String(id))
+      return { ok: Boolean(data), data: data ? transformArtwork({ ...data }) : null }
+    }
     const data = await request('GET', `${API_PREFIX}/artworks/${id}`)
     if (data.data) data.data = transformArtwork(data.data)
     return data
@@ -136,7 +141,15 @@ export const api = {
   // Interaction
   likeArtwork: (id) => request('POST', `${API_PREFIX}/likes/artwork/${id}`, { body: {} }),
   likeComment: (id) => request('POST', `${API_PREFIX}/likes/comment/${id}`, { body: {} }),
-  listComments: (artworkId) => request('GET', `${API_PREFIX}/comments`, { params: { artwork_id: artworkId } }),
+  listComments: async (artworkId) => {
+    if (USE_DEV_SEED_ONLY) {
+      return {
+        ok: true,
+        data: seedComments.filter((item) => String(item.artwork_id) === String(artworkId)),
+      }
+    }
+    return request('GET', `${API_PREFIX}/comments`, { params: { artwork_id: artworkId } })
+  },
   postComment: (body) => request('POST', `${API_PREFIX}/comments`, { body }),
 
   // Admin - Artworks

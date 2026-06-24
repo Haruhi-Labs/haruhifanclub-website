@@ -1,6 +1,13 @@
 <template>
-  <section ref="artHomeRef" class="container-card art-home" :class="{ 'is-light-gear-ready': lightGearReady }">
-    <div class="haruhi-text-field" aria-hidden="true">
+  <section
+    ref="artHomeRef"
+    class="container-card art-home"
+    :class="{
+      'is-light-gear-ready': lightGearReady,
+      'is-route-suspended': homeRouteSuspended,
+    }"
+  >
+    <div v-if="renderHaruhiTextField && haruhiTextCorpus" class="haruhi-text-field" aria-hidden="true">
       <div class="haruhi-text-flow" :style="{ '--haruhi-text-duration': `${HARUHI_TEXT_DRIFT_SECONDS}s` }">
         <div v-for="copy in haruhiTextCopies" :key="copy" class="haruhi-text-sheet">
           <div
@@ -19,7 +26,7 @@
       </div>
     </div>
 
-    <div class="home-lights-out-ui">
+    <div v-if="shouldRenderLightsOutUi" class="home-lights-out-ui">
       <div class="home-light-gear-ui">
         <section
           class="light-gear light-gear--top"
@@ -30,7 +37,7 @@
           @pointerup="onLightGearGrabEnd"
           @pointercancel="onLightGearGrabCancel"
         >
-          <div class="light-gear__belt">
+          <div v-if="renderHomeGears" class="light-gear__belt">
             <figure v-for="item in lightGearTopItems" :key="item.key" class="light-gear__tile">
               <img :src="item.imageUrl" :alt="item.title" loading="eager" decoding="async" draggable="false" @dragstart.prevent />
               <figcaption>{{ item.title }}</figcaption>
@@ -52,7 +59,7 @@
           @pointerup="onLightGearGrabEnd"
           @pointercancel="onLightGearGrabCancel"
         >
-          <div class="light-gear__belt">
+          <div v-if="renderHomeGears" class="light-gear__belt">
             <figure v-for="item in lightGearBottomItems" :key="item.key" class="light-gear__tile">
               <img :src="item.imageUrl" :alt="item.title" loading="eager" decoding="async" draggable="false" @dragstart.prevent />
               <figcaption>{{ item.title }}</figcaption>
@@ -61,7 +68,7 @@
         </section>
       </div>
 
-      <div class="legacy-lights-out-ui" aria-hidden="true">
+      <div v-if="renderLegacyObservatory" class="legacy-lights-out-ui" aria-hidden="true">
     <div class="endless-screen" :style="stageStyle">
       <div class="space-field" aria-hidden="true">
         <span class="star-dust"></span>
@@ -308,7 +315,7 @@
       </div>
     </div>
 
-    <div class="home-lights-on-ui home-light-gear-ui">
+    <div v-if="shouldRenderLightsOnUi" class="home-lights-on-ui home-light-gear-ui">
       <section
         class="light-gear light-gear--top"
         :class="{ 'is-dragging': lightGearDragging && lightGearDragRow === 'top' }"
@@ -318,7 +325,7 @@
         @pointerup="onLightGearGrabEnd"
         @pointercancel="onLightGearGrabCancel"
       >
-        <div class="light-gear__belt">
+        <div v-if="renderHomeGears" class="light-gear__belt">
           <figure v-for="item in lightGearTopItems" :key="item.key" class="light-gear__tile">
             <img :src="item.imageUrl" :alt="item.title" loading="eager" decoding="async" draggable="false" @dragstart.prevent />
             <figcaption>{{ item.title }}</figcaption>
@@ -340,7 +347,7 @@
         @pointerup="onLightGearGrabEnd"
         @pointercancel="onLightGearGrabCancel"
       >
-        <div class="light-gear__belt">
+        <div v-if="renderHomeGears" class="light-gear__belt">
           <figure v-for="item in lightGearBottomItems" :key="item.key" class="light-gear__tile">
             <img :src="item.imageUrl" :alt="item.title" loading="eager" decoding="async" draggable="false" @dragstart.prevent />
             <figcaption>{{ item.title }}</figcaption>
@@ -351,12 +358,18 @@
   </section>
 </template>
 
+<script>
+let cachedHaruhiBackgroundText = ''
+let pendingHaruhiBackgroundText = null
+</script>
+
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { seedArtworks, seedCreators } from '../mock/seedData'
 
 const router = useRouter()
+defineOptions({ name: 'HomeView' })
 const VISITOR_KEY = 'haruhi-art-visitor-number'
 const DAY_MS = 24 * 60 * 60 * 1000
 const SHIFT_LAYER_COUNT = 32
@@ -385,10 +398,12 @@ const HARUHI_TEXT_SOURCE_URLS = [
   `${import.meta.env.BASE_URL}haruhi-background.txt`,
   `${import.meta.env.BASE_URL}haruhi-background.local`,
 ]
+const HARUHI_TEXT_CACHE_KEY = 'haruhi-art-background-text'
 const HARUHI_TEXT_FALLBACK = '凉宫春日 '.repeat(64)
+const renderLegacyObservatory = false
 const haruhiTextCopies = [0, 1]
-const haruhiTextSource = ref(HARUHI_TEXT_FALLBACK)
-const haruhiTextCorpus = computed(() => normalizeHaruhiText(haruhiTextSource.value) || HARUHI_TEXT_FALLBACK)
+const haruhiTextSource = ref(getInitialHaruhiTextSource())
+const haruhiTextCorpus = computed(() => normalizeHaruhiText(haruhiTextSource.value))
 const haruhiTextRows = computed(() => {
   const corpus = haruhiTextCorpus.value
   return Array.from({ length: HARUHI_TEXT_ROW_COUNT }, (_, index) => ({
@@ -411,7 +426,8 @@ function normalizeHaruhiText(value) {
 }
 
 function getHaruhiTextLine(corpus, index) {
-  const source = corpus || HARUHI_TEXT_FALLBACK
+  const source = corpus || ''
+  if (!source) return ''
   if (source.length <= HARUHI_TEXT_LINE_LENGTH) {
     return `${source} `.repeat(Math.ceil(HARUHI_TEXT_LINE_LENGTH / Math.max(source.length, 1)) + 1)
   }
@@ -421,23 +437,71 @@ function getHaruhiTextLine(corpus, index) {
   return doubled.slice(start, start + HARUHI_TEXT_LINE_LENGTH)
 }
 
+function readCachedHaruhiText() {
+  const memoryText = normalizeHaruhiText(cachedHaruhiBackgroundText)
+  if (memoryText) return cachedHaruhiBackgroundText
+
+  if (typeof window === 'undefined') return ''
+  const storedText = window.sessionStorage.getItem(HARUHI_TEXT_CACHE_KEY) || ''
+  if (normalizeHaruhiText(storedText)) {
+    cachedHaruhiBackgroundText = storedText
+    return storedText
+  }
+  return ''
+}
+
+function getInitialHaruhiTextSource() {
+  return readCachedHaruhiText()
+}
+
+function rememberHaruhiText(text) {
+  if (!normalizeHaruhiText(text)) return ''
+  cachedHaruhiBackgroundText = text
+  if (typeof window !== 'undefined') {
+    window.sessionStorage.setItem(HARUHI_TEXT_CACHE_KEY, text)
+  }
+  return text
+}
+
 async function loadHaruhiBackgroundText() {
   if (typeof window === 'undefined') return
 
-  try {
-    for (const sourceUrl of HARUHI_TEXT_SOURCE_URLS) {
-      const response = await window.fetch(sourceUrl, { cache: 'no-cache' })
-      if (!response.ok) continue
-      if (response.headers.get('content-type')?.includes('text/html')) continue
+  const cachedText = readCachedHaruhiText()
+  if (cachedText) {
+    haruhiTextSource.value = cachedText
+    return
+  }
 
-      const text = await response.text()
-      if (normalizeHaruhiText(text)) {
-        haruhiTextSource.value = text
-        return
-      }
+  try {
+    if (!pendingHaruhiBackgroundText) {
+      pendingHaruhiBackgroundText = (async () => {
+        for (const sourceUrl of HARUHI_TEXT_SOURCE_URLS) {
+          const response = await window.fetch(sourceUrl, { cache: 'force-cache' })
+          if (!response.ok) continue
+          if (response.headers.get('content-type')?.includes('text/html')) continue
+
+          const text = await response.text()
+          if (normalizeHaruhiText(text)) return rememberHaruhiText(text)
+        }
+        return ''
+      })().finally(() => {
+        pendingHaruhiBackgroundText = null
+      })
+    }
+
+    const text = await pendingHaruhiBackgroundText
+    if (homeViewMounted && normalizeHaruhiText(text)) {
+      haruhiTextSource.value = text
+      return
+    }
+
+    if (homeViewMounted && !normalizeHaruhiText(haruhiTextSource.value)) {
+      haruhiTextSource.value = HARUHI_TEXT_FALLBACK
     }
   } catch {
-    // Keep the short local fallback when the optional development text file is absent.
+    if (homeViewMounted && !normalizeHaruhiText(haruhiTextSource.value)) {
+      haruhiTextSource.value = HARUHI_TEXT_FALLBACK
+    }
   }
 }
 
@@ -540,6 +604,11 @@ const artHomeRef = ref(null)
 const lightGearDragging = ref(false)
 const lightGearDragRow = ref('top')
 const lightGearReady = ref(false)
+const homeRouteSuspended = ref(false)
+const activeHomeLightsOut = ref(false)
+const renderInactiveHomeUi = ref(false)
+const renderHomeGears = ref(false)
+const renderHaruhiTextField = ref(false)
 let lightGearOffset = 0
 let lightGearPointerId = null
 let lightGearLastX = null
@@ -557,7 +626,15 @@ let lightGearMeasuredCycleWidth = 0
 let lightGearBaseOffset = 0
 let lightGearResizeObserver = null
 let lightGearLayoutFrame = 0
+let lightGearAutoPausedForSwitch = false
+let lightGearSwitchResumeTimer = 0
+let inactiveHomeUiIdle = 0
+let inactiveHomeUiTimer = 0
 let homeViewMounted = false
+let homeViewHasMounted = false
+let homeViewListenersActive = false
+const shouldRenderLightsOutUi = computed(() => activeHomeLightsOut.value || renderInactiveHomeUi.value)
+const shouldRenderLightsOnUi = computed(() => !activeHomeLightsOut.value || renderInactiveHomeUi.value)
 
 function normalizeShiftAngle(value) {
   let next = value % 360
@@ -648,6 +725,71 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
 }
 
+function readHomeLightsOut() {
+  if (typeof document !== 'undefined' && document.documentElement.classList.contains('art-home-lights-out')) return true
+  return typeof window !== 'undefined' && window.localStorage.getItem('haruhi-art-lights-out') === '1'
+}
+
+function afterHomeFirstPaint(callback) {
+  if (typeof window === 'undefined') return
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(callback)
+  })
+}
+
+function clearInactiveHomeUiRender() {
+  if (inactiveHomeUiIdle && typeof window !== 'undefined') {
+    window.cancelIdleCallback?.(inactiveHomeUiIdle)
+  }
+  if (inactiveHomeUiTimer && typeof window !== 'undefined') {
+    window.clearTimeout(inactiveHomeUiTimer)
+  }
+  inactiveHomeUiIdle = 0
+  inactiveHomeUiTimer = 0
+}
+
+function refreshLightGearAfterDomUpdate({ includeAll = false, restartObserver = false } = {}) {
+  nextTick(() => {
+    if (!homeViewMounted || homeRouteSuspended.value) return
+    if (restartObserver) {
+      stopLightGearResizeObserver()
+      startLightGearResizeObserver()
+    }
+    refreshLightGearLayout({ includeAll })
+  })
+}
+
+function revealInactiveHomeUi() {
+  clearInactiveHomeUiRender()
+  if (!homeViewMounted || homeRouteSuspended.value || renderInactiveHomeUi.value) return
+  renderInactiveHomeUi.value = true
+  refreshLightGearAfterDomUpdate({ includeAll: true, restartObserver: true })
+}
+
+function scheduleInactiveHomeUiRender() {
+  if (typeof window === 'undefined' || renderInactiveHomeUi.value || inactiveHomeUiIdle || inactiveHomeUiTimer) return
+
+  if ('requestIdleCallback' in window) {
+    inactiveHomeUiIdle = window.requestIdleCallback(revealInactiveHomeUi, { timeout: 1800 })
+  } else {
+    inactiveHomeUiTimer = window.setTimeout(revealInactiveHomeUi, 900)
+  }
+}
+
+function addHomeViewListeners() {
+  if (typeof window === 'undefined' || homeViewListenersActive) return
+  window.addEventListener('contextmenu', onGlobalShiftContextMenu, true)
+  window.addEventListener('art-home-lights-switch', onHomeLightsSwitch)
+  homeViewListenersActive = true
+}
+
+function removeHomeViewListeners() {
+  if (typeof window === 'undefined' || !homeViewListenersActive) return
+  window.removeEventListener('contextmenu', onGlobalShiftContextMenu, true)
+  window.removeEventListener('art-home-lights-switch', onHomeLightsSwitch)
+  homeViewListenersActive = false
+}
+
 function getLightGearCycleWidth() {
   return lightGearMeasuredCycleWidth || lightGearCycleWidth
 }
@@ -671,15 +813,17 @@ function applyLightGearDelta(delta, { immediate = false } = {}) {
   }
 }
 
-function cacheLightGearBelts() {
+function cacheLightGearBelts({ measure = false } = {}) {
   const root = artHomeRef.value
   lightGearTopBelts = Array.from(root?.querySelectorAll('.light-gear--top .light-gear__belt') || [])
   lightGearBottomBelts = Array.from(root?.querySelectorAll('.light-gear--bottom .light-gear__belt') || [])
-  const measuredWidth = Math.max(
-    0,
-    ...lightGearTopBelts.map((belt) => belt.getBoundingClientRect().width),
-    ...lightGearBottomBelts.map((belt) => belt.getBoundingClientRect().width)
-  )
+  const measuredWidth = measure
+    ? Math.max(
+        0,
+        ...lightGearTopBelts.map((belt) => belt.getBoundingClientRect().width),
+        ...lightGearBottomBelts.map((belt) => belt.getBoundingClientRect().width)
+      )
+    : 0
 
   if (measuredWidth > 0) {
     lightGearMeasuredCycleWidth = measuredWidth / LIGHT_GEAR_COPY_COUNT
@@ -687,11 +831,17 @@ function cacheLightGearBelts() {
     lightGearOffset = normalizeLightGearOffset(lightGearOffset)
   } else {
     lightGearMeasuredCycleWidth = 0
-    lightGearBaseOffset = -lightGearCycleWidth
+    lightGearBaseOffset = -getLightGearCycleWidth()
   }
 }
 
-function syncLightGearOffset() {
+function getLightGearBeltsForRender(belts, includeAll = false) {
+  if (includeAll) return belts
+  const lightsOutActive = activeHomeLightsOut.value
+  return belts.filter((belt) => Boolean(belt.closest('.home-lights-out-ui')) === lightsOutActive)
+}
+
+function syncLightGearOffset({ includeAll = false } = {}) {
   lightGearRenderFrame = 0
   if (!lightGearTopBelts.length || !lightGearBottomBelts.length || !lightGearBaseOffset) {
     cacheLightGearBelts()
@@ -699,18 +849,18 @@ function syncLightGearOffset() {
 
   const topOffset = (lightGearBaseOffset + lightGearOffset).toFixed(3)
   const bottomOffset = (lightGearBaseOffset - lightGearOffset).toFixed(3)
-  for (const belt of lightGearTopBelts) {
+  for (const belt of getLightGearBeltsForRender(lightGearTopBelts, includeAll)) {
     belt.style.transform = `translate3d(${topOffset}px, 0, 0)`
   }
-  for (const belt of lightGearBottomBelts) {
+  for (const belt of getLightGearBeltsForRender(lightGearBottomBelts, includeAll)) {
     belt.style.transform = `translate3d(${bottomOffset}px, 0, 0)`
   }
 }
 
-function refreshLightGearLayout() {
+function refreshLightGearLayout({ includeAll = false, measure = false } = {}) {
   lightGearLayoutFrame = 0
-  cacheLightGearBelts()
-  syncLightGearOffset()
+  cacheLightGearBelts({ measure })
+  syncLightGearOffset({ includeAll })
 }
 
 function scheduleLightGearLayoutRefresh() {
@@ -743,6 +893,58 @@ function stopLightGearResizeObserver() {
     window.cancelAnimationFrame(lightGearLayoutFrame)
   }
   lightGearLayoutFrame = 0
+}
+
+function clearLightGearSwitchResume() {
+  if (lightGearSwitchResumeTimer && typeof window !== 'undefined') {
+    window.clearTimeout(lightGearSwitchResumeTimer)
+  }
+  lightGearSwitchResumeTimer = 0
+}
+
+function suspendHomeRouteMotion() {
+  homeRouteSuspended.value = true
+  clearInactiveHomeUiRender()
+  cancelShiftInertia()
+  cancelGalleryOrbitInertia()
+  cancelLightGearInertia()
+  cancelLightGearAuto()
+  cancelLightGearRender()
+  clearLightGearSwitchResume()
+}
+
+function onHomeLightsSwitch(event) {
+  if (!homeViewMounted) return
+
+  const phase = event?.detail?.phase
+  const nextLightsOut = Boolean(event?.detail?.value)
+  if (phase === 'start') {
+    activeHomeLightsOut.value = nextLightsOut
+    if (!renderInactiveHomeUi.value) {
+      renderInactiveHomeUi.value = true
+      refreshLightGearAfterDomUpdate({ includeAll: true, restartObserver: true })
+    }
+    clearInactiveHomeUiRender()
+    clearLightGearSwitchResume()
+    lightGearAutoPausedForSwitch = Boolean(lightGearAutoFrame)
+    cancelLightGearAuto()
+    cancelLightGearRender()
+    return
+  }
+
+  if (phase === 'end') {
+    activeHomeLightsOut.value = nextLightsOut
+    refreshLightGearAfterDomUpdate({ includeAll: true })
+    if (lightGearAutoPausedForSwitch && !prefersReducedMotion()) {
+      lightGearSwitchResumeTimer = window.setTimeout(() => {
+        lightGearSwitchResumeTimer = 0
+        lightGearAutoPausedForSwitch = false
+        startLightGearAuto()
+      }, 80)
+    } else {
+      lightGearAutoPausedForSwitch = false
+    }
+  }
 }
 
 function cancelLightGearRender() {
@@ -791,7 +993,13 @@ function tickLightGearAuto(time) {
 }
 
 function startLightGearAuto() {
-  if (typeof window === 'undefined' || !homeViewMounted || lightGearAutoFrame || prefersReducedMotion()) return
+  if (
+    typeof window === 'undefined' ||
+    !homeViewMounted ||
+    homeRouteSuspended.value ||
+    lightGearAutoFrame ||
+    prefersReducedMotion()
+  ) return
   lightGearAutoLastTime = 0
   lightGearAutoFrame = window.requestAnimationFrame(tickLightGearAuto)
 }
@@ -1252,30 +1460,61 @@ function onGlobalShiftContextMenu(event) {
   hideGalleryOrbit()
 }
 
-onMounted(() => {
+function activateHomeView() {
+  if (homeViewMounted) return
   homeViewMounted = true
+  homeRouteSuspended.value = false
+  activeHomeLightsOut.value = readHomeLightsOut()
+  renderInactiveHomeUi.value = false
+  renderHomeGears.value = false
+  renderHaruhiTextField.value = false
+  lightGearReady.value = false
+  addHomeViewListeners()
   loadHaruhiBackgroundText()
-  syncLightGearOffset()
-  startLightGearResizeObserver()
-  preloadLightGearImages().finally(() => {
-    if (!homeViewMounted) return
-    lightGearReady.value = true
-    refreshLightGearLayout()
-    startLightGearAuto()
+  afterHomeFirstPaint(() => {
+    if (!homeViewMounted || homeRouteSuspended.value) return
+    renderHaruhiTextField.value = true
+    renderHomeGears.value = true
+    nextTick(() => {
+      if (!homeViewMounted || homeRouteSuspended.value) return
+      refreshLightGearLayout()
+      startLightGearResizeObserver()
+      lightGearReady.value = true
+      startLightGearAuto()
+      scheduleInactiveHomeUiRender()
+    })
   })
-  window.addEventListener('contextmenu', onGlobalShiftContextMenu, true)
+}
+
+function deactivateHomeView() {
+  if (!homeViewMounted && !homeViewListenersActive) return
+  homeViewMounted = false
+  suspendHomeRouteMotion()
+  renderInactiveHomeUi.value = false
+  renderHomeGears.value = false
+  renderHaruhiTextField.value = false
+  lightGearReady.value = false
+  stopLightGearResizeObserver()
+  removeHomeViewListeners()
+}
+
+onMounted(() => {
+  homeViewHasMounted = true
+  activateHomeView()
 })
 
-onBeforeUnmount(() => {
-  homeViewMounted = false
-  cancelShiftInertia()
-  cancelGalleryOrbitInertia()
-  cancelLightGearInertia()
-  cancelLightGearAuto()
-  cancelLightGearRender()
-  stopLightGearResizeObserver()
-  window.removeEventListener('contextmenu', onGlobalShiftContextMenu, true)
+onActivated(() => {
+  if (!homeViewHasMounted) return
+  activateHomeView()
 })
+
+onBeforeRouteLeave(() => {
+  suspendHomeRouteMotion()
+})
+
+onDeactivated(deactivateHomeView)
+
+onBeforeUnmount(deactivateHomeView)
 
 const tagCounts = approvedArtworks.reduce((map, item) => {
   for (const tag of item.tags || []) {
@@ -1377,7 +1616,7 @@ const stageStyle = {
   --hud-red: #ff637d;
 }
 
-:global(html.art-home-route:not(.art-lights-out)) .art-home {
+:global(html.art-home-route:not(.art-home-lights-out)) .art-home {
   width: 100%;
   margin-bottom: 0;
   padding: 0;
@@ -1403,7 +1642,6 @@ const stageStyle = {
   transform: rotate(-35deg) translateZ(0);
   transform-origin: center;
   mask-image: linear-gradient(90deg, transparent 0%, black 13%, black 86%, transparent 100%);
-  contain: strict;
 }
 
 .art-home .haruhi-text-field::before,
@@ -1448,6 +1686,10 @@ const stageStyle = {
   will-change: transform;
 }
 
+.art-home.is-route-suspended .haruhi-text-flow {
+  animation-play-state: paused;
+}
+
 .art-home .haruhi-text-sheet {
   position: relative;
   flex: 0 0 max(220vw, 3200px);
@@ -1473,7 +1715,6 @@ const stageStyle = {
     0 0 18px rgba(217, 70, 103, 0.18),
     0 0 34px rgba(27, 139, 155, 0.08);
   transform: translate3d(var(--row-offset), 0, 0);
-  contain: layout paint style;
 }
 
 .art-home .haruhi-text-row::before {
@@ -1501,19 +1742,21 @@ const stageStyle = {
   grid-area: 1 / 1;
   min-width: 0;
   z-index: 2;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
-:global(html.art-lights-out) .art-home::before,
-:global(html.art-lights-out) .art-home::after {
+:global(html.art-home-route.art-home-lights-out) .art-home::before,
+:global(html.art-home-route.art-home-lights-out) .art-home::after {
   display: block;
 }
 
-:global(html.art-home-route.art-lights-out .art-home .haruhi-text-field) {
+:global(html.art-home-route.art-home-lights-out .art-home .haruhi-text-field) {
   opacity: 0.38;
   mix-blend-mode: screen;
 }
 
-:global(html.art-home-route.art-lights-out .art-home .haruhi-text-row) {
+:global(html.art-home-route.art-home-lights-out .art-home .haruhi-text-row) {
   color: rgba(248, 252, 255, var(--row-alpha));
   text-shadow:
     0 0 14px rgba(141, 240, 255, 0.2),
@@ -1613,6 +1856,10 @@ const stageStyle = {
   margin-top: -118px;
   opacity: 0;
   transition: opacity 0.18s ease;
+}
+
+.art-home.is-route-suspended .light-gear__belt {
+  transition: none;
 }
 
 .art-home.is-light-gear-ready .light-gear__belt {
@@ -1729,12 +1976,12 @@ const stageStyle = {
   font-weight: 950;
 }
 
-:global(html.art-home-route.art-lights-out .art-home .day-kicker) {
+:global(html.art-home-route.art-home-lights-out .art-home .day-kicker) {
   color: rgba(141, 240, 255, 0.86);
   text-shadow: 0 0 18px rgba(141, 240, 255, 0.28);
 }
 
-:global(html.art-home-route.art-lights-out .art-home .day-visitor) {
+:global(html.art-home-route.art-home-lights-out .art-home .day-visitor) {
   color: rgba(248, 252, 255, 0.98);
   text-shadow:
     0 1px 0 rgba(255, 255, 255, 0.16),
@@ -1742,7 +1989,7 @@ const stageStyle = {
     0 16px 38px rgba(0, 0, 0, 0.54);
 }
 
-:global(html.art-home-route.art-lights-out .art-home .day-visitor strong) {
+:global(html.art-home-route.art-home-lights-out .art-home .day-visitor strong) {
   color: #ffffff;
   text-shadow:
     0 0 14px rgba(255, 255, 255, 0.46),
@@ -3207,7 +3454,7 @@ const stageStyle = {
   box-shadow: 0 0 20px rgba(116, 231, 255, 0.22);
 }
 
-:global(html.art-lights-out) .art-home {
+:global(html.art-home-route.art-home-lights-out) .art-home {
   --space-bg: #01040d;
   --space-bg-2: #050d1d;
   --space-bg-3: #10071f;
@@ -3223,85 +3470,85 @@ const stageStyle = {
   --hud-red: #ff6f89;
 }
 
-:global(html.art-lights-out) .art-home .endless-screen {
+:global(html.art-home-route.art-home-lights-out) .art-home .endless-screen {
   box-shadow:
     0 36px 130px rgba(0, 0, 0, 0.58),
     0 0 74px rgba(116, 231, 255, 0.16),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-:global(html.art-lights-out) .art-home .star-dust {
+:global(html.art-home-route.art-home-lights-out) .art-home .star-dust {
   opacity: 0.78;
 }
 
-:global(html.art-lights-out) .art-home .star-layer-a {
+:global(html.art-home-route.art-home-lights-out) .art-home .star-layer-a {
   opacity: 0.9;
 }
 
-:global(html.art-lights-out) .art-home .star-layer-b {
+:global(html.art-home-route.art-home-lights-out) .art-home .star-layer-b {
   opacity: 0.66;
 }
 
-:global(html.art-lights-out) .art-home .star-layer-c {
+:global(html.art-home-route.art-home-lights-out) .art-home .star-layer-c {
   opacity: 0.76;
 }
 
-:global(html.art-lights-out) .art-home .bright-stars {
+:global(html.art-home-route.art-home-lights-out) .art-home .bright-stars {
   opacity: 0.86;
 }
 
-:global(html.art-lights-out) .art-home .galaxy-halo {
+:global(html.art-home-route.art-home-lights-out) .art-home .galaxy-halo {
   opacity: 0.66;
 }
 
-:global(html.art-lights-out) .art-home .nebula-a {
+:global(html.art-home-route.art-home-lights-out) .art-home .nebula-a {
   background:
     radial-gradient(ellipse at 42% 42%, rgba(105, 80, 255, 0.34), transparent 46%),
     radial-gradient(ellipse at 68% 34%, rgba(85, 185, 255, 0.18), transparent 38%),
     radial-gradient(ellipse at 34% 68%, rgba(255, 99, 125, 0.1), transparent 38%);
 }
 
-:global(html.art-lights-out) .art-home .nebula-b {
+:global(html.art-home-route.art-home-lights-out) .art-home .nebula-b {
   background:
     radial-gradient(ellipse at 46% 48%, rgba(0, 216, 255, 0.24), transparent 48%),
     radial-gradient(ellipse at 62% 62%, rgba(177, 140, 255, 0.16), transparent 40%);
 }
 
-:global(html.art-lights-out) .art-home .time-device::before {
+:global(html.art-home-route.art-home-lights-out) .art-home .time-device::before {
   box-shadow: 0 0 118px rgba(141, 240, 255, 0.22), inset 0 0 64px rgba(177, 140, 255, 0.1);
 }
 
-:global(html.art-lights-out) .art-home .time-shift-stack {
+:global(html.art-home-route.art-home-lights-out) .art-home .time-shift-stack {
   opacity: 0.28;
   filter: saturate(0.7) brightness(0.82);
 }
 
-:global(html.art-lights-out) .art-home .time-shift-stack.is-hovering {
+:global(html.art-home-route.art-home-lights-out) .art-home .time-shift-stack.is-hovering {
   opacity: 0.98;
   filter: saturate(1.22) brightness(1.12) contrast(1.1);
 }
 
-:global(html.art-lights-out) .art-home .time-shift-stack.is-dragging {
+:global(html.art-home-route.art-home-lights-out) .art-home .time-shift-stack.is-dragging {
   opacity: 1;
   filter: saturate(1.3) brightness(1.16) contrast(1.12);
 }
 
-:global(html.art-lights-out) .art-home .gallery-art-stack {
+:global(html.art-home-route.art-home-lights-out) .art-home .gallery-art-stack {
   opacity: 0.54;
   filter: saturate(0.9) brightness(0.92);
 }
 
-:global(html.art-lights-out) .art-home .gallery-art-stack.is-hovering {
+:global(html.art-home-route.art-home-lights-out) .art-home .gallery-art-stack.is-hovering {
   opacity: 0.98;
   filter: saturate(1.2) brightness(1.1) contrast(1.1);
 }
 
-:global(html.art-lights-out) .art-home .gallery-art-stack.is-dragging {
+:global(html.art-home-route.art-home-lights-out) .art-home .gallery-art-stack.is-dragging {
   opacity: 1;
   filter: saturate(1.28) brightness(1.14) contrast(1.12);
 }
 
-:global(html.art-lights-out) .art-home .shift-module-shell {
+:global(html.art-home-route.art-home-lights-out) .art-home .shift-module-shell {
   background:
     radial-gradient(ellipse at 102% 50%, rgba(141, 240, 255, 0.16), transparent 42%),
     radial-gradient(ellipse at 84% 22%, rgba(199, 166, 255, 0.16), transparent 34%),
@@ -3312,18 +3559,18 @@ const stageStyle = {
     0 0 56px rgba(141, 240, 255, 0.08);
 }
 
-:global(html.art-lights-out) .art-home .shift-module-shell::before {
+:global(html.art-home-route.art-home-lights-out) .art-home .shift-module-shell::before {
   border-right-color: rgba(141, 240, 255, 0.58);
   box-shadow:
     20px 0 34px rgba(141, 240, 255, 0.2),
     30px 0 54px rgba(199, 166, 255, 0.16);
 }
 
-:global(html.art-lights-out) .art-home .shift-module-shell__edge {
+:global(html.art-home-route.art-home-lights-out) .art-home .shift-module-shell__edge {
   opacity: 0.84;
 }
 
-:global(html.art-lights-out) .art-home .gallery-module-shell {
+:global(html.art-home-route.art-home-lights-out) .art-home .gallery-module-shell {
   background:
     radial-gradient(ellipse at -2% 50%, rgba(255, 99, 125, 0.16), transparent 42%),
     radial-gradient(ellipse at 16% 22%, rgba(141, 240, 255, 0.16), transparent 34%),
@@ -3334,18 +3581,18 @@ const stageStyle = {
     0 0 56px rgba(255, 99, 125, 0.08);
 }
 
-:global(html.art-lights-out) .art-home .gallery-module-shell::before {
+:global(html.art-home-route.art-home-lights-out) .art-home .gallery-module-shell::before {
   border-left-color: rgba(255, 99, 125, 0.52);
   box-shadow:
     -20px 0 34px rgba(255, 99, 125, 0.2),
     -30px 0 54px rgba(141, 240, 255, 0.14);
 }
 
-:global(html.art-lights-out) .art-home .gallery-module-shell__edge {
+:global(html.art-home-route.art-home-lights-out) .art-home .gallery-module-shell__edge {
   opacity: 0.84;
 }
 
-:global(html.art-lights-out) .art-home .shift-layer {
+:global(html.art-home-route.art-home-lights-out) .art-home .shift-layer {
   border-color: rgba(141, 240, 255, 0.38);
   background:
     linear-gradient(90deg, rgba(3, 10, 24, 0.68), rgba(24, 65, 112, 0.9), rgba(18, 14, 54, 0.68)),
@@ -3356,7 +3603,7 @@ const stageStyle = {
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
-:global(html.art-lights-out) .art-home .gallery-orbit-layer {
+:global(html.art-home-route.art-home-lights-out) .art-home .gallery-orbit-layer {
   border-color: rgba(255, 99, 125, 0.44);
   background: rgba(3, 10, 24, 0.78);
   box-shadow:
@@ -3365,26 +3612,26 @@ const stageStyle = {
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
-:global(html.art-lights-out) .art-home .shift-label {
+:global(html.art-home-route.art-home-lights-out) .art-home .shift-label {
   border-color: rgba(141, 240, 255, 0.32);
   background: rgba(3, 10, 24, 0.84);
 }
 
-:global(html.art-lights-out) .art-home .gallery-orbit-label {
+:global(html.art-home-route.art-home-lights-out) .art-home .gallery-orbit-label {
   border-color: rgba(255, 99, 125, 0.34);
   background: rgba(3, 10, 24, 0.84);
 }
 
-:global(html.art-lights-out) .art-home .observer-core,
-:global(html.art-lights-out) .art-home .satellite-node,
-:global(html.art-lights-out) .art-home .endless-panel,
-:global(html.art-lights-out) .art-home .ratio-note,
-:global(html.art-lights-out) .art-home .summer-strip,
-:global(html.art-lights-out) .art-home .status-chip {
+:global(html.art-home-route.art-home-lights-out) .art-home .observer-core,
+:global(html.art-home-route.art-home-lights-out) .art-home .satellite-node,
+:global(html.art-home-route.art-home-lights-out) .art-home .endless-panel,
+:global(html.art-home-route.art-home-lights-out) .art-home .ratio-note,
+:global(html.art-home-route.art-home-lights-out) .art-home .summer-strip,
+:global(html.art-home-route.art-home-lights-out) .art-home .status-chip {
   background-color: rgba(3, 10, 24, 0.78);
 }
 
-:global(html.art-lights-out) .art-home .scan-sweep {
+:global(html.art-home-route.art-home-lights-out) .art-home .scan-sweep {
   background:
     conic-gradient(from 0deg, transparent 0 266deg, rgba(141, 240, 255, 0.08) 292deg, rgba(141, 240, 255, 0.28) 318deg, rgba(199, 166, 255, 0.12) 334deg, transparent 356deg);
 }
@@ -3523,7 +3770,7 @@ const stageStyle = {
 }
 
 @media (max-height: 820px) and (min-width: 821px) {
-  :global(html.art-home-route:not(.art-lights-out)) .art-home {
+  :global(html.art-home-route:not(.art-home-lights-out)) .art-home {
     margin-bottom: 0;
   }
 

@@ -22,7 +22,7 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
 
 <template>
   <div class="topbar__inner">
-    <div class="brand" role="button" tabindex="0" @click="router.push('/').then(() => { if(route.path === '/') router.go(0) })" @keydown.enter="router.push('/')">
+    <div class="brand" role="button" tabindex="0" @click="router.push('/')" @keydown.enter="router.push('/')">
       <div class="brand__mark" aria-hidden="true"></div>
       <div class="brand__text">
         <div class="brand__title">应援团绘画部  ·  画廊</div>

@@ -7,16 +7,97 @@ const LIGHTS_OUT_KEY = 'haruhi-art-lights-out'
 const lightsOut = ref(false)
 const route = useRoute()
 const isHomeRoute = computed(() => route.path === '/')
+let lightsApplyFrame = 0
+let homeRouteApplyFrame = 0
+let cancelLightsPersist = null
+let appliedGlobalLightsOut = false
+let appliedHomeLightsOut = false
 
-function applyLightsOut(value) {
+function emitHomeLightsSwitch(phase, value) {
+  if (typeof window === 'undefined' || !isHomeRoute.value) return
+  window.dispatchEvent(new CustomEvent('art-home-lights-switch', {
+    detail: { phase, value },
+  }))
+}
+
+function setLightsOutClass(value) {
   if (typeof document === 'undefined') return
-  document.documentElement.classList.toggle('art-lights-out', value)
+  const useHomeTheme = isHomeRoute.value
+  const nextGlobalLightsOut = value && !useHomeTheme
+  const nextHomeLightsOut = value && useHomeTheme
+
+  if (appliedGlobalLightsOut !== nextGlobalLightsOut) {
+    document.documentElement.classList.toggle('art-lights-out', nextGlobalLightsOut)
+    appliedGlobalLightsOut = nextGlobalLightsOut
+  }
+
+  if (appliedHomeLightsOut !== nextHomeLightsOut) {
+    document.documentElement.classList.toggle('art-home-lights-out', nextHomeLightsOut)
+    document.body?.classList.toggle('art-home-lights-out', nextHomeLightsOut)
+    appliedHomeLightsOut = nextHomeLightsOut
+  }
+}
+
+function applyLightsOut(value, { deferHome = false } = {}) {
+  if (typeof window === 'undefined' || !deferHome || !isHomeRoute.value) {
+    setLightsOutClass(value)
+    return
+  }
+
+  emitHomeLightsSwitch('start', value)
+  if (lightsApplyFrame) window.cancelAnimationFrame(lightsApplyFrame)
+  lightsApplyFrame = window.requestAnimationFrame(() => {
+    lightsApplyFrame = 0
+    setLightsOutClass(value)
+    window.requestAnimationFrame(() => {
+      emitHomeLightsSwitch('end', value)
+    })
+  })
+}
+
+function setHomeRouteClass(value) {
+  if (typeof document === 'undefined') return
+  document.documentElement.classList.toggle('art-home-route', value)
+  document.body?.classList.toggle('art-home-route', value)
 }
 
 function applyHomeRoute(value) {
   if (typeof document === 'undefined') return
-  document.documentElement.classList.toggle('art-home-route', value)
-  document.body?.classList.toggle('art-home-route', value)
+
+  if (homeRouteApplyFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(homeRouteApplyFrame)
+    homeRouteApplyFrame = 0
+  }
+
+  if (!value && typeof window !== 'undefined') {
+    homeRouteApplyFrame = window.requestAnimationFrame(() => {
+      homeRouteApplyFrame = 0
+      setHomeRouteClass(false)
+      applyLightsOut(lightsOut.value)
+    })
+    return
+  }
+
+  setHomeRouteClass(true)
+  applyLightsOut(lightsOut.value)
+}
+
+function persistLightsOut(value) {
+  if (typeof window === 'undefined') return
+
+  cancelLightsPersist?.()
+  const write = () => {
+    cancelLightsPersist = null
+    window.localStorage.setItem(LIGHTS_OUT_KEY, value ? '1' : '0')
+  }
+
+  if ('requestIdleCallback' in window) {
+    const id = window.requestIdleCallback(write, { timeout: 800 })
+    cancelLightsPersist = () => window.cancelIdleCallback?.(id)
+  } else {
+    const id = window.setTimeout(write, 0)
+    cancelLightsPersist = () => window.clearTimeout(id)
+  }
 }
 
 function toggleLightsOut() {
@@ -29,19 +110,31 @@ onMounted(() => {
 })
 
 watch(lightsOut, (value) => {
-  applyLightsOut(value)
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(LIGHTS_OUT_KEY, value ? '1' : '0')
-  }
+  applyLightsOut(value, { deferHome: true })
+  persistLightsOut(value)
 })
 
 watch(isHomeRoute, (value) => {
   applyHomeRoute(value)
-}, { immediate: true })
+}, { immediate: true, flush: 'post' })
 
 onBeforeUnmount(() => {
+  if (lightsApplyFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(lightsApplyFrame)
+  }
+  if (homeRouteApplyFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(homeRouteApplyFrame)
+  }
+  lightsApplyFrame = 0
+  homeRouteApplyFrame = 0
+  cancelLightsPersist?.()
+  cancelLightsPersist = null
   applyLightsOut(false)
   applyHomeRoute(false)
+  document.documentElement.classList.remove('art-home-lights-out')
+  document.body?.classList.remove('art-home-lights-out')
+  appliedGlobalLightsOut = false
+  appliedHomeLightsOut = false
 })
 </script>
 
@@ -55,10 +148,10 @@ onBeforeUnmount(() => {
     </header>
 
     <main class="main" :class="{ 'is-home-route': isHomeRoute }">
-      <router-view v-slot="{ Component }">
-        <transition name="page" mode="out-in">
-          <component :is="Component" />
-        </transition>
+      <router-view v-slot="{ Component, route }">
+        <KeepAlive include="HomeView">
+          <component :is="Component" :key="route.name === 'home' ? 'home' : route.fullPath" />
+        </KeepAlive>
       </router-view>
     </main>
   </div>
@@ -214,26 +307,21 @@ onBeforeUnmount(() => {
 .page-leave-active {
   /* 使用贝塞尔曲线模拟物理惯性，比 linear 更自然 */
   transition: 
-    opacity 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
-    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
-    filter 0.5s ease;
+    opacity 0.18s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /* 2. 进场开始状态 (页面刚要出来时) */
 .page-enter-from {
   opacity: 0;
   /* 稍微向下偏移 15px，有一种浮上来的感觉 */
-  transform: translateY(15px) scale(0.98); 
-  /* 加上模糊，模拟对焦过程，增加高级感 */
-  filter: blur(8px);
+  transform: translateY(8px) scale(0.995);
 }
 
 /* 3. 离场结束状态 (旧页面离开后) */
 .page-leave-to {
   opacity: 0;
   /* 稍微向上偏移 -15px，有一种飘走的感觉 */
-  transform: translateY(-15px) scale(0.98);
-  /* 离开时也变模糊 */
-  filter: blur(8px);
+  transform: translateY(-8px) scale(0.995);
 }
 </style>
