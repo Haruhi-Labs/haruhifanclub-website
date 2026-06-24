@@ -36,6 +36,8 @@ import SiteFooter from './components/SiteFooter.vue'
 }
 .app-shell > .main {
   flex: 1; /* 占据剩余空间，把统一页脚推到底部 */
+  /* sticky 页头已在流内占位，这里再补一点呼吸间距，内容不贴着页头底边 */
+  padding-top: var(--sos-space-6);
 }
 
 /* =========================================
