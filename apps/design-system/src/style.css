@@ -147,6 +147,22 @@ body {
 .ds-stage--surface {
   background: var(--sos-bg-surface);
 }
+/* 让内容贴边铺满（页头/页脚等整宽 chrome 自带内边距，舞台不再加 padding） */
+.ds-stage--flush {
+  padding: 0;
+  overflow: hidden;
+}
+/* 同一 section 内的次级分组标题 */
+.ds-subhead {
+  margin: var(--sos-space-6) 0 var(--sos-space-2);
+  font-size: var(--sos-text-sm);
+  font-weight: var(--sos-weight-semibold);
+  color: var(--sos-text-tertiary);
+  letter-spacing: 0.04em;
+}
+.ds-subhead:first-of-type {
+  margin-top: var(--sos-space-4);
+}
 .ds-row {
   display: flex;
   flex-wrap: wrap;

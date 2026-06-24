@@ -135,7 +135,7 @@ Primitive（物理色板，不在业务里直接用）
 - **排印**：Eyebrow · Title · Copy
 - **控件**：Button · Badge · Chip · Tabs（pill / underline）
 - **表单**：Field · Input · Textarea · Select · Checkbox · Switch（均 v-model）
-- **搜索**：`.sos-search` / `SosSearch`（放大镜 + 输入 + 清除/提交；`--lg` 全屏浮层、`--square` 编辑部方角；各搜索场景共用，按站点主题）
+- **搜索**：`.sos-search` / `SosSearch`（放大镜 + 输入 + 清除/提交；`--lg` 全屏浮层、`--square` 编辑部方角；各搜索场景共用，按站点主题）。**焦点环由外层 `:focus-within` 统一提供**，`.sos-scope` 内的输入聚焦时不再单独出环（`box-shadow:none`），避免双层高亮；`type=search` 的浏览器原生清除按钮一并隐藏
 - **数据陈列**：Card · Avatar · Table · Tooltip · Skeleton · Spinner
 - **反馈**：Notice · Progress · EmptyState · ToastRegion（配 `useToast`）
 - **导航**：Appbar · NavLink · Breadcrumb · Pagination · HeaderBrand
@@ -159,13 +159,13 @@ Primitive（物理色板，不在业务里直接用）
 
 `recipes.css` 沉淀「共享卡片解剖 + 五个内容类型特化 recipe」，由 `@haruhi/ui/recipes` 的 prop 驱动组件输出；内容仍由业务传入。
 
-| Recipe              | 站点    | 母题                                        |
-| ------------------- | ------- | ------------------------------------------- |
-| `.sos-article-card` | news    | 顶部信号细线、墨色描边标签、衬线摘要        |
-| `.sos-product-card` | shop    | 方形媒体、角标、预售进度、价格、悬浮动作    |
-| `.sos-artwork-card` | art     | 玻璃画框 + 深色信息条（题注/标签/粉色点赞） |
-| `.sos-book-card`    | library | 书脊高光、竖排书名、卷册角标                |
-| `.sos-exam-card`    | exam    | 答题横格、阅卷红印章、折角、藏蓝分割线      |
+| Recipe              | 站点    | 母题                                                                                      |
+| ------------------- | ------- | ----------------------------------------------------------------------------------------- |
+| `.sos-article-card` | news    | 顶部信号细线、墨色描边标签、衬线摘要                                                      |
+| `.sos-product-card` | shop    | 方形媒体、角标、预售进度、价格、悬浮动作                                                  |
+| `.sos-artwork-card` | art     | 玻璃画框 + 深色信息条（题注/标签/粉色点赞）                                               |
+| `.sos-book-card`    | library | 封面优先（满宽大图、无卡片边界）、悬浮上浮、暖色衬线书名 + 次级作者；无封面时首字居中占位 |
+| `.sos-exam-card`    | exam    | 答题横格、阅卷红印章、折角、藏蓝分割线                                                    |
 
 共享解剖（`.sos-card__media/kicker/heading/excerpt/tags`、`.sos-price`、`.sos-ribbon`、`.sos-stat`）可跨 recipe 复用。每张卡片消费当前 `data-sos-site` 的表达 token，放进对应站点即天然契合。
 
@@ -203,15 +203,15 @@ Primitive（物理色板，不在业务里直接用）
 
 ### 7.3 当前各站接入状态
 
-| App       | 模式    | 接入深度                                 |
-| --------- | ------- | ---------------------------------------- |
-| `shop`    | shop    | 桥接（bridges 全量映射）+ 个别 SosButton |
+| App       | 模式    | 接入深度                                                                                                                                      |
+| --------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shop`    | shop    | 桥接（bridges 全量映射）+ 个别 SosButton                                                                                                      |
 | `news`    | news    | **浅层 + 全量 token 化**（编辑部核心与各 feature 配色收敛到 token，保留毛笔报头/衬线/编辑部卡片与活动中心等彩色特色；仍不套 DS 组件以免同化） |
-| `art`     | art     | 桥接                                     |
-| `novel`   | library | **深度**（tokens + components/recipe 类，书架/阅读器/后台重构；正文沿用站点自有衬线排版） |
-| `exam`    | exam    | **深度**（tokens + components.css；首页/编辑器/审核/页脚全面 token 化，绿+多重红收敛为阅卷红+藏蓝+金；答题纸木纹/手写/阅卷印章作保护区保留） |
-| `console` | base    | **桥接**（tokens + data-sos-theme=dark；深色超管台局部变量桥接到 DS 暗色语义层，行动色用 DS 蓝） |
-| `auth-ui` | 随站点  | 深度（DS 原生），由各 app 路由传 `site`  |
+| `art`     | art     | 桥接                                                                                                                                          |
+| `novel`   | library | **深度**（tokens + components/recipe 类，书架/阅读器/后台重构；正文沿用站点自有衬线排版）                                                     |
+| `exam`    | exam    | **深度**（tokens + components.css；首页/编辑器/审核/页脚全面 token 化，绿+多重红收敛为阅卷红+藏蓝+金；答题纸木纹/手写/阅卷印章作保护区保留）  |
+| `console` | base    | **桥接**（tokens + data-sos-theme=dark；深色超管台局部变量桥接到 DS 暗色语义层，行动色用 DS 蓝）                                              |
+| `auth-ui` | 随站点  | 深度（DS 原生），由各 app 路由传 `site`                                                                                                       |
 
 ---
 

@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import {
+  SosAppbar,
   SosAvatar,
   SosBadge,
   SosBreadcrumb,
@@ -15,11 +16,14 @@ import {
   SosEyebrow,
   SosField,
   SosGrid,
+  SosHeaderBrand,
   SosInput,
   SosModal,
+  SosNavLink,
   SosNotice,
   SosPagination,
   SosProgress,
+  SosSearch,
   SosSelect,
   SosSkeleton,
   SosSpinner,
@@ -101,6 +105,8 @@ const phone = ref('123')
 const agree = ref(true)
 const notify = ref(true)
 const ship = ref('express')
+const searchQuery = ref('凉宫春日')
+const searchQueryLg = ref('')
 const modalOpen = ref(false)
 const toast = useToast()
 
@@ -175,6 +181,37 @@ const crumbs = [
   { label: '亚克力立牌' },
 ]
 
+const chromeSearch = ref('')
+
+// 页脚链接组：组数越多列越多（自适应多列）
+const footerGroups = [
+  {
+    title: '主要站点',
+    links: [
+      { label: '应援团主站', brand: '#3b82f6' },
+      { label: 'AI 语音合成', brand: '#3b82f6' },
+      { label: 'AI 声线转换', brand: '#06b6d4' },
+    ],
+  },
+  {
+    title: '探索',
+    links: [
+      { label: '圣地巡礼照片墙', brand: '#eab308' },
+      { label: '长门有希的书架', brand: '#10b981' },
+      { label: '京阿尼台词检索', brand: '#10b981' },
+    ],
+  },
+  {
+    title: '加入我们',
+    links: [
+      { label: '团员手册', brand: '#3b82f6' },
+      { label: '超能力者群', brand: '#10b981' },
+      { label: '异世界人群', brand: '#a855f7' },
+      { label: '未来人群', brand: '#f97316' },
+    ],
+  },
+]
+
 const products = [
   { name: '长门有希 亚克力立牌', price: '¥128', tag: '新品' },
   { name: '朝比奈实玖瑠 徽章套组', price: '¥45', tag: '热卖' },
@@ -205,10 +242,12 @@ const nav = [
     items: [
       { id: 'buttons', label: '按钮 · 徽章' },
       { id: 'forms', label: '表单' },
+      { id: 'search', label: '搜索' },
       { id: 'data', label: '卡片 · 数据' },
       { id: 'feedback', label: '反馈' },
       { id: 'overlay', label: '浮层' },
       { id: 'nav', label: '导航' },
+      { id: 'chrome', label: '页头 · 页脚' },
       { id: 'cards', label: '业务卡片 recipe' },
     ],
   },
@@ -518,6 +557,40 @@ onBeforeUnmount(() => observer?.disconnect())
           </div>
         </section>
 
+        <!-- Search -->
+        <section id="search" class="ds-section">
+          <div class="ds-section__head">
+            <SosEyebrow>COMPONENTS</SosEyebrow>
+            <SosTitle as="h2" size="xl">搜索</SosTitle>
+            <SosCopy>
+              统一搜索规范 <code>.sos-search</code> / <code>SosSearch</code>：放大镜 + 输入 +
+              清除（带值时出现）/ 可选提交。焦点环由外层 <code>:focus-within</code>
+              统一提供，内部输入不再单独出环——任何场景都不会出现双层高亮。各搜索场景共用，跟随
+              <code>data-sos-site</code> 切换主题。
+            </SosCopy>
+          </div>
+          <div class="ds-stage ds-stage--surface sos-stack">
+            <SosField label="默认（md）">
+              <SosSearch v-model="searchQuery" placeholder="搜索作品 / 团员 / 标签…" />
+            </SosField>
+            <SosField label="带提交按钮">
+              <SosSearch v-model="searchQuery" placeholder="回车或点击提交" submit />
+            </SosField>
+            <SosField label="放大尺寸 · 方角（lg · square，全屏浮层用）">
+              <SosSearch
+                v-model="searchQueryLg"
+                size="lg"
+                square
+                submit
+                placeholder="搜索: 凉宫春日…"
+              />
+            </SosField>
+            <SosField label="禁用">
+              <SosSearch placeholder="暂不可用" disabled />
+            </SosField>
+          </div>
+        </section>
+
         <!-- Data display -->
         <section id="data" class="ds-section">
           <div class="ds-section__head">
@@ -665,6 +738,116 @@ onBeforeUnmount(() => observer?.disconnect())
               <SosTabs v-model="utab" :items="utabItems" variant="underline" />
             </div>
             <SosPagination v-model="page" :page-count="9" />
+          </div>
+        </section>
+
+        <!-- Chrome: appbar + footer -->
+        <section id="chrome" class="ds-section">
+          <div class="ds-section__head">
+            <SosEyebrow>CHROME</SosEyebrow>
+            <SosTitle as="h2" size="xl">页头 · 页脚</SosTitle>
+            <SosCopy>
+              各站共享的 chrome 规范：<code>.sos-appbar</code>（logo 锁头 + 导航 + 账号收进右侧
+              actions）与 <code>.sos-footer</code>（品牌锁头 + 标语 + 社交 ｜ 自适应多列链接组 +
+              底部条 + 回到顶部）。全部走 token，跟随
+              <code>data-sos-site</code> 切换主题；品牌主副标题左对齐双行，品牌字体/字重为表达层旋钮
+              <code>--sos-brand-font</code> / <code>--sos-brand-weight</code>。
+            </SosCopy>
+          </div>
+
+          <p class="ds-subhead">页头 Appbar</p>
+          <div class="ds-stage ds-stage--surface">
+            <SosAppbar>
+              <template #brand>
+                <SosHeaderBrand
+                  :logo-src="logoUrl"
+                  logo-alt="SOS"
+                  title="绘画部画廊"
+                  subtitle="凉宫春日应援团 · 美术"
+                />
+              </template>
+              <nav class="sos-navlinks">
+                <SosNavLink href="#chrome" :active="true">画廊</SosNavLink>
+                <SosNavLink href="#chrome">投稿</SosNavLink>
+                <SosNavLink href="#chrome">积分</SosNavLink>
+              </nav>
+              <template #actions>
+                <SosSearch
+                  v-model="chromeSearch"
+                  placeholder="搜索…"
+                  aria-label="搜索"
+                  style="width: 12rem"
+                />
+                <SosAvatar name="凉宫" size="sm" />
+              </template>
+            </SosAppbar>
+          </div>
+
+          <p class="ds-subhead">页脚 Footer</p>
+          <div class="ds-stage ds-stage--surface ds-stage--flush">
+            <footer class="sos-footer">
+              <button type="button" class="sos-footer__totop" aria-label="回到顶部">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <polyline points="18 15 12 9 6 15" />
+                </svg>
+              </button>
+              <div class="sos-footer__inner">
+                <div class="sos-footer__top">
+                  <div class="sos-footer__brand">
+                    <span class="sos-brand-lockup">
+                      <span class="sos-brand-lockup__mark">
+                        <img :src="logoUrl" alt="" />
+                      </span>
+                      <span class="sos-brand-lockup__text">
+                        <strong>凉宫春日应援团</strong>
+                        <small>Haruhifanclub</small>
+                      </span>
+                    </span>
+                    <p class="sos-footer__tagline">非营利的凉宫春日粉丝团体，让世界变得更热闹。</p>
+                    <div class="sos-footer__social">
+                      <a class="sos-footer__social-link" style="--brand: #fb7299" href="#chrome"
+                        >哔哩哔哩</a
+                      >
+                      <a class="sos-footer__social-link" style="--brand: #ff2442" href="#chrome"
+                        >小红书</a
+                      >
+                    </div>
+                  </div>
+                  <div class="sos-footer__groups">
+                    <div v-for="g in footerGroups" :key="g.title" class="sos-footer__group">
+                      <p class="sos-footer__group-title">{{ g.title }}</p>
+                      <div class="sos-footer__links">
+                        <a
+                          v-for="l in g.links"
+                          :key="l.label"
+                          class="sos-footer__link"
+                          :style="{ '--brand': l.brand }"
+                          href="#chrome"
+                        >
+                          <span class="sos-footer__dot" aria-hidden="true"></span>{{ l.label }}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="sos-footer__bottom">
+                  <span>© 2025 HARUHIFANCLUB · Non-profit fan project</span>
+                  <div class="sos-footer__bottom-meta">
+                    <span>非营利项目</span>
+                    <span class="sos-footer__bottom-sep" aria-hidden="true"></span>
+                    <span>仅供交流</span>
+                  </div>
+                </div>
+              </div>
+            </footer>
           </div>
         </section>
 
