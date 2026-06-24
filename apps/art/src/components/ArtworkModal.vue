@@ -638,14 +638,16 @@ onMounted(() => {
    主题变量定义
 ========================= */
 .garden-overlay {
-  --mist-bg: #f4f6f9; 
-  --vine-green: #6b8c85; 
-  --flower-purple: #bfa2db; 
-  --flower-pink: #f3d1dc; 
-  --accent: #7a8b99; 
-  
-  --text-deep: #434d58; 
-  --text-main: #5d6d7e; 
+  /* 接入设计系统 art 表达：原"花园"灰蓝绿调色板整体重映射到 DS art token，
+     一处改、全组件生效（青绿主色 + 粉色辅色 + 语义文本色） */
+  --mist-bg: var(--sos-bg-subtle);
+  --vine-green: var(--sos-accent);
+  --flower-purple: var(--sos-accent-2);
+  --flower-pink: color-mix(in srgb, var(--sos-accent-2) 28%, white);
+  --accent: var(--sos-accent);
+
+  --text-deep: var(--sos-text-primary);
+  --text-main: var(--sos-text-secondary);
   
   --paper-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
   
@@ -1064,17 +1066,17 @@ onMounted(() => {
 }
 
 .btn--accent {
-  background: linear-gradient(135deg, var(--text-main), var(--text-deep));
-  color: var(--sos-bg-surface);
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
   border: 0; padding: 6px 20px; border-radius: 999px;
   font-size: 13px; cursor: pointer;
-  box-shadow: 0 4px 10px rgba(67, 77, 88, 0.2);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--sos-accent) 24%, transparent);
   transition: all 0.3s;
   letter-spacing: 1px;
 }
 .btn--accent:hover {
-  background: linear-gradient(135deg, var(--flower-purple), #9b80b9);
-  box-shadow: 0 6px 14px rgba(155, 128, 185, 0.3);
+  background: var(--sos-accent-hover);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--sos-accent) 32%, transparent);
   transform: translateY(-1px);
 }
 .btn--accent:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
