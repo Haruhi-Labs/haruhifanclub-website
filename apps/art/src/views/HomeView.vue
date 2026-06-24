@@ -1,5 +1,5 @@
 <template>
-  <section class="container-card art-home">
+  <section ref="artHomeRef" class="container-card art-home">
     <div class="haruhi-text-field" aria-hidden="true">
       <div
         v-for="row in haruhiTextRows"
@@ -27,9 +27,9 @@
           @pointerup="onLightGearGrabEnd"
           @pointercancel="onLightGearGrabCancel"
         >
-          <div class="light-gear__belt" :style="lightGearTopStyle">
+          <div class="light-gear__belt">
             <figure v-for="item in lightGearTopItems" :key="item.key" class="light-gear__tile">
-              <img :src="item.imageUrl" :alt="item.title" draggable="false" @dragstart.prevent />
+              <img :src="item.imageUrl" :alt="item.title" loading="eager" decoding="async" draggable="false" @dragstart.prevent />
               <figcaption>{{ item.title }}</figcaption>
             </figure>
           </div>
@@ -49,9 +49,9 @@
           @pointerup="onLightGearGrabEnd"
           @pointercancel="onLightGearGrabCancel"
         >
-          <div class="light-gear__belt" :style="lightGearBottomStyle">
+          <div class="light-gear__belt">
             <figure v-for="item in lightGearBottomItems" :key="item.key" class="light-gear__tile">
-              <img :src="item.imageUrl" :alt="item.title" draggable="false" @dragstart.prevent />
+              <img :src="item.imageUrl" :alt="item.title" loading="eager" decoding="async" draggable="false" @dragstart.prevent />
               <figcaption>{{ item.title }}</figcaption>
             </figure>
           </div>
@@ -315,9 +315,9 @@
         @pointerup="onLightGearGrabEnd"
         @pointercancel="onLightGearGrabCancel"
       >
-        <div class="light-gear__belt" :style="lightGearTopStyle">
+        <div class="light-gear__belt">
           <figure v-for="item in lightGearTopItems" :key="item.key" class="light-gear__tile">
-            <img :src="item.imageUrl" :alt="item.title" draggable="false" @dragstart.prevent />
+            <img :src="item.imageUrl" :alt="item.title" loading="eager" decoding="async" draggable="false" @dragstart.prevent />
             <figcaption>{{ item.title }}</figcaption>
           </figure>
         </div>
@@ -337,9 +337,9 @@
         @pointerup="onLightGearGrabEnd"
         @pointercancel="onLightGearGrabCancel"
       >
-        <div class="light-gear__belt" :style="lightGearBottomStyle">
+        <div class="light-gear__belt">
           <figure v-for="item in lightGearBottomItems" :key="item.key" class="light-gear__tile">
-            <img :src="item.imageUrl" :alt="item.title" draggable="false" @dragstart.prevent />
+            <img :src="item.imageUrl" :alt="item.title" loading="eager" decoding="async" draggable="false" @dragstart.prevent />
             <figcaption>{{ item.title }}</figcaption>
           </figure>
         </div>
@@ -373,7 +373,7 @@ const LIGHT_GEAR_THROW_BOOST = 1.35
 const LIGHT_GEAR_INERTIA_DECAY = 0.982
 const LIGHT_GEAR_STOP_VELOCITY = 0.0035
 const LIGHT_GEAR_AUTO_SECONDS = 120
-const HARUHI_TEXT_DRIFT_SECONDS = 360
+const HARUHI_TEXT_DRIFT_SECONDS = 540
 const HARUHI_TEXT_ROW_COUNT = 31
 const HARUHI_TEXT_ROW_GAP = 58
 const HARUHI_TEXT_ROW_STAGGER = 104
@@ -532,9 +532,10 @@ let galleryOrbitInertiaFrame = 0
 let galleryOrbitInertiaLastTime = 0
 let galleryOrbitMoved = false
 let galleryOrbitSuppressClickUntil = 0
+const artHomeRef = ref(null)
 const lightGearDragging = ref(false)
 const lightGearDragRow = ref('top')
-const lightGearOffset = ref(0)
+let lightGearOffset = 0
 let lightGearPointerId = null
 let lightGearLastX = null
 let lightGearLastTime = 0
@@ -544,6 +545,12 @@ let lightGearInertiaFrame = 0
 let lightGearInertiaLastTime = 0
 let lightGearAutoFrame = 0
 let lightGearAutoLastTime = 0
+let lightGearRenderFrame = 0
+let lightGearTopBelts = []
+let lightGearBottomBelts = []
+let lightGearMeasuredCycleWidth = 0
+let lightGearBaseOffset = 0
+let homeViewMounted = false
 
 function normalizeShiftAngle(value) {
   let next = value % 360
@@ -634,8 +641,12 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
 }
 
+function getLightGearCycleWidth() {
+  return lightGearMeasuredCycleWidth || lightGearCycleWidth
+}
+
 function normalizeLightGearOffset(value) {
-  const cycle = lightGearCycleWidth
+  const cycle = getLightGearCycleWidth()
   if (!Number.isFinite(cycle) || cycle <= 1) return value
 
   let next = value % cycle
@@ -644,8 +655,61 @@ function normalizeLightGearOffset(value) {
   return next
 }
 
-function applyLightGearDelta(delta) {
-  lightGearOffset.value = normalizeLightGearOffset(lightGearOffset.value + delta)
+function applyLightGearDelta(delta, { immediate = false } = {}) {
+  lightGearOffset = normalizeLightGearOffset(lightGearOffset + delta)
+  if (immediate) {
+    syncLightGearOffset()
+  } else {
+    scheduleLightGearOffsetSync()
+  }
+}
+
+function cacheLightGearBelts() {
+  const root = artHomeRef.value
+  lightGearTopBelts = Array.from(root?.querySelectorAll('.light-gear--top .light-gear__belt') || [])
+  lightGearBottomBelts = Array.from(root?.querySelectorAll('.light-gear--bottom .light-gear__belt') || [])
+  const measuredWidth = Math.max(
+    0,
+    ...lightGearTopBelts.map((belt) => belt.getBoundingClientRect().width),
+    ...lightGearBottomBelts.map((belt) => belt.getBoundingClientRect().width)
+  )
+
+  if (measuredWidth > 0) {
+    lightGearMeasuredCycleWidth = measuredWidth / LIGHT_GEAR_COPY_COUNT
+    lightGearBaseOffset = -measuredWidth / LIGHT_GEAR_COPY_COUNT
+    lightGearOffset = normalizeLightGearOffset(lightGearOffset)
+  } else {
+    lightGearMeasuredCycleWidth = 0
+    lightGearBaseOffset = -lightGearCycleWidth
+  }
+}
+
+function syncLightGearOffset() {
+  lightGearRenderFrame = 0
+  if (!lightGearTopBelts.length || !lightGearBottomBelts.length || !lightGearBaseOffset) {
+    cacheLightGearBelts()
+  }
+
+  const topOffset = (lightGearBaseOffset + lightGearOffset).toFixed(3)
+  const bottomOffset = (lightGearBaseOffset - lightGearOffset).toFixed(3)
+  for (const belt of lightGearTopBelts) {
+    belt.style.transform = `translate3d(${topOffset}px, 0, 0)`
+  }
+  for (const belt of lightGearBottomBelts) {
+    belt.style.transform = `translate3d(${bottomOffset}px, 0, 0)`
+  }
+}
+
+function scheduleLightGearOffsetSync() {
+  if (typeof window === 'undefined' || lightGearRenderFrame) return
+  lightGearRenderFrame = window.requestAnimationFrame(syncLightGearOffset)
+}
+
+function cancelLightGearRender() {
+  if (lightGearRenderFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(lightGearRenderFrame)
+  }
+  lightGearRenderFrame = 0
 }
 
 function cancelLightGearInertia() {
@@ -669,7 +733,7 @@ function cancelLightGearAuto() {
 }
 
 function getLightGearAutoSpeed() {
-  return lightGearCycleWidth / (LIGHT_GEAR_AUTO_SECONDS * 1000)
+  return getLightGearCycleWidth() / (LIGHT_GEAR_AUTO_SECONDS * 1000)
 }
 
 function tickLightGearAuto(time) {
@@ -680,16 +744,50 @@ function tickLightGearAuto(time) {
   lightGearAutoLastTime = time
 
   if (!lightGearDragging.value && !lightGearInertiaFrame) {
-    applyLightGearDelta(-getLightGearAutoSpeed() * delta)
+    applyLightGearDelta(-getLightGearAutoSpeed() * delta, { immediate: true })
   }
 
   lightGearAutoFrame = window.requestAnimationFrame(tickLightGearAuto)
 }
 
 function startLightGearAuto() {
-  if (typeof window === 'undefined' || lightGearAutoFrame || prefersReducedMotion()) return
+  if (typeof window === 'undefined' || !homeViewMounted || lightGearAutoFrame || prefersReducedMotion()) return
   lightGearAutoLastTime = 0
   lightGearAutoFrame = window.requestAnimationFrame(tickLightGearAuto)
+}
+
+function preloadLightGearImages() {
+  if (typeof window === 'undefined') return Promise.resolve()
+
+  const urls = Array.from(new Set(lightGearSource.map((item) => item.image_url).filter(Boolean)))
+  return Promise.allSettled(urls.map(preloadImage)).then(() => undefined)
+}
+
+function preloadImage(url) {
+  return new Promise((resolve) => {
+    const image = new window.Image()
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      resolve()
+    }
+
+    image.decoding = 'async'
+    image.onload = () => {
+      if (typeof image.decode === 'function') {
+        image.decode().then(finish, finish)
+      } else {
+        finish()
+      }
+    }
+    image.onerror = finish
+    image.src = url
+
+    if (image.complete) {
+      image.onload()
+    }
+  })
 }
 
 function releaseLightGearCapture(event) {
@@ -757,7 +855,7 @@ function tickLightGearInertia(time) {
   const delta = Math.min(40, time - lightGearInertiaLastTime)
   lightGearInertiaLastTime = time
 
-  applyLightGearDelta(lightGearVelocity * delta)
+  applyLightGearDelta(lightGearVelocity * delta, { immediate: true })
   lightGearVelocity *= Math.pow(LIGHT_GEAR_INERTIA_DECAY, delta / 16.67)
 
   if (Math.abs(lightGearVelocity) <= LIGHT_GEAR_STOP_VELOCITY) {
@@ -1115,16 +1213,20 @@ function onGlobalShiftContextMenu(event) {
 }
 
 onMounted(() => {
+  homeViewMounted = true
   loadHaruhiBackgroundText()
-  startLightGearAuto()
+  syncLightGearOffset()
+  preloadLightGearImages().finally(startLightGearAuto)
   window.addEventListener('contextmenu', onGlobalShiftContextMenu, true)
 })
 
 onBeforeUnmount(() => {
+  homeViewMounted = false
   cancelShiftInertia()
   cancelGalleryOrbitInertia()
   cancelLightGearInertia()
   cancelLightGearAuto()
+  cancelLightGearRender()
   window.removeEventListener('contextmenu', onGlobalShiftContextMenu, true)
 })
 
@@ -1179,14 +1281,6 @@ function makeLightGearItems(reverse = false) {
 
 const lightGearTopItems = makeLightGearItems(false)
 const lightGearBottomItems = makeLightGearItems(true)
-
-const lightGearTopStyle = computed(() => ({
-  transform: `translate3d(calc(-25% + ${lightGearOffset.value}px), 0, 0)`,
-}))
-
-const lightGearBottomStyle = computed(() => ({
-  transform: `translate3d(calc(-25% + ${-lightGearOffset.value}px), 0, 0)`,
-}))
 
 function getSectorLabelPosition(angle, radius = 34) {
   const radians = (angle * Math.PI) / 180
@@ -1248,7 +1342,7 @@ const stageStyle = {
 }
 
 .art-home .haruhi-text-field {
-  --haruhi-text-duration: 360s;
+  --haruhi-text-duration: 540s;
   position: fixed;
   inset: -46vmax;
   z-index: 1;
@@ -1448,8 +1542,18 @@ const stageStyle = {
   width: max-content;
   height: 236px;
   will-change: transform;
+  contain: layout paint;
+  backface-visibility: hidden;
   transform-style: preserve-3d;
   margin-top: -118px;
+}
+
+.art-home .light-gear--top .light-gear__belt {
+  transform: translate3d(calc(-25% + var(--light-gear-offset, 0px)), 0, 0);
+}
+
+.art-home .light-gear--bottom .light-gear__belt {
+  transform: translate3d(calc(-25% - var(--light-gear-offset, 0px)), 0, 0);
 }
 
 .art-home .light-gear__tile {
@@ -1464,6 +1568,8 @@ const stageStyle = {
   background: transparent;
   box-shadow: none;
   transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
 .art-home .light-gear__tile::before,
