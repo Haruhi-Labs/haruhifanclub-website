@@ -393,7 +393,7 @@ const LIGHT_GEAR_MAX_VELOCITY = 3.2
 const LIGHT_GEAR_THROW_BOOST = 1.35
 const LIGHT_GEAR_INERTIA_DECAY = 0.982
 const LIGHT_GEAR_STOP_VELOCITY = 0.0035
-const LIGHT_GEAR_AUTO_SECONDS = 84
+const LIGHT_GEAR_AUTO_SPEED = 15
 const HARUHI_TEXT_DRIFT_SECONDS = 900
 const HARUHI_TEXT_ROW_COUNT = 27
 const HARUHI_TEXT_ROW_GAP = 58
@@ -1021,7 +1021,7 @@ function cancelLightGearAuto() {
 }
 
 function getLightGearAutoSpeed() {
-  return getLightGearCycleWidth() / (LIGHT_GEAR_AUTO_SECONDS * 1000)
+  return LIGHT_GEAR_AUTO_SPEED / 1000
 }
 
 function tickLightGearAuto(time) {
