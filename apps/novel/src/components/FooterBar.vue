@@ -11,19 +11,32 @@ const scrollToTop = () => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-const sites = [
-  { label: '应援团主站', href: 'https://haruyuki.cn', brand: '#3b82f6' },
-  { label: 'AI 语音合成', href: 'https://tts.haruyuki.cn', brand: '#3b82f6' },
-  { label: 'AI 声线转换', href: 'https://rvc.haruyuki.cn', brand: '#06b6d4' },
-  { label: '圣地巡礼照片墙', href: 'https://haruhifanclub.notion.site/anitabi', brand: '#eab308' },
-  { label: '长门有希的书架', href: 'https://haruyuki.cn/library', brand: '#10b981' },
-  { label: '京阿尼台词检索', href: 'https://anitool.haruyuki.cn/', brand: '#10b981' },
-]
-const joins = [
-  { label: '团员手册', href: 'https://haruyuki.cn/news/handbook', brand: '#3b82f6' },
-  { label: '超能力者群', href: 'https://qm.qq.com/q/CVssyL3Pj2', brand: '#10b981' },
-  { label: '异世界人群', href: 'https://qm.qq.com/q/JcS7yXYoU2', brand: '#a855f7' },
-  { label: '未来人群', href: 'https://qm.qq.com/q/8nYNs7rFwA', brand: '#f97316' },
+const groups = [
+  {
+    title: '主要站点',
+    links: [
+      { label: '应援团主站', href: 'https://haruyuki.cn', brand: '#3b82f6' },
+      { label: 'AI 语音合成', href: 'https://tts.haruyuki.cn', brand: '#3b82f6' },
+      { label: 'AI 声线转换', href: 'https://rvc.haruyuki.cn', brand: '#06b6d4' },
+    ],
+  },
+  {
+    title: '探索',
+    links: [
+      { label: '圣地巡礼照片墙', href: 'https://haruhifanclub.notion.site/anitabi', brand: '#eab308' },
+      { label: '长门有希的书架', href: 'https://haruyuki.cn/library', brand: '#10b981' },
+      { label: '京阿尼台词检索', href: 'https://anitool.haruyuki.cn/', brand: '#10b981' },
+    ],
+  },
+  {
+    title: '加入我们',
+    links: [
+      { label: '团员手册', href: 'https://haruyuki.cn/news/handbook', brand: '#3b82f6' },
+      { label: '超能力者群', href: 'https://qm.qq.com/q/CVssyL3Pj2', brand: '#10b981' },
+      { label: '异世界人群', href: 'https://qm.qq.com/q/JcS7yXYoU2', brand: '#a855f7' },
+      { label: '未来人群', href: 'https://qm.qq.com/q/8nYNs7rFwA', brand: '#f97316' },
+    ],
+  },
 ]
 </script>
 
@@ -57,38 +70,21 @@ const joins = [
           </div>
         </div>
 
-        <!-- 链接组区 -->
+        <!-- 链接组区：自适应多列，组数越多列越多 -->
         <div class="sos-footer__groups">
-          <div class="sos-footer__group">
-            <p class="sos-footer__group-title">主要站点</p>
+          <div v-for="g in groups" :key="g.title" class="sos-footer__group">
+            <p class="sos-footer__group-title">{{ g.title }}</p>
             <div class="sos-footer__links">
               <a
-                v-for="s in sites"
-                :key="s.href"
+                v-for="l in g.links"
+                :key="l.href"
                 class="sos-footer__link"
-                :style="{ '--brand': s.brand }"
-                :href="s.href"
+                :style="{ '--brand': l.brand }"
+                :href="l.href"
                 target="_blank"
                 rel="noopener"
               >
-                <span class="sos-footer__dot" aria-hidden="true"></span>{{ s.label }}
-              </a>
-            </div>
-          </div>
-
-          <div class="sos-footer__group">
-            <p class="sos-footer__group-title">加入我们</p>
-            <div class="sos-footer__links">
-              <a
-                v-for="j in joins"
-                :key="j.href"
-                class="sos-footer__link"
-                :style="{ '--brand': j.brand }"
-                :href="j.href"
-                target="_blank"
-                rel="noopener"
-              >
-                <span class="sos-footer__dot" aria-hidden="true"></span>{{ j.label }}
+                <span class="sos-footer__dot" aria-hidden="true"></span>{{ l.label }}
               </a>
             </div>
           </div>

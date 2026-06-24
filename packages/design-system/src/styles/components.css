@@ -1864,7 +1864,8 @@
 /* 链接组区：自适应多列，容纳较多链接 */
 .sos-footer__groups {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  /* 有几组排几列，列最小宽较小以容纳更多列 */
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
   gap: var(--sos-space-8) var(--sos-space-6);
 }
 .sos-footer__group {
@@ -1887,6 +1888,8 @@
 .sos-footer__link {
   display: inline-flex;
   align-items: center;
+  /* 点击区只贴文本，不被网格列拉伸到整列宽 */
+  justify-self: start;
   gap: var(--sos-space-2);
   color: var(--sos-text-secondary);
   font-size: var(--sos-text-sm);
