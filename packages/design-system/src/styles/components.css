@@ -1789,6 +1789,177 @@
   font-size: var(--sos-text-sm);
 }
 
+/* ============================================================
+ *  FOOTER — 统一页脚规范（现代多列、主题自适应、容纳多组相关链接）
+ *  结构：品牌区（锁头 + 标语 + 社交）｜ 链接组区（自适应多列）
+ *        + 底部条（版权 / 声明）+ 回到顶部
+ *  所有配色走 token，挂 data-sos-site 即各站主题；
+ *  社交/分类链接各自的品牌色经 --brand 传入，仅作 hover/圆点点缀。
+ * ============================================================ */
+.sos-footer {
+  position: relative;
+  margin-top: var(--sos-space-16);
+  border-top: 1px solid var(--sos-border-subtle);
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-secondary);
+}
+.sos-footer__inner {
+  width: min(var(--sos-container-content), calc(100% - var(--sos-page-gutter) * 2));
+  margin-inline: auto;
+  padding-block: var(--sos-space-12) var(--sos-space-8);
+}
+.sos-footer__top {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sos-space-10);
+}
+@media (min-width: 768px) {
+  .sos-footer__top {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr);
+    gap: var(--sos-space-12);
+  }
+}
+
+/* 品牌区 */
+.sos-footer__brand {
+  display: grid;
+  justify-items: start;
+  gap: var(--sos-space-4);
+  align-content: start;
+}
+.sos-footer__tagline {
+  margin: 0;
+  max-width: 22rem;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-sm);
+  line-height: var(--sos-leading-body);
+}
+.sos-footer__social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sos-space-2);
+}
+.sos-footer__social-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  padding: var(--sos-space-1) var(--sos-space-3);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-full);
+  background: color-mix(in srgb, var(--sos-bg-page) 55%, var(--sos-bg-surface));
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-semibold);
+  text-decoration: none;
+  box-shadow: var(--sos-shadow-xs);
+  transition:
+    color var(--sos-duration-fast) var(--sos-ease-out),
+    border-color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.sos-footer__social-link:hover {
+  color: var(--brand, var(--sos-link));
+  border-color: color-mix(in srgb, var(--brand, var(--sos-link)) 42%, transparent);
+}
+
+/* 链接组区：自适应多列，容纳较多链接 */
+.sos-footer__groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: var(--sos-space-8) var(--sos-space-6);
+}
+.sos-footer__group {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-3);
+}
+.sos-footer__group-title {
+  margin: 0;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-2xs);
+  font-weight: var(--sos-weight-heavy);
+  letter-spacing: var(--sos-tracking-wider);
+  text-transform: uppercase;
+}
+.sos-footer__links {
+  display: grid;
+  gap: var(--sos-space-2);
+}
+.sos-footer__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  text-decoration: none;
+  transition: color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.sos-footer__link:hover {
+  color: var(--brand, var(--sos-link));
+}
+/* 链接前的分类圆点（品牌色经 --brand 传入，模式上的识别线索） */
+.sos-footer__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  border-radius: var(--sos-radius-full);
+  background: var(--brand, var(--sos-accent));
+}
+
+/* 底部条 */
+.sos-footer__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sos-space-3) var(--sos-space-5);
+  margin-top: var(--sos-space-10);
+  padding-top: var(--sos-space-5);
+  border-top: 1px solid var(--sos-border-subtle);
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+}
+.sos-footer__bottom-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-3);
+}
+.sos-footer__bottom-sep {
+  width: 1px;
+  height: 0.7rem;
+  background: var(--sos-border-default);
+}
+
+/* 回到顶部：悬浮于页脚上沿居中 */
+.sos-footer__totop {
+  position: absolute;
+  top: calc(-1 * var(--sos-space-5));
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--sos-radius-full);
+  border: 1px solid var(--sos-border-subtle);
+  background: var(--sos-bg-surface);
+  color: var(--sos-accent);
+  box-shadow: var(--sos-shadow-sm);
+  cursor: pointer;
+  transition:
+    transform var(--sos-duration-base) var(--sos-ease-spring),
+    box-shadow var(--sos-duration-base),
+    color var(--sos-duration-fast);
+}
+.sos-footer__totop:hover {
+  transform: translateX(-50%) translateY(-4px);
+  box-shadow: var(--sos-shadow-card);
+  color: var(--sos-accent-hover);
+}
+.sos-footer__totop > svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
 .sos-signal-tab {
   display: inline-flex;
   align-items: center;
