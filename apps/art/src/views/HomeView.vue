@@ -1068,6 +1068,7 @@ const stageStyle = {
 }
 
 :global(html.art-home-route:not(.art-lights-out)) .art-home {
+  width: 100%;
   margin-bottom: 0;
   padding: 0;
 }
@@ -1087,23 +1088,21 @@ const stageStyle = {
 
 .art-home .home-lights-on-ui {
   --light-home-pad: clamp(22px, 3.2dvh, 54px);
+  --light-gear-bleed: clamp(56px, 5vw, 120px);
   position: relative;
   height: calc(100dvh - 120px);
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   justify-items: center;
   gap: clamp(12px, 2dvh, 24px);
-  padding: var(--light-home-pad);
-  border: 1px solid rgba(42, 110, 116, 0.16);
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.86), transparent 26%),
-    radial-gradient(circle at 76% 10%, rgba(126, 221, 231, 0.26), transparent 26%),
-    linear-gradient(135deg, rgba(255, 251, 244, 0.9), rgba(234, 249, 247, 0.9) 48%, rgba(255, 242, 235, 0.92));
-  box-shadow: 0 28px 90px rgba(38, 88, 96, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  padding: var(--light-home-pad) 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   color: #12333c;
 }
 
@@ -1114,10 +1113,10 @@ const stageStyle = {
 }
 
 .art-home .light-gear {
-  width: calc(100% + var(--light-home-pad) + var(--light-home-pad));
+  width: calc(100vw + var(--light-gear-bleed) + var(--light-gear-bleed));
   height: 100%;
   min-height: 0;
-  margin-inline: calc(0px - var(--light-home-pad));
+  margin-inline: calc(50% - 50vw - var(--light-gear-bleed));
   overflow: hidden;
   border: 0;
   border-radius: 0;
@@ -1181,10 +1180,10 @@ const stageStyle = {
   height: 236px;
   margin: 0;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.72);
+  border: 0;
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 24px 58px rgba(26, 71, 80, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  background: transparent;
+  box-shadow: none;
   transform: translateZ(0);
 }
 
@@ -1218,6 +1217,7 @@ const stageStyle = {
 }
 
 .art-home .light-gear__tile figcaption {
+  display: none;
   position: absolute;
   left: 14px;
   right: 14px;
@@ -3119,10 +3119,11 @@ const stageStyle = {
     height: calc(100dvh - 108px);
     min-height: 0;
     --light-home-pad: 16px;
+    --light-gear-bleed: clamp(24px, 8vw, 56px);
     grid-template-rows: 190px auto 190px;
     gap: 18px;
-    padding: 24px var(--light-home-pad);
-    border-radius: 20px;
+    padding: 24px 0;
+    border-radius: 0;
   }
 
   .art-home .light-gear {
@@ -3262,11 +3263,12 @@ const stageStyle = {
 
   .art-home .home-lights-on-ui {
     --light-home-pad: 10px;
+    --light-gear-bleed: clamp(18px, 7vw, 42px);
     height: calc(100dvh - 96px);
     grid-template-rows: 132px auto 132px;
     gap: 6px;
-    padding: 12px var(--light-home-pad);
-    border-radius: 16px;
+    padding: 12px 0;
+    border-radius: 0;
   }
 
   .art-home .light-gear {
