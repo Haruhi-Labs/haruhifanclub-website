@@ -5,7 +5,6 @@ const route = useRoute()
 const router = useRouter()
 
 const navItems = [
-  { path: '/', label: '首页' },
   { path: '/gallery', label: '画廊' },
   { path: '/announcements', label: '公告' },
   { path: '/upload', label: '投稿' },
