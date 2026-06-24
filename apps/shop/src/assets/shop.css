@@ -2577,9 +2577,11 @@ textarea.input-field {
         width: 100%;
     }
 
+    /* 移动端恢复双列（与接入设计系统之前一致）：基线是 flex 容器，
+       这里改回 grid 才能让列数真正生效（grid-template 在 flex 上无效）。 */
     .shop-app .product-grid {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
         gap: var(--sos-space-4);
     }
 
