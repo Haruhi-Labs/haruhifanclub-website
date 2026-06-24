@@ -309,9 +309,10 @@ const SHIFT_INERTIA_DECAY = 0.94
 const SHIFT_STOP_VELOCITY = 0.012
 const LIGHT_GEAR_COPY_COUNT = 4
 const LIGHT_GEAR_TILE_STEP = 344
-const LIGHT_GEAR_MAX_VELOCITY = 1.8
-const LIGHT_GEAR_INERTIA_DECAY = 0.92
-const LIGHT_GEAR_STOP_VELOCITY = 0.018
+const LIGHT_GEAR_MAX_VELOCITY = 3.2
+const LIGHT_GEAR_THROW_BOOST = 1.35
+const LIGHT_GEAR_INERTIA_DECAY = 0.982
+const LIGHT_GEAR_STOP_VELOCITY = 0.0035
 
 function makeVisitorNumber() {
   const fallback = 5200 + seedArtworks.length * 31 + seedCreators.length * 17
@@ -610,6 +611,11 @@ function startLightGearInertia() {
     return
   }
 
+  lightGearVelocity = clamp(
+    lightGearVelocity * LIGHT_GEAR_THROW_BOOST,
+    -LIGHT_GEAR_MAX_VELOCITY,
+    LIGHT_GEAR_MAX_VELOCITY
+  )
   lightGearInertiaLastTime = 0
   lightGearInertiaFrame = window.requestAnimationFrame(tickLightGearInertia)
 }
