@@ -446,15 +446,17 @@
   aspect-ratio: 2 / 3;
   overflow: hidden;
   border-radius: var(--sos-media-radius);
-  background: var(--book-color, var(--sos-paper-100));
-  box-shadow: var(--sos-book-cover-shadow, 0 6px 16px -8px rgba(40, 28, 12, 0.28));
+  /* 占位面向页面底色靠拢，淡化与背景的色差 */
+  background: var(--book-color, color-mix(in srgb, var(--sos-paper-100) 55%, var(--sos-bg-page)));
+  /* 静止时只留一丝接地柔光、几乎无边界；hover 才浮起 */
+  box-shadow: var(--sos-book-cover-shadow, 0 1px 6px -4px rgba(40, 28, 12, 0.14));
   transition:
     transform var(--sos-duration-base) var(--sos-ease-out),
     box-shadow var(--sos-duration-base) var(--sos-ease-out);
 }
 .sos-book-card:hover .sos-book-card__cover {
   transform: translateY(-6px);
-  box-shadow: var(--sos-book-cover-shadow-hover, 0 16px 30px -12px rgba(40, 28, 12, 0.34));
+  box-shadow: var(--sos-book-cover-shadow-hover, 0 14px 28px -14px rgba(40, 28, 12, 0.28));
 }
 .sos-book-card__cover > img {
   display: block;
