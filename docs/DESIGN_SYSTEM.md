@@ -135,6 +135,7 @@ Primitive（物理色板，不在业务里直接用）
 - **排印**：Eyebrow · Title · Copy
 - **控件**：Button · Badge · Chip · Tabs（pill / underline）
 - **表单**：Field · Input · Textarea · Select · Checkbox · Switch（均 v-model）
+- **搜索**：`.sos-search` / `SosSearch`（放大镜 + 输入 + 清除/提交；`--lg` 全屏浮层、`--square` 编辑部方角；各搜索场景共用，按站点主题）
 - **数据陈列**：Card · Avatar · Table · Tooltip · Skeleton · Spinner
 - **反馈**：Notice · Progress · EmptyState · ToastRegion（配 `useToast`）
 - **导航**：Appbar · NavLink · Breadcrumb · Pagination · HeaderBrand
