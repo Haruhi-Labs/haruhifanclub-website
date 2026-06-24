@@ -2103,10 +2103,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--sos-space-7) var(--sos-space-5);
   }
-  /* 去掉链接前的圆点：减少累赘、腾出列宽，让短链接不再折行（圆点是桌面端的品牌点缀） */
-  .sos-footer__dot {
-    display: none;
-  }
   .sos-footer__bottom {
     margin-top: var(--sos-space-8);
   }
