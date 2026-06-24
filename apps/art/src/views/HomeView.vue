@@ -785,12 +785,12 @@ function scheduleHomeEntranceSequence() {
     homeBackdropTimer = 0
     if (!homeViewMounted || homeRouteSuspended.value) return
     homeBackdropVisible.value = true
-  }, 120)
+  }, 0)
   homeGearsTimer = window.setTimeout(() => {
     homeGearsTimer = 0
     if (!homeViewMounted || homeRouteSuspended.value) return
     homeGearsVisible.value = true
-  }, 240)
+  }, 0)
 }
 
 function refreshLightGearAfterDomUpdate({ includeAll = false, restartObserver = false } = {}) {
@@ -1901,15 +1901,17 @@ const stageStyle = {
   touch-action: none;
   user-select: none;
   opacity: 0;
-  transform: translate3d(0, 26px, 0) scale(0.986);
-  transition:
-    opacity 3.7s ease,
-    transform 3.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  contain: layout paint;
+  isolation: isolate;
+  will-change: opacity;
+  transition: opacity 4.4s cubic-bezier(0.42, 0, 0.2, 1);
 }
 
 .art-home.is-home-gears-visible .light-gear {
   opacity: 1;
-  transform: translate3d(0, 0, 0) scale(1);
+  transform: translate3d(0, 0, 0);
 }
 
 .art-home .light-gear.is-dragging {
@@ -1959,7 +1961,7 @@ const stageStyle = {
   transform-style: preserve-3d;
   margin-top: -118px;
   opacity: 0;
-  transition: opacity 0.8s ease;
+  transition: none;
 }
 
 .art-home.is-route-suspended .light-gear__belt {
@@ -1991,7 +1993,6 @@ const stageStyle = {
   box-shadow: none;
   transform: translateZ(0);
   backface-visibility: hidden;
-  will-change: transform;
 }
 
 .art-home .light-gear__tile::before,
