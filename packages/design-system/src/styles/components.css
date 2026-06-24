@@ -1693,8 +1693,10 @@
 }
 .sos-navlink[aria-current='page'],
 .sos-navlink--active {
-  color: var(--sos-text-primary);
-  background: var(--sos-accent-soft);
+  /* 选中态：用强调色文字 + 更明确的强调底 + 加粗，避免仅靠极淡的 accent-soft 显得发淡 */
+  color: var(--sos-link);
+  background: color-mix(in srgb, var(--sos-accent) 16%, transparent);
+  font-weight: var(--sos-weight-bold);
 }
 
 /* ============================================================
