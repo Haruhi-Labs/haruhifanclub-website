@@ -1,6 +1,48 @@
 <template>
   <section class="container-card art-home">
     <div class="home-lights-out-ui">
+      <div class="home-light-gear-ui">
+        <section
+          class="light-gear light-gear--top"
+          :class="{ 'is-dragging': lightGearDragging && lightGearDragRow === 'top' }"
+          aria-label="上层画作齿轮轨道"
+          @pointerdown="onLightGearPointerDown('top', $event)"
+          @pointermove="onLightGearDrag"
+          @pointerup="onLightGearGrabEnd"
+          @pointercancel="onLightGearGrabCancel"
+        >
+          <div class="light-gear__belt" :style="lightGearTopStyle">
+            <figure v-for="item in lightGearTopItems" :key="item.key" class="light-gear__tile">
+              <img :src="item.imageUrl" :alt="item.title" draggable="false" @dragstart.prevent />
+              <figcaption>{{ item.title }}</figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <section class="day-hero-panel">
+          <p class="day-kicker">Haruhi Fanclub Gallery</p>
+          <p class="day-visitor">画廊的第 <strong>{{ visitorNumberText }}</strong> 位访问者，你好</p>
+        </section>
+
+        <section
+          class="light-gear light-gear--bottom"
+          :class="{ 'is-dragging': lightGearDragging && lightGearDragRow === 'bottom' }"
+          aria-label="下层画作齿轮轨道"
+          @pointerdown="onLightGearPointerDown('bottom', $event)"
+          @pointermove="onLightGearDrag"
+          @pointerup="onLightGearGrabEnd"
+          @pointercancel="onLightGearGrabCancel"
+        >
+          <div class="light-gear__belt" :style="lightGearBottomStyle">
+            <figure v-for="item in lightGearBottomItems" :key="item.key" class="light-gear__tile">
+              <img :src="item.imageUrl" :alt="item.title" draggable="false" @dragstart.prevent />
+              <figcaption>{{ item.title }}</figcaption>
+            </figure>
+          </div>
+        </section>
+      </div>
+
+      <div class="legacy-lights-out-ui" aria-hidden="true">
     <div class="endless-screen" :style="stageStyle">
       <div class="space-field" aria-hidden="true">
         <span class="star-dust"></span>
@@ -244,9 +286,10 @@
         </div>
       </article>
     </div>
+      </div>
     </div>
 
-    <div class="home-lights-on-ui">
+    <div class="home-lights-on-ui home-light-gear-ui">
       <section
         class="light-gear light-gear--top"
         :class="{ 'is-dragging': lightGearDragging && lightGearDragRow === 'top' }"
@@ -1086,7 +1129,11 @@ const stageStyle = {
   display: block;
 }
 
-.art-home .home-lights-on-ui {
+.art-home .legacy-lights-out-ui {
+  display: none;
+}
+
+.art-home .home-light-gear-ui {
   --light-home-pad: clamp(22px, 3.2dvh, 54px);
   --light-gear-bleed: clamp(56px, 5vw, 120px);
   position: relative;
@@ -3038,7 +3085,7 @@ const stageStyle = {
     margin-bottom: 0;
   }
 
-  .art-home .home-lights-on-ui {
+  .art-home .home-light-gear-ui {
     --light-home-pad: clamp(18px, 3dvh, 34px);
     height: calc(100dvh - 108px);
     min-height: 0;
@@ -3074,7 +3121,7 @@ const stageStyle = {
 }
 
 @media (max-height: 700px) and (min-width: 821px) {
-  .art-home .home-lights-on-ui {
+  .art-home .home-light-gear-ui {
     --light-home-pad: 14px;
     height: calc(100dvh - 104px);
     min-height: 0;
@@ -3115,7 +3162,7 @@ const stageStyle = {
     padding: 0;
   }
 
-  .art-home .home-lights-on-ui {
+  .art-home .home-light-gear-ui {
     height: calc(100dvh - 108px);
     min-height: 0;
     --light-home-pad: 16px;
@@ -3261,7 +3308,7 @@ const stageStyle = {
     width: min(100% - 16px, 1500px);
   }
 
-  .art-home .home-lights-on-ui {
+  .art-home .home-light-gear-ui {
     --light-home-pad: 10px;
     --light-gear-bleed: clamp(18px, 7vw, 42px);
     height: calc(100dvh - 96px);
