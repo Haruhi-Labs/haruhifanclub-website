@@ -1764,8 +1764,8 @@
 }
 .sos-brand-lockup__text {
   display: grid;
-  gap: 0.05rem;
-  line-height: 1.15;
+  gap: var(--sos-space-1);
+  line-height: 1.2;
 }
 .sos-brand-lockup__text > strong {
   color: var(--sos-text-primary);
