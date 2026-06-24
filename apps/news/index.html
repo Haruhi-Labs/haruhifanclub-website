@@ -13,49 +13,18 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.2/browser/pixi.min.js"></script>
-    <script>
-    (() => {
-      const isDevHost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
-      const debugLog = (...args) => { if (isDevHost) console.log(...args); };
-      const debugError = (...args) => { if (isDevHost) console.error(...args); };
 
-      if (!isDevHost && !window.__PET_LOG_FILTER_INSTALLED__) {
-        window.__PET_LOG_FILTER_INSTALLED__ = true;
-        const rawLog = console.log.bind(console);
-        console.log = (...args) => {
-          const text = typeof args[0] === "string" ? args[0] : "";
-          if (text.includes("setParameterValueById") || text.includes("nestEls")) return;
-          rawLog(...args);
-        };
-      }
-
-      const isCoarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches; 
-      const isNarrowScreen  = window.matchMedia?.("(max-width: 900px)")?.matches;
-
-      if (isCoarsePointer || isNarrowScreen) {
-        debugLog("[DesktopPet] skipped on mobile/tablet");
-        return;
-      }
-      
-      const PET_MODELS = [
-        "https://cdn.harucdn.com/model_haruhi.js",
-        "https://cdn.harucdn.com/model_mikuru.js",
-        "https://cdn.harucdn.com/model_yuki.js",
-      ];
-
-      const chosen = PET_MODELS[(Math.random() * PET_MODELS.length) | 0];
-      debugLog("[DesktopPet] chosen =", chosen);
-
-      const s = document.createElement("script");
-      s.src = chosen;
-      s.defer = true;
-      s.onerror = () => debugError("[DesktopPet] load failed:", chosen);
-      document.body.appendChild(s);
-    })();
-    </script>
-
-
-
+    <!--
+      桌宠（Live2D 桌宠）已暂时下线，待用更合适的方式重新接入。
+      原实现为在此处裸注入：先从 CDN 加载 PixiJS 6.5.2，再随机注入一个远程模型脚本。
+      重新接入时的参考信息（不要直接恢复裸注入，建议封装为可懒加载的应用内模块）：
+        - 依赖：PixiJS 6.5.2（https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.2/browser/pixi.min.js）
+        - 模型脚本（三选一随机）：
+            https://cdn.harucdn.com/model_haruhi.js
+            https://cdn.harucdn.com/model_mikuru.js
+            https://cdn.harucdn.com/model_yuki.js
+        - 设备门控：粗指针 (pointer: coarse) 或窄屏 (max-width: 900px) 时跳过（移动端不加载）
+      完整旧实现见 git 历史。
+    -->
   </body>
 </html>
