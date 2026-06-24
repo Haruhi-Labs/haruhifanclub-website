@@ -1,5 +1,21 @@
 <template>
   <section class="container-card art-home">
+    <div class="haruhi-text-field" aria-hidden="true">
+      <div
+        v-for="row in haruhiTextRows"
+        :key="row.id"
+        class="haruhi-text-row"
+        :style="{
+          '--row-y': `${row.y}px`,
+          '--row-offset': `${row.offset}px`,
+          '--row-alpha': row.alpha,
+        }"
+      >
+        <span>{{ row.text }}</span>
+        <span>{{ row.text }}</span>
+      </div>
+    </div>
+
     <div class="home-lights-out-ui">
       <div class="home-light-gear-ui">
         <section
@@ -356,6 +372,17 @@ const LIGHT_GEAR_MAX_VELOCITY = 3.2
 const LIGHT_GEAR_THROW_BOOST = 1.35
 const LIGHT_GEAR_INERTIA_DECAY = 0.982
 const LIGHT_GEAR_STOP_VELOCITY = 0.0035
+const HARUHI_TEXT_ROW_COUNT = 31
+const HARUHI_TEXT_ROW_GAP = 58
+const HARUHI_TEXT_ROW_STAGGER = 104
+const HARUHI_TEXT_REPEAT = '凉宫春日 '.repeat(34)
+const haruhiTextRows = Array.from({ length: HARUHI_TEXT_ROW_COUNT }, (_, index) => ({
+  id: index,
+  y: (index - Math.floor(HARUHI_TEXT_ROW_COUNT / 2)) * HARUHI_TEXT_ROW_GAP,
+  offset: -((index % 8) * HARUHI_TEXT_ROW_STAGGER),
+  alpha: 0.18 + (index % 4) * 0.035,
+  text: HARUHI_TEXT_REPEAT,
+}))
 
 function makeVisitorNumber() {
   const fallback = 5200 + seedArtworks.length * 31 + seedCreators.length * 17
@@ -1124,9 +1151,118 @@ const stageStyle = {
   pointer-events: none;
 }
 
+.art-home .haruhi-text-field {
+  --haruhi-text-duration: 82s;
+  position: fixed;
+  inset: -46vmax;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.34;
+  mix-blend-mode: multiply;
+  transform: rotate(-35deg) translateZ(0);
+  transform-origin: center;
+  filter: drop-shadow(0 0 18px rgba(255, 83, 124, 0.08));
+  mask-image: linear-gradient(90deg, transparent 0%, black 13%, black 86%, transparent 100%);
+}
+
+.art-home .haruhi-text-field::before,
+.art-home .haruhi-text-field::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.art-home .haruhi-text-field::before {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 56px,
+      rgba(217, 70, 103, 0.13) 56px 57px,
+      transparent 57px 114px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 132px,
+      rgba(27, 139, 155, 0.1) 132px 133px,
+      transparent 133px 264px
+    );
+  opacity: 0.5;
+}
+
+.art-home .haruhi-text-field::after {
+  background:
+    radial-gradient(circle at 24% 35%, rgba(217, 70, 103, 0.14), transparent 22%),
+    radial-gradient(circle at 72% 62%, rgba(27, 139, 155, 0.12), transparent 24%);
+  opacity: 0.55;
+}
+
+.art-home .haruhi-text-row {
+  position: absolute;
+  top: calc(50% + var(--row-y));
+  left: -12%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  width: max-content;
+  color: rgba(217, 70, 103, var(--row-alpha));
+  font-size: clamp(22px, 2.6vw, 42px);
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-shadow:
+    0 0 18px rgba(217, 70, 103, 0.18),
+    0 0 34px rgba(27, 139, 155, 0.08);
+  transform: translate3d(var(--row-offset), 0, 0);
+  animation: haruhiTextDrift var(--haruhi-text-duration) linear infinite;
+  will-change: transform;
+}
+
+.art-home .haruhi-text-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(217, 70, 103, 0.16), rgba(27, 139, 155, 0.12), transparent);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.art-home .haruhi-text-row span {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  padding-right: 1.4em;
+}
+
+.art-home .home-lights-out-ui,
+.art-home .home-lights-on-ui {
+  position: relative;
+  z-index: 2;
+}
+
 :global(html.art-lights-out) .art-home::before,
 :global(html.art-lights-out) .art-home::after {
   display: block;
+}
+
+:global(html.art-home-route.art-lights-out .art-home .haruhi-text-field) {
+  opacity: 0.44;
+  mix-blend-mode: screen;
+  filter:
+    drop-shadow(0 0 20px rgba(255, 83, 124, 0.12))
+    drop-shadow(0 0 32px rgba(141, 240, 255, 0.08));
+}
+
+:global(html.art-home-route.art-lights-out .art-home .haruhi-text-row) {
+  color: rgba(248, 252, 255, var(--row-alpha));
+  text-shadow:
+    0 0 14px rgba(141, 240, 255, 0.2),
+    0 0 34px rgba(255, 83, 124, 0.12);
 }
 
 .art-home .legacy-lights-out-ui {
@@ -3038,13 +3174,24 @@ const stageStyle = {
   }
 }
 
+@keyframes haruhiTextDrift {
+  from {
+    transform: translate3d(var(--row-offset), 0, 0);
+  }
+
+  to {
+    transform: translate3d(calc(var(--row-offset) - 50%), 0, 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .art-home .star-dust,
   .art-home .star-layer,
   .art-home .nebula,
   .art-home .galaxy-halo,
   .art-home .orbit,
-  .art-home .scan-sweep {
+  .art-home .scan-sweep,
+  .art-home .haruhi-text-row {
     animation: none !important;
   }
 
@@ -3217,6 +3364,15 @@ const stageStyle = {
 
   .art-home .day-hero-panel {
     width: min(92%, 520px);
+  }
+
+  .art-home .haruhi-text-field {
+    inset: -64vmax;
+    opacity: 0.24;
+  }
+
+  .art-home .haruhi-text-row {
+    font-size: clamp(20px, 6vw, 30px);
   }
 
   .art-home::before {
