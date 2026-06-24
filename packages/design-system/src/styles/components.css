@@ -953,6 +953,114 @@
   outline: none;
 }
 
+/* ============================================================
+ *  SEARCH — 统一搜索规范（放大镜 + 输入 + 清除；胶囊式，焦点环）
+ *  各搜索场景共用：站点页头、列表筛选、全屏搜索浮层（用 --lg）。
+ *  全部走 token，挂 data-sos-site 即各站主题。
+ * ============================================================ */
+.sos-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  width: 100%;
+  min-height: var(--sos-control-md);
+  border: 1px solid var(--sos-border-default);
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-bg-surface);
+  padding-inline: var(--sos-space-4);
+  color: var(--sos-text-tertiary);
+  transition:
+    border-color var(--sos-duration-base),
+    box-shadow var(--sos-duration-base);
+}
+.sos-search:focus-within {
+  border-color: var(--sos-focus);
+  box-shadow: var(--sos-ring);
+}
+.sos-search__icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--sos-text-tertiary);
+}
+.sos-search__icon > svg {
+  width: 100%;
+  height: 100%;
+}
+.sos-search__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sos-text-primary);
+  font: inherit;
+  font-size: var(--sos-text-sm);
+  line-height: 1.4;
+  padding-block: var(--sos-space-2);
+  outline: none;
+}
+.sos-search__input::placeholder {
+  color: var(--sos-text-tertiary);
+}
+.sos-search__input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+/* 清除按钮：有输入时显示 */
+.sos-search__clear {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-bg-muted);
+  color: var(--sos-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.sos-search__clear:hover {
+  background: var(--sos-border-default);
+  color: var(--sos-text-primary);
+}
+/* 提交按钮（可选，放在右侧，主操作色） */
+.sos-search__submit {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  margin-inline-end: calc(-1 * var(--sos-space-2));
+  border: 0;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
+  cursor: pointer;
+  transition: background-color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.sos-search__submit:hover {
+  background: var(--sos-accent-hover);
+}
+/* 大尺寸：用于全屏搜索浮层或页面主搜索 */
+.sos-search--lg {
+  min-height: var(--sos-control-lg);
+  padding-inline: var(--sos-space-5);
+}
+.sos-search--lg .sos-search__input {
+  font-size: var(--sos-text-lg);
+}
+.sos-search--lg .sos-search__icon {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+/* 方角变体（编辑部等不爱圆角的场景） */
+.sos-search--square {
+  border-radius: var(--sos-radius-sm);
+}
+
 /* Checkbox / radio */
 .sos-check {
   display: inline-flex;

@@ -159,6 +159,15 @@ export const SosCheckbox: DefineComponent<{
   disabled?: boolean
 }>
 export const SosSwitch: DefineComponent<{ modelValue?: boolean; disabled?: boolean }>
+export const SosSearch: DefineComponent<{
+  modelValue?: string
+  placeholder?: string
+  size?: 'md' | 'lg'
+  square?: boolean
+  submit?: boolean
+  disabled?: boolean
+  ariaLabel?: string
+}>
 
 /* Data & media display */
 export const SosCard: DefineComponent<{
