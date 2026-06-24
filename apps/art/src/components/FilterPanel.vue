@@ -137,10 +137,12 @@
     </div>
 
     <div class="panel-group search-group">
-      <div class="search-wrapper">
+      <!-- 统一搜索规范 .sos-search：前置字段选择 + 输入 + 清除 + 提交 -->
+      <div class="sos-search art-search">
         <select
-          class="input-3d search-select"
+          class="art-search__field"
           :value="searchField"
+          aria-label="搜索字段"
           @change="emit('update:searchField', $event.target.value)"
         >
           <option value="all">综合搜</option>
@@ -150,25 +152,25 @@
         </select>
 
         <input
-          class="input-3d search-input"
+          class="sos-search__input"
           :value="q"
-          @input="emit('update:q', $event.target.value)"
-          @keydown.enter="emit('search')"
           :placeholder="searchPlaceholder"
           type="search"
+          aria-label="搜索作品"
+          @input="emit('update:q', $event.target.value)"
+          @keydown.enter="emit('search')"
         />
-        <button class="btn-3d btn-primary" type="button" data-sfx="click" @click="emit('search')">
-          GO
-        </button>
         <button
-          class="btn-3d btn-ghost"
+          v-if="String(q || '').trim()"
+          class="sos-search__clear"
           type="button"
-          data-sfx="click"
-          @click="emit('update:q',''); emit('clear'); emit('search');"
-          :disabled="!String(q||'').trim()"
-          style="opacity:.9;"
+          aria-label="清空搜索"
+          @click="emit('update:q', ''); emit('clear'); emit('search')"
         >
-          清空
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+        </button>
+        <button class="sos-search__submit" type="button" aria-label="搜索" data-sfx="click" @click="emit('search')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
         </button>
       </div>
     </div>
@@ -353,6 +355,23 @@ function onSortTrackClick(e) {
 
 /* 搜索区域 */
 .search-wrapper { display: flex; gap: 10px; width: 100%; align-items:center; flex-wrap: wrap; }
+
+/* 统一搜索框内的前置字段选择：无边框、透明、右侧细分隔 */
+.art-search { max-width: 28rem; }
+.art-search__field {
+  flex: 0 0 auto;
+  border: 0;
+  border-right: 1px solid var(--sos-border-subtle);
+  background: transparent;
+  color: var(--sos-text-secondary);
+  font: inherit;
+  font-size: var(--sos-text-sm);
+  font-weight: 600;
+  padding: 0 var(--sos-space-2) 0 0;
+  margin-right: var(--sos-space-1);
+  cursor: pointer;
+  outline: none;
+}
 
 .input-3d{
   padding: 10px 12px;
