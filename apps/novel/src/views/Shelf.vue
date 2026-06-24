@@ -1,26 +1,6 @@
 <template>
   <div class="shelf-view">
-    <!-- 顶部导航：统一 SosAppbar 规范 + library 主题 -->
-    <header class="sos-appbar shelf-appbar">
-      <div class="sos-appbar__inner">
-        <router-link to="/" class="sos-brand-lockup">
-          <span class="sos-brand-lockup__mark">
-            <img :src="logoSrc" alt="" />
-          </span>
-          <span class="sos-brand-lockup__text">
-            <strong>长门有希的书架</strong>
-            <small>凉宫春日应援团 · 书库</small>
-          </span>
-        </router-link>
-        <nav class="sos-navlinks">
-          <router-link to="/feedback" class="sos-navlink">
-            同人投稿 &amp; 问题反馈
-          </router-link>
-        </nav>
-      </div>
-    </header>
-
-    <!-- 书籍列表 -->
+    <!-- 书籍列表（页头由 App.vue 全局统一 SosAppbar 提供） -->
     <main class="shelf-main">
       <div v-if="loading" class="shelf-status" aria-live="polite">
         <span class="sos-spinner" aria-hidden="true"></span>
@@ -127,8 +107,6 @@ const books = ref([]);
 const loading = ref(true);
 // 统一后端：模块 API 走 /api/novel，静态文件走 /uploads
 const API_BASE = '/api/novel';
-// 页头品牌 logo（部署在 /library/ 子路径，需显式拼 BASE_URL）
-const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`;
 
 // === 书架分栏配置 ===
 const CATEGORY_CONFIG = [
@@ -341,16 +319,6 @@ onMounted(fetchBooks);
 <style scoped>
 .shelf-view {
   min-height: 100%;
-}
-
-/* 统一页头规范（.sos-appbar）：右侧给全局 fixed 账号菜单预留空档 */
-.shelf-appbar {
-  padding-right: 7.5rem;
-}
-/* library 品牌以衬线呈现、字重收敛（规范默认 black 偏重，这里走优雅一档） */
-.shelf-appbar .sos-brand-lockup__text > strong {
-  font-family: var(--sos-display-family);
-  font-weight: var(--sos-weight-bold);
 }
 
 /* 内容区 */

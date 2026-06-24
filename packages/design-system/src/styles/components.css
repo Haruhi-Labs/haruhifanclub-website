@@ -1769,8 +1769,11 @@
 }
 .sos-brand-lockup__text > strong {
   color: var(--sos-text-primary);
+  /* 品牌字体/字重为表达层旋钮：默认随各站 display 字体 + 收敛到 bold（更优雅），
+     衬线站（library/exam）自动衬线，需要更重的站可在表达层调 --sos-brand-weight。 */
+  font-family: var(--sos-brand-font, var(--sos-display-family));
   font-size: var(--sos-text-md);
-  font-weight: var(--sos-weight-black);
+  font-weight: var(--sos-brand-weight, var(--sos-weight-bold));
   letter-spacing: var(--sos-tracking-snug);
 }
 .sos-brand-lockup__text > small {
