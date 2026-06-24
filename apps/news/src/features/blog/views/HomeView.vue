@@ -30,54 +30,35 @@
       </div>
     </section>
 
-    <div class="content-columns">
-      <div class="column-left">
-        <div
-          v-if="viewType === 'home'"
-          class="home-banner"
-        >
-          <div class="banner-bg">
-            <div class="banner-radial-gradient"></div>
-            <svg class="banner-noise-svg">
-              <filter id="noiseFilter">
-                <feTurbulence
-                  type="fractalNoise"
-                  baseFrequency="0.8"
-                  numOctaves="3"
-                  stitchTiles="stitch"
-                />
-              </filter>
-              <rect
-                width="100%"
-                height="100%"
-                filter="url(#noiseFilter)"
-              />
-            </svg>
-          </div>
-
-          <div class="banner-logo-wrapper">
-            <img src="/春日团报白.png" alt="春日团报 Logo" class="banner-logo-img">
-          </div>
-        </div>
-
-        <NewsCard
-          v-for="article in leftCol"
-          :key="article.id"
-          :article="article"
-          class="card-overlap"
-          @click="store.openModal(article)"
-        />
+    <!-- 团报报头：仅首页，整宽置顶 -->
+    <div v-if="viewType === 'home'" class="home-banner">
+      <div class="banner-bg">
+        <div class="banner-radial-gradient"></div>
+        <svg class="banner-noise-svg">
+          <filter id="noiseFilter">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.8"
+              numOctaves="3"
+              stitchTiles="stitch"
+            />
+          </filter>
+          <rect width="100%" height="100%" filter="url(#noiseFilter)" />
+        </svg>
       </div>
-
-      <div class="column-right">
-        <NewsCard
-          v-for="article in rightCol"
-          :key="article.id"
-          :article="article"
-          class="card-overlap"
-          @click="store.openModal(article)"
-        />
+      <div class="banner-logo-wrapper">
+        <img src="/春日团报白.png" alt="春日团报 Logo" class="banner-logo-img" />
       </div>
+    </div>
+
+    <!-- 文章网格：每张厚卡片独占一格，留白分隔、不重叠 -->
+    <div class="news-grid">
+      <NewsCard
+        v-for="article in pagedArticles"
+        :key="article.id"
+        :article="article"
+        @click="store.openModal(article)"
+      />
     </div>
 
     <nav class="pagination-bar" aria-label="团报分页">
@@ -124,7 +105,6 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMainStore } from '@/stores/main'
-import { buildMasonryPages } from '@/utils/masonry'
 import NewsCard from '@/features/blog/components/NewsCard.vue'
 
 const route = useRoute()
@@ -208,26 +188,13 @@ const filteredArticles = computed(() => {
   return sortArticles(list)
 })
 
-// 用"高度 + 瀑布流"把所有文章拆成多页
-const masonryPages = computed(() => {
-  const list = filteredArticles.value
-  if (!list || list.length === 0) return [{ left: [], right: [] }]
-
-  return buildMasonryPages(list, {
-    firstPageLeftOffset: 0,
-    pageTargetHeight: 1300,
-  })
+// 扁平分页：厚卡片用干净网格陈列，不再按高度做瀑布流密集流
+const PAGE_SIZE = 9
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredArticles.value.length / PAGE_SIZE)))
+const pagedArticles = computed(() => {
+  const start = (pageNum.value - 1) * PAGE_SIZE
+  return filteredArticles.value.slice(start, start + PAGE_SIZE)
 })
-
-const totalPages = computed(() => masonryPages.value.length)
-
-const currentPage = computed(() => {
-  const idx = Math.max(0, Math.min(pageNum.value - 1, totalPages.value - 1))
-  return masonryPages.value[idx] || { left: [], right: [] }
-})
-
-const leftCol = computed(() => currentPage.value.left)
-const rightCol = computed(() => currentPage.value.right)
 
 const visiblePages = computed(() => {
   const p = pageNum.value
@@ -415,34 +382,25 @@ watch(
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
 }
 
-.content-columns {
+/* 文章网格：厚卡片各占一格，等距留白、不重叠（替代旧的双栏瀑布流密集流）。
+   单列(手机) → 双列(平板/桌面) → 三列(宽屏)，给有厚度的卡片足够空间。 */
+.news-grid {
   display: grid;
   grid-template-columns: 1fr;
   align-items: start;
-  gap: 0;
+  gap: var(--sos-space-6);
 }
 
-@media (min-width: 768px) {
-  .content-columns {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+@media (min-width: 720px) {
+  .news-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.column-left,
-.column-right {
-  display: grid;
-  gap: 0;
-  min-width: 0;
-}
-
-@media (min-width: 768px) {
-  .column-right {
-    margin-left: -1px;
+@media (min-width: 1280px) {
+  .news-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-}
-
-.card-overlap {
-  margin-top: -1px;
 }
 
 .pagination-bar {
