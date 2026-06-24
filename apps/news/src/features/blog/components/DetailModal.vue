@@ -312,7 +312,7 @@ const goToAuthor = (author) => {
 /* Modal Container */
 .modal-container {
     position: relative;
-    background-color: #fff;
+    background-color: var(--sos-bg-surface);
     width: 100%;
     max-width: 42rem;
     max-height: 90vh;
@@ -320,15 +320,15 @@ const goToAuthor = (author) => {
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
     display: flex;
     flex-direction: column;
-    border: 1px solid #000000;
+    border: 1px solid var(--sos-text-primary);
 }
 
 /* Header */
 .modal-header {
     position: sticky;
     top: 0;
-    background-color: #fff;
-    border-bottom: 1px solid #f3f4f6;
+    background-color: var(--sos-bg-surface);
+    border-bottom: 1px solid var(--sos-bg-muted);
     padding: 1rem;
     display: flex;
     justify-content: space-between;
@@ -341,7 +341,7 @@ const goToAuthor = (author) => {
     line-height: 1rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
 }
 
 .header-close-btn {
@@ -352,7 +352,7 @@ const goToAuthor = (author) => {
 }
 
 .header-close-btn:hover {
-    background-color: #f3f4f6;
+    background-color: var(--sos-bg-muted);
 }
 
 .close-icon {
@@ -386,8 +386,8 @@ const goToAuthor = (author) => {
 
 .tag-filled {
     display: inline-block;
-    background-color: #000000;
-    color: #ffffff;
+    background-color: var(--sos-text-primary);
+    color: var(--sos-bg-surface);
     font-size: 0.75rem;
     line-height: 1rem;
     padding-left: 0.5rem;
@@ -400,13 +400,13 @@ const goToAuthor = (author) => {
 }
 
 .tag-filled:hover {
-    background-color: #1f2937;
+    background-color: var(--sos-text-primary);
 }
 
 .tag-outlined {
     display: inline-block;
-    border: 1px solid #000000;
-    color: #000000;
+    border: 1px solid var(--sos-text-primary);
+    color: var(--sos-text-primary);
     font-size: 0.75rem;
     line-height: 1rem;
     padding-left: 0.5rem;
@@ -438,13 +438,13 @@ const goToAuthor = (author) => {
     align-items: center;
     font-size: 0.875rem;
     line-height: 1.25rem;
-    color: #6b7280;
+    color: var(--sos-text-secondary);
     gap: 1rem;
     margin-bottom: 0.5rem;
 }
 
 .author-link {
-    color: #000000;
+    color: var(--sos-text-primary);
     font-weight: 700;
     cursor: pointer;
 }
@@ -457,7 +457,7 @@ const goToAuthor = (author) => {
 .participants-section {
     font-size: 0.75rem;
     line-height: 1rem;
-    background-color: #f9fafb;
+    background-color: var(--sos-bg-subtle);
     padding: 0.75rem;
     margin-bottom: 1rem;
     border-radius: 0.25rem;
@@ -465,7 +465,7 @@ const goToAuthor = (author) => {
 
 .participants-label {
     font-weight: 700;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
     margin-bottom: 0.25rem;
 }
 
@@ -486,7 +486,7 @@ const goToAuthor = (author) => {
 }
 
 .participant-detail {
-    color: #6b7280;
+    color: var(--sos-text-secondary);
 }
 
 /* Article Image */
@@ -502,7 +502,7 @@ const goToAuthor = (author) => {
 
 /* Content Renderer */
 .content-renderer {
-    color: #1f2937;
+    color: var(--sos-text-primary);
     font-family: "Noto Serif SC", serif;
     line-height: 2;
     text-align: justify;
@@ -513,7 +513,7 @@ const goToAuthor = (author) => {
     margin-top: 1rem;
     margin-bottom: 1rem;
     padding: 1rem;
-    background-color: #f9fafb;
+    background-color: var(--sos-bg-subtle);
     text-align: center;
 }
 
@@ -531,7 +531,7 @@ const goToAuthor = (author) => {
 
 /* Truncation Indicator */
 .truncation-indicator {
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
     text-align: center;
     margin-top: 1rem;
 }
@@ -540,15 +540,15 @@ const goToAuthor = (author) => {
 .footer-actions {
     margin-top: 2.5rem;
     padding-top: 2rem;
-    border-top: 1px solid #f3f4f6;
+    border-top: 1px solid var(--sos-bg-muted);
     display: flex;
     justify-content: center;
 }
 
 /* Primary Button (filled) */
 .btn-primary {
-    background-color: #000000;
-    color: #ffffff;
+    background-color: var(--sos-text-primary);
+    color: var(--sos-bg-surface);
     padding-left: 2rem;
     padding-right: 2rem;
     padding-top: 0.75rem;
@@ -561,12 +561,12 @@ const goToAuthor = (author) => {
 }
 
 .btn-primary:hover {
-    background-color: #1f2937;
+    background-color: var(--sos-text-primary);
 }
 
 /* Secondary Button (outlined) */
 .btn-secondary {
-    border: 1px solid #000000;
+    border: 1px solid var(--sos-text-primary);
     padding-left: 2rem;
     padding-right: 2rem;
     padding-top: 0.75rem;
@@ -579,7 +579,7 @@ const goToAuthor = (author) => {
 }
 
 .btn-secondary:hover {
-    background-color: #f9fafb;
+    background-color: var(--sos-bg-subtle);
 }
 
 .btn-icon {

@@ -98,13 +98,13 @@ const quickSearch = (term) => {
     top: 1.5rem;
     right: 1.5rem;
     padding: 0.5rem;
-    color: #6b7280;
+    color: var(--sos-text-secondary);
     border-radius: 9999px;
     transition: all 300ms;
 }
 
 .close-button:hover {
-    color: #000000;
+    color: var(--sos-text-primary);
     background-color: rgba(0, 0, 0, 0.05);
 }
 
@@ -132,7 +132,7 @@ const quickSearch = (term) => {
     font-weight: 700;
     background: transparent;
     border: none;
-    border-bottom: 2px solid #e5e7eb;
+    border-bottom: 2px solid var(--sos-border-default);
     padding-top: 1.5rem;
     padding-bottom: 1.5rem;
     padding-right: 8rem;
@@ -150,11 +150,11 @@ const quickSearch = (term) => {
 
 .search-input:focus {
     outline: none;
-    border-color: #000000;
+    border-color: var(--sos-text-primary);
 }
 
 .search-input::placeholder {
-    color: #d1d5db;
+    color: var(--sos-border-strong);
 }
 
 /* Search Submit Button */
@@ -165,7 +165,7 @@ const quickSearch = (term) => {
     font-size: 1.25rem;
     line-height: 1.75rem;
     font-weight: 500;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
     transition-property: color, background-color, border-color;
     transition-duration: 150ms;
     display: flex;
@@ -174,7 +174,7 @@ const quickSearch = (term) => {
 }
 
 .search-submit:hover {
-    color: #000000;
+    color: var(--sos-text-primary);
 }
 
 .submit-icon {
@@ -189,7 +189,7 @@ const quickSearch = (term) => {
     gap: 1rem;
     font-size: 0.875rem;
     line-height: 1.25rem;
-    color: #6b7280;
+    color: var(--sos-text-secondary);
 }
 
 .hot-search-item {
@@ -197,7 +197,7 @@ const quickSearch = (term) => {
 }
 
 .hot-search-item:hover {
-    color: #000000;
+    color: var(--sos-text-primary);
     text-decoration: underline;
 }
 

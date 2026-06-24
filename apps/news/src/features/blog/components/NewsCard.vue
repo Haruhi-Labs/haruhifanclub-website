@@ -126,7 +126,7 @@ const highlight = (text) => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: var(--sos-bg-surface);
   transition:
     box-shadow 300ms ease,
     transform 200ms ease;
@@ -158,11 +158,11 @@ const highlight = (text) => {
 .news-label {
   display: inline-block;
   width: fit-content;
-  border: 1px solid #000000;
+  border: 1px solid var(--sos-text-primary);
   padding: 0.05rem 0.3rem;
   font-size: var(--sos-text-xs);
   font-weight: 700;
-  color: #000000;
+  color: var(--sos-text-primary);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }

@@ -65,7 +65,7 @@ const footerLinks = [
   padding-bottom: 3rem;
   font-size: 0.75rem;
   line-height: 1rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   font-family: "Noto Sans SC", sans-serif;
 }
 
@@ -120,6 +120,6 @@ const footerLinks = [
 }
 
 .footer-link:hover {
-  color: #000000;
+  color: var(--sos-text-primary);
 }
 </style>

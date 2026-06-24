@@ -380,12 +380,12 @@ watch(
 }
 
 .banner-bg {
-  background: #171717;
+  background: var(--sos-text-primary);
 }
 
 .banner-radial-gradient {
   opacity: 0.2;
-  background: radial-gradient(circle at center, #374151, #000, #000);
+  background: radial-gradient(circle at center, var(--sos-text-secondary), var(--sos-text-primary), var(--sos-text-primary));
 }
 
 .banner-noise-svg {

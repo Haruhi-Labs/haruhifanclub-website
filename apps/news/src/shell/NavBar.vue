@@ -292,15 +292,15 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
   left: 0;
   background-color: transparent;
   border-bottom: 1px solid transparent;
-  color: #ffffff;
+  color: var(--sos-bg-surface);
 }
 
 .navbar--default {
   top: 0;
   background-color: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid #f3f4f6;
-  color: #111827;
+  border-bottom: 1px solid var(--sos-bg-muted);
+  color: var(--sos-text-primary);
 }
 
 /* ===== Nav Container ===== */
@@ -391,7 +391,7 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 
 .navbar--overlay .news-brand__text strong,
 .navbar--overlay .news-brand__text small {
-  color: #ffffff;
+  color: var(--sos-bg-surface);
 }
 
 /* ===== Nav Links (Desktop) ===== */
@@ -414,7 +414,7 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 }
 
 .nav-links--default {
-  color: #4b5563;
+  color: var(--sos-text-secondary);
 }
 
 /* ===== Nav Link ===== */
@@ -471,11 +471,11 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 }
 
 .nav-right-link--overlay {
-  color: #ffffff;
+  color: var(--sos-bg-surface);
 }
 
 .nav-right-link--default {
-  color: #4b5563;
+  color: var(--sos-text-secondary);
 }
 
 .nav-right-link--no-margin {
@@ -500,7 +500,7 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 }
 
 .nav-divider--default {
-  background-color: #d1d5db;
+  background-color: var(--sos-border-strong);
 }
 
 /* ===== Search Button ===== */
@@ -540,13 +540,13 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 .search-button--overlay {
   background-color: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.3);
-  color: #ffffff;
+  color: var(--sos-bg-surface);
 }
 
 .search-button--default {
-  background-color: #f9fafb;
-  border-color: #e5e7eb;
-  color: #6b7280;
+  background-color: var(--sos-bg-subtle);
+  border-color: var(--sos-border-default);
+  color: var(--sos-text-secondary);
 }
 
 /* ===== Mobile Menu Button ===== */
@@ -567,7 +567,7 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 }
 
 .mobile-menu-button--overlay {
-  color: #ffffff;
+  color: var(--sos-bg-surface);
 }
 
 .mobile-menu-button--overlay:hover {
@@ -575,11 +575,11 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 }
 
 .mobile-menu-button--default {
-  color: #000000;
+  color: var(--sos-text-primary);
 }
 
 .mobile-menu-button--default:hover {
-  background-color: #f3f4f6;
+  background-color: var(--sos-bg-muted);
 }
 
 /* ===== Icons ===== */
@@ -621,11 +621,11 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
   top: 1.5rem;
   right: 1rem;
   padding: 0.5rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 .mobile-close-button:hover {
-  color: #000000;
+  color: var(--sos-text-primary);
 }
 
 /* ===== Mobile Nav ===== */
@@ -643,9 +643,9 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 }
 
 .mobile-nav-link:hover {
-  color: #111111;
+  color: var(--sos-text-primary);
   text-decoration: underline;
-  text-decoration-color: #ffc83d;
+  text-decoration-color: var(--sos-signal);
   text-decoration-thickness: 0.2em;
   text-underline-offset: 0.2em;
 }
@@ -661,7 +661,7 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 .mobile-footer {
   margin-top: 3rem;
   font-size: 0.875rem;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   font-family: 'Noto Sans SC', sans-serif;
 }
 </style>
