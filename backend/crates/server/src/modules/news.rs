@@ -41,6 +41,7 @@ pub fn router() -> Router<AppState> {
         .route("/admin/prizes", post(create_prize))
         .route("/admin/prizes/reorder", post(reorder_prizes))
         .route("/admin/prizes/{id}", put(update_prize).delete(delete_prize))
+        .route("/prizes/{id}/redeem", post(redeem_prize))
         // ---- 文章（Articles）----
         .route("/articles", get(list_articles).post(create_article))
         .route(
@@ -53,6 +54,14 @@ pub fn router() -> Router<AppState> {
         .route("/points/search", get(points_search))
         .route("/points/update", post(points_update))
         .route("/points/{id}", get(points_get))
+        // ---- 个人中心（需登录，按 author_user_id / u{id} 归属本人）----
+        .route("/me/articles", get(my_articles))
+        .route("/me/points", get(my_points))
+        .route("/me/redemptions", get(my_redemptions))
+        .route(
+            "/me/articles/{id}",
+            put(update_my_article).delete(delete_my_article),
+        )
 }
 
 // ============================================================
@@ -1142,6 +1151,297 @@ async fn fetch_points_history(state: &AppState, user_id: &str) -> AppResult<Vec<
             json!({ "date": date, "change": change, "reason": reason, "timestamp": timestamp })
         })
         .collect())
+}
+
+// ============================================================
+// 个人中心（需登录；按 author_user_id / "u{id}" 归属本人）
+// ============================================================
+
+/// GET /api/news/me/articles —— 我的投稿（按 author_user_id，含 pending/hidden，作者可见全部状态）。
+async fn my_articles(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+    let rows: Vec<ArticleRow> = sqlx::query_as(&format!(
+        "{ARTICLE_COLS} WHERE author_user_id = ? ORDER BY id DESC LIMIT 200"
+    ))
+    .bind(user.id)
+    .fetch_all(&state.pools.news)
+    .await?;
+    let data: Vec<Value> = rows.iter().map(build_article_list_item).collect();
+    Ok(Json(json!({ "message": "success", "data": data })))
+}
+
+/// GET /api/news/me/points —— 我的团报积分（应援积分：余额 + 历史）。账户键取 "u{id}"。
+async fn my_points(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+    let uid = crate::auth_routes::member_uid(user.id);
+    let row: Option<(String, Option<i64>)> = sqlx::query_as(
+        "SELECT id, CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total FROM users WHERE id = ?",
+    )
+    .bind(&uid)
+    .fetch_optional(&state.pools.news)
+    .await?;
+    let total = row.map(|(_, t)| t.unwrap_or(0)).unwrap_or(0);
+    let history = fetch_points_history(&state, &uid).await?;
+    Ok(Json(json!({
+        "message": "success",
+        "data": { "id": uid, "total": total, "history": history }
+    })))
+}
+
+/// PUT /api/news/me/articles/{id} —— 作者本人编辑投稿（白名单文本/封面字段；状态/署名/置顶不可改）。
+async fn update_my_article(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+    Json(mut body): Json<Value>,
+) -> AppResult<Response> {
+    let owner: Option<Option<i64>> =
+        sqlx::query_scalar("SELECT author_user_id FROM articles WHERE id = ?")
+            .bind(&id)
+            .fetch_optional(&state.pools.news)
+            .await?;
+    match owner {
+        Some(Some(uid)) if uid == user.id => {}
+        Some(_) => {
+            return Ok((
+                StatusCode::FORBIDDEN,
+                Json(json!({ "error": "无权编辑该投稿" })),
+            )
+                .into_response())
+        }
+        None => {
+            return Ok((
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "Article not found" })),
+            )
+                .into_response())
+        }
+    }
+
+    // 图片转存（与 update_article 一致：image / originalImage / content 内嵌图）
+    if let Some(img) = body.get("image").and_then(|v| v.as_str()) {
+        if !img.is_empty() {
+            let s = save_image(&state, img).await;
+            body["image"] = Value::String(s);
+        }
+    }
+    if let Some(img) = body.get("originalImage").and_then(|v| v.as_str()) {
+        if !img.is_empty() {
+            let s = save_image(&state, img).await;
+            body["originalImage"] = Value::String(s);
+        }
+    }
+    if let Some(content) = body.get("content").cloned() {
+        if content.is_array() {
+            let processed = process_content_images(&state, &content).await;
+            body["content"] = processed;
+        }
+    }
+    normalize_float_fields(&mut body, &["coverFocalX", "coverFocalY"], false);
+
+    // 白名单：作者只能改文本与封面，不得动 status/author/author_user_id/isPinned/pinOrder/id/created_at
+    const EDITABLE: &[&str] = &[
+        "title",
+        "subtitle",
+        "summary",
+        "date",
+        "type",
+        "tags",
+        "image",
+        "originalImage",
+        "coverFocalX",
+        "coverFocalY",
+        "content",
+        "participants",
+    ];
+    let mut obj = Map::new();
+    if let Some(b) = body.as_object() {
+        for k in EDITABLE {
+            if let Some(v) = b.get(*k) {
+                obj.insert((*k).to_string(), v.clone());
+            }
+        }
+    }
+    if obj.is_empty() {
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "无可更新字段" })),
+        )
+            .into_response());
+    }
+    dynamic_update(&state.pools.news, "articles", &id, &obj).await?;
+    Ok(Json(json!({ "message": "success" })).into_response())
+}
+
+/// DELETE /api/news/me/articles/{id} —— 作者本人下架投稿（软删为 hidden，保留数据）。
+async fn delete_my_article(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+) -> AppResult<Response> {
+    let affected =
+        sqlx::query("UPDATE articles SET status='hidden' WHERE id = ? AND author_user_id = ?")
+            .bind(&id)
+            .bind(user.id)
+            .execute(&state.pools.news)
+            .await?
+            .rows_affected();
+    if affected == 0 {
+        return Ok((
+            StatusCode::FORBIDDEN,
+            Json(json!({ "error": "无权操作或投稿不存在" })),
+        )
+            .into_response());
+    }
+    Ok(Json(json!({ "message": "success", "status": "hidden" })).into_response())
+}
+
+/// GET /api/news/me/redemptions —— 我的兑换记录。
+async fn my_redemptions(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+    let uid = crate::auth_routes::member_uid(user.id);
+    let rows: Vec<(i64, i64, Option<String>, i64, Option<String>, Option<String>)> =
+        sqlx::query_as(
+            "SELECT id, prize_id, prize_name, \
+             CAST(COALESCE(NULLIF(TRIM(points_cost), ''), '0') AS INTEGER) AS points_cost, \
+             status, created_at FROM redemptions WHERE user_id = ? ORDER BY id DESC LIMIT 100",
+        )
+        .bind(&uid)
+        .fetch_all(&state.pools.news)
+        .await?;
+    let data: Vec<Value> = rows
+        .into_iter()
+        .map(|(id, prize_id, prize_name, points_cost, status, created_at)| {
+            json!({
+                "id": id, "prize_id": prize_id, "prize_name": prize_name,
+                "points_cost": points_cost, "status": status, "created_at": created_at,
+            })
+        })
+        .collect();
+    Ok(Json(json!({ "message": "success", "data": data })))
+}
+
+/// POST /api/news/prizes/{id}/redeem —— 用团报积分兑换奖品。
+/// 事务内条件更新原子扣库存 + 扣积分（防超卖/超扣），并写积分流水与兑换记录。
+async fn redeem_prize(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+) -> AppResult<Response> {
+    let uid = crate::auth_routes::member_uid(user.id);
+
+    let prize: Option<(Option<String>, i64, i64)> = sqlx::query_as(
+        "SELECT name, \
+         CAST(COALESCE(NULLIF(TRIM(points), ''), '0') AS INTEGER) AS points, \
+         CAST(COALESCE(NULLIF(TRIM(stock), ''), '0') AS INTEGER) AS stock \
+         FROM prizes WHERE id = ?",
+    )
+    .bind(&id)
+    .fetch_optional(&state.pools.news)
+    .await?;
+    let (name, points, stock) = match prize {
+        Some(p) => p,
+        None => {
+            return Ok(
+                (StatusCode::NOT_FOUND, Json(json!({ "error": "奖品不存在" }))).into_response(),
+            )
+        }
+    };
+    let name = name.unwrap_or_default();
+    if points <= 0 {
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "该奖品暂不支持积分兑换" })),
+        )
+            .into_response());
+    }
+    if stock < 1 {
+        return Ok(
+            (StatusCode::BAD_REQUEST, Json(json!({ "error": "库存不足" }))).into_response(),
+        );
+    }
+
+    let mut tx = state.pools.news.begin().await?;
+
+    // 原子扣库存（条件更新防超卖）
+    let dec_stock = sqlx::query(
+        "UPDATE prizes SET stock = CAST(COALESCE(NULLIF(TRIM(stock), ''), '0') AS INTEGER) - 1 \
+         WHERE id = ? AND CAST(COALESCE(NULLIF(TRIM(stock), ''), '0') AS INTEGER) >= 1",
+    )
+    .bind(&id)
+    .execute(&mut *tx)
+    .await?
+    .rows_affected();
+    if dec_stock == 0 {
+        return Ok(
+            (StatusCode::BAD_REQUEST, Json(json!({ "error": "库存不足" }))).into_response(),
+        );
+    }
+
+    // 原子扣积分（账户须存在且余额足；条件更新防超扣）
+    let dec_points = sqlx::query(
+        "UPDATE users SET total = CAST(NULLIF(TRIM(total), '') AS INTEGER) - ? \
+         WHERE id = ? AND CAST(NULLIF(TRIM(total), '') AS INTEGER) >= ?",
+    )
+    .bind(points)
+    .bind(&uid)
+    .bind(points)
+    .execute(&mut *tx)
+    .await?
+    .rows_affected();
+    if dec_points == 0 {
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "积分不足", "needed": points })),
+        )
+            .into_response());
+    }
+
+    // 积分流水
+    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let timestamp = chrono::Utc::now().timestamp_millis();
+    sqlx::query(
+        "INSERT INTO points_history (user_id, date, change, reason, timestamp) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(&uid)
+    .bind(&date)
+    .bind(format!("-{points}"))
+    .bind(format!("兑换：{name}"))
+    .bind(timestamp)
+    .execute(&mut *tx)
+    .await?;
+
+    // 兑换记录
+    let prize_id_num: i64 = id.parse().unwrap_or(0);
+    let created_at = chrono::Utc::now().to_rfc3339();
+    let redemption_id: i64 = sqlx::query_scalar(
+        "INSERT INTO redemptions (user_id, prize_id, prize_name, points_cost, status, created_at) \
+         VALUES (?, ?, ?, ?, 'pending', ?) RETURNING id",
+    )
+    .bind(&uid)
+    .bind(prize_id_num)
+    .bind(&name)
+    .bind(points)
+    .bind(&created_at)
+    .fetch_one(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+
+    let new_total: Option<i64> =
+        sqlx::query_scalar("SELECT CAST(NULLIF(TRIM(total), '') AS INTEGER) FROM users WHERE id = ?")
+            .bind(&uid)
+            .fetch_optional(&state.pools.news)
+            .await?
+            .flatten();
+
+    Ok(Json(json!({
+        "message": "success",
+        "data": {
+            "redemptionId": redemption_id,
+            "prizeName": name,
+            "pointsCost": points,
+            "total": new_total.unwrap_or(0),
+        }
+    }))
+    .into_response())
 }
 
 // ============================================================
