@@ -182,7 +182,24 @@ async fn register_start(State(state): State<AppState>, user: AuthUser) -> AppRes
     )
     .await?;
 
-    let options = serde_json::to_value(&ccr).map_err(json_err)?;
+    // webauthn-rs 的 start_passkey_registration 默认 residentKey=discouraged，
+    // 生成的凭据不可发现，无法支撑无用户名 / 条件式登录（真机平台验证器多半仍建可发现凭据，
+    // 但严格遵守 discouraged 的验证器不会）。这里强制 residentKey=required 以确保是 passkey
+    // （可发现凭据）。该字段仅为客户端提示，不参与 finish 的密码学校验，故安全。
+    let mut options = serde_json::to_value(&ccr).map_err(json_err)?;
+    if let Some(pk) = options
+        .get_mut("publicKey")
+        .and_then(|v| v.as_object_mut())
+    {
+        let sel = pk
+            .entry("authenticatorSelection")
+            .or_insert_with(|| json!({}));
+        if let Some(o) = sel.as_object_mut() {
+            o.insert("residentKey".into(), json!("required"));
+            o.insert("requireResidentKey".into(), json!(true));
+            o.entry("userVerification").or_insert(json!("preferred"));
+        }
+    }
     Ok(Json(json!({ "flowId": flow, "options": options })))
 }
 
