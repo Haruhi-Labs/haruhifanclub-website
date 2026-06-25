@@ -37,6 +37,7 @@ const classes = computed(() => [
 const onInput = (e: Event) => emit('update:modelValue', (e.target as HTMLInputElement).value)
 const onEnter = () => emit('search', props.modelValue)
 const onClear = () => {
+  if (props.disabled) return
   emit('update:modelValue', '')
   emit('clear')
 }
@@ -61,7 +62,7 @@ const onClear = () => {
       @keydown.enter="onEnter"
     />
     <button
-      v-if="modelValue"
+      v-if="modelValue && !disabled"
       type="button"
       class="sos-search__clear"
       aria-label="清除搜索"

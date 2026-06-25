@@ -151,7 +151,7 @@
                   <button
                     v-if="coupon.status !== 2"
                     class="admin-btn btn-outline"
-                    style="font-size: 0.75rem; color: var(--sos-danger); border-color: #fca5a5;"
+                    style="font-size: 0.75rem; color: var(--sos-danger); border-color: color-mix(in srgb, var(--sos-danger) 40%, transparent);"
                     @click="removeCoupon(coupon)"
                   >
                     删除

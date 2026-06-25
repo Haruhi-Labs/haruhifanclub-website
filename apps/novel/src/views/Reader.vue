@@ -12,6 +12,7 @@
 
     <!-- 侧边栏目录 -->
     <aside
+      id="reader-toc"
       class="reader-toc flex-shrink-0 transition-all duration-300 z-20 absolute md:relative h-full"
       :class="sidebarOpen ? 'w-72 translate-x-0 shadow-lg md:shadow-none' : 'w-72 -translate-x-full md:w-0 md:overflow-hidden'"
     >
@@ -22,6 +23,8 @@
             type="button"
             class="reader-icon-btn md:hidden"
             aria-label="关闭目录"
+            :aria-expanded="sidebarOpen"
+            aria-controls="reader-toc"
             @click="sidebarOpen = false"
           >
             <svg
@@ -68,6 +71,8 @@
             type="button"
             class="reader-icon-btn"
             aria-label="切换目录"
+            :aria-expanded="sidebarOpen"
+            aria-controls="reader-toc"
             @click="sidebarOpen = !sidebarOpen"
           >
             <svg

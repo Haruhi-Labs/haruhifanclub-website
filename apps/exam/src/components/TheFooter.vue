@@ -2,6 +2,12 @@
 // 采用设计系统统一页脚规范 .sos-footer（exam 暖木米白主题）
 const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`
 
+// 图片加载失败时隐藏（替代内联 onerror，避免引入脚本执行面）
+const onLogoError = (e: Event) => {
+  const img = e.target as HTMLImageElement
+  img.style.display = 'none'
+}
+
 const scrollToTop = () => {
   const appContainer = document.getElementById('app')
   if (appContainer) appContainer.scrollTo({ top: 0, behavior: 'smooth' })
@@ -50,7 +56,7 @@ const groups = [
         <div class="sos-footer__brand">
           <span class="sos-brand-lockup">
             <span class="sos-brand-lockup__mark">
-              <img :src="logoSrc" alt="" onerror="this.style.display='none'" />
+              <img :src="logoSrc" alt="" @error="onLogoError" />
             </span>
             <span class="sos-brand-lockup__text">
               <strong>凉宫春日应援团</strong>

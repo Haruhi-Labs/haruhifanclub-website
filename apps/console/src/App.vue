@@ -107,9 +107,9 @@ function logout() {
           <div class="sos-footer__bottom">
             <span>© 2026 HARUHIFANCLUB · 凉宫春日应援团控制台</span>
             <div class="sos-footer__bottom-meta">
-              <a class="sos-footer__link" href="https://haruyuki.cn" target="_blank" rel="noopener">应援团主站</a>
+              <a class="sos-footer__link" href="https://haruyuki.cn" target="_blank" rel="noopener noreferrer">应援团主站</a>
               <span class="sos-footer__bottom-sep" aria-hidden="true"></span>
-              <a class="sos-footer__link" href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" rel="noopener">皖ICP备2025089290号-1</a>
+              <a class="sos-footer__link" href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" rel="noopener noreferrer">皖ICP备2025089290号-1</a>
             </div>
           </div>
         </div>

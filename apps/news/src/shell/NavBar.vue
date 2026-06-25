@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMainStore } from '@/stores/main'
 import { AccountMenu } from '@haruhi/auth-ui'
@@ -26,6 +26,11 @@ const closeMobile = () => {
   isMobileMenuOpen.value = false
   document.body.style.overflow = ''
 }
+
+// 卸载兜底：菜单打开时若 NavBar 被移除（路由切换/条件渲染），恢复 body 滚动
+onBeforeUnmount(() => {
+  document.body.style.overflow = ''
+})
 
 // 主导航（站内 + 跨站）。exam 是独立 app，必须用原生 a 整页跳转。
 const navLinks = [
@@ -165,8 +170,14 @@ const navLinks = [
 }
 .news-appbar--overlay .sos-brand-lockup__text > strong,
 .news-appbar--overlay .sos-brand-lockup__text > small,
-.news-appbar--overlay .sos-navlink {
+.news-appbar--overlay .sos-navlink,
+.news-appbar--overlay .news-appbar__search,
+.news-appbar--overlay .news-appbar__menu {
   color: var(--sos-white);
+}
+/* 深色 hero 上搜索框需要可见的浅色描边，否则边界融进背景 */
+.news-appbar--overlay .news-appbar__search {
+  border-color: color-mix(in srgb, var(--sos-white) 45%, transparent);
 }
 
 /* 移动端全屏菜单 */
