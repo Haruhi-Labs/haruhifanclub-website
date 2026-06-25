@@ -36,25 +36,22 @@
       </article>
     </section>
 
-    <section class="guild-rules panel">
-      <div>
-        <p class="eyebrow">Rule Books</p>
-        <h2>公会规则书</h2>
-      </div>
-      <div class="rule-actions">
-        <button
-          v-for="book in ruleBooks"
-          :key="book.id"
-          type="button"
-          class="rule-btn"
-          @click="activeRule = book"
-        >
-          {{ book.title }}
-        </button>
-      </div>
-    </section>
+    <nav class="guild-tabs panel" aria-label="公会功能分页">
+      <button
+        v-for="tab in guildTabs"
+        :key="tab.id"
+        type="button"
+        class="guild-tab"
+        :class="{ active: activeTab === tab.id }"
+        @click="activeTab = tab.id"
+      >
+        <span>{{ tab.eyebrow }}</span>
+        <strong>{{ tab.label }}</strong>
+        <em>{{ tab.summary }}</em>
+      </button>
+    </nav>
 
-    <main class="guild-layout">
+    <main v-if="activeTab === 'quests'" class="guild-tab-panel">
       <section class="quest-column panel">
         <header class="section-head">
           <div>
@@ -111,53 +108,9 @@
           </article>
         </div>
       </section>
-
-      <aside class="guild-side">
-        <section class="panel rank-panel">
-          <header class="section-head compact">
-            <div>
-              <p class="eyebrow">Ranking</p>
-              <h2>排行榜</h2>
-            </div>
-          </header>
-
-          <RouterLink
-            v-for="(item, index) in leaderboard"
-            :key="item.uid"
-            class="leader-row"
-            :to="{ name: 'adventurer-profile', params: { uid: item.uid } }"
-          >
-            <span class="leader-no">#{{ index + 1 }}</span>
-            <span class="leader-rating" :class="`rating-${item.rating}`">{{ item.rating }}</span>
-            <span class="leader-name">{{ item.uid }}</span>
-            <b>{{ item.coins }}G</b>
-          </RouterLink>
-          <div v-if="!leaderboard.length" class="empty">暂无公会成员记录</div>
-        </section>
-
-        <section class="panel rating-panel">
-          <header class="section-head compact">
-            <div>
-              <p class="eyebrow">Rank Up</p>
-              <h2>评级申请</h2>
-            </div>
-          </header>
-
-          <p class="side-copy">{{ nextRatingText }}</p>
-          <textarea v-model="ratingNote" placeholder="给管理员的申请说明，可留空"></textarea>
-          <button
-            type="button"
-            class="action-btn full"
-            :disabled="!canApplyRating || applyingRating"
-            @click="applyRating"
-          >
-            {{ applyButtonText }}
-          </button>
-        </section>
-      </aside>
     </main>
 
-    <section class="reward-section panel">
+    <section v-else-if="activeTab === 'rewards'" class="reward-section panel guild-tab-panel">
       <header class="section-head">
         <div>
           <p class="eyebrow">Reward Counter</p>
@@ -197,12 +150,73 @@
           </button>
         </article>
       </div>
+      <div v-if="!rewards.length" class="empty">暂无可查看的补给项目</div>
 
       <div v-if="redemptions.length" class="redemption-strip">
         <span>我的兑换申请</span>
         <b v-for="item in redemptions.slice(0, 4)" :key="item.id">
           {{ item.rewardName }} · {{ redemptionLabel(item.status) }}
         </b>
+      </div>
+    </section>
+
+    <section v-else-if="activeTab === 'ranking'" class="panel rank-panel rank-page guild-tab-panel">
+      <header class="section-head">
+        <div>
+          <p class="eyebrow">Ranking</p>
+          <h2>冒险者排行榜</h2>
+        </div>
+      </header>
+
+      <RouterLink
+        v-for="(item, index) in leaderboard"
+        :key="item.uid"
+        class="leader-row"
+        :to="{ name: 'adventurer-profile', params: { uid: item.uid } }"
+      >
+        <span class="leader-no">#{{ index + 1 }}</span>
+        <span class="leader-rating" :class="`rating-${item.rating}`">{{ item.rating }}</span>
+        <span class="leader-name">{{ item.uid }}</span>
+        <b>{{ item.coins }}G</b>
+      </RouterLink>
+      <div v-if="!leaderboard.length" class="empty">暂无公会成员记录</div>
+    </section>
+
+    <section v-else-if="activeTab === 'rating'" class="panel rating-panel rating-page guild-tab-panel">
+      <header class="section-head">
+        <div>
+          <p class="eyebrow">Rank Up</p>
+          <h2>评级申请</h2>
+        </div>
+      </header>
+
+      <p class="side-copy">{{ nextRatingText }}</p>
+      <textarea v-model="ratingNote" placeholder="给管理员的申请说明，可留空"></textarea>
+      <button
+        type="button"
+        class="action-btn full"
+        :disabled="!canApplyRating || applyingRating"
+        @click="applyRating"
+      >
+        {{ applyButtonText }}
+      </button>
+    </section>
+
+    <section v-else class="guild-rules panel guild-tab-panel">
+      <div>
+        <p class="eyebrow">Rule Books</p>
+        <h2>公会规则书</h2>
+      </div>
+      <div class="rule-actions">
+        <button
+          v-for="book in ruleBooks"
+          :key="book.id"
+          type="button"
+          class="rule-btn"
+          @click="activeRule = book"
+        >
+          {{ book.title }}
+        </button>
       </div>
     </section>
 
@@ -248,6 +262,7 @@ const profile = ref({
 const feedback = ref('公会柜台待机中。委托进度会由系统根据你的真实画廊行为自动查验。')
 const ratingNote = ref('')
 const activeRule = ref(null)
+const activeTab = ref('quests')
 const busyQuestId = ref(null)
 const busyRewardId = ref(null)
 const applyingRating = ref(false)
@@ -295,6 +310,39 @@ const coinText = computed(() => {
   const coins = profile.value.coins || {}
   return `${Number(coins.available || 0)}G`
 })
+
+const guildTabs = computed(() => [
+  {
+    id: 'quests',
+    eyebrow: 'Bounty',
+    label: '委托',
+    summary: `${quests.value.length}项`
+  },
+  {
+    id: 'rewards',
+    eyebrow: 'Counter',
+    label: '兑换',
+    summary: `${rewards.value.length}项`
+  },
+  {
+    id: 'ranking',
+    eyebrow: 'Ranking',
+    label: '排行',
+    summary: `${leaderboard.value.length}人`
+  },
+  {
+    id: 'rating',
+    eyebrow: 'Rank Up',
+    label: '评级',
+    summary: profile.value.nextRating?.target ? `申请${profile.value.nextRating.target}` : '当前'
+  },
+  {
+    id: 'rules',
+    eyebrow: 'Rules',
+    label: '规则',
+    summary: `${ruleBooks.length}册`
+  }
+])
 
 const questGroups = computed(() => {
   const groups = [
@@ -596,6 +644,70 @@ p {
   white-space: nowrap;
 }
 
+.guild-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+}
+
+.guild-tab {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 14px;
+  color: var(--muted);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.46);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 18px;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.guild-tab:hover,
+.guild-tab.active {
+  color: var(--text);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(255, 247, 251, 0.58)),
+    radial-gradient(circle at 0% 0%, rgba(244, 63, 94, 0.12), transparent 40%);
+  border-color: rgba(244, 63, 94, 0.22);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
+  transform: translateY(-1px);
+}
+
+.guild-tab span {
+  overflow: hidden;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.guild-tab strong {
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guild-tab em {
+  overflow: hidden;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guild-tab-panel {
+  min-width: 0;
+}
+
 .guild-rules {
   display: flex;
   align-items: center;
@@ -652,6 +764,11 @@ p {
 .reward-section,
 .guild-feedback {
   padding: 18px;
+}
+
+.rank-page,
+.rating-page {
+  max-width: 880px;
 }
 
 .guild-side {
@@ -969,10 +1086,21 @@ p {
 
 :global(html.art-lights-out) .quest-card,
 :global(html.art-lights-out) .reward-card,
+:global(html.art-lights-out) .guild-tab,
 :global(html.art-lights-out) .rating-panel textarea {
   color: #eaf6ff;
   background: rgba(12, 20, 44, 0.58);
   border-color: rgba(125, 211, 252, 0.12);
+}
+
+:global(html.art-lights-out) .guild-tab:hover,
+:global(html.art-lights-out) .guild-tab.active {
+  color: #f7fbff;
+  background:
+    linear-gradient(135deg, rgba(14, 23, 54, 0.78), rgba(35, 28, 68, 0.64)),
+    radial-gradient(circle at 0% 0%, rgba(125, 211, 252, 0.14), transparent 40%);
+  border-color: rgba(125, 211, 252, 0.24);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.3);
 }
 
 :global(html.art-lights-out) .quest-meta span,
@@ -993,6 +1121,10 @@ p {
 
   .guild-status {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .guild-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -1019,6 +1151,16 @@ p {
 
   .guild-status {
     grid-template-columns: 1fr;
+  }
+
+  .guild-tabs {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 12px;
+  }
+
+  .guild-tab {
+    min-width: 132px;
   }
 }
 </style>
