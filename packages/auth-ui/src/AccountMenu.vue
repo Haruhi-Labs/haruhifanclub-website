@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { SosAvatar } from '@haruhi/ui'
 import { useSession } from './useSession.js'
@@ -9,6 +9,7 @@ const props = defineProps({
   apiBase: { type: String, default: '/api' },
   loginPath: { type: String, default: '/login' },
   profilePath: { type: String, default: '/account' },
+  // settingsPath / home 保留以兼容各 app 既有传参（个人中心内已自带设置与退出，不再用下拉）
   settingsPath: { type: String, default: '/account/settings' },
   home: { type: String, default: '/' },
 })
@@ -16,35 +17,26 @@ const props = defineProps({
 const session = useSession(props.apiBase)
 const router = useRouter()
 
-const open = ref(false)
 const user = computed(() => session.state.user)
 const accountLabel = computed(
-  () => user.value?.nickname || user.value?.email || user.value?.username || ''
+  () => user.value?.nickname || user.value?.email || user.value?.username || '',
 )
 
 onMounted(() => {
   if (!session.state.ready) session.refresh()
-  document.addEventListener('click', onDocClick)
 })
-onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
-
-const rootEl = ref(null)
-function onDocClick(e) {
-  if (rootEl.value && !rootEl.value.contains(e.target)) open.value = false
-}
 
 function goLogin() {
   router.push(props.loginPath)
 }
-async function logout() {
-  open.value = false
-  await session.logout()
-  router.push(props.home)
+// 个人中心已是完整工作台，头像直接进概览，不再展开下拉
+function goAccount() {
+  router.push(props.profilePath)
 }
 </script>
 
 <template>
-  <div ref="rootEl" class="hauth-menu">
+  <div class="hauth-menu">
     <!-- 未登录 -->
     <button
       v-if="!user"
@@ -55,35 +47,16 @@ async function logout() {
       登录 / 注册
     </button>
 
-    <!-- 已登录 -->
-    <template v-else>
-      <button
-        type="button"
-        class="hauth-trigger"
-        aria-haspopup="menu"
-        :aria-expanded="open"
-        @click="open = !open"
-      >
-        <SosAvatar :src="user.avatar || undefined" :name="accountLabel || 'U'" size="sm" />
-        <span v-if="accountLabel" class="hauth-trigger__name">{{ accountLabel }}</span>
-      </button>
-
-      <div v-if="open" class="hauth-menu__panel sos-menu sos-scope" role="menu">
-        <div class="hauth-menu-head">
-          <span class="hauth-menu-head__name">{{ user.nickname || '未命名' }}</span>
-          <span class="hauth-menu-head__mail">{{ user.email || user.username }}</span>
-        </div>
-        <router-link class="sos-menu__item" :to="profilePath" @click="open = false">
-          个人资料
-        </router-link>
-        <router-link class="sos-menu__item" :to="settingsPath" @click="open = false">
-          账号设置
-        </router-link>
-        <div class="sos-menu__sep"></div>
-        <button type="button" class="sos-menu__item sos-menu__item--danger" @click="logout">
-          退出登录
-        </button>
-      </div>
-    </template>
+    <!-- 已登录：点头像资料卡直接进个人中心 -->
+    <button
+      v-else
+      type="button"
+      class="hauth-trigger"
+      title="进入个人中心"
+      @click="goAccount"
+    >
+      <SosAvatar :src="user.avatar || undefined" :name="accountLabel || 'U'" size="sm" />
+      <span v-if="accountLabel" class="hauth-trigger__name">{{ accountLabel }}</span>
+    </button>
   </div>
 </template>
