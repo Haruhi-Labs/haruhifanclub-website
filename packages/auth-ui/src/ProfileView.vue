@@ -161,43 +161,27 @@ onBeforeUnmount(revokeCropSrc)
       <SosNotice v-if="error" tone="danger">{{ error }}</SosNotice>
       <SosNotice v-if="okMsg" tone="success">{{ okMsg }}</SosNotice>
 
-      <!-- 身份卡 -->
+      <!-- 身份 + 头像 -->
       <SosCard as="section">
-        <div class="sos-cluster">
-          <div class="hauth-identity">
-            <SosAvatar :src="avatar || undefined" :name="form.nickname || 'U'" size="lg" />
-            <div class="hauth-identity__main">
-              <p class="hauth-identity__name">{{ form.nickname || '未命名' }}</p>
-              <p class="hauth-identity__mail">{{ user.email || user.username }}</p>
-            </div>
-          </div>
-          <SosButton variant="secondary" size="sm" as="a" :href="settingsPath">
-            账号设置 →
-          </SosButton>
-        </div>
-      </SosCard>
-
-      <!-- 头像 -->
-      <SosCard as="section">
-        <SosTitle as="h2" style="font-size: var(--sos-text-lg)">头像</SosTitle>
-        <div class="hauth-avatar-edit" style="margin-top: var(--sos-space-5)">
+        <div class="hauth-identity">
           <SosAvatar :src="avatar || undefined" :name="form.nickname || 'U'" size="lg" />
-          <div class="hauth-avatar-edit__actions">
-            <div class="hauth-avatar-edit__row">
-              <SosButton size="sm" :loading="avatarBusy" @click="pickFile">
-                {{ avatar ? '更换头像' : '上传头像' }}
-              </SosButton>
-              <SosButton
-                v-if="avatar"
-                variant="ghost"
-                size="sm"
-                :disabled="avatarBusy"
-                @click="removeAvatar"
-              >
-                移除
-              </SosButton>
-            </div>
-            <p class="hauth-avatar-edit__hint">支持 JPG / PNG / WebP 等图片，上传后可裁切。</p>
+          <div class="hauth-identity__main">
+            <p class="hauth-identity__name">{{ form.nickname || '未命名' }}</p>
+            <p class="hauth-identity__mail">{{ user.email || user.username }}</p>
+          </div>
+          <div class="hauth-identity__actions">
+            <SosButton size="sm" :loading="avatarBusy" @click="pickFile">
+              {{ avatar ? '更换头像' : '上传头像' }}
+            </SosButton>
+            <SosButton
+              v-if="avatar"
+              variant="ghost"
+              size="sm"
+              :disabled="avatarBusy"
+              @click="removeAvatar"
+            >
+              移除头像
+            </SosButton>
           </div>
         </div>
         <input ref="fileInput" type="file" accept="image/*" hidden @change="onFileChange" />

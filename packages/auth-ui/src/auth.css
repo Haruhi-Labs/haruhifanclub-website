@@ -107,12 +107,14 @@
   display: flex;
   align-items: center;
   gap: var(--sos-space-4);
+  flex-wrap: wrap;
   min-width: 0;
 }
 .hauth-identity__main {
   display: grid;
   gap: 0.25rem;
   min-width: 0;
+  flex: 1;
 }
 .hauth-identity__name {
   margin: 0;
@@ -128,28 +130,12 @@
   white-space: nowrap;
 }
 
-/* ---------- 头像编辑（当前头像 + 操作按钮） ---------- */
-.hauth-avatar-edit {
+/* 头像操作按钮（更换 / 移除）：贴身份行右侧，窄屏自然换行靠右 */
+.hauth-identity__actions {
   display: flex;
-  align-items: center;
-  gap: var(--sos-space-5);
   flex-wrap: wrap;
-}
-.hauth-avatar-edit__actions {
-  display: flex;
-  flex-direction: column;
   gap: var(--sos-space-2);
-  min-width: 0;
-}
-.hauth-avatar-edit__row {
-  display: flex;
-  gap: var(--sos-space-2);
-  flex-wrap: wrap;
-}
-.hauth-avatar-edit__hint {
-  margin: 0;
-  color: var(--sos-text-tertiary);
-  font-size: var(--sos-text-xs);
+  margin-inline-start: auto;
 }
 
 /* ---------- 头像裁切器 ---------- */
