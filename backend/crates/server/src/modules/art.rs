@@ -66,6 +66,7 @@ pub fn router() -> Router<AppState> {
         )
         .route("/admin/points-ledger", get(admin_points_ledger))
         .route("/admin/points/grant", post(admin_points_grant))
+        .merge(super::art_guild::router())
 }
 
 // ============================================================
@@ -357,6 +358,20 @@ fn map_artwork_row(r: &ArtRow) -> Value {
     })
 }
 
+async fn map_artwork_row_with_guild(state: &AppState, r: &ArtRow) -> Value {
+    let mut value = map_artwork_row(r);
+    let uid = r.uploader_uid.as_deref().unwrap_or("").trim();
+    if !uid.is_empty() {
+        if let Some(obj) = value.as_object_mut() {
+            obj.insert(
+                "guild".into(),
+                super::art_guild::guild_summary_for_uid(state, uid).await,
+            );
+        }
+    }
+    value
+}
+
 fn now_iso() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
@@ -642,7 +657,10 @@ async fn list_artworks(
     }
     list_q = list_q.bind(page_size).bind(offset);
     let rows: Vec<ArtRow> = list_q.fetch_all(&state.pools.art).await?;
-    let data: Vec<Value> = rows.iter().map(map_artwork_row).collect();
+    let mut data: Vec<Value> = Vec::with_capacity(rows.len());
+    for row in &rows {
+        data.push(map_artwork_row_with_guild(&state, row).await);
+    }
 
     Ok(Json(json!({
         "ok": true,
@@ -658,6 +676,7 @@ async fn list_artworks(
 async fn get_artwork(
     State(state): State<AppState>,
     Path(id): Path<i64>,
+    user: Option<AuthUser>,
     headers: HeaderMap,
 ) -> AppResult<Response> {
     let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
@@ -692,8 +711,10 @@ async fn get_artwork(
             .into_response());
     }
 
+    super::art_guild::record_user_event(&state, user, "browse_artwork", Some(id)).await;
+
     Ok(json_with_cookie(
-        json!({ "ok": true, "data": map_artwork_row(&row) }),
+        json!({ "ok": true, "data": map_artwork_row_with_guild(&state, &row).await }),
         set,
     ))
 }
@@ -1097,6 +1118,16 @@ async fn create_artwork(
                 Err(e) => tracing::error!("Auto grant points failed: {e}"),
             }
         }
+        super::art_guild::grant_upload_progress(
+            &state,
+            &uploader_uid,
+            last_id,
+            &content_type,
+            &source_type,
+            &created_at,
+            "",
+        )
+        .await;
     }
 
     let message = if final_status == "approved" {
@@ -1158,6 +1189,7 @@ async fn list_comments(
 async fn create_comment(
     State(state): State<AppState>,
     headers: HeaderMap,
+    user: Option<AuthUser>,
     Json(body): Json<Value>,
 ) -> AppResult<Response> {
     let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
@@ -1239,6 +1271,8 @@ async fn create_comment(
             set,
         ))
     } else {
+        super::art_guild::record_user_event(&state, user, "comment_artwork", Some(artwork_id))
+            .await;
         Ok(json_with_cookie(
             json!({ "ok": true, "data": {
                 "id": last_id, "artwork_id": artwork_id, "user_name": user_name,
@@ -1368,10 +1402,14 @@ async fn like_target(
 async fn like_artwork(
     State(state): State<AppState>,
     Path(id): Path<i64>,
+    user: Option<AuthUser>,
     headers: HeaderMap,
 ) -> AppResult<Response> {
     let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
     let (status, body) = like_target(&state, &anon_id, "artwork", id).await;
+    if status.is_success() {
+        super::art_guild::record_user_event(&state, user, "like_artwork", Some(id)).await;
+    }
     Ok((status, json_with_cookie(body, set)).into_response())
 }
 
@@ -1487,6 +1525,16 @@ async fn admin_approve_artwork(
                     {
                         tracing::error!("Manual approval grant points failed: {e}");
                     }
+                    super::art_guild::grant_upload_progress(
+                        &state,
+                        &uid,
+                        id,
+                        content_type.as_deref().unwrap_or("other"),
+                        source_type.as_deref().unwrap_or("personal"),
+                        &created,
+                        " (人工复核)",
+                    )
+                    .await;
                 }
             }
         }

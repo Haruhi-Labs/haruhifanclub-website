@@ -5,6 +5,7 @@ use axum::Router;
 use crate::state::AppState;
 
 pub mod art;
+pub mod art_guild;
 pub mod exam;
 pub mod news;
 pub mod novel;
