@@ -99,9 +99,9 @@
           <transition name="fade-slide">
             <div v-if="sourceType==='network'" class="conditional-block">
               <div class="form-group" style="margin-bottom: 24px;">
-                <label class="form-label">上传者显示名 <span class="opt">（可选）</span></label>
-                <input class="form-input" v-model="uploaderName" placeholder="例如：昵称 / 匿名" />
-                <p class="form-hint">仅用于展示，不填写则显示为默认名称。</p>
+                <label class="form-label">上传者显示名 <span class="req">*</span></label>
+                <input class="form-input" v-model="uploaderName" placeholder="请填写可追溯的昵称、平台账号或来源名称" />
+                <p class="form-hint warning">网络转载与其他来源必须填写可追溯身份，禁止匿名上传。</p>
               </div>
 
               <div class="form-group">
@@ -465,6 +465,10 @@ async function submit(){
         return
       }
     }
+  }else if(!uploaderName.value.trim()){
+    msg.value = '网络转载与其他来源必须填写上传者显示名，便于后续溯源'
+    isError.value = true
+    return
   }
 
   submitting.value = true
@@ -489,7 +493,7 @@ async function submit(){
       fd.append('originals', item.file)
     }
 
-    fd.append('uploader_name', uploaderName.value.trim() || sessionUploaderName.value)
+    fd.append('uploader_name', sourceType.value === 'network' ? uploaderName.value.trim() : (uploaderName.value.trim() || sessionUploaderName.value))
     fd.append('title', title.value.trim())
     fd.append('description', description.value.trim())
     fd.append('tags', tags.value.join(' '))
