@@ -122,13 +122,34 @@
           <div class="form-grid">
             <div class="form-group" style="grid-column: span 2;">
               <label class="form-label">标签 <span class="opt">（可选）</span></label>
-              <div class="input-with-action">
-                <input
-                  class="form-input"
-                  v-model="tagDraft"
-                  placeholder="输入标签后按回车或点击添加"
-                  @keydown.enter.prevent="addTag"
-                />
+              <div class="input-with-action tag-input-row">
+                <div class="tag-input-shell">
+                  <input
+                    class="form-input"
+                    v-model="tagDraft"
+                    placeholder="输入标签后按回车或点击添加"
+                    @focus="showTagSuggestions = true"
+                    @blur="hideTagSuggestions"
+                    @keydown.enter.prevent="addTag"
+                  />
+                  <div v-if="showTagSuggestions && suggestedTags.length" class="tag-suggestion-popover">
+                    <div class="tag-suggestion-head">
+                      <span>{{ tagDraft.trim() ? '匹配标签' : '推荐标签' }}</span>
+                      <small>来自画廊</small>
+                    </div>
+                    <button
+                      v-for="item in suggestedTags"
+                      :key="item.name"
+                      type="button"
+                      class="tag-suggestion-item"
+                      @mousedown.prevent="pickSuggestedTag(item.name)"
+                      data-sfx="click"
+                    >
+                      <span>#{{ item.name }}</span>
+                      <em>{{ item.count }} 件作品</em>
+                    </button>
+                  </div>
+                </div>
                 <button class="action-btn secondary" type="button" @click="addTag" :disabled="!tagDraft.trim()" data-sfx="click">添加</button>
               </div>
               
@@ -253,6 +274,7 @@ import { computed, ref, watch } from 'vue'
 import { api } from '../services/api' 
 import { compressToWebP } from '../utils/imageCompressor.js'
 import { useSession } from '@haruhi/auth-ui'
+import { seedArtworks } from '../mock/seedData.js'
 
 const session = useSession('/api')
 
@@ -277,6 +299,7 @@ const description = ref('')
 
 const tagDraft = ref('')
 const tags = ref([])
+const showTagSuggestions = ref(false)
 
 const sourceType = ref('personal')
 const contentType = ref('haruhi')
@@ -301,6 +324,30 @@ const submitting = ref(false)
 const statusMsg = ref('提交中…')
 
 const uidHintClass = computed(() => uidHint.value.includes('✅') ? 'ok' : (uidHint.value.includes('❌') ? 'bad' : ''))
+
+const galleryTagStats = computed(() => {
+  const counts = new Map()
+  for (const artwork of seedArtworks) {
+    for (const tag of artwork.tags || []) {
+      const name = normalizeOneTag(tag)
+      if (!name) continue
+      counts.set(name, (counts.get(name) || 0) + 1)
+    }
+  }
+
+  return Array.from(counts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'zh-Hans-CN'))
+})
+
+const suggestedTags = computed(() => {
+  const query = normalizeOneTag(tagDraft.value).toLowerCase()
+  const selected = new Set(tags.value.map(tag => tag.toLowerCase()))
+  return galleryTagStats.value
+    .filter(item => !selected.has(item.name.toLowerCase()))
+    .filter(item => !query || item.name.toLowerCase().includes(query))
+    .slice(0, 8)
+})
 
 const sessionUploaderName = computed(() => {
   const currentUser = session.state.user
@@ -400,9 +447,19 @@ function addTag(){
   const exists = tags.value.some(x => x.toLowerCase() === key)
   if(!exists) tags.value.push(t)
   tagDraft.value = ''
+  showTagSuggestions.value = true
 }
 function removeTag(t){ tags.value = tags.value.filter(x => x !== t) }
 function clearTags(){ tags.value = []; tagDraft.value = '' }
+function pickSuggestedTag(tag){
+  tagDraft.value = tag
+  addTag()
+}
+function hideTagSuggestions(){
+  window.setTimeout(() => {
+    showTagSuggestions.value = false
+  }, 120)
+}
 
 async function checkUid(){
   const u = uid.value.trim()
@@ -838,6 +895,112 @@ async function submit(){
 .info-card .sub-info { margin-top: 6px; opacity: 0.8; font-size: 12px; }
 
 /* Tags */
+.tag-input-row {
+  align-items: stretch;
+}
+
+.tag-input-shell {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tag-suggestion-popover {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  width: min(360px, 100%);
+  max-height: 252px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.tag-suggestion-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tag-suggestion-head small {
+  color: var(--text-sub);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.tag-suggestion-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--text-main);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.tag-suggestion-item:hover {
+  background: var(--primary-soft);
+}
+
+.tag-suggestion-item span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-suggestion-item em {
+  flex: 0 0 auto;
+  color: var(--text-sub);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+:global(html.art-lights-out) .tag-suggestion-popover {
+  border-color: rgba(125, 211, 252, 0.2);
+  background: rgba(8, 13, 28, 0.94);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36);
+}
+
+:global(html.art-lights-out) .tag-suggestion-head,
+:global(html.art-lights-out) .tag-suggestion-item {
+  color: rgba(226, 232, 240, 0.94);
+}
+
+:global(html.art-lights-out) .tag-suggestion-head small,
+:global(html.art-lights-out) .tag-suggestion-item em {
+  color: rgba(186, 230, 253, 0.68);
+}
+
+:global(html.art-lights-out) .tag-suggestion-item span {
+  color: #7dd3fc;
+}
+
+:global(html.art-lights-out) .tag-suggestion-item:hover {
+  background: rgba(14, 165, 233, 0.16);
+}
+
 .tags-container {
   display: flex;
   flex-wrap: wrap;
