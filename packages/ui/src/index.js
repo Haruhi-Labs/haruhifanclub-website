@@ -31,6 +31,7 @@ export { default as SosTextarea } from './components/SosTextarea.vue'
 export { default as SosSelect } from './components/SosSelect.vue'
 export { default as SosCheckbox } from './components/SosCheckbox.vue'
 export { default as SosSwitch } from './components/SosSwitch.vue'
+export { default as SosSearch } from './components/SosSearch.vue'
 
 // Data & media display
 export { default as SosCard } from './components/SosCard.vue'

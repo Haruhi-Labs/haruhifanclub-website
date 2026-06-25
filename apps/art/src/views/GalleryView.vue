@@ -36,6 +36,7 @@
       class="main-grid"
       :items="store.list"
       :page="store.page"
+      :pageCount="pageCount"
       :hasMore="store.hasMore"
       :loading="store.loading"
       @open="openItem"
@@ -44,6 +45,7 @@
       @author="onAuthor"
       @prevPage="handlePrevPage"
       @nextPage="handleNextPage"
+      @goPage="handleGoPage"
     />
 
     <div class="statusRow footer-mode">
@@ -89,6 +91,12 @@ const sortLabel = computed(() => {
   return '随机'
 })
 
+// 总页数：由总条数 / 每页数推导，供统一分页组件使用
+const pageCount = computed(() => {
+  const limit = store.limit || 12
+  return Math.max(1, Math.ceil((store.total || 0) / limit))
+})
+
 // --- 翻页处理 ---
 async function handlePrevPage() {
   if (store.page > 1) {
@@ -104,6 +112,15 @@ async function handleNextPage() {
     await store.load()
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+}
+
+// 跳转到指定页（统一分页组件 .sos-pagination 触发）
+async function handleGoPage(p) {
+  const target = Math.min(Math.max(1, p), pageCount.value)
+  if (target === store.page) return
+  store.page = target
+  await store.load()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 // --- 响应式 PageSize 逻辑 ---
@@ -286,7 +303,7 @@ onUnmounted(() => {
 .statusRow.footer-mode { margin-top: 30px; border-top: 1px dashed rgba(0,0,0,0.08); padding-top: 20px; }
 .left{ display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
 .errorBox{ padding:12px; background:#fee; color:red; border-radius:8px; }
-.muted{ color:#999; font-size:12px; }
+.muted{ color:var(--sos-text-tertiary); font-size:12px; }
 
 .tag-header {
   display: flex;
@@ -326,8 +343,8 @@ onUnmounted(() => {
 
 .btn-return {
   padding: 10px 20px;
-  background: #ffffff;
-  border: 1px solid #e5e5e5;
+  background: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-default);
   border-radius: 99px;
   cursor: pointer;
   font-weight: 800;
@@ -340,9 +357,9 @@ onUnmounted(() => {
 }
 
 .btn-return:hover {
-  background: #fff;
+  background: var(--sos-bg-surface);
   color: #000;
-  border-color: #ccc;
+  border-color: var(--sos-border-strong);
   transform: translateX(-4px);
   box-shadow: 0 6px 15px rgba(0,0,0,0.08);
 }

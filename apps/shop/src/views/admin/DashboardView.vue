@@ -21,7 +21,7 @@
     <div class="panel">
         <div class="panel-body">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem;">
-                <h3 style="font-weight: bold; color: #374151; margin: 0;">快捷操作</h3>
+                <h3 style="font-weight: bold; color: var(--sos-text-secondary); margin: 0;">快捷操作</h3>
                 <button class="admin-btn btn-outline" :disabled="loading" @click="loadSummary">
                     {{ loading ? '刷新中...' : '刷新数据' }}
                 </button>

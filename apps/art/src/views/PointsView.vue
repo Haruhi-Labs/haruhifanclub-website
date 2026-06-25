@@ -284,7 +284,7 @@ onMounted(() => {
   top: 100%;
   left: 0;
   right: 0;
-  background: #fff;
+  background: var(--sos-bg-surface);
   border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: var(--shadow-2);
@@ -320,7 +320,7 @@ onMounted(() => {
 }
 
 .user-card {
-  background: linear-gradient(135deg, var(--bg-0), #fff);
+  background: linear-gradient(135deg, var(--bg-0), var(--sos-bg-surface));
   border: 1px solid var(--line);
   border-radius: 20px;
   padding: 24px;
@@ -335,7 +335,7 @@ onMounted(() => {
 .u-avatar {
   width: 64px; height: 64px;
   border-radius: 50%;
-  border: 3px solid #fff;
+  border: 3px solid var(--sos-bg-surface);
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   background: #f1f5f9;
   object-fit: cover;
@@ -345,7 +345,7 @@ onMounted(() => {
   display: inline-block;
   font-size: 12px;
   background: var(--accent);
-  color: #fff;
+  color: var(--sos-bg-surface);
   padding: 2px 8px;
   border-radius: 99px;
   margin-top: 4px;
@@ -377,8 +377,8 @@ onMounted(() => {
   font-weight: 850;
   font-size: 16px;
 }
-.h-right.plus { color: #10b981; }
-.h-right.minus { color: #ef4444; }
+.h-right.plus { color: var(--sos-success); }
+.h-right.minus { color: var(--sos-danger); }
 
 .not-found, .empty-hint {
   text-align: center;
@@ -449,14 +449,14 @@ onMounted(() => {
   align-items: center;
   width: 28px; height: 28px;
   border-radius: 50%;
-  color: #fff;
+  color: var(--sos-bg-surface);
   font-weight: 900;
   font-size: 14px;
   text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 .gold { background: linear-gradient(135deg, #ffd700, #f59e0b); box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4); }
-.silver { background: linear-gradient(135deg, #e5e7eb, #9ca3af); box-shadow: 0 2px 6px rgba(156, 163, 175, 0.4); color: #4b5563; text-shadow: none; }
-.bronze { background: linear-gradient(135deg, #d97706, #b45309); box-shadow: 0 2px 6px rgba(180, 83, 9, 0.4); }
+.silver { background: linear-gradient(135deg, var(--sos-border-default), var(--sos-text-tertiary)); box-shadow: 0 2px 6px rgba(156, 163, 175, 0.4); color: var(--sos-text-secondary); text-shadow: none; }
+.bronze { background: linear-gradient(135deg, var(--sos-warning), #b45309); box-shadow: 0 2px 6px rgba(180, 83, 9, 0.4); }
 
 .medal-plain {
   font-weight: 700;

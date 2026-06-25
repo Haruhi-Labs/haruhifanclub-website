@@ -65,7 +65,7 @@
                     </div>
                     <!-- [修改] 动态渲染参数表 -->
                     <div style="margin-bottom: 2rem;">
-                        <h3 style="font-size: 0.875rem; color: #999; margin-bottom: 0.75rem; text-transform: uppercase;">规格参数</h3>
+                        <h3 style="font-size: 0.875rem; color: var(--sos-text-tertiary); margin-bottom: 0.75rem; text-transform: uppercase;">规格参数</h3>
                         <table class="specs-table" v-if="product.specs && product.specs.length">
                             <tbody>
                                 <tr v-for="(spec, idx) in product.specs" :key="idx">
@@ -74,23 +74,23 @@
                                 </tr>
                             </tbody>
                         </table>
-                        <p v-else style="font-size: 0.8rem; color: #ccc;">暂无规格参数</p>
+                        <p v-else style="font-size: 0.8rem; color: var(--sos-border-strong);">暂无规格参数</p>
                     </div>
                 </div>
                 <div>
                     <div class="flex-row items-center gap-4 detail-qty-row" style="margin-bottom: 1.5rem;">
-                        <span style="font-size: 0.875rem; color: #666;">数量</span>
+                        <span style="font-size: 0.875rem; color: var(--sos-text-secondary);">数量</span>
                         <div class="quantity-control">
                             <button @click="quantity > 1 ? quantity-- : null" class="qty-btn">-</button>
                             <input type="text" :value="quantity" class="qty-input" readonly aria-label="购买数量">
                             <button @click="quantity++" class="qty-btn">+</button>
                         </div>
-                        <span style="font-size: 0.75rem; color: #999;">
+                        <span style="font-size: 0.75rem; color: var(--sos-text-tertiary);">
                             {{ isPresaleProduct ? '预售商品（不受库存限制）' : `库存 (${product.stock}件)` }}
                         </span>
                     </div>
                     
-                    <div v-if="product.shippingCost > 0" style="margin-bottom: 1rem; font-size: 0.75rem; color: #666;">
+                    <div v-if="product.shippingCost > 0" style="margin-bottom: 1rem; font-size: 0.75rem; color: var(--sos-text-secondary);">
                         <i class="fa fa-truck"></i> 基础运费: ¥{{ product.shippingCost }} 
                     </div>
 
@@ -119,7 +119,7 @@
             <div class="detail-images">
                 <img v-for="(img, idx) in product.detailImages" :key="idx" :src="img" alt="详情图">
             </div>
-            <div v-if="!product.detailText && (!product.detailImages || product.detailImages.length===0)" style="text-align:center; color:#ccc; padding: 2rem;">
+            <div v-if="!product.detailText && (!product.detailImages || product.detailImages.length===0)" style="text-align:center; color:var(--sos-border-strong); padding: 2rem;">
                 暂无图文详情
             </div>
         </div>
@@ -215,7 +215,7 @@ const buyNow = () => {
 }
 
 .detail-main-image:focus-visible {
-    outline: 2px solid #2563eb;
+    outline: 2px solid var(--sos-accent);
     outline-offset: 2px;
 }
 
@@ -232,7 +232,7 @@ const buyNow = () => {
 
 .detail-image-preview-card {
     width: min(92vw, 520px);
-    background: #fff;
+    background: var(--sos-bg-surface);
     border-radius: 12px;
     padding: 1rem;
     text-align: center;
@@ -247,8 +247,8 @@ const buyNow = () => {
     width: 2rem;
     height: 2rem;
     border-radius: 9999px;
-    background: #111827;
-    color: #fff;
+    background: var(--sos-text-primary);
+    color: var(--sos-bg-surface);
     cursor: pointer;
     font-size: 1.1rem;
     line-height: 1;
@@ -264,7 +264,7 @@ const buyNow = () => {
 
 .detail-image-preview-title {
     font-size: 0.95rem;
-    color: #111827;
+    color: var(--sos-text-primary);
     font-weight: 700;
     margin: 0.25rem 0 0.75rem;
     padding-right: 2.5rem;
@@ -275,13 +275,13 @@ const buyNow = () => {
     max-height: min(78vh, 680px);
     object-fit: contain;
     border-radius: 10px;
-    background: #fff;
+    background: var(--sos-bg-surface);
 }
 
 .detail-image-preview-tip {
     margin-top: 0.6rem;
     font-size: 0.8rem;
-    color: #6b7280;
+    color: var(--sos-text-tertiary);
 }
 
 @media (max-width: 639px) {

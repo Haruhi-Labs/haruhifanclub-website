@@ -1,34 +1,51 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { RouterLink, useRoute } from 'vue-router';
 import TheFooter from '@/components/TheFooter.vue';
 import { AccountMenu } from '@haruhi/auth-ui';
 
 const route = useRoute();
 
 /**
- * 决定是否显示 Footer
- * 规则：排除试卷页 ('exam') 和官方试卷页 ('haruhi')
+ * 全屏试卷页（'exam' / 'haruhi'）隐藏统一页头与页脚，保持沉浸答题
  */
-const showFooter = computed(() => {
+const showChrome = computed(() => {
   const hiddenRoutes = ['exam', 'haruhi'];
   return !hiddenRoutes.includes(route.name as string);
 });
+const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`;
 </script>
 
 <template>
-  <div class="app-wrapper">
-    <!-- 右上角统一账号入口（全屏试卷页隐藏，避免遮挡） -->
-    <div v-if="showFooter" class="account-corner">
-      <AccountMenu />
-    </div>
+  <div class="app-wrapper sos-scope" data-sos-site="exam">
+    <!-- 全局统一页头：SosAppbar 规范 + exam 主题，账号收进右侧 actions -->
+    <header v-if="showChrome" class="sos-appbar">
+      <div class="sos-appbar__inner">
+        <RouterLink to="/" class="sos-brand-lockup">
+          <span class="sos-brand-lockup__mark">
+            <img :src="logoSrc" alt="" />
+          </span>
+          <span class="sos-brand-lockup__text">
+            <strong>春日试卷中心</strong>
+            <small>凉宫春日应援团 · 考场</small>
+          </span>
+        </RouterLink>
+        <div class="exam-appbar__right">
+          <nav class="sos-navlinks">
+            <RouterLink to="/create" class="sos-navlink">出题</RouterLink>
+          </nav>
+          <AccountMenu />
+        </div>
+      </div>
+    </header>
+
     <!-- 主内容区：自动伸展 -->
     <div class="app-main">
       <router-view></router-view>
     </div>
-    
+
     <!-- Footer：仅在非试卷页显示 -->
-    <TheFooter v-if="showFooter" />
+    <TheFooter v-if="showChrome" />
   </div>
 </template>
 
@@ -57,11 +74,20 @@ const showFooter = computed(() => {
   position: relative; /* 建立层级上下文 */
 }
 
-.account-corner {
-  position: fixed;
-  top: 12px;
-  right: 16px;
-  z-index: 1000;
+/* 设计系统接入：exam 表达提供配色/几何，但保留考场原有的系统界面字体
+   与行距，遵守「接入不得同化既有站点字体」铁律。标题衬线由 exam 表达的
+   --sos-display-family 决定；试卷页 .desk 自带木纹背景与配色不受影响。 */
+.app-wrapper.sos-scope {
+  --sos-scope-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --sos-scope-leading: 1.5;
+  background: transparent; /* 让 HomeView 固定背景层/试卷木纹透出 */
+}
+
+.exam-appbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-3);
 }
 
 .app-main {

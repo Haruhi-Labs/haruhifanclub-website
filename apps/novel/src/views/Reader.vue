@@ -1,24 +1,32 @@
 <!-- src/views/Reader.vue -->
 <template>
-  <div class="h-screen w-full flex flex-col md:flex-row bg-[#FAF9DE] text-[#4A3B32]">
+  <div class="reader-root h-screen w-full flex flex-col md:flex-row">
     <!-- Loading 遮罩 -->
     <div
       v-if="isLoading"
-      class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#FAF9DE]"
+      class="reader-loading fixed inset-0 z-50 flex flex-col items-center justify-center"
     >
       <div class="loader mb-4"></div>
-      <p class="text-sm text-[#8C7B70] animate-pulse">{{ loadingText }}</p>
+      <p class="reader-loading__text text-sm animate-pulse">{{ loadingText }}</p>
     </div>
 
     <!-- 侧边栏目录 -->
     <aside
-      class="bg-[#F2EFE4] border-r border-[#E6DFD0] flex-shrink-0 transition-all duration-300 z-20 absolute md:relative h-full"
+      id="reader-toc"
+      class="reader-toc flex-shrink-0 transition-all duration-300 z-20 absolute md:relative h-full"
       :class="sidebarOpen ? 'w-72 translate-x-0 shadow-lg md:shadow-none' : 'w-72 -translate-x-full md:w-0 md:overflow-hidden'"
     >
       <div class="p-6 h-full flex flex-col">
         <div class="flex items-center justify-between mb-6">
-          <h1 class="text-xl font-bold tracking-wider text-[#5C4B41]">目录</h1>
-          <button @click="sidebarOpen = false" class="md:hidden text-gray-500">
+          <h2 class="reader-toc__title">目录</h2>
+          <button
+            type="button"
+            class="reader-icon-btn md:hidden"
+            aria-label="关闭目录"
+            :aria-expanded="sidebarOpen"
+            aria-controls="reader-toc"
+            @click="sidebarOpen = false"
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="20"
@@ -39,14 +47,14 @@
           <button
             v-for="item in sidebarItems"
             :key="item.key"
-            @click="onSidebarItemClick(item)"
-            class="w-full text-left rounded text-sm transition-colors flex items-center"
+            type="button"
+            class="reader-toc__item"
             :class="[
-              item.level === 0 ? 'px-3 py-2 mt-1' : 'pl-7 pr-3 py-1 text-xs',
-              isSidebarItemActive(item)
-                ? 'bg-[#E3DAC8] text-[#D97757] font-bold'
-                : 'text-[#6B5D52] hover:bg-[#EBE5D5]'
+              item.level === 0 ? 'reader-toc__item--chapter' : 'reader-toc__item--sub',
+              { 'is-active': isSidebarItemActive(item) },
             ]"
+            :aria-current="isSidebarItemActive(item) ? 'true' : undefined"
+            @click="onSidebarItemClick(item)"
           >
             <span class="truncate">{{ item.label }}</span>
           </button>
@@ -57,13 +65,15 @@
     <!-- 主内容 -->
     <main class="flex-1 flex flex-col h-full relative overflow-hidden">
       <!-- 顶部栏 -->
-      <header
-        class="h-16 flex items-center justify-between px-6 bg-[#FAF9DE]/95 backdrop-blur border-b border-[#E6DFD0] z-10"
-      >
-        <div class="flex items-center gap-4 max-w-[70%]">
+      <header class="reader-bar h-16 flex items-center justify-between gap-2 px-3 md:px-6">
+        <div class="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
           <button
+            type="button"
+            class="reader-icon-btn"
+            aria-label="切换目录"
+            :aria-expanded="sidebarOpen"
+            aria-controls="reader-toc"
             @click="sidebarOpen = !sidebarOpen"
-            class="p-2 rounded hover:bg-[#EBE5D5] text-[#5C4B41]"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -79,23 +89,15 @@
               <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
           </button>
-          <div class="flex flex-col truncate">
-            <span class="font-bold text-sm md:text-base text-[#4A3B32] truncate">
-              {{ bookTitle }}
-            </span>
-            <span class="text-xs text-[#8C7B70] truncate">
-              {{ chapterTitle }}
-            </span>
+          <div class="reader-titles">
+            <span class="reader-titles__book">{{ bookTitle }}</span>
+            <span class="reader-titles__chapter">{{ chapterTitle }}</span>
           </div>
         </div>
 
-        <div class="flex items-center gap-2 md:gap-3">
+        <div class="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
           <!-- 返回书架 -->
-          <router-link
-            to="/"
-            class="p-2 rounded hover:bg-[#EBE5D5] text-[#8C7B70]"
-            title="返回书架"
-          >
+          <router-link to="/" class="reader-icon-btn" title="返回书架" aria-label="返回书架">
             <svg
               width="18"
               height="18"
@@ -110,55 +112,53 @@
           </router-link>
 
           <!-- 简繁切换 -->
-          <div
-            class="flex bg-[#EBE5D5] rounded-lg p-0.5 text-[11px] md:text-xs font-bold"
-          >
+          <div class="reader-seg" role="group" aria-label="文本字体">
             <button
+              type="button"
+              class="reader-seg__btn"
+              :class="{ 'is-active': textVariant === 'original' }"
+              :aria-pressed="textVariant === 'original'"
               @click="setTextVariant('original')"
-              class="px-2 md:px-3 py-1 rounded transition-all"
-              :class="textVariant === 'original'
-                ? 'bg-white shadow-sm text-[#D97757]'
-                : 'text-[#8C7B70] hover:text-[#5C4B41]'"
             >
               原
             </button>
             <button
+              type="button"
+              class="reader-seg__btn"
+              :class="{ 'is-active': textVariant === 'sc' }"
+              :aria-pressed="textVariant === 'sc'"
               @click="setTextVariant('sc')"
-              class="px-2 md:px-3 py-1 rounded transition-all"
-              :class="textVariant === 'sc'
-                ? 'bg-white shadow-sm text-[#D97757]'
-                : 'text-[#8C7B70] hover:text-[#5C4B41]'"
             >
               简
             </button>
             <button
+              type="button"
+              class="reader-seg__btn"
+              :class="{ 'is-active': textVariant === 'tc' }"
+              :aria-pressed="textVariant === 'tc'"
               @click="setTextVariant('tc')"
-              class="px-2 md:px-3 py-1 rounded transition-all"
-              :class="textVariant === 'tc'
-                ? 'bg-white shadow-sm text-[#D97757]'
-                : 'text-[#8C7B70] hover:text-[#5C4B41]'"
             >
               繁
             </button>
           </div>
 
           <!-- 阅读模式切换 -->
-          <div class="flex bg-[#EBE5D5] rounded-lg p-1">
+          <div class="reader-seg" role="group" aria-label="阅读模式">
             <button
+              type="button"
+              class="reader-seg__btn"
+              :class="{ 'is-active': readingMode === 'scroll' }"
+              :aria-pressed="readingMode === 'scroll'"
               @click="setReadingMode('scroll')"
-              class="px-3 py-1 rounded text-xs font-bold transition-all"
-              :class="readingMode === 'scroll'
-                ? 'bg-white shadow-sm text-[#D97757]'
-                : 'text-[#8C7B70] hover:text-[#5C4B41]'"
             >
               流式
             </button>
             <button
+              type="button"
+              class="reader-seg__btn"
+              :class="{ 'is-active': readingMode === 'flip' }"
+              :aria-pressed="readingMode === 'flip'"
               @click="setReadingMode('flip')"
-              class="px-3 py-1 rounded text-xs font-bold transition-all"
-              :class="readingMode === 'flip'
-                ? 'bg-white shadow-sm text-[#D97757]'
-                : 'text-[#8C7B70] hover:text-[#5C4B41]'"
             >
               翻页
             </button>
@@ -167,32 +167,30 @@
       </header>
 
       <!-- 内容区 -->
-      <div class="flex-1 relative w-full bg-[#FAF9DE] overflow-hidden">
+      <div class="reader-content flex-1 relative w-full overflow-hidden">
         <!-- 流式阅读 -->
         <div
           v-show="readingMode === 'scroll'"
-          class="h-full overflow-y-auto px-4 md:px-12 py-8 scroll-smooth"
           ref="scrollContainer"
+          class="h-full overflow-y-auto px-4 md:px-12 py-8 scroll-smooth custom-scrollbar"
         >
-          <div
-            class="max-w-3xl mx-auto min-h-[80vh] bg-white/40 backdrop-blur-sm rounded-lg p-6 shadow-sm md:p-10"
-          >
+          <div class="reader-paper max-w-3xl mx-auto min-h-[80vh] p-6 md:p-10">
             <div class="novel-content pb-20" v-html="safeContent"></div>
           </div>
-          <div
-            class="max-w-3xl mx-auto mt-8 flex justify-between items-center border-t border-[#D1C4B6] pt-6 pb-24 px-4"
-          >
+          <div class="reader-chapnav max-w-3xl mx-auto mt-8 flex justify-between items-center pt-6 pb-24 px-4">
             <button
-              @click="prevChapter"
+              type="button"
+              class="reader-chapnav__btn"
               :disabled="currentChapterIndex <= 0"
-              class="text-[#8C7B70] hover:text-[#D97757] disabled:opacity-30"
+              @click="prevChapter"
             >
               ← 上一章
             </button>
             <button
-              @click="nextChapter"
+              type="button"
+              class="reader-chapnav__btn"
               :disabled="currentChapterIndex >= chapters.length - 1"
-              class="text-[#8C7B70] hover:text-[#D97757] disabled:opacity-30"
+              @click="nextChapter"
             >
               下一章 →
             </button>
@@ -229,19 +227,17 @@
           </div>
 
           <!-- 页脚进度条 -->
-          <div
-            class="h-12 w-full bg-[#F2EFE4] border-t border-[#E6DFD0] flex items-center justify-between px-6 z-20 text-sm text-[#6B5D52]"
-          >
-            <span
-              class="font-bold text-[#D97757] text-xs md:text-sm truncate max-w-[150px]"
-            >
+          <div class="reader-progress h-12 w-full flex items-center justify-between px-6 z-20">
+            <span class="reader-progress__chapter truncate max-w-[150px]">
               {{ chapterTitle }}
             </span>
             <div class="flex items-center gap-2">
               <button
-                @click="prevPage"
+                type="button"
+                class="reader-icon-btn"
+                aria-label="上一页"
                 :disabled="currentPage <= 0"
-                class="hover:text-[#D97757] p-2 disabled:opacity-30"
+                @click="prevPage"
               >
                 <svg
                   width="20"
@@ -254,16 +250,18 @@
                   <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
               </button>
-              <div class="w-20 md:w-32 h-1 bg-[#D1C4B6] rounded-full overflow-hidden">
+              <div class="reader-progress__track w-20 md:w-32">
                 <div
-                  class="h-full bg-[#D97757] transition-all duration-300"
+                  class="reader-progress__fill"
                   :style="{ width: `${((currentPage + 1) / (totalPages || 1)) * 100}%` }"
                 ></div>
               </div>
               <button
-                @click="nextPage"
+                type="button"
+                class="reader-icon-btn"
+                aria-label="下一页"
                 :disabled="currentPage >= totalPages - 1"
-                class="hover:text-[#D97757] p-2 disabled:opacity-30"
+                @click="nextPage"
               >
                 <svg
                   width="20"
@@ -1247,10 +1245,23 @@ watch([currentPage, readingMode], () => {
 </script>
 
 <style scoped>
+/* ===== 阅读器外壳：吃 library 表达 token；正文 .novel-content 维持站点自有阅读排版 ===== */
+.reader-root {
+  background: var(--sos-bg-page);
+  color: var(--sos-text-primary);
+}
+
+.reader-loading {
+  background: var(--sos-bg-page);
+}
+.reader-loading__text {
+  color: var(--sos-text-tertiary);
+}
+
 .loader {
-  border: 3px solid #e3dcd0;
-  border-top-color: #d97757;
-  border-radius: 9999px;
+  border: 3px solid var(--sos-border-subtle);
+  border-top-color: var(--sos-accent);
+  border-radius: var(--sos-radius-full);
   width: 24px;
   height: 24px;
   animation: spin 1s linear infinite;
@@ -1265,6 +1276,189 @@ watch([currentPage, readingMode], () => {
   }
 }
 
+/* 目录侧栏 */
+.reader-toc {
+  background: var(--sos-bg-subtle);
+  border-right: 1px solid var(--sos-border-subtle);
+}
+.reader-toc__title {
+  margin: 0;
+  font-family: var(--sos-display-family);
+  font-size: var(--sos-text-lg);
+  font-weight: var(--sos-weight-heavy);
+  letter-spacing: var(--sos-tracking-wide);
+  color: var(--sos-text-primary);
+}
+.reader-toc__item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  border-radius: var(--sos-radius-sm);
+  color: var(--sos-text-secondary);
+  background: transparent;
+  transition:
+    background-color var(--sos-duration-fast) var(--sos-ease-out),
+    color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.reader-toc__item--chapter {
+  padding: var(--sos-space-2) var(--sos-space-3);
+  margin-top: var(--sos-space-1);
+  font-size: var(--sos-text-sm);
+}
+.reader-toc__item--sub {
+  padding: var(--sos-space-1) var(--sos-space-3) var(--sos-space-1) var(--sos-space-7);
+  font-size: var(--sos-text-xs);
+}
+.reader-toc__item:hover {
+  background: var(--sos-bg-muted);
+  color: var(--sos-text-primary);
+}
+.reader-toc__item.is-active {
+  background: var(--sos-accent-soft);
+  color: var(--sos-link);
+  font-weight: var(--sos-weight-heavy);
+}
+
+/* 顶部工具栏 */
+.reader-bar {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--sos-border-subtle);
+  background: color-mix(in srgb, var(--sos-bg-page) 92%, transparent);
+  backdrop-filter: blur(8px);
+  z-index: var(--sos-z-raised);
+}
+.reader-titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.reader-titles__book {
+  font-weight: var(--sos-weight-heavy);
+  font-size: var(--sos-text-sm);
+  color: var(--sos-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reader-titles__chapter {
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (min-width: 768px) {
+  .reader-titles__book {
+    font-size: var(--sos-text-md);
+  }
+}
+
+/* 通用图标按钮 */
+.reader-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  padding: var(--sos-space-2);
+  border-radius: var(--sos-radius-sm);
+  color: var(--sos-text-secondary);
+  background: transparent;
+  transition:
+    background-color var(--sos-duration-fast) var(--sos-ease-out),
+    color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.reader-icon-btn:hover:not(:disabled) {
+  background: var(--sos-bg-muted);
+  color: var(--sos-link);
+}
+.reader-icon-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* 分段切换（简繁 / 阅读模式）：奶纸底槽 + 选中浮起白面 */
+.reader-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-muted);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-heavy);
+}
+.reader-seg__btn {
+  padding: var(--sos-space-1) var(--sos-space-2);
+  border-radius: var(--sos-radius-sm);
+  color: var(--sos-text-tertiary);
+  background: transparent;
+  white-space: nowrap;
+  transition: all var(--sos-duration-fast) var(--sos-ease-out);
+}
+@media (min-width: 768px) {
+  .reader-seg__btn {
+    padding: var(--sos-space-1) var(--sos-space-3);
+  }
+}
+.reader-seg__btn:hover {
+  color: var(--sos-text-primary);
+}
+.reader-seg__btn.is-active {
+  background: var(--sos-bg-surface);
+  color: var(--sos-link);
+  box-shadow: var(--sos-shadow-xs);
+}
+
+/* 内容区 */
+.reader-content {
+  background: var(--sos-bg-page);
+}
+/* 流式阅读纸面：玻璃奶纸承载，正文居中 */
+.reader-paper {
+  background: color-mix(in srgb, var(--sos-bg-surface) 55%, transparent);
+  backdrop-filter: blur(4px);
+  border-radius: var(--sos-radius-lg);
+  box-shadow: var(--sos-shadow-sm);
+}
+.reader-chapnav {
+  border-top: 1px solid var(--sos-border-subtle);
+}
+.reader-chapnav__btn {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  transition: color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.reader-chapnav__btn:hover:not(:disabled) {
+  color: var(--sos-link);
+}
+.reader-chapnav__btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* 翻页页脚进度 */
+.reader-progress {
+  flex-shrink: 0;
+  border-top: 1px solid var(--sos-border-subtle);
+  background: var(--sos-bg-subtle);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+}
+.reader-progress__chapter {
+  font-weight: var(--sos-weight-heavy);
+  font-size: var(--sos-text-xs);
+  color: var(--sos-link);
+}
+.reader-progress__track {
+  height: 4px;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-bg-muted);
+  overflow: hidden;
+}
+.reader-progress__fill {
+  height: 100%;
+  background: var(--sos-accent);
+  transition: width var(--sos-duration-base) var(--sos-ease-out);
+}
+
 /* 翻页模式的书页卡片 */
 .flip-page-frame {
   width: 100%;
@@ -1272,10 +1466,10 @@ watch([currentPage, readingMode], () => {
   height: calc(100vh - 160px);
   margin: 0 auto;
   padding: 2.5rem 3rem;
-  background: rgba(255, 255, 255, 0.4);
+  background: color-mix(in srgb, var(--sos-bg-surface) 45%, transparent);
   backdrop-filter: blur(4px);
-  border-radius: 0.75rem;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+  border-radius: var(--sos-radius-md);
+  box-shadow: var(--sos-shadow-sm);
   overflow: hidden;
 }
 

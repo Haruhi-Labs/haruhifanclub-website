@@ -1,7 +1,7 @@
 <template>
   <div class="panel">
     <div class="toolbar">
-        <h3 style="font-weight: bold; color: #374151; margin: 0;">商品库管理</h3>
+        <h3 style="font-weight: bold; color: var(--sos-text-secondary); margin: 0;">商品库管理</h3>
         <button class="admin-btn btn-green" @click="openModal()">
             <i class="fa fa-plus"></i> 新增商品
         </button>
@@ -37,7 +37,7 @@
                     <td class="text-sub">¥{{ p.shippingCost }}</td>
                     <td>
                         <button class="admin-btn btn-blue" style="font-size: 0.75rem; margin-right: 0.5rem;" @click="openModal(p)">编辑</button>
-                        <button class="admin-btn btn-outline" style="font-size: 0.75rem; color: #ef4444; border-color: #fca5a5;" @click="store.deleteProduct(p.id)">删除</button>
+                        <button class="admin-btn btn-outline" style="font-size: 0.75rem; color: var(--sos-danger); border-color: #fca5a5;" @click="store.deleteProduct(p.id)">删除</button>
                     </td>
                 </tr>
             </tbody>
@@ -170,7 +170,7 @@
                 </div>
 
                 <!-- 第七行：参数表 (Key-Value 编辑) -->
-                <div class="full-span" style="background: #f9fafb; padding: 1rem; border-radius: 8px;">
+                <div class="full-span" style="background: var(--sos-bg-subtle); padding: 1rem; border-radius: 8px;">
                     <label class="form-label" style="font-weight: bold;">规格参数表</label>
                     <div v-for="(spec, idx) in form.specs" :key="idx" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                         <input v-model="spec.key" placeholder="参数名" class="form-input" style="flex:1; margin:0;">
@@ -188,7 +188,7 @@
 
                 <!-- 第九行：详情多图上传 -->
                 <div class="full-span">
-                    <label class="form-label">详情页图片组 <span style="font-weight: normal; color: #999; font-size: 0.75rem;">拖拽可排序</span></label>
+                    <label class="form-label">详情页图片组 <span style="font-weight: normal; color: var(--sos-text-tertiary); font-size: 0.75rem;">拖拽可排序</span></label>
                     <div class="detail-images-sortable">
                         <div
                             v-for="(img, idx) in form.detailImages" :key="img"
@@ -722,7 +722,7 @@ const save = async () => {
     align-items: center;
 }
 .input-readonly {
-    background: #f8fafc;
+    background: var(--sos-bg-subtle);
     color: #64748b;
 }
 .adjust-current-text {
@@ -745,7 +745,7 @@ const save = async () => {
 }
 .drag-handle:active { cursor: grabbing; }
 .row-drag-over td {
-    background-color: #eff6ff;
+    background-color: var(--sos-accent-soft);
 }
 
 .thumb-group {
@@ -761,7 +761,7 @@ const save = async () => {
 }
 .thumb-img {
     object-fit: cover;
-    border: 1px solid #ddd;
+    border: 1px solid var(--sos-border-default);
     border-radius: 4px;
 }
 .thumb-desktop {
@@ -774,7 +774,7 @@ const save = async () => {
 }
 .thumb-label {
     font-size: 0.675rem;
-    color: #888;
+    color: var(--sos-text-tertiary);
 }
 
 /* 详情图排序 */
@@ -793,7 +793,7 @@ const save = async () => {
 }
 .detail-img-item:active { cursor: grabbing; }
 .detail-img-item.drag-over {
-    border-color: #3b82f6;
+    border-color: var(--sos-accent);
 }
 .detail-img-remove {
     position: absolute;
@@ -812,7 +812,7 @@ const save = async () => {
 }
 
 .presale-config-wrap {
-    background: #f8fafc;
+    background: var(--sos-bg-subtle);
     border: 1px solid #e2e8f0;
     border-radius: 10px;
     padding: 0.85rem 1rem 1rem;
@@ -850,7 +850,7 @@ const save = async () => {
 .crop-container {
     max-height: 60vh;
     overflow: hidden;
-    background: #f0f0f0;
+    background: var(--sos-border-subtle);
     border-radius: 4px;
 }
 .crop-container img {

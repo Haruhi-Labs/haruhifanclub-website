@@ -1,9 +1,6 @@
 <script setup>
-/**
- * FooterBar.vue — 采用设计系统统一页脚规范 .sos-footer（library 主题）
- */
-// app 部署在 /library/ 子路径，JS 字符串需显式拼 BASE_URL
-const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`
+// 设计系统统一页脚 .sos-footer（art 梦幻青绿主题）
+import logoUrl from '../assets/logo.webp'
 
 const scrollToTop = () => {
   const appContainer = document.getElementById('app')
@@ -29,7 +26,7 @@ const groups = [
     ],
   },
   {
-    title: '加入我们',
+    title: '加入组织',
     links: [
       { label: '团员手册', href: 'https://haruyuki.cn/news/handbook', brand: '#3b82f6' },
       { label: '超能力者群', href: 'https://qm.qq.com/q/CVssyL3Pj2', brand: '#10b981' },
@@ -50,19 +47,16 @@ const groups = [
 
     <div class="sos-footer__inner">
       <div class="sos-footer__top">
-        <!-- 品牌区 -->
         <div class="sos-footer__brand">
           <span class="sos-brand-lockup">
-            <span class="sos-brand-lockup__mark">
-              <img :src="logoSrc" alt="" onerror="this.style.display='none'" />
-            </span>
+            <span class="sos-brand-lockup__mark"><img :src="logoUrl" alt="" /></span>
             <span class="sos-brand-lockup__text">
               <strong>凉宫春日应援团</strong>
-              <small>Haruhifanclub</small>
+              <small>绘画部 · Haruhifanclub</small>
             </span>
           </span>
           <p class="sos-footer__tagline">
-            非营利的凉宫春日粉丝团体，让世界变得更热闹。
+            一起来体验分享的快乐吧！《凉宫春日系列》的非营利粉丝团体。
           </p>
           <div class="sos-footer__social">
             <a class="sos-footer__social-link" style="--brand: #fb7299" href="https://space.bilibili.com/201296348" target="_blank" rel="noopener">哔哩哔哩</a>
@@ -70,7 +64,6 @@ const groups = [
           </div>
         </div>
 
-        <!-- 链接组区：自适应多列，组数越多列越多 -->
         <div class="sos-footer__groups">
           <div v-for="g in groups" :key="g.title" class="sos-footer__group">
             <p class="sos-footer__group-title">{{ g.title }}</p>
@@ -92,9 +85,9 @@ const groups = [
       </div>
 
       <div class="sos-footer__bottom">
-        <span>© 2025 HARUHIFANCLUB · Non-profit fan project</span>
+        <span>© 2026 HARUHIFANCLUB · 凉宫春日应援团开发组</span>
         <div class="sos-footer__bottom-meta">
-          <span>非营利项目</span>
+          <span>作品版权归原作者</span>
           <span class="sos-footer__bottom-sep" aria-hidden="true"></span>
           <span>仅供交流</span>
         </div>

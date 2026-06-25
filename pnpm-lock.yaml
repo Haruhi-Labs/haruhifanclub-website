@@ -66,6 +66,9 @@ importers:
       '@haruhi/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@haruhi/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       vue:
         specifier: ^3.5.22
         version: 3.5.35(typescript@5.6.3)
@@ -113,6 +116,9 @@ importers:
       '@haruhi/auth-ui':
         specifier: workspace:*
         version: link:../../packages/auth-ui
+      '@haruhi/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.6.3)(vue@3.5.35(typescript@5.6.3))
@@ -208,6 +214,9 @@ importers:
       '@haruhi/auth-ui':
         specifier: workspace:*
         version: link:../../packages/auth-ui
+      '@haruhi/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       axios:
         specifier: ^1.13.2
         version: 1.16.1

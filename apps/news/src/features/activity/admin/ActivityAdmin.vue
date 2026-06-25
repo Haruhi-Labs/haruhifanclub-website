@@ -249,7 +249,7 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .icon-drag:hover {
-  color: #000;
+  color: var(--sos-text-primary);
 }
 
 /* ==================== Tab Content ==================== */
@@ -282,11 +282,11 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .table-head {
-  background-color: #f9fafb;
+  background-color: var(--sos-bg-subtle);
   font-size: 0.75rem;
   line-height: 1rem;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 .table-body {
@@ -312,7 +312,7 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .table-row {
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--sos-bg-muted);
   transition: color 150ms, background-color 150ms, border-color 150ms;
 }
 
@@ -330,7 +330,7 @@ const onDrop = async (e, dropIndex, type) => {
   padding: 0.75rem;
   padding-left: 1rem;
   cursor: grab;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
 }
 
 .td-drag:active {
@@ -340,7 +340,7 @@ const onDrop = async (e, dropIndex, type) => {
 .td-order {
   padding: 0.75rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
 }
 
 .td-cell {
@@ -366,7 +366,7 @@ const onDrop = async (e, dropIndex, type) => {
 .cell-subtitle {
   font-size: 0.75rem;
   line-height: 1rem;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -385,7 +385,7 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .cell-type {
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 .cell-points {
@@ -395,7 +395,7 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .cell-pool {
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
 }
 
 /* ==================== Thumbnail ==================== */
@@ -403,9 +403,9 @@ const onDrop = async (e, dropIndex, type) => {
   width: 4rem;
   height: 2.5rem;
   border-radius: 0.25rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   overflow: hidden;
-  background-color: #f3f4f6;
+  background-color: var(--sos-bg-muted);
 }
 
 .thumb-img {
@@ -428,7 +428,7 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .link-delete {
-  color: #ef4444;
+  color: var(--sos-danger);
   font-weight: 700;
   font-size: 0.75rem;
   line-height: 1rem;
@@ -439,15 +439,15 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 /* ==================== Utility Colors ==================== */
-.text-success { color: #16a34a; }
+.text-success { color: var(--sos-success); }
 
-.text-muted { color: #9ca3af; }
+.text-muted { color: var(--sos-text-tertiary); }
 
 /* ==================== Buttons ==================== */
 .btn-primary-sm {
   padding: 0.5rem 1rem;
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   border-radius: 0.5rem;
   font-size: 0.875rem;
   line-height: 1.25rem;
@@ -459,7 +459,7 @@ const onDrop = async (e, dropIndex, type) => {
 }
 
 .btn-primary-sm:hover {
-  background-color: #1f2937;
+  background-color: var(--sos-text-primary);
 }
 
 /* ==================== Modal Overlay ==================== */
@@ -477,7 +477,7 @@ const onDrop = async (e, dropIndex, type) => {
 
 /* ==================== Activity Modal ==================== */
 .modal-activity {
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
   border-radius: 0.75rem;
   box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
   width: 100%;
@@ -505,7 +505,7 @@ const onDrop = async (e, dropIndex, type) => {
   font-size: 0.75rem;
   line-height: 1rem;
   font-weight: 700;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 0.25rem;
@@ -514,7 +514,7 @@ const onDrop = async (e, dropIndex, type) => {
 .form-input {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 0.25rem;
 }
 
@@ -534,7 +534,7 @@ const onDrop = async (e, dropIndex, type) => {
 .form-textarea {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 0.25rem;
   font-size: 0.875rem;
   line-height: 1.25rem;
@@ -544,9 +544,9 @@ const onDrop = async (e, dropIndex, type) => {
 .form-select {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 0.25rem;
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
 }
 
 .form-file-input {
@@ -554,7 +554,7 @@ const onDrop = async (e, dropIndex, type) => {
   width: 100%;
   font-size: 0.875rem;
   line-height: 1.25rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 .form-file-input::file-selector-button {
@@ -565,12 +565,12 @@ const onDrop = async (e, dropIndex, type) => {
   font-size: 0.75rem;
   line-height: 1rem;
   font-weight: 600;
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
 }
 
 .form-file-input::file-selector-button:hover {
-  background-color: #1f2937;
+  background-color: var(--sos-text-primary);
 }
 
 .form-grid-2col {
@@ -602,11 +602,11 @@ const onDrop = async (e, dropIndex, type) => {
   margin-top: 0.5rem;
   height: 8rem;
   width: 100%;
-  background-color: #f3f4f6;
+  background-color: var(--sos-bg-muted);
   border-radius: 0.25rem;
   overflow: hidden;
   position: relative;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
 }
 
 /* ==================== Modal Footer Buttons ==================== */
@@ -620,28 +620,28 @@ const onDrop = async (e, dropIndex, type) => {
   flex: 1;
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 0.5rem;
   font-weight: 700;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 .btn-cancel:hover {
-  background-color: #f9fafb;
+  background-color: var(--sos-bg-subtle);
 }
 
 .btn-submit {
   flex: 1;
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   border-radius: 0.5rem;
   font-weight: 700;
 }
 
 .btn-submit:hover {
-  background-color: #1f2937;
+  background-color: var(--sos-text-primary);
 }
 
 .btn-submit:disabled {

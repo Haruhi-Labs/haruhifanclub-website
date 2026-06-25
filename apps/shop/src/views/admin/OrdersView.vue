@@ -147,11 +147,11 @@
                 </div>
                 <div class="merge-kv-row">
                   <span>邮费减免</span>
-                  <span style="color: #16a34a;">-¥{{ getMergeShippingDiscount(order.mergeMeta) }}</span>
+                  <span style="color: var(--sos-success);">-¥{{ getMergeShippingDiscount(order.mergeMeta) }}</span>
                 </div>
                 <div v-if="getMergeShippingExtra(order.mergeMeta) > 0" class="merge-kv-row">
                   <span>邮费补差</span>
-                  <span style="color: #dc2626;">+¥{{ getMergeShippingExtra(order.mergeMeta) }}</span>
+                  <span style="color: var(--sos-danger);">+¥{{ getMergeShippingExtra(order.mergeMeta) }}</span>
                 </div>
               </div>
             </td>
@@ -164,7 +164,7 @@
                     <span v-else class="sub-pending-badge">待发货</span>
                   </div>
                   <div v-for="(item, idx) in sub.items" :key="idx" class="item-row">
-                    {{ item.name }} <span style="color: #9ca3af;">x{{ item.quantity }}</span>
+                    {{ item.name }} <span style="color: var(--sos-text-tertiary);">x{{ item.quantity }}</span>
                   </div>
                   <div v-if="sub.shipped && sub.trackingNo" class="text-sub" style="font-size: 0.72rem;">
                     {{ sub.trackingCompany }} {{ sub.trackingNo }}
@@ -173,7 +173,7 @@
               </template>
               <template v-else>
                 <div v-for="(item, idx) in order.items" :key="idx" class="item-row">
-                  {{ item.name }} <span style="color: #9ca3af;">x{{ item.quantity }}</span>
+                  {{ item.name }} <span style="color: var(--sos-text-tertiary);">x{{ item.quantity }}</span>
                   <span v-if="item.isPresale" class="item-presale-tag">预售</span>
                 </div>
               </template>
@@ -194,7 +194,7 @@
                   <button class="admin-btn btn-outline" style="font-size: 0.75rem;" @click="openEditContact(order)">修改收货</button>
                   <template v-if="order.status === 1">
                     <button class="admin-btn btn-blue" style="font-size: 0.75rem;" @click="updateStatus(order.id, 2)">收款</button>
-                    <button class="admin-btn btn-outline" style="font-size: 0.75rem; color: #ef4444;" @click="updateStatus(order.id, 0)">取消</button>
+                    <button class="admin-btn btn-outline" style="font-size: 0.75rem; color: var(--sos-danger);" @click="updateStatus(order.id, 0)">取消</button>
                   </template>
                   <template v-if="order.status === 5">
                     <button class="admin-btn btn-blue" style="font-size: 0.75rem;" @click="updateStatus(order.id, 2)">确认收款</button>
@@ -203,8 +203,8 @@
                   <template v-if="order.status === 2 && (!order.subOrders || order.subOrders.length === 0)">
                     <button class="admin-btn btn-green" style="font-size: 0.75rem;" @click="openShip(order)">发货</button>
                   </template>
-                  <span v-if="order.status === 0" style="color: #999; font-size: 0.75rem;">已取消 (库存已回滚)</span>
-                  <span v-if="order.status === 3 && (!order.subOrders || order.subOrders.length === 0)" style="color: #10b981; font-size: 0.75rem;">已发货</span>
+                  <span v-if="order.status === 0" style="color: var(--sos-text-tertiary); font-size: 0.75rem;">已取消 (库存已回滚)</span>
+                  <span v-if="order.status === 3 && (!order.subOrders || order.subOrders.length === 0)" style="color: var(--sos-success); font-size: 0.75rem;">已发货</span>
                 </div>
                 <!-- Sub-order shipping buttons -->
                 <template v-if="order.status === 2 && order.subOrders && order.subOrders.length > 0">
@@ -214,19 +214,19 @@
                         发货: {{ sub.label }}
                       </button>
                     </template>
-                    <span v-else style="color: #10b981; font-size: 0.72rem;">
+                    <span v-else style="color: var(--sos-success); font-size: 0.72rem;">
                       <i class="fa fa-check"></i> {{ sub.label }}
                     </span>
                   </div>
                 </template>
                 <template v-if="order.status === 3 && order.subOrders && order.subOrders.length > 0">
-                  <span style="color: #10b981; font-size: 0.75rem;">全部已发货</span>
+                  <span style="color: var(--sos-success); font-size: 0.75rem;">全部已发货</span>
                 </template>
               </div>
             </td>
           </tr>
           <tr v-if="orders.length === 0">
-            <td colspan="7" style="text-align: center; color: #9ca3af;">暂无订单数据</td>
+            <td colspan="7" style="text-align: center; color: var(--sos-text-tertiary);">暂无订单数据</td>
           </tr>
         </tbody>
       </table>
@@ -244,7 +244,7 @@
         <h3 class="modal-title">订单发货</h3>
         <label class="form-label">快递单号 (选填，可自动识别快递公司)</label>
         <input v-model="shipModal.no" type="text" class="form-input" placeholder="留空则不回填运单号">
-        <div v-if="detectedCompany" style="margin-top: 0.5rem; font-size: 0.85rem; color: #047857;">
+        <div v-if="detectedCompany" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--sos-success);">
           <i class="fa fa-check-circle"></i> 识别为: {{ detectedCompany }}
         </div>
         <div class="modal-actions">
@@ -260,12 +260,12 @@
         <h3 class="modal-title">子订单发货: {{ subShipModal.label }}</h3>
         <div class="sub-ship-items">
           <div v-for="(item, idx) in subShipModal.items" :key="idx" class="item-row">
-            {{ item.name }} <span style="color: #9ca3af;">x{{ item.quantity }}</span>
+            {{ item.name }} <span style="color: var(--sos-text-tertiary);">x{{ item.quantity }}</span>
           </div>
         </div>
         <label class="form-label">快递单号 (选填，可自动识别快递公司)</label>
         <input v-model="subShipModal.no" type="text" class="form-input" placeholder="留空则不回填运单号">
-        <div v-if="subDetectedCompany" style="margin-top: 0.5rem; font-size: 0.85rem; color: #047857;">
+        <div v-if="subDetectedCompany" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--sos-success);">
           <i class="fa fa-check-circle"></i> 识别为: {{ subDetectedCompany }}
         </div>
         <div class="modal-actions">
@@ -953,9 +953,9 @@ const handleImportFile = async (e) => {
 .import-result-panel {
   margin: 0.5rem 0;
   padding: 0.6rem 0.8rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--sos-border-strong);
   border-radius: 6px;
-  background: #f9fafb;
+  background: var(--sos-bg-subtle);
   font-size: 0.8rem;
 }
 
@@ -979,11 +979,11 @@ const handleImportFile = async (e) => {
 }
 
 .import-detail-line {
-  color: #047857;
+  color: var(--sos-success);
 }
 
 .import-error-line {
-  color: #dc2626;
+  color: var(--sos-danger);
 }
 
 .toolbar-actions {
@@ -1021,7 +1021,7 @@ button:disabled {
 }
 
 .order-delete-btn {
-  color: #ef4444;
+  color: var(--sos-danger);
   border-color: #fca5a5;
 }
 
@@ -1047,15 +1047,15 @@ button:disabled {
 }
 
 .tag-done {
-  background: #ecfdf5;
-  color: #047857;
+  background: var(--sos-success-soft);
+  color: var(--sos-success);
   border: 1px solid #a7f3d0;
 }
 
 .tag-spot {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+  background: var(--sos-accent-soft);
+  color: var(--sos-accent-hover);
+  border: 1px solid var(--sos-accent-soft);
 }
 
 .tag-presale {
@@ -1074,8 +1074,8 @@ button:disabled {
 }
 
 .type-mixed {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--sos-warning-soft);
+  color: var(--sos-warning);
   border: 1px solid #fcd34d;
 }
 
@@ -1127,7 +1127,7 @@ button:disabled {
   padding: 0.35rem 0.45rem;
   margin-bottom: 0.35rem;
   border-radius: 5px;
-  background: #f8fafc;
+  background: var(--sos-bg-subtle);
   border: 1px solid #e2e8f0;
 }
 
@@ -1146,7 +1146,7 @@ button:disabled {
 
 .sub-shipped-badge {
   font-size: 0.68rem;
-  color: #10b981;
+  color: var(--sos-success);
   font-weight: 600;
 }
 
@@ -1164,7 +1164,7 @@ button:disabled {
   padding: 0.4rem 0.5rem;
   margin-bottom: 0.5rem;
   border-radius: 5px;
-  background: #f8fafc;
+  background: var(--sos-bg-subtle);
   border: 1px solid #e2e8f0;
 }
 
@@ -1172,8 +1172,8 @@ button:disabled {
   margin-top: 0.35rem;
   padding: 0.35rem 0.45rem;
   border-radius: 6px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: var(--sos-accent-soft);
+  border: 1px solid var(--sos-accent-soft);
   color: #1e3a8a;
   font-size: 0.73rem;
   line-height: 1.45;
@@ -1202,7 +1202,7 @@ button:disabled {
 .text-danger {
   margin: 0.4rem 0 0;
   font-size: 0.85rem;
-  color: #dc2626;
+  color: var(--sos-danger);
 }
 
 @media (max-width: 1023px) {

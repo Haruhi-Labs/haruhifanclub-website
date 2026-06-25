@@ -1,125 +1,101 @@
+<script setup>
+// 设计系统统一页脚 .sos-footer（news 墨色 / 纯白纸主题）
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const show = computed(() => !route.name?.includes('editor') && !route.meta.hideNavbar)
+const logoUrl = `${import.meta.env.BASE_URL}haruhi-logo-192.png`
+
+const scrollToTop = () => {
+  const appContainer = document.getElementById('app')
+  if (appContainer) appContainer.scrollTo({ top: 0, behavior: 'smooth' })
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const groups = [
+  {
+    title: '主要站点',
+    links: [
+      { label: '应援团主站', href: 'https://haruyuki.cn', brand: '#3b82f6' },
+      { label: 'AI 语音合成', href: 'https://tts.haruyuki.cn/', brand: '#3b82f6' },
+      { label: 'AI 声线转换', href: 'https://rvc.haruyuki.cn/', brand: '#06b6d4' },
+    ],
+  },
+  {
+    title: '探索',
+    links: [
+      { label: '圣地巡礼照片墙', href: 'https://haruhifanclub.notion.site/anitabi', brand: '#eab308' },
+      { label: '长门有希的书架', href: 'https://haruyuki.cn/library/', brand: '#10b981' },
+      { label: '京阿尼台词检索', href: 'https://anitool.haruyuki.cn/', brand: '#10b981' },
+      { label: '凉宫春日资源站', href: 'https://haruhifanclub.yuque.com/staff-sqlmik/phgf5z', brand: '#eab308' },
+    ],
+  },
+  {
+    title: '加入我们',
+    links: [
+      { label: '团员手册', href: 'https://haruyuki.cn/news/handbook', brand: '#3b82f6' },
+      { label: '超能力者群', href: 'https://qm.qq.com/q/CVssyL3Pj2', brand: '#10b981' },
+      { label: '异世界人群', href: 'https://qm.qq.com/q/JcS7yXYoU2', brand: '#a855f7' },
+      { label: '未来人群', href: 'https://qm.qq.com/q/8nYNs7rFwA', brand: '#f97316' },
+    ],
+  },
+]
+</script>
+
 <template>
-  <footer
-    v-if="!$route.name?.includes('editor') && !$route.meta.hideNavbar"
-    class="app-footer"
-  >
-    <div
-      :class="[
-        'footer-links-row',
-        isBlogDetail ? 'footer-blog-container' : ''
-      ]"
-    >
-      <a
-        v-for="link in footerLinks"
-        :key="link.url"
-        :href="link.url"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="footer-link"
-      >
-        {{ link.name }}
-      </a>
-    </div>
-    <div
-      :class="[
-        'footer-icp-row',
-        isBlogDetail ? 'footer-blog-container' : ''
-      ]"
-    >
-      <a
-        href="https://beian.miit.gov.cn/#/Integrated/index"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="footer-link"
-      >
-        皖ICP备2025089290号-1
-      </a>
+  <footer v-if="show" class="sos-footer">
+    <button type="button" class="sos-footer__totop" aria-label="回到顶部" @click="scrollToTop">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="18 15 12 9 6 15" />
+      </svg>
+    </button>
+
+    <div class="sos-footer__inner">
+      <div class="sos-footer__top">
+        <div class="sos-footer__brand">
+          <span class="sos-brand-lockup">
+            <span class="sos-brand-lockup__mark"><img :src="logoUrl" alt="" /></span>
+            <span class="sos-brand-lockup__text">
+              <strong>春日团报</strong>
+              <small>Haruhi Fan Club</small>
+            </span>
+          </span>
+          <p class="sos-footer__tagline">
+            记录凉宫春日应援团的活动与日常，非营利粉丝团体。
+          </p>
+          <div class="sos-footer__social">
+            <a class="sos-footer__social-link" style="--brand: #fb7299" href="https://space.bilibili.com/201296348" target="_blank" rel="noopener">哔哩哔哩</a>
+            <a class="sos-footer__social-link" style="--brand: #ff2442" href="https://xhslink.com/m/8u0JGkC5KUE" target="_blank" rel="noopener">小红书</a>
+          </div>
+        </div>
+
+        <div class="sos-footer__groups">
+          <div v-for="g in groups" :key="g.title" class="sos-footer__group">
+            <p class="sos-footer__group-title">{{ g.title }}</p>
+            <div class="sos-footer__links">
+              <a
+                v-for="l in g.links"
+                :key="l.href"
+                class="sos-footer__link"
+                :style="{ '--brand': l.brand }"
+                :href="l.href"
+                target="_blank"
+                rel="noopener"
+              >
+                <span class="sos-footer__dot" aria-hidden="true"></span>{{ l.label }}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sos-footer__bottom">
+        <span>© 2026 HARUHIFANCLUB · 凉宫春日应援团开发组</span>
+        <div class="sos-footer__bottom-meta">
+          <a class="sos-footer__link" href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" rel="noopener noreferrer">皖ICP备2025089290号-1</a>
+        </div>
+      </div>
     </div>
   </footer>
 </template>
-
-<script setup>
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
-
-const route = useRoute();
-
-const isBlogDetail = computed(() => route.path.startsWith('/blog/'));
-
-const footerLinks = [
-  { name: '长门有希的书架', url: 'https://haruyuki.cn/library/' },
-  { name: '凉宫春日AI语音合成', url: 'https://tts.haruyuki.cn/' },
-  { name: '凉宫春日AI声线转换', url: 'https://rvc.haruyuki.cn/' },
-  { name: '圣地巡礼照片墙', url: 'https://haruhifanclub.notion.site/anitabi' },
-  { name: '京阿尼台词语义化检索工具', url: 'https://anitool.haruyuki.cn/ ' },
-  { name: '凉宫春日资源站', url: 'https://haruhifanclub.yuque.com/staff-sqlmik/phgf5z' },
-  { name: '应援团活动', url: 'https://haruhifanclub.yuque.com/staff-sqlmik/cm5mug' },
-];
-</script>
-
-<style scoped>
-/* Footer */
-.app-footer {
-  margin-top: auto;
-  padding-top: 5rem;
-  padding-bottom: 3rem;
-  font-size: 0.75rem;
-  line-height: 1rem;
-  color: #6b7280;
-  font-family: "Noto Sans SC", sans-serif;
-}
-
-/* Footer links row */
-.footer-links-row {
-  display: flex;
-  flex-wrap: wrap;
-  column-gap: 1.5rem;
-  row-gap: 0.75rem;
-  justify-content: center;
-}
-
-@media (min-width: 768px) {
-  .footer-links-row {
-    justify-content: flex-start;
-  }
-}
-
-/* Footer ICP row */
-.footer-icp-row {
-  margin-top: 1rem;
-  display: flex;
-  justify-content: center;
-}
-
-@media (min-width: 768px) {
-  .footer-icp-row {
-    justify-content: flex-start;
-  }
-}
-
-/* Container for footer rows when inside a blog detail page */
-.footer-blog-container {
-  max-width: 1000px;
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
-
-@media (min-width: 768px) {
-  .footer-blog-container {
-    padding-left: 2rem;
-    padding-right: 2rem;
-  }
-}
-
-/* Footer links */
-.footer-link {
-  transition-property: color, background-color, border-color;
-  transition-duration: 150ms;
-}
-
-.footer-link:hover {
-  color: #000000;
-}
-</style>

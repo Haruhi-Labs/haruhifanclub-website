@@ -3,16 +3,16 @@
     --primary-color: #3498db;
     --primary-dark: #2980b9;
     --secondary-color: #2c3e50;
-    --text-main: #333;
-    --text-secondary: #666;
-    --text-light: #999;
-    --bg-body: #fbfbfb;
-    --bg-white: #ffffff;
+    --text-main: var(--sos-text-secondary);
+    --text-secondary: var(--sos-text-secondary);
+    --text-light: var(--sos-text-tertiary);
+    --bg-body: var(--sos-bg-subtle);
+    --bg-white: var(--sos-bg-surface);
     --bg-light: #f8f9fa;
-    --danger: #ef4444;
-    --success: #10b981;
+    --danger: var(--sos-danger);
+    --success: var(--sos-success);
     --warning: #f59e0b;
-    --border-color: #ddd;
+    --border-color: var(--sos-border-default);
     --radius-md: 8px;
     --radius-lg: 12px;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -305,7 +305,7 @@ body {
     width: 100%;
     border: 1px solid rgba(255, 255, 255, 0.34);
     background: rgba(15, 23, 42, 0.48);
-    color: #f8fafc;
+    color: var(--sos-bg-subtle);
     border-radius: 999px;
     min-height: 40px;
     padding: 0.35rem 0.75rem;
@@ -445,7 +445,7 @@ hr.custom-hr {
     border: 1px solid rgba(148, 163, 184, 0.45);
     background: #0f172a;
     box-shadow: 0 14px 24px rgba(2, 6, 23, 0.45);
-    color: #f8fafc;
+    color: var(--sos-bg-subtle);
     font-size: 0.75rem;
     letter-spacing: 0;
     line-height: 1.45;
@@ -539,7 +539,7 @@ hr.custom-hr {
 
 .market-btn:hover {
     background-color: rgba(255, 255, 255, 0.2);
-    border-color: #fff;
+    border-color: var(--sos-bg-surface);
     transform: translateY(-1px);
 }
 
@@ -580,16 +580,16 @@ hr.custom-hr {
 }
 
 .market-btn.btn-green:hover {
-    background-color: #059669;
+    background-color: var(--sos-success);
 }
 
 .market-btn.btn-ghost {
     color: var(--text-secondary);
-    border-color: #ccc;
+    border-color: var(--sos-border-strong);
 }
 
 .market-btn.btn-ghost:hover {
-    background-color: #eee;
+    background-color: var(--sos-border-default);
     color: var(--text-main);
 }
 
@@ -633,7 +633,7 @@ hr.custom-hr {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--sos-border-default);
     padding-bottom: 0.5rem;
 }
 
@@ -687,7 +687,7 @@ hr.custom-hr {
 
 .card-image-wrapper {
     height: 250px;
-    background-color: #eee;
+    background-color: var(--sos-border-default);
     position: relative;
     overflow: hidden;
 }
@@ -753,7 +753,7 @@ hr.custom-hr {
 
 .card-price-original {
     font-size: 0.75rem;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
     text-decoration: line-through;
 }
 
@@ -773,8 +773,8 @@ hr.custom-hr {
     margin-bottom: 0.75rem;
     padding: 0.65rem 0.7rem;
     border-radius: 10px;
-    background: linear-gradient(135deg, #f8fafc 0%, #eef4ff 100%);
-    border: 1px solid #dbeafe;
+    background: linear-gradient(135deg, var(--sos-bg-subtle) 0%, #eef4ff 100%);
+    border: 1px solid var(--sos-accent-soft);
 }
 
 .card-presale-head {
@@ -823,7 +823,7 @@ hr.custom-hr {
     display: block;
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, #60a5fa 0%, #2563eb 60%, #1d4ed8 100%);
+    background: linear-gradient(90deg, var(--sos-link) 0%, var(--sos-accent) 60%, var(--sos-accent-hover) 100%);
     transition: width 0.4s ease;
 }
 
@@ -850,7 +850,7 @@ hr.custom-hr {
 
 .stock-label {
     font-size: 0.75rem;
-    color: #999;
+    color: var(--sos-text-tertiary);
 }
 
 /* 详情页 */
@@ -887,10 +887,10 @@ hr.custom-hr {
 
 .detail-image-box {
     aspect-ratio: 1 / 1;
-    background: #f3f4f6;
+    background: var(--sos-bg-muted);
     border-radius: var(--radius-md);
     overflow: hidden;
-    border: 1px solid #eee;
+    border: 1px solid var(--sos-border-default);
 }
 
 .detail-image-box img {
@@ -919,7 +919,7 @@ hr.custom-hr {
 }
 
 .price-box {
-    background-color: #eff6ff;
+    background-color: var(--sos-accent-soft);
     padding: 1rem;
     border-radius: var(--radius-md);
     margin-bottom: 1.5rem;
@@ -936,13 +936,13 @@ hr.custom-hr {
 
 .price-original {
     text-decoration: line-through;
-    color: #999;
+    color: var(--sos-text-tertiary);
     font-size: 0.875rem;
 }
 
 .tag-stock {
     margin-left: auto;
-    background: #bfdbfe;
+    background: var(--sos-accent-soft);
     color: #1e40af;
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
@@ -950,22 +950,22 @@ hr.custom-hr {
 }
 
 .tag-stock-presale {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sos-warning-soft);
+    color: var(--sos-warning);
 }
 
 .detail-presale-card {
     margin: -0.4rem 0 1.4rem;
     padding: 0.85rem 1rem;
     border-radius: 12px;
-    border: 1px solid #dbeafe;
+    border: 1px solid var(--sos-accent-soft);
     background: linear-gradient(140deg, #f8fbff 0%, #eff5ff 100%);
 }
 
 .detail-presale-title {
     font-size: 0.9rem;
     font-weight: 700;
-    color: #1d4ed8;
+    color: var(--sos-accent-hover);
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
@@ -1003,7 +1003,7 @@ hr.custom-hr {
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, #22d3ee 0%, #3b82f6 55%, #2563eb 100%);
+    background: linear-gradient(90deg, #22d3ee 0%, var(--sos-accent) 55%, var(--sos-accent) 100%);
     transition: width 0.4s ease;
 }
 
@@ -1033,23 +1033,23 @@ hr.custom-hr {
 
 .specs-table td {
     padding: 8px 0;
-    border-bottom: 1px dashed #eee;
+    border-bottom: 1px dashed var(--sos-border-default);
 }
 
 .specs-table td:first-child {
-    color: #888;
+    color: var(--sos-text-tertiary);
     width: 80px;
 }
 
 .specs-table td:last-child {
-    color: #333;
+    color: var(--sos-text-secondary);
     font-weight: 500;
 }
 
 .quantity-control {
     display: flex;
     align-items: center;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--sos-border-strong);
     border-radius: var(--radius-md);
     overflow: hidden;
 }
@@ -1058,12 +1058,12 @@ hr.custom-hr {
     width: 2.5rem;
     height: 2.5rem;
     border: none;
-    background: #f9fafb;
+    background: var(--sos-bg-subtle);
     cursor: pointer;
 }
 
 .qty-btn:hover {
-    background: #f3f4f6;
+    background: var(--sos-bg-muted);
 }
 
 .qty-input {
@@ -1072,8 +1072,8 @@ hr.custom-hr {
     text-align: center;
     border: none;
     outline: none;
-    border-left: 1px solid #d1d5db;
-    border-right: 1px solid #d1d5db;
+    border-left: 1px solid var(--sos-border-strong);
+    border-right: 1px solid var(--sos-border-strong);
 }
 
 .action-row {
@@ -1094,7 +1094,7 @@ hr.custom-hr {
 }
 
 .tabs-header {
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--sos-border-default);
     display: flex;
 }
 
@@ -1113,12 +1113,12 @@ hr.custom-hr {
     border-bottom: 2px solid var(--primary-color);
     color: var(--primary-color);
     font-weight: bold;
-    background-color: #eff6ff;
+    background-color: var(--sos-accent-soft);
 }
 
 .tab-content {
     padding: 2rem;
-    background-color: #f9fafb;
+    background-color: var(--sos-bg-subtle);
     min-height: 500px;
 }
 
@@ -1149,7 +1149,7 @@ hr.custom-hr {
 
 .cart-icon {
     font-size: 4rem;
-    color: #e5e7eb;
+    color: var(--sos-border-default);
     margin-bottom: 1rem;
 }
 
@@ -1168,16 +1168,16 @@ hr.custom-hr {
 }
 
 .cart-table th {
-    background: #f9fafb;
+    background: var(--sos-bg-subtle);
     padding: 1rem;
     color: var(--text-secondary);
     font-weight: 500;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--sos-border-default);
 }
 
 .cart-table td {
     padding: 1rem;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--sos-bg-muted);
 }
 
 .product-cell {
@@ -1191,7 +1191,7 @@ hr.custom-hr {
     height: 4rem;
     object-fit: cover;
     border-radius: 4px;
-    background: #eee;
+    background: var(--sos-border-default);
 }
 
 .cart-footer {
@@ -1252,7 +1252,7 @@ hr.custom-hr {
 .input-field {
     width: 100%;
     padding: 0.625rem 1rem;
-    border: 1px solid #ddd;
+    border: 1px solid var(--sos-border-default);
     border-radius: var(--radius-md);
     outline: none;
     transition: border-color 0.3s;
@@ -1290,7 +1290,7 @@ textarea.input-field {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--sos-border-default);
     padding-top: 1rem;
     margin-top: 1rem;
 }
@@ -1315,8 +1315,8 @@ textarea.input-field {
     display: grid;
     grid-template-columns: 1fr;
     gap: 2rem;
-    background: #f9fafb;
-    border: 1px solid #eee;
+    background: var(--sos-bg-subtle);
+    border: 1px solid var(--sos-border-default);
     border-radius: var(--radius-lg);
     padding: 1.5rem;
     margin-bottom: 2rem;
@@ -1329,7 +1329,7 @@ textarea.input-field {
 }
 
 .order-info-col {
-    border-right: 1px dashed #ddd;
+    border-right: 1px dashed var(--sos-border-default);
     padding-right: 1.5rem;
     display: flex;
     flex-direction: column;
@@ -1354,7 +1354,7 @@ textarea.input-field {
     width: 10rem;
     height: 10rem;
     background-color: white;
-    border: 2px solid #eee;
+    border: 2px solid var(--sos-border-default);
     border-radius: 8px;
     margin-bottom: 0.75rem;
     position: relative;
@@ -1384,12 +1384,12 @@ textarea.input-field {
     font-size: 0.96rem;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.03em;
-    background: #fef3c7;
-    color: #d97706;
+    background: var(--sos-warning-soft);
+    color: var(--sos-warning);
     padding: 2px 6px;
     border-radius: 4px;
     font-weight: 700;
-    border: 1px dashed #d97706;
+    border: 1px dashed var(--sos-warning);
 }
 
 .result-page {
@@ -1401,7 +1401,7 @@ textarea.input-field {
 .icon-circle {
     width: 6rem;
     height: 6rem;
-    background: #eff6ff;
+    background: var(--sos-accent-soft);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1425,7 +1425,7 @@ textarea.input-field {
 }
 
 .query-result {
-    border: 1px solid #eee;
+    border: 1px solid var(--sos-border-default);
     border-radius: var(--radius-md);
     overflow: hidden;
     margin-top: 1.5rem;
@@ -1433,9 +1433,9 @@ textarea.input-field {
 }
 
 .result-header {
-    background: #f9fafb;
+    background: var(--sos-bg-subtle);
     padding: 1rem;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--sos-border-default);
     display: flex;
     justify-content: space-between;
 }
@@ -1464,7 +1464,7 @@ textarea.input-field {
 }
 
 .contact-info {
-    background: #2563eb;
+    background: var(--sos-accent);
     color: white;
     padding: 2rem;
     width: 100%;
@@ -1514,8 +1514,8 @@ textarea.input-field {
 }
 
 .footer {
-    background: #1f2937;
-    color: #9ca3af;
+    background: var(--sos-text-primary);
+    color: var(--sos-text-tertiary);
     padding: 1.5rem;
     text-align: center;
     font-size: 0.875rem;
@@ -1527,7 +1527,7 @@ textarea.input-field {
     top: 5rem;
     left: 50%;
     transform: translateX(-50%);
-    background: #1f2937;
+    background: var(--sos-text-primary);
     color: white;
     padding: 0.75rem 1.5rem;
     border-radius: var(--radius-md);
@@ -1555,12 +1555,12 @@ textarea.input-field {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #ccc;
+    background: var(--sos-border-strong);
     border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #999;
+    background: var(--sos-text-tertiary);
 }
 
 /* === Mobile Adaptation (≤639px) === */
@@ -1899,7 +1899,7 @@ textarea.input-field {
         border: 1px solid rgba(148, 163, 184, 0.45);
         background: #0f172a;
         box-shadow: 0 14px 24px rgba(2, 6, 23, 0.45);
-        color: #f8fafc;
+        color: var(--sos-bg-subtle);
         font-size: 0.75rem;
         letter-spacing: 0;
         line-height: 1.45;
@@ -1921,7 +1921,7 @@ textarea.input-field {
         border-right: none;
         padding-right: 0;
         padding-bottom: 1.5rem;
-        border-bottom: 1px dashed #ddd;
+        border-bottom: 1px dashed var(--sos-border-default);
     }
 
     .order-sn {
@@ -2099,7 +2099,7 @@ textarea.input-field {
         font-weight: 700;
         font-size: 0.9rem;
         color: var(--text-main);
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid var(--sos-border-subtle);
         flex-shrink: 0;
     }
 
@@ -2121,7 +2121,7 @@ textarea.input-field {
         height: 44px;
         border-radius: 8px;
         object-fit: cover;
-        background: #f3f4f6;
+        background: var(--sos-bg-muted);
         flex-shrink: 0;
     }
 
@@ -2156,7 +2156,7 @@ textarea.input-field {
 
     .cart-popup-footer {
         padding: 0.75rem 1rem;
-        border-top: 1px solid #f0f0f0;
+        border-top: 1px solid var(--sos-border-subtle);
         flex-shrink: 0;
     }
 
@@ -2220,12 +2220,12 @@ textarea.input-field {
 .shop-app .mini-header-detail .hauth-menu {
     --hauth-menu-bg: transparent;
     --hauth-menu-bg-hover: rgba(255, 255, 255, 0.18);
-    --hauth-menu-fg: #ffffff;
+    --hauth-menu-fg: var(--sos-bg-surface);
     --hauth-menu-border: rgba(255, 255, 255, 0.8);
-    --hauth-menu-border-hover: #ffffff;
+    --hauth-menu-border-hover: var(--sos-bg-surface);
     --hauth-menu-shadow: none;
     --hauth-menu-shadow-hover: none;
-    --hauth-avatar-bg: #ffffff;
+    --hauth-avatar-bg: var(--sos-bg-surface);
     --hauth-avatar-border: rgba(255, 255, 255, 0.82);
     --hauth-avatar-fg: var(--hauth-accent);
 }
@@ -2276,14 +2276,16 @@ textarea.input-field {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid var(--sos-border-subtle);
+    /* 极淡描边：去掉「框住」感，主要靠 shop 柔和蓝调投影让卡片漂浮（找回旧版大气） */
+    border: 1px solid color-mix(in srgb, var(--sos-border-subtle) 40%, transparent);
     background: var(--sos-bg-surface);
     border-radius: var(--sos-card-radius);
     box-shadow: var(--sos-card-shadow);
 }
 
 .shop-app .shop-product-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-5px);
+    border-color: transparent;
     box-shadow: var(--sos-hover-shadow);
 }
 
@@ -2298,7 +2300,7 @@ textarea.input-field {
 }
 
 .shop-app .shop-product-card:hover .card-image {
-    transform: scale(1.035);
+    transform: scale(1.06);
 }
 
 .shop-app .card-overlay {
@@ -2306,16 +2308,18 @@ textarea.input-field {
 }
 
 .shop-app .card-body {
-    display: grid;
-    gap: var(--sos-space-3);
+    /* 纵向流，内容从上往下依次排布（贴齐旧版：短内容卡留白在底部，而非中间撑开） */
+    display: flex;
+    flex-direction: column;
+    gap: var(--sos-space-2);
     flex: 1;
-    padding: var(--sos-space-5);
+    padding: var(--sos-space-4);
 }
 
 .shop-app .card-title-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--sos-space-3);
+    gap: var(--sos-space-2);
     align-items: start;
     margin-bottom: 0;
 }
@@ -2328,8 +2332,10 @@ textarea.input-field {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     color: var(--sos-text-primary);
-    font-size: var(--sos-text-md);
-    line-height: 1.35;
+    /* 更大胆的标题，建立有底气的层次（贴近旧版 18px 粗体的大气） */
+    font-size: var(--sos-text-lg);
+    font-weight: var(--sos-weight-bold);
+    line-height: 1.3;
     letter-spacing: 0;
 }
 
@@ -2340,7 +2346,9 @@ textarea.input-field {
 
 .shop-app .card-price {
     color: var(--sos-link);
-    font-size: var(--sos-text-lg);
+    /* 价格用粗体 + 链接色突出，尺寸贴齐旧版（text-xl 的 clamp 在桌面会涨到 24px，过大） */
+    font-size: var(--sos-text-md);
+    font-weight: var(--sos-weight-bold);
     line-height: 1.1;
 }
 
@@ -2348,8 +2356,9 @@ textarea.input-field {
     min-height: 0;
     margin: 0;
     color: var(--sos-text-secondary);
-    font-size: var(--sos-text-sm);
-    line-height: 1.55;
+    /* 描述为次要信息，尺寸回到 12px（贴齐旧版），紧跟标题下方 */
+    font-size: var(--sos-text-xs);
+    line-height: 1.5;
     letter-spacing: 0;
     -webkit-line-clamp: 2;
 }
@@ -2392,7 +2401,8 @@ textarea.input-field {
     grid-template-columns: auto minmax(0, 1fr);
     gap: var(--sos-space-2);
     align-items: center;
-    margin-top: auto;
+    /* 不再 margin-top:auto 顶到底——紧跟上方内容，整卡从上往下推 */
+    margin-top: var(--sos-space-1);
 }
 
 .shop-app .badge-tag {
@@ -2577,9 +2587,11 @@ textarea.input-field {
         width: 100%;
     }
 
+    /* 移动端恢复双列（与接入设计系统之前一致）：基线是 flex 容器，
+       这里改回 grid 才能让列数真正生效（grid-template 在 flex 上无效）。 */
     .shop-app .product-grid {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
         gap: var(--sos-space-4);
     }
 

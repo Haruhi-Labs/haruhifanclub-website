@@ -64,7 +64,7 @@ const submitMessage = async () => {
       </div>
     </div>
     <div class="contact-form">
-      <h3 style="font-size: 1.25rem; font-weight: bold; color: #1f2937; margin-bottom: 1.5rem;">发送留言</h3>
+      <h3 style="font-size: 1.25rem; font-weight: bold; color: var(--sos-text-primary); margin-bottom: 1.5rem;">发送留言</h3>
       <form style="display: flex; flex-direction: column; gap: 1rem;" @submit.prevent="submitMessage">
         <div class="form-grid">
           <input v-model.trim="form.name" type="text" maxlength="60" placeholder="您的称呼" class="input-field">
@@ -92,7 +92,7 @@ const submitMessage = async () => {
 <style scoped>
 .message-limit {
   font-size: 0.75rem;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
 }
 
 .contact-list {

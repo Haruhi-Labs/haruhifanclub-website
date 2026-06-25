@@ -30,12 +30,11 @@
       </div>
     </section>
 
+    <!-- 不等高双列瀑布流：保留宝贵的 Grid Lanes 气质，仅去掉重叠、加间距。
+         报头在左列单列内，其高度一同计入瀑布流平衡（见 firstPageLeftOffset）。 -->
     <div class="content-columns">
       <div class="column-left">
-        <div
-          v-if="viewType === 'home'"
-          class="home-banner"
-        >
+        <div v-if="viewType === 'home'" class="home-banner">
           <div class="banner-bg">
             <div class="banner-radial-gradient"></div>
             <svg class="banner-noise-svg">
@@ -47,16 +46,11 @@
                   stitchTiles="stitch"
                 />
               </filter>
-              <rect
-                width="100%"
-                height="100%"
-                filter="url(#noiseFilter)"
-              />
+              <rect width="100%" height="100%" filter="url(#noiseFilter)" />
             </svg>
           </div>
-
           <div class="banner-logo-wrapper">
-            <img src="/春日团报白.png" alt="春日团报 Logo" class="banner-logo-img">
+            <img src="/春日团报白.png" alt="春日团报 Logo" class="banner-logo-img" />
           </div>
         </div>
 
@@ -64,17 +58,14 @@
           v-for="article in leftCol"
           :key="article.id"
           :article="article"
-          class="card-overlap"
           @click="store.openModal(article)"
         />
       </div>
-
       <div class="column-right">
         <NewsCard
           v-for="article in rightCol"
           :key="article.id"
           :article="article"
-          class="card-overlap"
           @click="store.openModal(article)"
         />
       </div>
@@ -208,13 +199,15 @@ const filteredArticles = computed(() => {
   return sortArticles(list)
 })
 
-// 用"高度 + 瀑布流"把所有文章拆成多页
+// 不等高双列瀑布流（CSS Grid Lanes 式）：按高度把文章分配到左右两列，保留这一宝贵气质；
+// 仅去掉卡片重叠、改为有间距，让有厚度的卡片各自完整呈现。
+// 报头在左列：高度（约 10rem + 列内间距）一同计入，让两列高度平衡
+const BANNER_OFFSET = 184
 const masonryPages = computed(() => {
   const list = filteredArticles.value
   if (!list || list.length === 0) return [{ left: [], right: [] }]
-
   return buildMasonryPages(list, {
-    firstPageLeftOffset: 0,
+    firstPageLeftOffset: viewType.value === 'home' ? BANNER_OFFSET : 0,
     pageTargetHeight: 1300,
   })
 })
@@ -380,12 +373,12 @@ watch(
 }
 
 .banner-bg {
-  background: #171717;
+  background: var(--sos-text-primary);
 }
 
 .banner-radial-gradient {
   opacity: 0.2;
-  background: radial-gradient(circle at center, #374151, #000, #000);
+  background: radial-gradient(circle at center, var(--sos-text-secondary), var(--sos-text-primary), var(--sos-text-primary));
 }
 
 .banner-noise-svg {
@@ -415,11 +408,14 @@ watch(
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
 }
 
+/* 不等高双列瀑布流（Grid Lanes）：按高度分配到左右两列，保留这一宝贵气质。
+   去掉旧的 card-overlap(-1px) 密集重叠，改为列间 + 列内卡片都有间距，
+   让有厚度的 recipe 卡片各自完整、不挤压。 */
 .content-columns {
   display: grid;
   grid-template-columns: 1fr;
   align-items: start;
-  gap: 0;
+  gap: var(--sos-space-6);
 }
 
 @media (min-width: 768px) {
@@ -431,18 +427,9 @@ watch(
 .column-left,
 .column-right {
   display: grid;
-  gap: 0;
+  align-content: start;
+  gap: var(--sos-space-6);
   min-width: 0;
-}
-
-@media (min-width: 768px) {
-  .column-right {
-    margin-left: -1px;
-  }
-}
-
-.card-overlap {
-  margin-top: -1px;
 }
 
 .pagination-bar {

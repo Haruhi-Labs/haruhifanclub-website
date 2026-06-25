@@ -949,8 +949,129 @@
   font: inherit;
   padding: 0;
 }
-.sos-input-affix > input:focus {
+.sos-input-affix > input:focus,
+.sos-input-affix > input:focus-visible {
   outline: none;
+  box-shadow: none;
+}
+
+/* ============================================================
+ *  SEARCH — 统一搜索规范（放大镜 + 输入 + 清除；胶囊式，焦点环）
+ *  各搜索场景共用：站点页头、列表筛选、全屏搜索浮层（用 --lg）。
+ *  全部走 token，挂 data-sos-site 即各站主题。
+ * ============================================================ */
+.sos-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  width: 100%;
+  min-height: var(--sos-control-md);
+  border: 1px solid var(--sos-border-default);
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-bg-surface);
+  padding-inline: var(--sos-space-4);
+  color: var(--sos-text-tertiary);
+  transition:
+    border-color var(--sos-duration-base),
+    box-shadow var(--sos-duration-base);
+}
+.sos-search:focus-within {
+  border-color: var(--sos-focus);
+  box-shadow: var(--sos-ring);
+}
+.sos-search__icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--sos-text-tertiary);
+}
+.sos-search__icon > svg {
+  width: 100%;
+  height: 100%;
+}
+.sos-search__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sos-text-primary);
+  font: inherit;
+  font-size: var(--sos-text-sm);
+  line-height: 1.4;
+  padding-block: var(--sos-space-2);
+  outline: none;
+}
+.sos-search__input::placeholder {
+  color: var(--sos-text-tertiary);
+}
+/* 隐藏 type=search 的浏览器原生清除按钮，避免与 .sos-search__clear 重复 */
+.sos-search__input::-webkit-search-cancel-button {
+  display: none;
+}
+/* 焦点环由外层 .sos-search:focus-within 统一提供，内部输入不再单独出环，
+   避免 .sos-scope 的 :focus-visible 与外层叠成双重高亮边框 */
+.sos-search__input:focus,
+.sos-search__input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.sos-search__input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+/* 清除按钮：有输入时显示 */
+.sos-search__clear {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-bg-muted);
+  color: var(--sos-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.sos-search__clear:hover {
+  background: var(--sos-border-default);
+  color: var(--sos-text-primary);
+}
+/* 提交按钮（可选，放在右侧，主操作色） */
+.sos-search__submit {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  margin-inline-end: calc(-1 * var(--sos-space-2));
+  border: 0;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
+  cursor: pointer;
+  transition: background-color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.sos-search__submit:hover {
+  background: var(--sos-accent-hover);
+}
+/* 大尺寸：用于全屏搜索浮层或页面主搜索 */
+.sos-search--lg {
+  min-height: var(--sos-control-lg);
+  padding-inline: var(--sos-space-5);
+}
+.sos-search--lg .sos-search__input {
+  font-size: var(--sos-text-lg);
+}
+.sos-search--lg .sos-search__icon {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+/* 方角变体（编辑部等不爱圆角的场景） */
+.sos-search--square {
+  border-radius: var(--sos-radius-sm);
 }
 
 /* Checkbox / radio */
@@ -1572,8 +1693,10 @@
 }
 .sos-navlink[aria-current='page'],
 .sos-navlink--active {
-  color: var(--sos-text-primary);
-  background: var(--sos-accent-soft);
+  /* 选中态：用强调色文字 + 更明确的强调底 + 加粗，避免仅靠极淡的 accent-soft 显得发淡 */
+  color: var(--sos-link);
+  background: color-mix(in srgb, var(--sos-accent) 16%, transparent);
+  font-weight: var(--sos-weight-bold);
 }
 
 /* ============================================================
@@ -1764,13 +1887,18 @@
 }
 .sos-brand-lockup__text {
   display: grid;
-  gap: 0.05rem;
-  line-height: 1.15;
+  justify-items: start;
+  gap: var(--sos-space-1);
+  line-height: 1.2;
+  text-align: left;
 }
 .sos-brand-lockup__text > strong {
   color: var(--sos-text-primary);
+  /* 品牌字体/字重为表达层旋钮：默认随各站 display 字体 + 收敛到 bold（更优雅），
+     衬线站（library/exam）自动衬线，需要更重的站可在表达层调 --sos-brand-weight。 */
+  font-family: var(--sos-brand-font, var(--sos-display-family));
   font-size: var(--sos-text-md);
-  font-weight: var(--sos-weight-black);
+  font-weight: var(--sos-brand-weight, var(--sos-weight-bold));
   letter-spacing: var(--sos-tracking-snug);
 }
 .sos-brand-lockup__text > small {
@@ -1784,6 +1912,202 @@
 }
 .sos-brand-lockup--compact .sos-brand-lockup__text > strong {
   font-size: var(--sos-text-sm);
+}
+
+/* ============================================================
+ *  FOOTER — 统一页脚规范（现代多列、主题自适应、容纳多组相关链接）
+ *  结构：品牌区（锁头 + 标语 + 社交）｜ 链接组区（自适应多列）
+ *        + 底部条（版权 / 声明）+ 回到顶部
+ *  所有配色走 token，挂 data-sos-site 即各站主题；
+ *  社交/分类链接各自的品牌色经 --brand 传入，仅作 hover/圆点点缀。
+ * ============================================================ */
+.sos-footer {
+  position: relative;
+  margin-top: var(--sos-space-16);
+  border-top: 1px solid var(--sos-border-subtle);
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-secondary);
+}
+.sos-footer__inner {
+  width: min(var(--sos-container-content), calc(100% - var(--sos-page-gutter) * 2));
+  margin-inline: auto;
+  padding-block: var(--sos-space-12) var(--sos-space-8);
+}
+.sos-footer__top {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sos-space-10);
+}
+@media (min-width: 768px) {
+  .sos-footer__top {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr);
+    gap: var(--sos-space-12);
+  }
+}
+
+/* 品牌区 */
+.sos-footer__brand {
+  display: grid;
+  justify-items: start;
+  gap: var(--sos-space-4);
+  align-content: start;
+}
+.sos-footer__tagline {
+  margin: 0;
+  max-width: 22rem;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-sm);
+  line-height: var(--sos-leading-body);
+}
+.sos-footer__social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sos-space-2);
+}
+.sos-footer__social-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  padding: var(--sos-space-1) var(--sos-space-3);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-full);
+  background: color-mix(in srgb, var(--sos-bg-page) 55%, var(--sos-bg-surface));
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-semibold);
+  text-decoration: none;
+  box-shadow: var(--sos-shadow-xs);
+  transition:
+    color var(--sos-duration-fast) var(--sos-ease-out),
+    border-color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.sos-footer__social-link:hover {
+  color: var(--brand, var(--sos-link));
+  border-color: color-mix(in srgb, var(--brand, var(--sos-link)) 42%, transparent);
+}
+
+/* 链接组区：自适应多列，容纳较多链接 */
+.sos-footer__groups {
+  display: grid;
+  /* 有几组排几列，列最小宽较小以容纳更多列 */
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--sos-space-8) var(--sos-space-6);
+}
+.sos-footer__group {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-3);
+}
+.sos-footer__group-title {
+  margin: 0;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-2xs);
+  font-weight: var(--sos-weight-heavy);
+  letter-spacing: var(--sos-tracking-wider);
+  text-transform: uppercase;
+}
+.sos-footer__links {
+  display: grid;
+  gap: var(--sos-space-2);
+}
+.sos-footer__link {
+  display: inline-flex;
+  align-items: center;
+  /* 点击区只贴文本，不被网格列拉伸到整列宽 */
+  justify-self: start;
+  gap: var(--sos-space-2);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  text-decoration: none;
+  transition: color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.sos-footer__link:hover {
+  color: var(--brand, var(--sos-link));
+}
+/* 链接前的分类圆点（品牌色经 --brand 传入，模式上的识别线索） */
+.sos-footer__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  border-radius: var(--sos-radius-full);
+  background: var(--brand, var(--sos-accent));
+}
+
+/* 底部条 */
+.sos-footer__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sos-space-3) var(--sos-space-5);
+  margin-top: var(--sos-space-10);
+  padding-top: var(--sos-space-5);
+  border-top: 1px solid var(--sos-border-subtle);
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+}
+.sos-footer__bottom-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-3);
+}
+.sos-footer__bottom-sep {
+  width: 1px;
+  height: 0.7rem;
+  background: var(--sos-border-default);
+}
+
+/* 回到顶部：悬浮于页脚上沿居中 */
+.sos-footer__totop {
+  position: absolute;
+  top: calc(-1 * var(--sos-space-5));
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--sos-radius-full);
+  border: 1px solid var(--sos-border-subtle);
+  background: var(--sos-bg-surface);
+  color: var(--sos-accent);
+  box-shadow: var(--sos-shadow-sm);
+  cursor: pointer;
+  transition:
+    transform var(--sos-duration-base) var(--sos-ease-spring),
+    box-shadow var(--sos-duration-base),
+    color var(--sos-duration-fast);
+}
+.sos-footer__totop:hover {
+  transform: translateX(-50%) translateY(-4px);
+  box-shadow: var(--sos-shadow-card);
+  color: var(--sos-accent-hover);
+}
+.sos-footer__totop > svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+/* 移动端：收紧竖向节奏，链接组固定为整齐两列。
+ * 注意：必须放在以上所有基础 .sos-footer__* 规则之后——同特异性下后写者胜，
+ * 否则 .sos-footer__groups 的 auto-fit 基线会反过来盖掉这里的 repeat(2)。 */
+@media (max-width: 767px) {
+  .sos-footer {
+    margin-top: var(--sos-space-12);
+  }
+  .sos-footer__inner {
+    padding-block: var(--sos-space-8) var(--sos-space-6);
+  }
+  .sos-footer__top {
+    gap: var(--sos-space-8);
+  }
+  .sos-footer__groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sos-space-7) var(--sos-space-5);
+  }
+  .sos-footer__bottom {
+    margin-top: var(--sos-space-8);
+  }
 }
 
 .sos-signal-tab {

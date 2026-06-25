@@ -1,7 +1,7 @@
 <template>
   <div class="panel">
     <div class="toolbar">
-      <h3 style="font-weight: bold; color: #374151; margin: 0;">优惠券管理</h3>
+      <h3 style="font-weight: bold; color: var(--sos-text-secondary); margin: 0;">优惠券管理</h3>
       <div class="toolbar-top-actions">
         <button class="admin-btn btn-outline" @click="loadCoupons">刷新</button>
         <button class="admin-btn btn-green" :disabled="selectedCount === 0" @click="exportSelectedCodes">导出所选券码</button>
@@ -151,7 +151,7 @@
                   <button
                     v-if="coupon.status !== 2"
                     class="admin-btn btn-outline"
-                    style="font-size: 0.75rem; color: #ef4444; border-color: #fca5a5;"
+                    style="font-size: 0.75rem; color: var(--sos-danger); border-color: color-mix(in srgb, var(--sos-danger) 40%, transparent);"
                     @click="removeCoupon(coupon)"
                   >
                     删除
@@ -161,7 +161,7 @@
               </td>
             </tr>
             <tr v-if="coupons.length === 0">
-              <td colspan="8" style="text-align: center; color: #9ca3af;">暂无优惠券数据</td>
+              <td colspan="8" style="text-align: center; color: var(--sos-text-tertiary);">暂无优惠券数据</td>
             </tr>
           </tbody>
         </table>
@@ -376,7 +376,7 @@ onMounted(loadCoupons)
 
 <style scoped>
 .create-box {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -385,7 +385,7 @@ onMounted(loadCoupons)
 
 .box-title {
   margin: 0 0 0.75rem 0;
-  color: #374151;
+  color: var(--sos-text-secondary);
 }
 
 .toolbar-top-actions {
@@ -408,16 +408,16 @@ onMounted(loadCoupons)
 .latest-codes {
   margin-top: 0.75rem;
   padding: 0.75rem;
-  border: 1px dashed #9ca3af;
+  border: 1px dashed var(--sos-text-tertiary);
   border-radius: 8px;
-  background: #fff;
+  background: var(--sos-bg-surface);
 }
 
 .codes-textarea {
   width: 100%;
   min-height: 130px;
   margin-top: 0.5rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--sos-border-strong);
   border-radius: 6px;
   font-family: monospace;
   font-size: 12px;

@@ -475,7 +475,7 @@ const scrollToHeading = (index) => {
   line-height: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
 }
 
 .ath-id { padding: 1rem 1rem 1rem 2rem; font-weight: 700; }
@@ -491,7 +491,7 @@ const scrollToHeading = (index) => {
 .ath-actions { padding: 1rem 2rem; text-align: right; font-weight: 700; }
 
 .article-row {
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--sos-bg-muted);
   transition: color 150ms, background-color 150ms, border-color 150ms;
 }
 
@@ -510,7 +510,7 @@ const scrollToHeading = (index) => {
 
 .article-id {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   font-size: 0.75rem;
   line-height: 1rem;
   margin-bottom: 0.25rem;
@@ -523,8 +523,8 @@ const scrollToHeading = (index) => {
   border-radius: 0.25rem;
   font-size: 10px;
   font-weight: 700;
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -536,8 +536,8 @@ const scrollToHeading = (index) => {
   border-radius: 0.25rem;
   font-size: 10px;
   font-weight: 700;
-  background-color: #e5e7eb;
-  color: #4b5563;
+  background-color: var(--sos-border-default);
+  color: var(--sos-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -551,7 +551,7 @@ const scrollToHeading = (index) => {
   font-weight: 700;
   font-size: 1rem;
   line-height: 1.5rem;
-  color: #111827;
+  color: var(--sos-text-primary);
   margin-bottom: 0.25rem;
   overflow: hidden;
   display: -webkit-box;
@@ -565,7 +565,7 @@ const scrollToHeading = (index) => {
 }
 
 .article-summary-text {
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   font-size: 0.75rem;
   line-height: 1rem;
   overflow: hidden;
@@ -583,13 +583,13 @@ const scrollToHeading = (index) => {
 
 .author-name {
   font-weight: 500;
-  color: #111827;
+  color: var(--sos-text-primary);
 }
 
 .author-participants {
   font-size: 0.75rem;
   line-height: 1rem;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   margin-top: 0.125rem;
 }
 
@@ -597,7 +597,7 @@ const scrollToHeading = (index) => {
   padding: 1.25rem 1rem;
   vertical-align: top;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   font-size: 0.75rem;
   line-height: 1rem;
 }
@@ -665,7 +665,7 @@ const scrollToHeading = (index) => {
 .pinned-label {
   font-size: 10px;
   font-weight: 700;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -697,26 +697,26 @@ const scrollToHeading = (index) => {
 
 .action-btn-preview {
   padding: 0.5rem;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   border-radius: 0.5rem;
   transition: color 150ms, background-color 150ms, border-color 150ms;
 }
 
 .action-btn-preview:hover {
-  color: #000;
-  background-color: #f3f4f6;
+  color: var(--sos-text-primary);
+  background-color: var(--sos-bg-muted);
 }
 
 .action-divider {
   width: 1px;
   height: 1rem;
-  background-color: #e5e7eb;
+  background-color: var(--sos-border-default);
   margin: 0 0.25rem;
 }
 
 .action-btn-approve {
   padding: 0.5rem;
-  color: #16a34a;
+  color: var(--sos-success);
   border-radius: 0.5rem;
   transition: color 150ms, background-color 150ms, border-color 150ms;
   font-weight: 700;
@@ -753,7 +753,7 @@ const scrollToHeading = (index) => {
 }
 
 .action-btn-delete:hover {
-  color: #dc2626;
+  color: var(--sos-danger);
   background-color: #fef2f2;
 }
 
@@ -762,15 +762,15 @@ const scrollToHeading = (index) => {
   position: fixed;
   top: 0; right: 0; bottom: 0; left: 0;
   z-index: 60;
-  background-color: #f3f4f6;
+  background-color: var(--sos-bg-muted);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .preview-header {
-  background-color: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background-color: var(--sos-bg-surface);
+  border-bottom: 1px solid var(--sos-border-default);
   padding: 0.75rem 1.5rem;
   display: flex;
   justify-content: space-between;
@@ -795,7 +795,7 @@ const scrollToHeading = (index) => {
   font-size: 0.75rem;
   line-height: 1rem;
   font-weight: 700;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
@@ -812,7 +812,7 @@ const scrollToHeading = (index) => {
 
 .preview-switcher {
   display: flex;
-  background-color: #f3f4f6;
+  background-color: var(--sos-bg-muted);
   padding: 0.25rem;
   border-radius: 0.5rem;
 }
@@ -830,17 +830,17 @@ const scrollToHeading = (index) => {
 }
 
 .preview-tab-active {
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  color: #000;
+  color: var(--sos-text-primary);
 }
 
 .preview-tab-inactive {
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 .preview-tab-inactive:hover {
-  color: #374151;
+  color: var(--sos-text-secondary);
 }
 
 .preview-header-right {
@@ -863,18 +863,18 @@ const scrollToHeading = (index) => {
   padding: 0.5rem;
   border-radius: 9999px;
   transition: color 150ms, background-color 150ms, border-color 150ms;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 .preview-close-btn:hover {
-  background-color: #f3f4f6;
-  color: #000;
+  background-color: var(--sos-bg-muted);
+  color: var(--sos-text-primary);
 }
 
 .preview-body {
   flex: 1;
   overflow-y: auto;
-  background-color: #f3f4f6;
+  background-color: var(--sos-bg-muted);
   position: relative;
 }
 
@@ -894,12 +894,12 @@ const scrollToHeading = (index) => {
 .preview-card-component {
   pointer-events: none;
   box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
 }
 
 .preview-card-caption {
   text-align: center;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   font-size: 0.75rem;
   line-height: 1rem;
   margin-top: 1.5rem;
@@ -923,13 +923,13 @@ const scrollToHeading = (index) => {
 
 .preview-modal-container {
   position: relative;
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
   width: 100%;
   max-width: 42rem;
   box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
   display: flex;
   flex-direction: column;
-  border: 1px solid #000;
+  border: 1px solid var(--sos-text-primary);
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -937,8 +937,8 @@ const scrollToHeading = (index) => {
 .preview-modal-header {
   position: sticky;
   top: 0;
-  background-color: #fff;
-  border-bottom: 1px solid #f3f4f6;
+  background-color: var(--sos-bg-surface);
+  border-bottom: 1px solid var(--sos-bg-muted);
   padding: 1rem;
   display: flex;
   justify-content: space-between;
@@ -951,7 +951,7 @@ const scrollToHeading = (index) => {
   line-height: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
 }
 
 .preview-modal-close-placeholder {
@@ -982,8 +982,8 @@ const scrollToHeading = (index) => {
 
 .tag-filled {
   display: inline-block;
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   font-size: 0.75rem;
   line-height: 1rem;
   padding: 0.25rem 0.5rem;
@@ -991,8 +991,8 @@ const scrollToHeading = (index) => {
 
 .tag-outline {
   display: inline-block;
-  border: 1px solid #000;
-  color: #000;
+  border: 1px solid var(--sos-text-primary);
+  color: var(--sos-text-primary);
   font-size: 0.75rem;
   line-height: 1rem;
   padding: 0.25rem 0.5rem;
@@ -1019,20 +1019,20 @@ const scrollToHeading = (index) => {
   align-items: center;
   font-size: 0.875rem;
   line-height: 1.25rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   gap: 1rem;
   margin-bottom: 0.5rem;
 }
 
 .preview-modal-author {
-  color: #000;
+  color: var(--sos-text-primary);
   font-weight: 700;
 }
 
 .preview-modal-participants {
   font-size: 0.75rem;
   line-height: 1rem;
-  background-color: #f9fafb;
+  background-color: var(--sos-bg-subtle);
   padding: 0.75rem;
   margin-bottom: 1rem;
   border-radius: 0.25rem;
@@ -1040,7 +1040,7 @@ const scrollToHeading = (index) => {
 
 .participants-label {
   font-weight: 700;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   margin-bottom: 0.25rem;
 }
 
@@ -1056,7 +1056,7 @@ const scrollToHeading = (index) => {
 }
 
 .participant-role {
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 .preview-modal-image {
@@ -1070,7 +1070,7 @@ const scrollToHeading = (index) => {
 }
 
 .preview-modal-content {
-  color: #1f2937;
+  color: var(--sos-text-primary);
   font-family: "Noto Serif SC", serif;
   line-height: 2;
   text-align: justify;
@@ -1079,7 +1079,7 @@ const scrollToHeading = (index) => {
 .math-block-modal {
   margin: 1rem 0;
   padding: 1rem;
-  background-color: #f9fafb;
+  background-color: var(--sos-bg-subtle);
   text-align: center;
 }
 
@@ -1094,7 +1094,7 @@ const scrollToHeading = (index) => {
 }
 
 .truncation-indicator {
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   text-align: center;
   margin-top: 1rem;
 }
@@ -1102,14 +1102,14 @@ const scrollToHeading = (index) => {
 .preview-modal-footer-actions {
   margin-top: 2.5rem;
   padding-top: 2rem;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--sos-bg-muted);
   display: flex;
   justify-content: center;
 }
 
 .btn-read-full {
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   padding: 0.75rem 2rem;
   display: flex;
   align-items: center;
@@ -1119,7 +1119,7 @@ const scrollToHeading = (index) => {
 }
 
 .btn-open-page {
-  border: 1px solid #000;
+  border: 1px solid var(--sos-text-primary);
   padding: 0.75rem 2rem;
   display: flex;
   align-items: center;
@@ -1130,10 +1130,10 @@ const scrollToHeading = (index) => {
 
 /* ==================== Page Mode (BlogDetail replica) ==================== */
 .preview-page-mode {
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
   min-height: 100vh;
   font-family: "Noto Sans SC", sans-serif;
-  color: #111;
+  color: var(--sos-text-primary);
   max-width: 100%;
   overflow-x: hidden;
 }
@@ -1142,7 +1142,7 @@ const scrollToHeading = (index) => {
   position: relative;
   width: 100%;
   height: 600px;
-  background-color: #bfbfbf;
+  background-color: var(--sos-text-tertiary);
   overflow: hidden;
   user-select: none;
 }
@@ -1177,7 +1177,7 @@ const scrollToHeading = (index) => {
   top: 0; right: 0; bottom: 0; left: 0;
   width: 100%;
   height: 100%;
-  background-color: #bfbfbf;
+  background-color: var(--sos-text-tertiary);
   overflow: hidden;
 }
 
@@ -1198,7 +1198,7 @@ const scrollToHeading = (index) => {
   font-size: 4.5rem;
   line-height: 1;
   font-weight: 900;
-  color: #000;
+  color: var(--sos-text-primary);
   white-space: nowrap;
   font-family: "Noto Sans SC", sans-serif;
 }
@@ -1225,7 +1225,7 @@ const scrollToHeading = (index) => {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  color: #fff;
+  color: var(--sos-bg-surface);
   filter: drop-shadow(0 4px 3px rgba(0,0,0,0.07)) drop-shadow(0 2px 2px rgba(0,0,0,0.06));
   position: absolute;
 }
@@ -1261,7 +1261,7 @@ const scrollToHeading = (index) => {
   font-weight: 700;
   font-size: 27px;
   line-height: 36px;
-  color: #fff;
+  color: var(--sos-bg-surface);
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
@@ -1279,7 +1279,7 @@ const scrollToHeading = (index) => {
 .page-title-desktop {
   display: none;
   flex-direction: column;
-  color: #fff;
+  color: var(--sos-bg-surface);
   filter: drop-shadow(0 4px 3px rgba(0,0,0,0.07)) drop-shadow(0 2px 2px rgba(0,0,0,0.06));
   position: absolute;
 }
@@ -1297,7 +1297,7 @@ const scrollToHeading = (index) => {
   line-height: 90px;
   letter-spacing: 0;
   margin-bottom: 0;
-  color: #fff;
+  color: var(--sos-bg-surface);
 }
 
 .page-subtitle {
@@ -1306,7 +1306,7 @@ const scrollToHeading = (index) => {
   font-weight: 700;
   font-size: 27px;
   line-height: 45px;
-  color: #fff;
+  color: var(--sos-bg-surface);
 }
 
 .page-author-row {
@@ -1322,7 +1322,7 @@ const scrollToHeading = (index) => {
   font-family: "Noto Sans SC", sans-serif;
   font-size: 24px;
   line-height: 45px;
-  color: #fff;
+  color: var(--sos-bg-surface);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1350,7 +1350,7 @@ const scrollToHeading = (index) => {
   left: 1rem;
   right: 1rem;
   bottom: 2.5rem;
-  color: #fff;
+  color: var(--sos-bg-surface);
   filter: drop-shadow(0 4px 3px rgba(0,0,0,0.07)) drop-shadow(0 2px 2px rgba(0,0,0,0.06));
 }
 
@@ -1373,7 +1373,7 @@ const scrollToHeading = (index) => {
   font-weight: 700;
   font-size: 0.875rem;
   line-height: 1.25rem;
-  color: #fff;
+  color: var(--sos-bg-surface);
 }
 
 .page-mobile-title {
@@ -1461,7 +1461,7 @@ const scrollToHeading = (index) => {
 }
 
 .page-article :deep(p) {
-  color: #333;
+  color: var(--sos-text-secondary);
 }
 
 .page-article :deep(img) {
@@ -1472,7 +1472,7 @@ const scrollToHeading = (index) => {
 .page-participants-box {
   margin-bottom: 2.5rem;
   border-radius: 0.5rem;
-  border: 1px solid #f3f4f6;
+  border: 1px solid var(--sos-bg-muted);
   background-color: rgba(249,250,251,0.8);
   padding: 1.25rem 1.5rem;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
@@ -1483,7 +1483,7 @@ const scrollToHeading = (index) => {
   line-height: 1rem;
   font-weight: 600;
   letter-spacing: 0.25em;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   text-transform: uppercase;
   margin-bottom: 0.75rem;
 }
@@ -1491,7 +1491,7 @@ const scrollToHeading = (index) => {
 .page-participants-list {
   font-size: 0.875rem;
   line-height: 1.25rem;
-  color: #374151;
+  color: var(--sos-text-secondary);
 }
 
 .page-participants-list > * + * {
@@ -1509,7 +1509,7 @@ const scrollToHeading = (index) => {
 .page-participant-detail {
   font-size: 0.75rem;
   line-height: 1rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 /* Page Content Blocks */
@@ -1522,7 +1522,7 @@ const scrollToHeading = (index) => {
   text-align: justify;
   font-size: 22px;
   letter-spacing: 0.025em;
-  color: #1f2937;
+  color: var(--sos-text-primary);
 }
 
 @media (min-width: 768px) {
@@ -1539,7 +1539,7 @@ const scrollToHeading = (index) => {
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 2px solid #e5e5e5;
-  color: #000;
+  color: var(--sos-text-primary);
   position: relative;
 }
 
@@ -1547,7 +1547,7 @@ const scrollToHeading = (index) => {
   margin: 2.5rem 0;
   padding: 2rem;
   background-color: #f9f9f9;
-  border-left: 4px solid #999;
+  border-left: 4px solid var(--sos-text-tertiary);
   text-align: center;
   overflow-x: auto;
 }
@@ -1561,7 +1561,7 @@ const scrollToHeading = (index) => {
 .page-math-caption {
   font-size: 0.875rem;
   line-height: 1.25rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   margin-top: 1rem;
   font-style: normal;
   font-family: "Noto Sans SC", sans-serif;
@@ -1581,14 +1581,14 @@ const scrollToHeading = (index) => {
   height: auto;
   display: block;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  border: 1px solid #f3f4f6;
+  border: 1px solid var(--sos-bg-muted);
 }
 
 .page-image-caption {
   text-align: center;
   font-size: 0.75rem;
   line-height: 1rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   margin-top: 0.75rem;
   font-family: "Noto Sans SC", sans-serif;
   letter-spacing: 0.025em;
@@ -1601,7 +1601,7 @@ const scrollToHeading = (index) => {
 .caption-dot {
   width: 0.25rem;
   height: 0.25rem;
-  background-color: #9ca3af;
+  background-color: var(--sos-text-tertiary);
   border-radius: 9999px;
 }
 
@@ -1618,7 +1618,7 @@ const scrollToHeading = (index) => {
 .fin-line {
   height: 1px;
   width: 3rem;
-  background-color: #000;
+  background-color: var(--sos-text-primary);
 }
 
 .fin-text {
@@ -1632,7 +1632,7 @@ const scrollToHeading = (index) => {
 .page-sidebar {
   display: none;
   padding-left: 2rem;
-  border-left: 1px solid #f3f4f6;
+  border-left: 1px solid var(--sos-bg-muted);
   background-color: rgba(255,255,255,0.5);
 }
 
@@ -1655,12 +1655,12 @@ const scrollToHeading = (index) => {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: #999;
+  color: var(--sos-text-tertiary);
   margin-bottom: 2rem;
 }
 
 .page-toc-list {
-  border-left: 2px solid #f3f4f6;
+  border-left: 2px solid var(--sos-bg-muted);
   margin-left: 0.25rem;
   padding-left: 1.25rem;
   position: relative;
@@ -1681,18 +1681,18 @@ const scrollToHeading = (index) => {
   width: 6px;
   height: 6px;
   border-radius: 9999px;
-  background-color: #d1d5db;
+  background-color: var(--sos-border-strong);
   transition: color 150ms, background-color 150ms, border-color 150ms;
 }
 
 .page-toc-item:hover .page-toc-dot {
-  background-color: #000;
+  background-color: var(--sos-text-primary);
 }
 
 .page-toc-link {
   font-size: 0.875rem;
   line-height: 1.25rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   transition: all 150ms;
   display: block;
   line-height: 1.625;
@@ -1700,14 +1700,14 @@ const scrollToHeading = (index) => {
 }
 
 .page-toc-link:hover {
-  color: #000;
+  color: var(--sos-text-primary);
   font-weight: 700;
 }
 
 .page-toc-empty {
   font-size: 0.875rem;
   line-height: 1.25rem;
-  color: #d1d5db;
+  color: var(--sos-border-strong);
   font-style: italic;
   padding-left: 1.5rem;
 }
@@ -1715,13 +1715,13 @@ const scrollToHeading = (index) => {
 .page-sidebar-stats {
   margin-top: 4rem;
   padding-top: 2rem;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--sos-bg-muted);
 }
 
 .page-sidebar-stats-inner {
   font-size: 0.75rem;
   line-height: 1rem;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   font-family: "Noto Sans SC", sans-serif;
 }
 
@@ -1730,7 +1730,7 @@ const scrollToHeading = (index) => {
 }
 
 .page-stat-val {
-  color: #000;
+  color: var(--sos-text-primary);
 }
 
 /* ==================== Existing Preserved Styles ==================== */

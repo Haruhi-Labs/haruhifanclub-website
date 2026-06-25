@@ -1,15 +1,18 @@
+/* 控制台沿用深色仪表盘气质，配色桥接到设计系统暗色语义层
+   （html[data-sos-theme=dark] 已启用）。蓝色行动色映射到 DS 的
+   链接/信息蓝，而非品牌信号黄（信号黄只作少量线索，不做主操作）。 */
 :root {
-  --bg: #0f1115;
-  --panel: #1a1d24;
-  --panel-2: #232733;
-  --border: #2c313c;
-  --text: #e6e9ef;
-  --muted: #8b93a7;
-  --accent: #4f9dde;
-  --accent-2: #2f6fb0;
-  --danger: #e0584f;
-  --ok: #4caf7d;
-  --radius: 10px;
+  --bg: var(--sos-bg-page);
+  --panel: var(--sos-bg-surface);
+  --panel-2: var(--sos-bg-subtle);
+  --border: var(--sos-border-default);
+  --text: var(--sos-text-primary);
+  --muted: var(--sos-text-tertiary);
+  --accent: var(--sos-link);
+  --accent-2: var(--sos-info);
+  --danger: var(--sos-danger);
+  --ok: var(--sos-success);
+  --radius: var(--sos-radius-md);
 }
 
 * {
@@ -114,7 +117,7 @@ ul.plain {
 
 .badge {
   background: var(--accent-2);
-  color: #fff;
+  color: var(--sos-text-on-strong);
   font-size: 11px;
   padding: 2px 7px;
   border-radius: 6px;
@@ -205,7 +208,7 @@ button.ghost:hover {
 }
 .nav-item.active {
   background: var(--accent-2);
-  color: #fff;
+  color: var(--sos-text-on-strong);
 }
 .nav-item .ic {
   width: 16px;
@@ -274,4 +277,15 @@ table.data th {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* 精简统一页脚：去掉默认大间距与额外容器内边距 */
+.console-footer {
+  margin-top: var(--sos-space-10);
+}
+.console-footer .sos-footer__inner {
+  width: 100%;
+}
+.console-footer .sos-footer__bottom {
+  margin-top: 0;
 }

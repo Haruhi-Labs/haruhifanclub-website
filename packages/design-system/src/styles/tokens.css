@@ -378,6 +378,12 @@
   --sos-bg-surface: #fffdf6;
   --sos-bg-subtle: #f3eed9;
   --sos-bg-muted: #e9e1c8;
+  /* 文本暖化：奶油纸上用暖棕墨，而非基础层的冷墨黑，更柔和优雅 */
+  --sos-text-primary: #4a3b32;
+  --sos-text-secondary: #6b5d52;
+  --sos-text-tertiary: #9b8b7b;
+  --sos-border-subtle: color-mix(in srgb, #4a3b32 12%, transparent);
+  --sos-border-default: color-mix(in srgb, #4a3b32 20%, transparent);
   --sos-accent: var(--sos-amber-600);
   --sos-accent-hover: var(--sos-amber-700);
   --sos-accent-soft: #f6edd6;

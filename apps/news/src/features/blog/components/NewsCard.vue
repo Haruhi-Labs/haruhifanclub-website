@@ -1,23 +1,23 @@
 <template>
   <article
-    class="news-card"
+    class="sos-card sos-article-card sos-card--interactive news-card"
     role="button"
     tabindex="0"
     @click="$emit('click')"
     @keydown.enter.self="$emit('click')"
   >
-    <div class="news-card__body">
-      <div class="card-kicker-row">
-        <span class="news-label">{{ article.type === 'news' ? 'NEWS' : 'POST' }}</span>
-        <span v-if="article.isPinned" class="news-pin">置顶</span>
+    <div v-if="article.image" class="sos-card__media sos-article-card__media">
+      <img :src="article.image" :alt="article.title" />
+    </div>
+
+    <div class="sos-card__body">
+      <div class="sos-article-card__head">
+        <span class="sos-article-card__label">{{ article.type === 'news' ? 'NEWS' : 'POST' }}</span>
+        <span v-if="article.isPinned" class="sos-badge sos-badge--signal">置顶</span>
       </div>
 
-      <div v-if="article.image" class="image-container">
-        <img :src="article.image" :alt="article.title" class="card-image" />
-      </div>
-
-      <h2 class="card-title" v-html="highlight(article.title)"></h2>
-      <div v-if="article.subtitle" class="card-subtitle" v-html="highlight(article.subtitle)"></div>
+      <h2 class="sos-card__heading sos-article-card__title" v-html="highlight(article.title)"></h2>
+      <div v-if="article.subtitle" class="sos-article-card__subtitle" v-html="highlight(article.subtitle)"></div>
 
       <div
         v-if="article.type === 'news' && article.participants && article.participants.length"
@@ -35,35 +35,35 @@
         </div>
       </div>
 
-      <div class="card-summary" v-html="highlight(previewText)"></div>
-    </div>
+      <div class="sos-card__excerpt sos-article-card__excerpt news-card__summary" v-html="highlight(previewText)"></div>
 
-    <footer class="card-footer">
-      <div class="tags-container">
-        <button
-          v-for="tag in (article.tags || []).slice(0, 3)"
-          :key="tag"
-          type="button"
-          @click.stop="$router.push(`/tag/${tag}`)"
-          class="tag-item"
-        >
-          #{{ tag }}
-        </button>
-      </div>
-
-      <div class="meta-info">
-        <span v-if="article.type !== 'news'" class="author-section">
-          作者：<button
-            class="author-name"
+      <footer class="sos-card__footer sos-article-card__footer">
+        <div class="sos-card__tags">
+          <button
+            v-for="tag in (article.tags || []).slice(0, 3)"
+            :key="tag"
             type="button"
-            @click.stop="$router.push(`/author/${article.author || '凉宫春日应援团'}`)"
-            v-html="highlight(article.author || '凉宫春日应援团')"
-          ></button>
-          <span class="meta-separator">·</span>
+            @click.stop="$router.push(`/tag/${tag}`)"
+            class="sos-card__tag"
+          >
+            #{{ tag }}
+          </button>
+        </div>
+
+        <span class="sos-article-card__meta meta-info">
+          <span v-if="article.type !== 'news'" class="author-section">
+            作者：<button
+              class="author-name"
+              type="button"
+              @click.stop="$router.push(`/author/${article.author || '凉宫春日应援团'}`)"
+              v-html="highlight(article.author || '凉宫春日应援团')"
+            ></button>
+            <span class="meta-separator">·</span>
+          </span>
+          <time class="date-text">{{ article.date }}</time>
         </span>
-        <time class="date-text">{{ article.date }}</time>
-      </div>
-    </footer>
+      </footer>
+    </div>
   </article>
 </template>
 
@@ -121,106 +121,16 @@ const highlight = (text) => {
 </script>
 
 <style scoped>
-/* 团报原生卡片：纯白、无边框、hover 柔和投影、无圆角（与接入设计系统前一致）。 */
-.news-card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: #ffffff;
-  transition:
-    box-shadow 300ms ease,
-    transform 200ms ease;
+/* 团报卡基于设计系统 .sos-article-card recipe（顶部信号线 + 墨底白字 NEWS 标签
+   + 衬线标题 + 摘要 + 描边）。这里仅补：参与者框、署名/日期、行内高亮、摘要行数。 */
+
+/* 厚卡片：正文摘要多展示几行 */
+.news-card__summary {
+  -webkit-line-clamp: 4;
+  line-height: 1.7;
 }
 
-.news-card:hover,
-.news-card:focus-visible {
-  box-shadow:
-    0 10px 15px rgba(0, 0, 0, 0.1),
-    0 4px 6px rgba(0, 0, 0, 0.05);
-}
-
-.news-card__body {
-  display: grid;
-  align-content: start;
-  gap: var(--sos-space-3);
-  padding: var(--sos-space-5);
-}
-
-.card-kicker-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sos-space-2);
-}
-
-/* NEWS 标签：1px 黑色描边小框 + 黑色大写文字（与接入前一致）。 */
-.news-label {
-  display: inline-block;
-  width: fit-content;
-  border: 1px solid #000000;
-  padding: 0.05rem 0.3rem;
-  font-size: var(--sos-text-xs);
-  font-weight: 700;
-  color: #000000;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.news-pin {
-  font-size: var(--sos-text-2xs);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: var(--sos-amber-700);
-}
-
-.image-container {
-  display: block;
-  overflow: hidden;
-  aspect-ratio: 4 / 3;
-  margin-top: var(--sos-space-1);
-  border: 1px solid var(--sos-border-subtle);
-  border-radius: var(--sos-radius-xs);
-}
-
-.card-image {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-  transition: transform var(--sos-duration-slow) var(--sos-ease-out);
-}
-
-.news-card:hover .card-image {
-  transform: scale(1.03);
-}
-
-.card-title {
-  margin: 0;
-  color: var(--sos-text-primary);
-  font-family: var(--sos-display-family);
-  font-size: var(--sos-text-xl);
-  font-weight: 850;
-  line-height: 1.22;
-  letter-spacing: 0;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
-}
-
-.card-subtitle {
-  margin: 0;
-  color: var(--sos-text-secondary);
-  font-size: var(--sos-text-sm);
-  font-weight: 800;
-  line-height: 1.45;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-}
-
+/* 参与者框：信号色左边线 + 弱底，编辑部特色 */
 .participants-box {
   display: grid;
   gap: var(--sos-space-2);
@@ -243,6 +153,7 @@ const highlight = (text) => {
   color: var(--sos-text-primary);
   font: inherit;
   font-weight: 850;
+  cursor: pointer;
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, var(--sos-signal) 80%, transparent);
   text-decoration-thickness: 0.18em;
@@ -253,66 +164,19 @@ const highlight = (text) => {
   color: var(--sos-text-secondary);
 }
 
-.card-summary {
-  margin: 0;
-  color: var(--sos-text-secondary);
-  font-size: var(--sos-text-sm);
-  line-height: 1.72;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 6;
-}
-
-.card-footer {
-  margin-top: auto;
-  padding: var(--sos-space-4) var(--sos-space-5);
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.tags-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sos-space-2);
-}
-
-.tag-item {
-  border: 1px solid var(--sos-border-default);
-  border-radius: var(--sos-radius-full);
-  background: var(--sos-bg-surface);
-  color: var(--sos-text-secondary);
-  padding: 0.35rem 0.55rem;
-  font-size: var(--sos-text-2xs);
-  font-weight: 850;
-  line-height: 1;
-  transition:
-    border-color var(--sos-duration-base) var(--sos-ease-standard),
-    color var(--sos-duration-base) var(--sos-ease-standard),
-    background-color var(--sos-duration-base) var(--sos-ease-standard);
-}
-
-.tag-item:hover {
-  border-color: var(--sos-ink-950);
-  background: var(--sos-ink-950);
-  color: var(--sos-white);
-}
-
+/* 署名 / 日期 */
 .meta-info,
 .author-section {
   display: inline-flex;
   align-items: center;
   gap: var(--sos-space-1);
 }
-
 .meta-info {
   margin-left: auto;
   color: var(--sos-text-tertiary);
-  font-size: var(--sos-text-xs);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-
 .meta-separator {
   color: var(--sos-border-strong);
   font-weight: 800;

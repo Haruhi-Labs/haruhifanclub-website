@@ -2,7 +2,7 @@
   <div class="home-view">
     <div class="page-header">
         <h2 class="page-title">{{ currentTypeName }}列表</h2>
-        <span style="font-size: 0.875rem; color: #666;">共找到 {{ filteredProducts.length }} 件宝物</span>
+        <span style="font-size: 0.875rem; color: var(--sos-text-secondary);">共找到 {{ filteredProducts.length }} 件宝物</span>
     </div>
 
     <div v-if="filteredProducts.length > 0" class="product-grid">
@@ -62,7 +62,7 @@
             </div>
         </article>
     </div>
-    <div v-else style="padding: 4rem; text-align: center; color: #666;">
+    <div v-else style="padding: 4rem; text-align: center; color: var(--sos-text-secondary);">
         <i class="fa fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 1rem;"></i>
         <p>正在读取商品数据...</p>
     </div>

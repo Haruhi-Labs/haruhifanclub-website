@@ -1,63 +1,49 @@
 <template>
-  <div class="min-h-screen bg-[#FAF9DE] text-[#4A3B32] font-sans">
-    <!-- 顶部导航 -->
-    <header
-      class="h-16 px-6 flex items-center justify-between border-b border-[#E6DFD0] bg-[#FAF9DE]/90 backdrop-blur sticky top-0 z-10"
-    >
-      <div class="flex items-center gap-3">
-        <span
-          class="text-xl font-bold font-serif tracking-wider text-[#5C4B41]"
-          >长门有希的书架</span
-        >
+  <div class="shelf-view">
+    <!-- 书籍列表（页头由 App.vue 全局统一 SosAppbar 提供） -->
+    <main class="shelf-main">
+      <div v-if="loading" class="shelf-status" aria-live="polite">
+        <span class="sos-spinner" aria-hidden="true"></span>
+        <span>正在整理书架…</span>
       </div>
-      <router-link
-        to="/Feedback"
-        class="text-sm text-[#8C7B70] hover:text-[#D97757] transition-colors"
+
+      <div
+        v-else-if="books.length === 0"
+        class="sos-empty-state sos-empty-state--center"
       >
-        同人投稿 & 问题反馈
-      </router-link>
-    </header>
-
-    <!-- 书籍列表 -->
-    <main class="p-6 max-w-7xl mx-auto">
-      <div v-if="loading" class="text-center py-20 text-[#8C7B70]">
-        正在整理书架...
-      </div>
-
-      <div v-else-if="books.length === 0" class="text-center py-20">
-        <div class="text-6xl mb-4">📚</div>
-        <p class="text-[#8C7B70]">书架空空如也，去后台添加几本吧</p>
+        <div class="sos-empty-state__icon" aria-hidden="true">📚</div>
+        <p class="sos-empty-state__title">书架空空如也</p>
+        <p class="sos-empty-state__copy">
+          还没有上架的书目。去后台添加几本，这里就会按栏目把它们陈列出来。
+        </p>
       </div>
 
       <!-- 分栏书架 -->
-      <div v-else class="space-y-10">
+      <div v-else class="shelf-sections">
         <section
           v-for="section in sections"
           :key="section.key"
-          class="space-y-4"
+          class="shelf-section"
         >
           <!-- 栏目标题行 -->
-          <div class="flex items-baseline justify-between">
-            <div class="flex items-center gap-3">
-              <h2 class="text-lg font-semibold text-[#4A3B32]">
-                {{ section.label }}
-              </h2>
-              <span class="text-xs text-[#B0A090]">
-                {{ section.books.length }} 本
-              </span>
+          <div class="shelf-section__head">
+            <div class="shelf-section__title-row">
+              <h2 class="shelf-section__title">{{ section.label }}</h2>
+              <span class="shelf-section__count">{{ section.books.length }} 本</span>
             </div>
 
             <button
               v-if="section.books.length > section.previewCount"
+              type="button"
+              class="sos-button sos-button--ghost sos-button--sm"
               @click="toggleSection(section.key)"
-              class="text-xs text-[#8C7B70] hover:text-[#D97757] flex items-center gap-1"
             >
               <span>{{ isSectionExpanded(section.key) ? '收起' : '展开全部' }}</span>
               <svg
-                class="w-3 h-3"
+                class="shelf-chevron"
                 viewBox="0 0 24 24"
                 fill="none"
-                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
               >
                 <path
                   :d="
@@ -75,50 +61,34 @@
           </div>
 
           <!-- 该栏目下的书 -->
-          <div
-            class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
-          >
-            <div
+          <div class="shelf-grid">
+            <article
               v-for="book in getVisibleBooks(section)"
               :key="book.id"
-              class="group cursor-pointer flex flex-col items-center"
+              class="sos-card sos-book-card"
+              role="button"
+              :tabindex="0"
+              :aria-label="`${book.title}${book.author ? ' · ' + book.author : ''}`"
               @click="openBook(book.id)"
+              @keydown.enter.self="openBook(book.id)"
+              @keydown.space.self.prevent="openBook(book.id)"
             >
-              <!-- 封面 -->
-              <div
-                class="w-full aspect-[2/3] bg-white rounded shadow-sm group-hover:shadow-md group-hover:-translate-y-1 transition-all duration-300 overflow-hidden border border-[#E6DFD0] relative"
-              >
+              <div class="sos-book-card__cover">
                 <img
                   v-if="book.cover_path"
-                  :src="getCoverUrl(book.cover_path)"
-                  class="w-full h-full object-cover"
+                  :src="getCoverSrc(book)"
+                  :alt="book.title"
                   loading="lazy"
                 />
-                <div
-                  v-else
-                  class="w-full h-full flex items-center justify-center bg-[#F2EFE4] text-[#B0A090] text-4xl font-serif"
-                >
-                  {{ book.title[0] }}
-                </div>
-
-                <!-- 遮罩 -->
-                <div
-                  class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"
-                ></div>
+                <span v-else class="sos-book-card__vertical" aria-hidden="true">{{
+                  book.title.charAt(0)
+                }}</span>
               </div>
-
-              <!-- 信息 -->
-              <div class="mt-3 text-center w-full">
-                <h3
-                  class="font-bold text-sm truncate px-1 group-hover:text-[#D97757] transition-colors"
-                >
-                  {{ book.title }}
-                </h3>
-                <p class="text-xs text-[#8C7B70] mt-1 truncate">
-                  {{ book.author || '佚名' }}
-                </p>
+              <div>
+                <h3 class="sos-book-card__title">{{ book.title }}</h3>
+                <p class="sos-book-card__author">{{ book.author || '佚名' }}</p>
               </div>
-            </div>
+            </article>
           </div>
         </section>
       </div>
@@ -345,3 +315,85 @@ const getVisibleBooks = (section) => {
 
 onMounted(fetchBooks);
 </script>
+
+<style scoped>
+.shelf-view {
+  min-height: 100%;
+}
+
+/* 内容区 */
+.shelf-main {
+  max-width: var(--sos-container-wide);
+  margin-inline: auto;
+  padding: var(--sos-space-8) var(--sos-page-gutter) var(--sos-space-12);
+}
+.shelf-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sos-space-3);
+  padding-block: var(--sos-space-16);
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-sm);
+}
+
+.shelf-sections {
+  display: grid;
+  gap: var(--sos-space-12);
+}
+.shelf-section {
+  display: grid;
+  gap: var(--sos-space-5);
+}
+.shelf-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sos-space-4);
+}
+/* 计数小号弱化、相对标题居中错开（沿用原版的层次感，不与标题等重对齐） */
+.shelf-section__title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-3);
+}
+.shelf-section__title {
+  margin: 0;
+  font-size: var(--sos-text-lg);
+  font-weight: var(--sos-weight-semibold);
+  letter-spacing: var(--sos-tracking-tight);
+  color: var(--sos-text-primary);
+}
+.shelf-section__count {
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-tertiary);
+}
+
+/* 书架网格：一行 2/3/4/5 个大尺寸封面，留白克制优雅（沿用原版节奏） */
+.shelf-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sos-space-8) var(--sos-space-6);
+  align-items: start;
+}
+@media (min-width: 640px) {
+  .shelf-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 960px) {
+  .shelf-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1200px) {
+  .shelf-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.shelf-chevron {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+</style>

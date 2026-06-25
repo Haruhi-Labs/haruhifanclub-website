@@ -14,14 +14,14 @@
             >
             <button @click="query" class="market-btn primary-action" style="padding: 0 1.5rem;">查询</button>
         </div>
-        <p style="margin: 0 0 1.5rem 0; color: #9ca3af; font-size: 0.8rem;">
+        <p style="margin: 0 0 1.5rem 0; color: var(--sos-text-tertiary); font-size: 0.8rem;">
             为保护隐私，查询需同时验证下单手机号后四位
         </p>
-        <p style="margin: 0 0 1.5rem 0; color: #9ca3af; font-size: 0.8rem;">
+        <p style="margin: 0 0 1.5rem 0; color: var(--sos-text-tertiary); font-size: 0.8rem;">
             查询到订单后，也可进行收货信息的修改。
         </p>
 
-        <div v-if="error" style="background: #fef2f2; padding: 1.5rem; border-radius: var(--radius-md); text-align: center; color: #dc2626;">
+        <div v-if="error" style="background: var(--sos-danger-soft); padding: 1.5rem; border-radius: var(--radius-md); text-align: center; color: var(--sos-danger);">
             <i class="fa fa-exclamation-circle" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
             <p>{{ error }}</p>
         </div>
@@ -61,19 +61,19 @@
                 </div>
                 <div v-if="mergeShippingAdjustment < 0" class="merge-meta-row">
                     <span>运费返还</span>
-                    <span style="color: #16a34a;">-¥{{ mergeShippingRefund }}</span>
+                    <span style="color: var(--sos-success);">-¥{{ mergeShippingRefund }}</span>
                 </div>
                 <div v-else-if="mergeShippingAdjustment > 0" class="merge-meta-row">
                     <span>追加运费</span>
-                    <span style="color: #dc2626;">+¥{{ mergeShippingExtra }}</span>
+                    <span style="color: var(--sos-danger);">+¥{{ mergeShippingExtra }}</span>
                 </div>
             </div>
             <div class="result-body">
                 <div style="width: 100%; text-align: left;">
                     <!-- 收件信息 -->
-                    <div style="padding: 0.75rem; background: #f9fafb; border-radius: 8px; margin-bottom: 0.75rem; font-size: 0.875rem; color: #374151;">
+                    <div style="padding: 0.75rem; background: var(--sos-bg-subtle); border-radius: 8px; margin-bottom: 0.75rem; font-size: 0.875rem; color: var(--sos-text-secondary);">
                         <div class="contact-header-row">
-                            <strong style="font-size: 0.82rem; color: #6b7280;">收货信息</strong>
+                            <strong style="font-size: 0.82rem; color: var(--sos-text-tertiary);">收货信息</strong>
                             <button
                                 v-if="canEditContact && !editingContact"
                                 class="market-btn btn-ghost contact-edit-btn"
@@ -83,17 +83,17 @@
                             </button>
                         </div>
                         <div style="margin-bottom: 0.35rem;">
-                            <i class="fa fa-user" style="width: 1rem; color: #9ca3af;"></i>
+                            <i class="fa fa-user" style="width: 1rem; color: var(--sos-text-tertiary);"></i>
                             <strong>{{ order.contact.name }}</strong>
-                            <span style="margin-left: 0.75rem; color: #6b7280;">{{ order.contact.phone }}</span>
+                            <span style="margin-left: 0.75rem; color: var(--sos-text-tertiary);">{{ order.contact.phone }}</span>
                         </div>
                         <div v-if="order.contact.email" style="margin-bottom: 0.35rem;">
-                            <i class="fa fa-envelope" style="width: 1rem; color: #9ca3af;"></i>
-                            <span style="color: #6b7280;">{{ order.contact.email }}</span>
+                            <i class="fa fa-envelope" style="width: 1rem; color: var(--sos-text-tertiary);"></i>
+                            <span style="color: var(--sos-text-tertiary);">{{ order.contact.email }}</span>
                         </div>
                         <div>
-                            <i class="fa fa-map-marker-alt" style="width: 1rem; color: #9ca3af;"></i>
-                            <span style="color: #6b7280;">{{ order.contact.province }}{{ order.contact.city }}{{ order.contact.district }} {{ order.contact.addressDetail }}</span>
+                            <i class="fa fa-map-marker-alt" style="width: 1rem; color: var(--sos-text-tertiary);"></i>
+                            <span style="color: var(--sos-text-tertiary);">{{ order.contact.province }}{{ order.contact.city }}{{ order.contact.district }} {{ order.contact.addressDetail }}</span>
                         </div>
                     </div>
 
@@ -114,7 +114,7 @@
                                 {{ savingContact ? '保存中...' : '保存收货信息' }}
                             </button>
                         </div>
-                        <p style="margin: 0.6rem 0 0; font-size: 0.75rem; color: #9ca3af;">
+                        <p style="margin: 0.6rem 0 0; font-size: 0.75rem; color: var(--sos-text-tertiary);">
                             仅未发货订单可自助修改，已发货订单请联系管理员处理。
                         </p>
                     </div>
@@ -122,11 +122,11 @@
                     <!-- 商品明细 -->
                     <div v-for="item in order.items" :key="item.id" class="query-item-row">
                         <span class="query-item-name">{{ item.name }} x{{ item.quantity }}</span>
-                        <span style="color: #6b7280;">&yen;{{ item.price * item.quantity }}</span>
+                        <span style="color: var(--sos-text-tertiary);">&yen;{{ item.price * item.quantity }}</span>
                     </div>
                     <div class="query-total-row">
                         <span>{{ order.mergeMeta ? '本次追加应付' : '合计（含运费）' }}</span>
-                        <span style="color: #dc2626;">&yen;{{ order.mergeMeta ? mergePayableNow : order.total }}</span>
+                        <span style="color: var(--sos-danger);">&yen;{{ order.mergeMeta ? mergePayableNow : order.total }}</span>
                     </div>
                     <div v-if="order.mergeMeta" class="query-subtotal-row">
                         <span>旧订单金额</span>
@@ -138,17 +138,17 @@
                     </div>
 
                     <!-- 下单时间 -->
-                    <div style="font-size: 0.8rem; color: #9ca3af; padding-top: 0.25rem;">
+                    <div style="font-size: 0.8rem; color: var(--sos-text-tertiary); padding-top: 0.25rem;">
                         <i class="fa fa-clock"></i> 下单时间: {{ new Date(order.created_at).toLocaleString() }}
                     </div>
 
                     <!-- 物流信息 -->
-                    <div v-if="order.status === 3 || order.status === 4" style="margin-top: 0.75rem; padding: 0.75rem; border-radius: 8px;" :style="order.trackingNo ? { background: '#eff6ff' } : { background: '#fefce8' }">
-                        <p v-if="order.trackingNo" style="color: #1d4ed8; font-size: 0.875rem;">
+                    <div v-if="order.status === 3 || order.status === 4" style="margin-top: 0.75rem; padding: 0.75rem; border-radius: 8px;" :style="order.trackingNo ? { background: 'var(--sos-accent-soft)' } : { background: 'var(--sos-warning-soft)' }">
+                        <p v-if="order.trackingNo" style="color: var(--sos-accent-hover); font-size: 0.875rem;">
                             <i class="fa fa-truck"></i>
                             {{ order.trackingCompany }}: {{ order.trackingNo }}
                         </p>
-                        <p v-else style="color: #92400e; font-size: 0.875rem; line-height: 1.5;">
+                        <p v-else style="color: var(--sos-warning); font-size: 0.875rem; line-height: 1.5;">
                             <i class="fa fa-info-circle"></i>
                             未回填快递单号，请在快递小程序中查询，如有问题可联系我们
                         </p>
@@ -157,7 +157,7 @@
             </div>
         </div>
 
-        <div v-else style="background: #f9fafb; padding: 1.5rem; border-radius: var(--radius-md); text-align: center; color: #9ca3af;">
+        <div v-else style="background: var(--sos-bg-subtle); padding: 1.5rem; border-radius: var(--radius-md); text-align: center; color: var(--sos-text-tertiary);">
             <i class="fa fa-search" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
             <p>请输入订单号查询发货状态</p>
         </div>
@@ -366,7 +366,7 @@ const query = async () => {
     font-size: 1.5rem;
     font-weight: bold;
     text-align: center;
-    color: #1f2937;
+    color: var(--sos-text-primary);
     margin-bottom: 2rem;
 }
 
@@ -378,20 +378,20 @@ const query = async () => {
 
 .result-order-id {
     font-weight: bold;
-    color: #374151;
+    color: var(--sos-text-secondary);
 }
 
 .merge-meta-card {
     margin-bottom: 0.75rem;
     padding: 0.75rem;
     border-radius: 8px;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
+    background: var(--sos-accent-soft);
+    border: 1px solid var(--sos-accent-soft);
 }
 
 .merge-meta-title {
     font-size: 0.82rem;
-    color: #1d4ed8;
+    color: var(--sos-accent-hover);
     font-weight: 600;
     margin-bottom: 0.4rem;
 }
@@ -399,7 +399,7 @@ const query = async () => {
 .merge-meta-subtitle {
     margin: 0.5rem 0 0.35rem;
     font-size: 0.76rem;
-    color: #1d4ed8;
+    color: var(--sos-accent-hover);
     font-weight: 600;
 }
 
@@ -408,14 +408,14 @@ const query = async () => {
     justify-content: space-between;
     gap: 0.75rem;
     font-size: 0.82rem;
-    color: #1f2937;
+    color: var(--sos-text-primary);
     margin-bottom: 0.3rem;
 }
 
 .merge-meta-total {
     padding-top: 0.25rem;
     margin-top: 0.25rem;
-    border-top: 1px dashed #bfdbfe;
+    border-top: 1px dashed var(--sos-accent-soft);
     font-weight: 600;
 }
 
@@ -424,11 +424,11 @@ const query = async () => {
     justify-content: space-between;
     gap: 0.75rem;
     padding: 0.5rem 0;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--sos-bg-muted);
 }
 
 .query-item-name {
-    color: #374151;
+    color: var(--sos-text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -447,7 +447,7 @@ const query = async () => {
     justify-content: space-between;
     padding: 0.15rem 0;
     font-size: 0.78rem;
-    color: #6b7280;
+    color: var(--sos-text-tertiary);
 }
 
 .contact-header-row {
@@ -463,11 +463,11 @@ const query = async () => {
 }
 
 .contact-edit-card {
-    border: 1px dashed #d1d5db;
+    border: 1px dashed var(--sos-border-strong);
     border-radius: 8px;
     padding: 0.75rem;
     margin-bottom: 0.75rem;
-    background: #fff;
+    background: var(--sos-bg-surface);
 }
 
 .contact-edit-grid {
@@ -490,7 +490,7 @@ const query = async () => {
 .contact-edit-error {
     margin: 0.6rem 0 0;
     font-size: 0.8rem;
-    color: #dc2626;
+    color: var(--sos-danger);
 }
 
 @media (max-width: 639px) {
