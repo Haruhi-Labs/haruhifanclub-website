@@ -1,5 +1,6 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
+import { AccountMenu } from '@haruhi/auth-ui'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,6 +41,10 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
         {{ item.label }}
       </RouterLink>
     </nav>
+
+    <div class="account-entry">
+      <AccountMenu login-path="/login" profile-path="/account" settings-path="/account/settings" />
+    </div>
   </div>
 </template>
 
@@ -180,6 +185,27 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
   z-index: 5;
 }
 
+.account-entry {
+  flex: 0 0 auto;
+  color: #073b4c;
+}
+
+.account-entry :deep(.hauth-btn--sm),
+.account-entry :deep(.hauth-trigger) {
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.44);
+  background: rgba(255, 255, 255, 0.42);
+  color: #073b4c;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.account-entry :deep(.hauth-dropdown) {
+  right: 0;
+  left: auto;
+}
+
 /* =========================================
    手机端自适应优化 (宽度 <= 768px)
    ========================================= */
@@ -230,6 +256,10 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
     font-size: 13px;
     padding: 7px 11px;
   }
+
+  .account-entry :deep(.hauth-trigger-name) {
+    display: none;
+  }
 }
 
 @media (max-width: 560px) {
@@ -238,7 +268,7 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
   }
 
   .nav {
-    max-width: calc(100vw - 74px);
+    max-width: calc(100vw - 126px);
   }
 }
 </style>

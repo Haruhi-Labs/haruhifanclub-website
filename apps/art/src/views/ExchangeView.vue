@@ -84,9 +84,9 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { useUser } from '../composables/useUser.js'
+import { useSession } from '@haruhi/auth-ui'
 
-const { user } = useUser()
+const session = useSession('/api')
 
 const guildState = {
   reputation: 1200,
@@ -105,8 +105,9 @@ const guildState = {
   }
 }
 
-const reputation = ref(guildState.reputation)
-const adventurerNumber = computed(() => makeAdventurerNumber(user.value))
+const reputationBonus = ref(0)
+const reputation = computed(() => makeReputation(session.state.user) + reputationBonus.value)
+const adventurerNumber = computed(() => makeAdventurerNumber(session.state.user))
 const feedbackMessage = ref('等待冒险者接取委托。完成委托后，声望会在本地状态中即时增加。')
 const acceptedQuestIds = ref(new Set())
 const completedQuestIds = ref(new Set())
@@ -133,9 +134,16 @@ const questSections = computed(() => [
 ])
 
 function makeAdventurerNumber(currentUser) {
-  const userId = currentUser?.id || 'visitor-10981'
+  const userId = currentUser?.id
+  if (!userId) return 'OBS-UNAUTH'
   const match = String(userId).match(/\d+/)
   return match ? `OBS-${match[0]}` : `OBS-${userId}`
+}
+
+function makeReputation(currentUser) {
+  const userId = Number(currentUser?.id || 0)
+  if (!Number.isFinite(userId) || userId <= 0) return 0
+  return guildState.reputation + (userId % 97)
 }
 
 function isLocked(quest) {
@@ -188,7 +196,7 @@ function handleQuestAction(quest) {
   completedQuestIds.value = new Set([...completedQuestIds.value, quest.id])
 
   if (typeof quest.reward === 'number') {
-    reputation.value += quest.reward
+    reputationBonus.value += quest.reward
     feedbackMessage.value = `完成「${quest.title}」，声望 +${quest.reward}。`
     return
   }

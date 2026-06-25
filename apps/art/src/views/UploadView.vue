@@ -252,9 +252,9 @@
 import { computed, ref, watch } from 'vue'
 import { api } from '../services/api' 
 import { compressToWebP } from '../utils/imageCompressor.js'
-import { useUser } from '../composables/useUser.js'
+import { useSession } from '@haruhi/auth-ui'
 
-const { user } = useUser()
+const session = useSession('/api')
 
 // --- 常量定义 ---
 const NET_LICENSE_OPTIONS = [
@@ -302,9 +302,26 @@ const statusMsg = ref('提交中…')
 
 const uidHintClass = computed(() => uidHint.value.includes('✅') ? 'ok' : (uidHint.value.includes('❌') ? 'bad' : ''))
 
-watch(user, (currentUser) => {
+const sessionUploaderName = computed(() => {
+  const currentUser = session.state.user
+  return currentUser?.nickname || currentUser?.displayName || currentUser?.email || currentUser?.username || ''
+})
+
+function sessionMemberUid(currentUser = session.state.user) {
+  return currentUser?.id ? `u${currentUser.id}` : ''
+}
+
+watch(() => session.state.user, (currentUser) => {
+  if (!currentUser) return
   if (!uploaderName.value.trim()) {
-    uploaderName.value = currentUser?.name || ''
+    uploaderName.value = sessionUploaderName.value
+  }
+
+  if (!uid.value.trim()) {
+    uid.value = sessionMemberUid(currentUser)
+    uidExists.value = Boolean(uid.value)
+    uidHint.value = uid.value ? '已使用当前登录账号身份' : ''
+    uidAvatar.value = currentUser.avatar || ''
   }
 }, { immediate: true })
 
@@ -419,6 +436,11 @@ watch(sourceType, (v) => {
     uidExists.value = false
     netLicenses.value = []
     groupLicenses.value = []
+  } else if (!uid.value.trim()) {
+    uid.value = sessionMemberUid()
+    uidExists.value = Boolean(uid.value)
+    uidHint.value = uid.value ? '已使用当前登录账号身份' : ''
+    uidAvatar.value = session.state.user?.avatar || ''
   }
 })
 
@@ -433,10 +455,11 @@ async function submit(){
   }
 
   if(sourceType.value === 'personal'){
-    const u = uid.value.trim()
+    const u = sessionMemberUid()
     if(!u){ msg.value = '个人作品必须填写唯一ID'; isError.value = true; return }
     if(!uidExists.value){
-      await checkUid()
+      uid.value = u
+      uidExists.value = true
       if(!uidExists.value){
         msg.value = '唯一ID不存在，无法提交个人作品'; isError.value = true;
         return
@@ -466,7 +489,7 @@ async function submit(){
       fd.append('originals', item.file)
     }
 
-    fd.append('uploader_name', uploaderName.value.trim() || user.value?.name || '')
+    fd.append('uploader_name', uploaderName.value.trim() || sessionUploaderName.value)
     fd.append('title', title.value.trim())
     fd.append('description', description.value.trim())
     fd.append('tags', tags.value.join(' '))
@@ -475,7 +498,7 @@ async function submit(){
     fd.append('origin_url', originUrl.value.trim())
 
     if(sourceType.value === 'personal'){
-      fd.append('uploader_uid', uid.value.trim())
+      fd.append('uploader_uid', sessionMemberUid())
       
       const combinedLicenses = [
         ...netLicenses.value.map(x => `NET:${x}`),

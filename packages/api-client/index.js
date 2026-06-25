@@ -1,8 +1,12 @@
-// @haruhi/api-client —— 统一 fetch 封装：自动注入 JWT、统一错误处理。
-// 各 app 用 createApiClient('/api/<module>') 创建模块客户端；
-// 登录/鉴权用 createAuth() 走 /api/auth。
+// @haruhi/api-client —— 统一 fetch 封装。
+// 鉴权已升级为「服务端会话 + httpOnly cookie」：请求一律带 credentials，写操作自动注入 CSRF 头。
+// 仍保留 localStorage Bearer 注入作为迁移期兼容（后端提取器同时认 cookie 与 Bearer）。
+// 各 app 用 createApiClient('/api/<module>') 创建模块客户端；账号相关用 createAuth() 走 /api/auth。
 
 const TOKEN_KEY = 'haruhi_admin_token'
+const CSRF_COOKIE = 'haruhi_csrf'
+// 仅这些方法会改状态，需带 CSRF 双提交头
+const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 export function getToken() {
   try {
@@ -23,6 +27,21 @@ export function setToken(token) {
 
 export function clearToken() {
   setToken('')
+}
+
+/** 读取可读的 CSRF cookie（haruhi_csrf，非 httpOnly），用于回填 X-CSRF-Token。 */
+export function getCsrfToken() {
+  try {
+    const m = document.cookie.match(/(?:^|;\s*)haruhi_csrf=([^;]+)/)
+    return m ? decodeURIComponent(m[1]) : ''
+  } catch {
+    return ''
+  }
+}
+
+/** 是否存在会话 cookie 的迹象（csrf cookie 可读 → 大概率已登录）。供同步路由守卫快速判断。 */
+export function hasSessionCookie() {
+  return !!getCsrfToken()
 }
 
 /**
@@ -51,9 +70,15 @@ export function resolveUploadUrl(path, base = '/uploads') {
  */
 export function createApiClient(base = '/api') {
   async function request(method, path, { body, headers, isForm, signal } = {}) {
-    const opts = { method, headers: { ...(headers || {}) }, signal }
+    // credentials:'include' → 浏览器自动带上 httpOnly 会话 cookie（同源/已配 CORS credentials 的跨域）
+    const opts = { method, headers: { ...(headers || {}) }, signal, credentials: 'include' }
     const token = getToken()
     if (token) opts.headers['Authorization'] = `Bearer ${token}`
+    // 写方法注入 CSRF 双提交头（与 haruhi_csrf cookie 比对）
+    if (UNSAFE_METHODS.has(method)) {
+      const csrf = getCsrfToken()
+      if (csrf) opts.headers['X-CSRF-Token'] = csrf
+    }
     if (body !== undefined && body !== null) {
       if (isForm) {
         opts.body = body // FormData，浏览器自动设置 multipart 边界
@@ -95,25 +120,63 @@ export function createApiClient(base = '/api') {
 }
 
 /**
- * 统一鉴权助手（登录/当前用户/登出）。
+ * 统一账号助手（注册/登录/登出/邮箱验证/找回密码/资料/会话管理）。
+ * 登录态以服务端会话 + cookie 为准；仍存一枚兼容 token 供同步守卫快速判断。
  * @param {string} apiBase 默认 '/api'
  */
 export function createAuth(apiBase = '/api') {
   const api = createApiClient(apiBase)
+  const storeToken = (r) => {
+    if (r && r.token) setToken(r.token)
+    return r && r.user
+  }
   return {
-    async login(username, password) {
-      const r = await api.post('/auth/login', { username, password })
-      setToken(r.token)
-      return r.user
+    // 终端用户注册：{ email, password, nickname? }
+    async register(payload) {
+      return storeToken(await api.post('/auth/register', payload))
     },
-    async me() {
+    // 登录：account 可为邮箱或用户名（兼容旧 login(username, password) 调用）
+    async login(account, password) {
+      return storeToken(await api.post('/auth/login', { account, password }))
+    },
+    me() {
       return api.get('/auth/me')
     },
-    logout() {
+    // 登出：调服务端吊销会话 + 清本地兼容 token
+    async logout() {
+      try {
+        await api.post('/auth/logout')
+      } catch {
+        /* 即便服务端失败也清本地 */
+      }
       clearToken()
     },
+    forgotPassword(email) {
+      return api.post('/auth/forgot-password', { email })
+    },
+    resetPassword(token, password) {
+      return api.post('/auth/reset-password', { token, password })
+    },
+    verifyEmail(token) {
+      return api.post('/auth/verify-email', { token })
+    },
+    resendVerification() {
+      return api.post('/auth/resend-verification')
+    },
+    updateProfile(patch) {
+      return api.patch('/auth/profile', patch)
+    },
+    changePassword(oldPassword, newPassword) {
+      return api.post('/auth/change-password', { oldPassword, newPassword })
+    },
+    listSessions() {
+      return api.get('/auth/sessions')
+    },
+    revokeSession(id) {
+      return api.del(`/auth/sessions/${encodeURIComponent(id)}`)
+    },
     getToken,
-    isLoggedIn: () => !!getToken(),
+    isLoggedIn: () => !!getToken() || hasSessionCookie(),
   }
 }
 
@@ -152,8 +215,8 @@ function decodeJwtPayload(token) {
 }
 
 /**
- * 统一后台管理员鉴权（单点 JWT + 按 app 权限校验）。
- * 把"登录并校验本模块权限 / 会话恢复 / 同步 token 校验 / 登出 / 注入鉴权头"
+ * 统一后台管理员鉴权（会话 cookie 优先；兼容旧 localStorage token）。
+ * 把"登录并校验本模块权限 / 会话恢复 / 同步守卫判断 / 登出 / 注入鉴权头"
  * 收敛到一处——各站只需 createAdminAuth('news')，不必各写一遍 hasXPerm/restore。
  * @param {string} app 模块名：news|art|exam|novel|shop|console
  * @param {string} apiBase 默认 '/api'
@@ -171,8 +234,10 @@ export function createAdminAuth(app, apiBase = '/api') {
     return Object.keys(user.apps).some((k) => k.startsWith(prefix))
   }
 
-  // 同步：本地 token 存在且未过期（供路由守卫快速判断；真正权限由 restore/login 异步校验）
+  // 同步快速判断（供路由守卫先放行，真正权限由 restore/login 异步校验）：
+  // 有会话 cookie 迹象，或本地 token 未过期，都视为「可能已登录」。
   const hasValidToken = () => {
+    if (hasSessionCookie()) return true
     const token = getToken()
     if (!token) return false
     const payload = decodeJwtPayload(token)
@@ -198,7 +263,7 @@ export function createAdminAuth(app, apiBase = '/api') {
     try {
       const user = await auth.login(username, password)
       if (!hasPerm(user)) {
-        clearToken()
+        await auth.logout()
         return { ok: false, error: '该账号无本模块管理权限' }
       }
       return { ok: true, user }
@@ -208,13 +273,12 @@ export function createAdminAuth(app, apiBase = '/api') {
     }
   }
 
-  // 会话恢复：有有效 token 则拉 me() 并校验权限；任何失败都登出并返回 null
+  // 会话恢复：以服务端 me() 为权威（cookie 可能有效即便本地 token 已过期）；失败则登出并返回 null
   const restore = async () => {
-    if (!hasValidToken()) return null
     try {
       const user = await auth.me()
       if (hasPerm(user)) return user
-      clearToken()
+      await auth.logout()
       return null
     } catch {
       clearToken()
@@ -232,6 +296,6 @@ export function createAdminAuth(app, apiBase = '/api') {
     me: () => auth.me(),
     logout: () => auth.logout(),
     getToken,
-    isLoggedIn: () => !!getToken(),
+    isLoggedIn: () => !!getToken() || hasSessionCookie(),
   }
 }

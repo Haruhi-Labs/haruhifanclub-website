@@ -1,4 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import {
+  LoginView,
+  ProfileView,
+  ResetPasswordView,
+  SettingsView,
+  VerifyEmailView,
+  useSession
+} from '@haruhi/auth-ui'
 
 import HomeView from '../views/HomeView.vue'
 import GalleryView from '../views/GalleryView.vue'
@@ -9,6 +17,7 @@ import ExchangeView from '../views/ExchangeView.vue'
 
 const AdminView = () => import('../views/AdminView.vue')
 const LicenseView = () => import('../views/LicenseView.vue')
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -19,22 +28,40 @@ const router = createRouter({
     { path: '/points', name: 'points', component: PointsView },
     { path: '/announcements', name: 'announcements', component: AnnouncementView },
     { path: '/exchange', name: 'exchange', component: ExchangeView },
-    // 新增：授权查询页
     { path: '/license', name: 'license', component: LicenseView },
 
-    // fallback
+    { path: '/login', name: 'login', component: LoginView, props: { title: '应援团画廊', home: '/' }, meta: { public: true } },
+    { path: '/account', name: 'account', component: ProfileView },
+    { path: '/account/settings', name: 'account-settings', component: SettingsView },
+    { path: '/verify-email', name: 'verify-email', component: VerifyEmailView, meta: { public: true } },
+    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView, meta: { public: true } },
+
     { path: '/:pathMatch(.*)*', redirect: '/' }
   ],
   scrollBehavior(to, from, savedPosition) {
-    if (savedPosition) {
-      return savedPosition
-    }
-    // 如果只是 query 变化 (例如打开/关闭详情弹窗)，不重置滚动条
-    if (to.path === from.path) {
-      return false
-    }
+    if (savedPosition) return savedPosition
+    if (to.path === from.path) return false
     return { top: 0 }
   }
+})
+
+const session = useSession('/api')
+
+router.beforeEach(async (to) => {
+  if (to.meta.public) return true
+
+  if (!session.state.ready) {
+    await session.refresh()
+  }
+
+  if (!session.state.user) {
+    return {
+      name: 'login',
+      query: { redirect: to.fullPath }
+    }
+  }
+
+  return true
 })
 
 export default router

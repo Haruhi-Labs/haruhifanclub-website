@@ -1,5 +1,5 @@
 import { seedArtworks, seedComments } from '../mock/seedData.js'
-import { getToken, resolveUploadUrl } from '@haruhi/api-client'
+import { getCsrfToken, getToken, resolveUploadUrl } from '@haruhi/api-client'
 
 // 统一后端约定：
 // - 模块 API 统一前缀 /api/art（旧的 /api/xxx → /api/art/xxx）
@@ -27,6 +27,8 @@ async function request(method, path, { params, body, isForm, headers } = {}) {
   // 统一 JWT：若已登录则自动带上 Bearer token（替换旧的 x-admin-password 头）
   const token = getToken()
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
+  const csrf = method !== 'GET' && method !== 'HEAD' ? getCsrfToken() : ''
+  const csrfHeaders = csrf ? { 'X-CSRF-Token': csrf } : {}
 
   const init = {
     method,
@@ -35,6 +37,7 @@ async function request(method, path, { params, body, isForm, headers } = {}) {
     headers: {
       Accept: 'application/json',
       ...authHeaders,
+      ...csrfHeaders,
       ...(headers || {}),
     },
   }

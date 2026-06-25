@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { thumbUrl } from '../services/api.js'
-import { useUser } from '../composables/useUser.js'
+import { useSession } from '@haruhi/auth-ui'
 // import { useRouter } from 'vue-router' // No longer needed for author navigation
 
 const props = defineProps({
@@ -30,7 +30,7 @@ const emit = defineEmits([
 ])
 
 // const router = useRouter() 
-const { user } = useUser()
+const session = useSession('/api')
 
 const list = computed(() => {
   return props.items ?? props.artworks ?? props.list ?? props.data ?? []
@@ -67,7 +67,7 @@ function displayUploader(item){
   const name = (item?.uploader_name || '').trim()
   if(uid) return uid
   if(name) return name
-  return user.value?.id || user.value?.name || '匿名'
+  return session.state.user?.nickname || session.state.user?.email || '匿名'
 }
 
 function isAuthorClickable(item){
