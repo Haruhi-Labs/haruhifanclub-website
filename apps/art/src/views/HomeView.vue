@@ -372,8 +372,10 @@ let pendingHaruhiBackgroundText = null
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { seedArtworks, seedCreators } from '../mock/seedData'
+import { useUser } from '../composables/useUser.js'
 
 const router = useRouter()
+const { user } = useUser()
 defineOptions({ name: 'HomeView' })
 const VISITOR_KEY = 'haruhi-art-visitor-number'
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -510,7 +512,16 @@ async function loadHaruhiBackgroundText() {
   }
 }
 
-function makeVisitorNumber() {
+function visitorNumberFromUserId(userId) {
+  const match = String(userId || '').match(/\d+/)
+  const parsed = match ? Number(match[0]) : 0
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+}
+
+function makeVisitorNumber(userId = '') {
+  const userVisitorNumber = visitorNumberFromUserId(userId)
+  if (userVisitorNumber) return userVisitorNumber
+
   const fallback = 5200 + seedArtworks.length * 31 + seedCreators.length * 17
 
   if (typeof window === 'undefined') return fallback
@@ -542,7 +553,7 @@ function getSummerCountdown() {
   return Math.max(0, Math.ceil((end.getTime() - nowDate.getTime()) / DAY_MS))
 }
 
-const visitorNumber = makeVisitorNumber()
+const visitorNumber = makeVisitorNumber(user.value?.id)
 const visitorNumberText = visitorNumber.toLocaleString('zh-CN')
 const loopCode = String(15000 + (visitorNumber % 532)).padStart(5, '0')
 

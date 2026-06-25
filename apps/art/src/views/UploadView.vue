@@ -252,6 +252,9 @@
 import { computed, ref, watch } from 'vue'
 import { api } from '../services/api' 
 import { compressToWebP } from '../utils/imageCompressor.js'
+import { useUser } from '../composables/useUser.js'
+
+const { user } = useUser()
 
 // --- 常量定义 ---
 const NET_LICENSE_OPTIONS = [
@@ -298,6 +301,12 @@ const submitting = ref(false)
 const statusMsg = ref('提交中…')
 
 const uidHintClass = computed(() => uidHint.value.includes('✅') ? 'ok' : (uidHint.value.includes('❌') ? 'bad' : ''))
+
+watch(user, (currentUser) => {
+  if (!uploaderName.value.trim()) {
+    uploaderName.value = currentUser?.name || ''
+  }
+}, { immediate: true })
 
 // --- 方法 ---
 
@@ -457,7 +466,7 @@ async function submit(){
       fd.append('originals', item.file)
     }
 
-    fd.append('uploader_name', uploaderName.value.trim())
+    fd.append('uploader_name', uploaderName.value.trim() || user.value?.name || '')
     fd.append('title', title.value.trim())
     fd.append('description', description.value.trim())
     fd.append('tags', tags.value.join(' '))

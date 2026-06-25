@@ -83,7 +83,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useUser } from '../composables/useUser.js'
+
+const { user } = useUser()
 
 const guildState = {
   reputation: 1200,
@@ -103,7 +106,7 @@ const guildState = {
 }
 
 const reputation = ref(guildState.reputation)
-const adventurerNumber = ref('OBS-10981')
+const adventurerNumber = computed(() => makeAdventurerNumber(user.value))
 const feedbackMessage = ref('等待冒险者接取委托。完成委托后，声望会在本地状态中即时增加。')
 const acceptedQuestIds = ref(new Set())
 const completedQuestIds = ref(new Set())
@@ -129,21 +132,11 @@ const questSections = computed(() => [
   }
 ])
 
-onMounted(() => {
-  if (typeof window === 'undefined') return
-
-  const storageKey = 'haruhi-art-guild-adventurer-number'
-  const savedNumber = window.localStorage.getItem(storageKey)
-
-  if (savedNumber) {
-    adventurerNumber.value = savedNumber
-    return
-  }
-
-  const generatedNumber = `OBS-${10000 + Math.floor(Math.random() * 9000)}`
-  adventurerNumber.value = generatedNumber
-  window.localStorage.setItem(storageKey, generatedNumber)
-})
+function makeAdventurerNumber(currentUser) {
+  const userId = currentUser?.id || 'visitor-10981'
+  const match = String(userId).match(/\d+/)
+  return match ? `OBS-${match[0]}` : `OBS-${userId}`
+}
 
 function isLocked(quest) {
   return quest.status === 'locked'

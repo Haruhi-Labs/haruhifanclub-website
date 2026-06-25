@@ -72,10 +72,12 @@ import { useGalleryStore } from '../stores/galleryStore.js'
 import FilterPanel from '../components/FilterPanel.vue'
 import ArtworkGrid from '../components/ArtworkGrid.vue'
 import ArtworkModal from '../components/ArtworkModal.vue'
+import { useUser } from '../composables/useUser.js'
 
 const store = useGalleryStore()
 const route = useRoute()
 const router = useRouter()
+const { user } = useUser()
 
 const modalOpen = ref(false)
 const activeItem = ref(null)
@@ -230,6 +232,8 @@ watch(() => store.list, (list) => {
     const first = list[0]
     if (first && first.uploader_name) {
       activeAuthor.value.name = first.uploader_name
+    } else if (activeAuthor.value.uid === user.value?.id && user.value?.name) {
+      activeAuthor.value.name = user.value.name
     }
   }
 
