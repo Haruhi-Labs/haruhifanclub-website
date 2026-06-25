@@ -17,7 +17,6 @@ import {
   OverviewView as AccountOverviewView,
   MyArtworksView,
   MyArticlesView,
-  MyExamsView,
   MyCommentsView,
   PointsView as AccountPointsView,
 } from '@haruhi/auth-ui'
@@ -27,7 +26,6 @@ const ACCOUNT_SECTIONS = [
   'overview',
   'artworks',
   'articles',
-  'exams',
   'comments',
   'points',
   'profile',
@@ -50,7 +48,6 @@ const router = createRouter({
         { path: '', name: 'account', component: AccountOverviewView },
         { path: 'artworks', name: 'account-artworks', component: MyArtworksView },
         { path: 'articles', name: 'account-articles', component: MyArticlesView },
-        { path: 'exams', name: 'account-exams', component: MyExamsView },
         { path: 'comments', name: 'account-comments', component: MyCommentsView },
         { path: 'points', name: 'account-points', component: AccountPointsView },
         {

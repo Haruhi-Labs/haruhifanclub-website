@@ -2,7 +2,6 @@
 import { computed } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import TheFooter from '@/components/TheFooter.vue';
-import { AccountMenu } from '@haruhi/auth-ui';
 
 const route = useRoute();
 
@@ -34,7 +33,6 @@ const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`;
           <nav class="sos-navlinks">
             <RouterLink to="/create" class="sos-navlink">出题</RouterLink>
           </nav>
-          <AccountMenu />
         </div>
       </div>
     </header>

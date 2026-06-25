@@ -18,7 +18,6 @@ import {
   OverviewView,
   MyArtworksView,
   MyArticlesView,
-  MyExamsView,
   MyCommentsView,
   PointsView,
 } from '@haruhi/auth-ui'
@@ -37,7 +36,6 @@ const accountRoutes = [
         'overview',
         'artworks',
         'articles',
-        'exams',
         'comments',
         'points',
         'profile',
@@ -48,7 +46,6 @@ const accountRoutes = [
       { path: '', name: 'account', component: OverviewView },
       { path: 'artworks', name: 'account-artworks', component: MyArtworksView },
       { path: 'articles', name: 'account-articles', component: MyArticlesView },
-      { path: 'exams', name: 'account-exams', component: MyExamsView },
       { path: 'comments', name: 'account-comments', component: MyCommentsView },
       { path: 'points', name: 'account-points', component: PointsView },
       {

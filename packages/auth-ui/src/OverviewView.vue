@@ -48,13 +48,6 @@ const stats = computed(() => {
       to: `${ctx.basePath}/articles`,
     },
     {
-      key: 'exams',
-      label: '我的考试',
-      value: s.exams?.total ?? 0,
-      sub: '',
-      to: `${ctx.basePath}/exams`,
-    },
-    {
       key: 'comments',
       label: '我的评论',
       value: s.comments ?? 0,

@@ -37,7 +37,6 @@ const allNavItems = [
   { key: 'overview', label: '概览', to: '' },
   { key: 'artworks', label: '我的作品', to: '/artworks' },
   { key: 'articles', label: '我的文章', to: '/articles' },
-  { key: 'exams', label: '我的考试', to: '/exams' },
   { key: 'comments', label: '我的评论', to: '/comments' },
   { key: 'points', label: '积分与兑换', to: '/points' },
   { key: 'profile', label: '资料', to: '/profile' },

@@ -47,11 +47,6 @@ export function useUserHub(apiBase = '/api') {
       redeem: (id) => api.post(`/news/prizes/${id}/redeem`, {}),
     },
 
-    // 考场（exam）
-    exam: {
-      exams: () => api.get('/exam/me/exams'),
-      deleteExam: (id) => api.del(`/exam/me/exams/${id}`),
-      claim: (editToken) => api.post('/exam/claim', { editToken }),
-    },
+    // 注：exam（试卷站）已从用户系统剥离，不在此聚合。
   }
 }

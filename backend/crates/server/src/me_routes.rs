@@ -1,4 +1,5 @@
-//! 跨模块个人总览：聚合当前登录用户在各业务库（art/news/exam）的内容与积分概况。
+//! 跨模块个人总览：聚合当前登录用户在各业务库（art/news）的内容与积分概况。
+//! （exam 试卷站已从用户系统剥离，不纳入。）
 //! 跨库无法 JOIN，这里在应用层分别查询各 pool 后于 server 层合并，供个人控制台概览页使用。
 
 use axum::extract::State;
@@ -33,7 +34,7 @@ fn tally(rows: &[(Option<String>, i64)], published_key: &str) -> Value {
     json!({ "total": total, "published": published, "pending": pending, "hidden": hidden })
 }
 
-/// GET /api/me/summary —— 个人控制台概览：跨 art/news/exam 聚合本人内容计数与两套积分余额。
+/// GET /api/me/summary —— 个人控制台概览：跨 art/news 聚合本人内容计数与两套积分余额。
 async fn summary(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     let uid = crate::auth_routes::member_uid(user.id);
 
@@ -75,19 +76,13 @@ async fn summary(State(state): State<AppState>, user: AuthUser) -> AppResult<Jso
             .fetch_one(&state.pools.news)
             .await?;
 
-    // ---- exam：试卷按状态 ----
-    let exam_status: Vec<(Option<String>, i64)> =
-        sqlx::query_as("SELECT status, COUNT(*) FROM exams WHERE author_user_id = ? GROUP BY status")
-            .bind(user.id)
-            .fetch_all(&state.pools.exam)
-            .await?;
+    // 注：exam（试卷站）已从用户系统剥离，不纳入个人总览。
 
     Ok(Json(json!({
         "ok": true,
         "artworks": tally(&art_status, "approved"),
         "comments": art_comments,
         "articles": tally(&news_status, "published"),
-        "exams": tally(&exam_status, "published"),
         "points": { "art": art_points, "news": news_points },
         "redemptions": news_redemptions,
     })))
