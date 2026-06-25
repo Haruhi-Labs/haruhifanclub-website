@@ -202,20 +202,51 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
   color: #073b4c;
 }
 
+.account-entry :deep(.hauth-root) {
+  --hauth-accent: #f43f5e;
+  --hauth-accent-hover: #e11d48;
+  --hauth-bg: rgba(255, 255, 255, 0.92);
+  --hauth-field-bg: rgba(248, 250, 252, 0.9);
+  --hauth-border: rgba(255, 255, 255, 0.55);
+  --hauth-fg: #073b4c;
+  --hauth-muted: rgba(7, 59, 76, 0.62);
+}
+
 .account-entry :deep(.hauth-btn--sm),
 .account-entry :deep(.hauth-trigger) {
-  min-height: 36px;
-  border: 1px solid rgba(255, 255, 255, 0.44);
-  background: rgba(255, 255, 255, 0.42);
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.34)),
+    linear-gradient(135deg, rgba(244, 63, 94, 0.12), rgba(103, 232, 249, 0.16));
   color: #073b4c;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.58);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+}
+
+.account-entry :deep(.hauth-trigger:hover),
+.account-entry :deep(.hauth-trigger[aria-expanded="true"]),
+.account-entry :deep(.hauth-btn--sm:hover) {
+  border-color: rgba(255, 255, 255, 0.78);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.42)),
+    linear-gradient(135deg, rgba(244, 63, 94, 0.18), rgba(103, 232, 249, 0.22));
+}
+
+.account-entry :deep(.hauth-avatar) {
+  width: 32px;
+  height: 32px;
 }
 
 .account-entry :deep(.hauth-dropdown) {
   right: 0;
   left: auto;
+  color: #073b4c;
+  border-color: rgba(255, 255, 255, 0.7);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(242, 251, 255, 0.9)),
+    radial-gradient(circle at top right, rgba(103, 232, 249, 0.2), transparent 42%);
 }
 
 /* =========================================
@@ -269,8 +300,13 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
     padding: 7px 11px;
   }
 
-  .account-entry :deep(.hauth-trigger-name) {
+  .account-entry :deep(.hauth-trigger-main),
+  .account-entry :deep(.hauth-trigger-caret) {
     display: none;
+  }
+
+  .account-entry :deep(.hauth-trigger) {
+    padding: 4px 5px;
   }
 }
 

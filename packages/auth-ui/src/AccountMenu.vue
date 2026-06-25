@@ -17,7 +17,23 @@ const router = useRouter()
 
 const open = ref(false)
 const user = computed(() => session.state.user)
-const initial = computed(() => (user.value?.nickname || user.value?.email || 'U').slice(0, 1).toUpperCase())
+const displayName = computed(() => {
+  const currentUser = user.value
+  return currentUser?.nickname || currentUser?.displayName || currentUser?.username || currentUser?.email || '未命名'
+})
+const secondaryLabel = computed(() => {
+  const currentUser = user.value
+  if (!currentUser) return ''
+  if (currentUser.email) return currentUser.email
+  return currentUser.isSuperAdmin ? '超级管理员' : '画廊成员'
+})
+const roleLabel = computed(() => {
+  const currentUser = user.value
+  if (!currentUser) return ''
+  if (currentUser.isSuperAdmin) return '超管'
+  return currentUser.emailVerified === false ? '待验证' : '成员'
+})
+const initial = computed(() => displayName.value.slice(0, 1).toUpperCase())
 
 onMounted(() => {
   if (!session.state.ready) session.refresh()
@@ -48,15 +64,31 @@ async function logout() {
     <!-- 已登录 -->
     <template v-else>
       <button class="hauth-trigger" @click="open = !open" aria-haspopup="true" :aria-expanded="open">
-        <img v-if="user.avatar" :src="user.avatar" class="hauth-avatar" alt="" />
-        <span v-else class="hauth-avatar">{{ initial }}</span>
-        <span class="hauth-trigger-name">{{ user.nickname || user.email }}</span>
+        <span class="hauth-avatar-wrap">
+          <img v-if="user.avatar" :src="user.avatar" class="hauth-avatar" alt="" />
+          <span v-else class="hauth-avatar">{{ initial }}</span>
+          <span class="hauth-presence" aria-hidden="true"></span>
+        </span>
+        <span class="hauth-trigger-main">
+          <span class="hauth-trigger-name">{{ displayName }}</span>
+          <span class="hauth-trigger-meta">{{ roleLabel }}</span>
+        </span>
+        <span class="hauth-trigger-caret" aria-hidden="true"></span>
       </button>
       <div v-if="open" class="hauth-dropdown">
         <div class="hauth-dropdown-head">
-          <div class="hauth-dropdown-name">{{ user.nickname || '未命名' }}</div>
-          <div class="hauth-dropdown-mail">{{ user.email || user.username }}</div>
-          <span v-if="!user.emailVerified" class="hauth-badge hauth-badge--warn" style="margin-top:6px">邮箱未验证</span>
+          <div class="hauth-dropdown-profile">
+            <span class="hauth-avatar-wrap">
+              <img v-if="user.avatar" :src="user.avatar" class="hauth-avatar" alt="" />
+              <span v-else class="hauth-avatar">{{ initial }}</span>
+            </span>
+            <div class="hauth-dropdown-copy">
+              <div class="hauth-dropdown-name">{{ displayName }}</div>
+              <div class="hauth-dropdown-mail">{{ secondaryLabel }}</div>
+            </div>
+          </div>
+          <span v-if="user.isSuperAdmin" class="hauth-badge hauth-badge--ok">超级管理员</span>
+          <span v-if="user.emailVerified === false" class="hauth-badge hauth-badge--warn" style="margin-top:6px">邮箱未验证</span>
         </div>
         <router-link class="hauth-item" :to="profilePath" @click="open = false">个人资料</router-link>
         <router-link class="hauth-item" :to="settingsPath" @click="open = false">账号设置</router-link>
