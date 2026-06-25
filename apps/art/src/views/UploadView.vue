@@ -99,9 +99,9 @@
           <transition name="fade-slide">
             <div v-if="sourceType==='network'" class="conditional-block">
               <div class="form-group" style="margin-bottom: 24px;">
-                <label class="form-label">上传者显示名 <span class="req">*</span></label>
-                <input class="form-input" v-model="uploaderName" placeholder="请填写可追溯的昵称、平台账号或来源名称" />
-                <p class="form-hint warning">网络转载与其他来源必须填写可追溯身份，禁止匿名上传。</p>
+                <label class="form-label">上传账号昵称 <span class="req">*</span></label>
+                <input class="form-input" :value="sessionUploaderName" placeholder="当前账号昵称加载中" readonly />
+                <p class="form-hint warning">网络转载与其他来源将强制使用当前登录账号昵称，禁止手动伪造来源身份。</p>
               </div>
 
               <div class="form-group">
@@ -304,7 +304,8 @@ const uidHintClass = computed(() => uidHint.value.includes('✅') ? 'ok' : (uidH
 
 const sessionUploaderName = computed(() => {
   const currentUser = session.state.user
-  return currentUser?.nickname || currentUser?.displayName || currentUser?.email || currentUser?.username || ''
+  if (!currentUser) return ''
+  return currentUser.nickname || currentUser.displayName || currentUser.username || currentUser.email || (currentUser.id ? `用户${currentUser.id}` : '')
 })
 
 function sessionMemberUid(currentUser = session.state.user) {
@@ -454,6 +455,13 @@ async function submit(){
     return
   }
 
+  const accountUploaderName = sessionUploaderName.value.trim()
+  if(!accountUploaderName){
+    msg.value = '请先登录或完善当前账号昵称后再上传'
+    isError.value = true
+    return
+  }
+
   if(sourceType.value === 'personal'){
     const u = sessionMemberUid()
     if(!u){ msg.value = '个人作品必须填写唯一ID'; isError.value = true; return }
@@ -465,10 +473,6 @@ async function submit(){
         return
       }
     }
-  }else if(!uploaderName.value.trim()){
-    msg.value = '网络转载与其他来源必须填写上传者显示名，便于后续溯源'
-    isError.value = true
-    return
   }
 
   submitting.value = true
@@ -493,7 +497,7 @@ async function submit(){
       fd.append('originals', item.file)
     }
 
-    fd.append('uploader_name', sourceType.value === 'network' ? uploaderName.value.trim() : (uploaderName.value.trim() || sessionUploaderName.value))
+    fd.append('uploader_name', accountUploaderName)
     fd.append('title', title.value.trim())
     fd.append('description', description.value.trim())
     fd.append('tags', tags.value.join(' '))
@@ -713,6 +717,12 @@ async function submit(){
 
 .form-input:hover, .form-textarea:hover {
   background: rgba(255, 255, 255, 0.9);
+}
+
+.form-input[readonly] {
+  cursor: default;
+  background: rgba(241, 245, 249, 0.82);
+  color: var(--text-main);
 }
 
 .form-input:focus, .form-textarea:focus {
