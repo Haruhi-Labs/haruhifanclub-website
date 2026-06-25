@@ -14,16 +14,33 @@ import {
   SettingsView,
   VerifyEmailView,
   ResetPasswordView,
+  UserConsoleLayout,
+  OverviewView,
 } from '@haruhi/auth-ui'
 
+// 个人控制台：/account 为带侧边导航的「个人空间」外壳，子页嵌套渲染。
+// sections 控制导航显示的分区（随子页接入逐步扩展）。
 const accountRoutes = [
   { path: '/login', name: 'login', component: LoginView, props: { site: 'news' } },
-  { path: '/account', name: 'account', component: ProfileView, props: { site: 'news' } },
   {
-    path: '/account/settings',
-    name: 'account-settings',
-    component: SettingsView,
-    props: { site: 'news' },
+    path: '/account',
+    component: UserConsoleLayout,
+    props: { site: 'news', basePath: '/account', sections: ['overview', 'profile', 'settings'] },
+    children: [
+      { path: '', name: 'account', component: OverviewView },
+      {
+        path: 'profile',
+        name: 'account-profile',
+        component: ProfileView,
+        props: { site: 'news' },
+      },
+      {
+        path: 'settings',
+        name: 'account-settings',
+        component: SettingsView,
+        props: { site: 'news' },
+      },
+    ],
   },
   {
     path: '/verify-email',
