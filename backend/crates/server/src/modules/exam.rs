@@ -37,6 +37,9 @@ pub fn router() -> Router<AppState> {
         // ---- 试卷（公开 + edit_token）----
         .route("/exams", get(list_exams).post(create_exam))
         .route("/claim", post(claim_exam))
+        // ---- 个人中心（需登录，按 author_user_id 归属本人）----
+        .route("/me/exams", get(my_exams))
+        .route("/me/exams/{id}", delete(delete_my_exam))
         // import 必须在 /exams/{id} 之前注册（与旧注释一致；axum 静态段优先，仍保留次序）
         .route("/exams/import", post(import_exam))
         .route("/exams/{id}", get(get_exam).put(update_exam))
@@ -668,6 +671,65 @@ async fn claim_exam(
     .await?
     .rows_affected();
     Ok(Json(json!({ "ok": true, "claimed": n })))
+}
+
+// ============================================================
+// 个人中心（需登录；按 author_user_id 归属本人）
+// ============================================================
+
+/// GET /api/exam/me/exams —— 我创建的试卷（含全状态 + edit_token 供编辑跳转）。
+async fn my_exams(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+    let rows: Vec<(
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<i64>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT id, title, subtitle, status, CAST(visit_count AS INTEGER) AS visit_count, created_at, edit_token \
+         FROM exams WHERE author_user_id = ? ORDER BY created_at DESC LIMIT 200",
+    )
+    .bind(user.id)
+    .fetch_all(&state.pools.exam)
+    .await?;
+    let data: Vec<Value> = rows
+        .into_iter()
+        .map(
+            |(id, title, subtitle, status, visit_count, created_at, edit_token)| {
+                json!({
+                    "id": id, "title": title, "subtitle": subtitle, "status": status,
+                    "visit_count": visit_count.unwrap_or(0), "created_at": created_at,
+                    "editToken": edit_token,
+                })
+            },
+        )
+        .collect();
+    Ok(Json(json!({ "data": data })))
+}
+
+/// DELETE /api/exam/me/exams/{id} —— 作者本人下架试卷（软删为 hidden，保留数据与文件）。
+async fn delete_my_exam(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+) -> AppResult<Response> {
+    let affected =
+        sqlx::query("UPDATE exams SET status='hidden' WHERE id = ? AND author_user_id = ?")
+            .bind(&id)
+            .bind(user.id)
+            .execute(&state.pools.exam)
+            .await?
+            .rows_affected();
+    if affected == 0 {
+        return Ok((
+            StatusCode::FORBIDDEN,
+            Json(json!({ "error": "无权操作或试卷不存在" })),
+        )
+            .into_response());
+    }
+    Ok(Json(json!({ "success": true, "status": "hidden" })).into_response())
 }
 
 // POST /exams/import（导入：必须登录 + 邮箱已验证）
