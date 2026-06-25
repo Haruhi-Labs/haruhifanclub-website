@@ -423,6 +423,20 @@
   gap: var(--sos-space-2);
   flex-shrink: 0;
 }
+.huc__toolbar-spacer {
+  flex: 1;
+}
+
+/* 作品网格单元：卡片 + 操作条 */
+.huc-art-cell {
+  display: grid;
+  gap: var(--sos-space-2);
+}
+.huc-art-cell__actions {
+  display: flex;
+  gap: var(--sos-space-2);
+  justify-content: flex-end;
+}
 
 /* 窄屏：侧边导航转为顶部横向滚动 */
 @media (max-width: 48rem) {

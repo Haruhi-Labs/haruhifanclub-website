@@ -16,6 +16,7 @@ import {
   ResetPasswordView,
   UserConsoleLayout,
   OverviewView,
+  MyArtworksView,
 } from '@haruhi/auth-ui'
 
 // 个人控制台：/account 为带侧边导航的「个人空间」外壳，子页嵌套渲染。
@@ -25,9 +26,14 @@ const accountRoutes = [
   {
     path: '/account',
     component: UserConsoleLayout,
-    props: { site: 'news', basePath: '/account', sections: ['overview', 'profile', 'settings'] },
+    props: {
+      site: 'news',
+      basePath: '/account',
+      sections: ['overview', 'artworks', 'profile', 'settings'],
+    },
     children: [
       { path: '', name: 'account', component: OverviewView },
+      { path: 'artworks', name: 'account-artworks', component: MyArtworksView },
       {
         path: 'profile',
         name: 'account-profile',

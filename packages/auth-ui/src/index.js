@@ -15,3 +15,4 @@ export { default as AccountMenu } from './AccountMenu.vue'
 // 个人控制台（带侧边导航的「个人空间」外壳 + 各子页）
 export { default as UserConsoleLayout } from './UserConsoleLayout.vue'
 export { default as OverviewView } from './OverviewView.vue'
+export { default as MyArtworksView } from './MyArtworksView.vue'
