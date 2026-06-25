@@ -1136,28 +1136,26 @@ async function submit(){
   .container-card {
     width: min(1480px, calc(100vw - 32px));
     max-width: none;
-    padding-left: clamp(98px, 12vw, 178px);
     padding-bottom: 28px;
   }
 
   .page-header {
     align-items: center;
     margin-bottom: 14px;
-    padding: 0 8px 0 0;
+    padding: 0 8px 0 clamp(82px, 7vw, 118px);
   }
 
   .header-decoration {
     position: absolute;
-    left: clamp(10px, 1.4vw, 24px);
-    top: clamp(86px, 10dvh, 126px);
-    bottom: 22px;
+    left: clamp(10px, 1.2vw, 18px);
+    top: clamp(2px, 0.8dvh, 10px);
     z-index: 1;
     display: flex;
-    width: clamp(86px, 10vw, 150px);
-    align-items: center;
+    width: clamp(62px, 6vw, 96px);
+    align-items: flex-start;
     justify-content: center;
     pointer-events: none;
-    opacity: 0.92;
+    opacity: 0.9;
   }
 
   .header-text,
@@ -1173,16 +1171,16 @@ async function submit(){
   .header-decoration .deco-img {
     width: 100%;
     height: auto;
-    max-height: min(68dvh, 560px);
+    max-height: clamp(76px, 9dvh, 118px);
     object-fit: contain;
     filter:
-      drop-shadow(0 18px 24px rgba(15, 23, 42, 0.14))
-      drop-shadow(0 0 18px rgba(20, 184, 166, 0.16));
-    transform: none;
+      drop-shadow(0 10px 14px rgba(15, 23, 42, 0.14))
+      drop-shadow(0 0 10px rgba(20, 184, 166, 0.12));
+    transform: rotate(-4deg);
   }
 
   .header-decoration:hover .deco-img {
-    transform: none;
+    transform: translateY(-2px) rotate(-2deg) scale(1.02);
   }
 
   .main-form {
@@ -1509,11 +1507,11 @@ async function submit(){
 @media (min-width: 1120px) and (max-height: 760px) {
   .container-card {
     height: calc(100dvh - 82px);
-    padding-left: clamp(86px, 10vw, 140px);
   }
 
   .page-header {
     margin-bottom: 6px;
+    padding-left: clamp(70px, 6vw, 92px);
   }
 
   .main-title {
@@ -1521,7 +1519,7 @@ async function submit(){
   }
 
   .header-decoration .deco-img {
-    max-height: min(64dvh, 440px);
+    max-height: clamp(58px, 8dvh, 82px);
   }
 
   .main-form {
