@@ -55,6 +55,11 @@ export interface Auth {
   deletePasskey(id: number): Promise<unknown>
   renamePasskey(id: number, name: string): Promise<unknown>
   loginPasskey(opts?: { conditional?: boolean; signal?: AbortSignal }): Promise<CurrentUser>
+  // 两步验证（2FA / TOTP）
+  login2fa(pendingToken: string, code: string, backup?: boolean): Promise<CurrentUser>
+  setup2fa(): Promise<{ otpauthUri: string; secret: string; backupCodes: string[] }>
+  enable2fa(code: string): Promise<unknown>
+  disable2fa(password: string): Promise<unknown>
 }
 
 export interface LoginResult {

@@ -16,3 +16,4 @@ pub mod ratelimit;
 pub mod routes;
 pub mod seed;
 pub mod state;
+pub mod totp_routes;

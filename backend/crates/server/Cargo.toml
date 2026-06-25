@@ -39,6 +39,8 @@ webauthn-rs = { version = "=0.5.4", features = [
     "danger-allow-state-serialisation",
     "conditional-ui",
 ] }
+# 2FA / TOTP：生成密钥与 otpauth URI、校验动态码（不启用 qr feature，二维码交前端渲染）
+totp-rs = { version = "5", features = ["otpauth", "gen_secret"] }
 
 [dev-dependencies]
 # 集成测试：tower oneshot 打路由、http-body-util 读响应体、tempfile 建临时数据目录

@@ -44,7 +44,17 @@ export function useSession(apiBase = '/api') {
   }
 
   async function login(account, password) {
-    state.user = await a.login(account, password)
+    const r = await a.login(account, password)
+    // 需要两步验证：不写登录态，原样返回供 UI 跳二次验证
+    if (r && r.twoFactorRequired) return r
+    state.user = r
+    state.ready = true
+    return r
+  }
+
+  // 两步验证二次校验：成功写回登录态
+  async function login2fa(pendingToken, code, backup = false) {
+    state.user = await a.login2fa(pendingToken, code, backup)
     state.ready = true
     return state.user
   }
@@ -82,6 +92,7 @@ export function useSession(apiBase = '/api') {
     isSuperAdmin,
     refresh,
     login,
+    login2fa,
     register,
     logout,
     updateProfile,
@@ -101,5 +112,9 @@ export function useSession(apiBase = '/api') {
     addPasskey: (name) => a.addPasskey(name),
     deletePasskey: (id) => a.deletePasskey(id),
     renamePasskey: (id, name) => a.renamePasskey(id, name),
+    // 两步验证管理
+    setup2fa: () => a.setup2fa(),
+    enable2fa: (code) => a.enable2fa(code),
+    disable2fa: (password) => a.disable2fa(password),
   }
 }

@@ -285,6 +285,22 @@ async fn login(
         return Err(AppError::Unauthorized);
     }
     state.login_limiter.reset(&ip);
+
+    // 两步验证：若该账号已启用 TOTP，则先不发会话，返回短期待验令牌，前端跳二次验证。
+    let totp_enabled: Option<bool> =
+        sqlx::query_scalar("SELECT enabled FROM user_totp WHERE user_id = ?")
+            .bind(id)
+            .fetch_optional(&state.pools.core)
+            .await?;
+    if totp_enabled.unwrap_or(false) {
+        let pending = issue_user_token(&state.pools.core, id, "2fa_pending", 300).await?;
+        audit(&state, Some(id), "auth", "login_2fa_required", account).await;
+        return Ok((
+            HeaderMap::new(),
+            Json(json!({ "twoFactorRequired": true, "pendingToken": pending })),
+        ));
+    }
+
     audit(&state, Some(id), "auth", "login", account).await;
     login_response(&state, &headers, id, is_super).await
 }
@@ -618,6 +634,18 @@ async fn load_profile(state: &AppState, user_id: i64) -> AppResult<Value> {
             .collect(),
     );
 
+    // 账号安全态：是否启用两步验证、是否已有通行密钥（供设置页与守卫判断）。
+    let totp_enabled: Option<bool> =
+        sqlx::query_scalar("SELECT enabled FROM user_totp WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_optional(&state.pools.core)
+            .await?;
+    let passkey_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM user_passkeys WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_one(&state.pools.core)
+            .await?;
+
     Ok(json!({
         "id": user_id,
         "username": username,
@@ -629,6 +657,8 @@ async fn load_profile(state: &AppState, user_id: i64) -> AppResult<Value> {
         "emailVerified": email_verified,
         "isSuperAdmin": is_super,
         "apps": apps,
+        "twoFactorEnabled": totp_enabled.unwrap_or(false),
+        "hasPasskey": passkey_count > 0,
     }))
 }
 

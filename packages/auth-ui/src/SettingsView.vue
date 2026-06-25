@@ -12,6 +12,7 @@ import {
   SosEyebrow,
   SosTitle,
 } from '@haruhi/ui'
+import QRCode from 'qrcode'
 import { useSession } from './useSession.js'
 import './auth.css'
 
@@ -103,6 +104,77 @@ async function removePasskey(id) {
     await loadPasskeys()
   } catch (e) {
     pkError.value = e?.message || '删除失败'
+  }
+}
+
+// 两步验证（2FA / TOTP）
+const tfaEnabled = computed(() => !!session.state.user?.twoFactorEnabled)
+const tfa = reactive({
+  step: 'idle', // idle | setup
+  uri: '',
+  secret: '',
+  qr: '',
+  backupCodes: [],
+  code: '',
+  busy: false,
+  error: '',
+  ok: '',
+})
+
+async function start2fa() {
+  tfa.error = ''
+  tfa.ok = ''
+  tfa.busy = true
+  try {
+    const r = await session.setup2fa()
+    tfa.uri = r.otpauthUri
+    tfa.secret = r.secret
+    tfa.backupCodes = r.backupCodes || []
+    tfa.qr = await QRCode.toDataURL(r.otpauthUri, { margin: 1, width: 200 })
+    tfa.code = ''
+    tfa.step = 'setup'
+  } catch (e) {
+    tfa.error = e?.message || '无法开始设置'
+  } finally {
+    tfa.busy = false
+  }
+}
+
+async function confirm2fa() {
+  tfa.error = ''
+  tfa.busy = true
+  try {
+    await session.enable2fa(tfa.code.trim())
+    await session.refresh()
+    tfa.step = 'idle'
+    tfa.ok = '两步验证已启用。'
+    tfa.uri = tfa.secret = tfa.qr = ''
+    tfa.backupCodes = []
+  } catch (e) {
+    tfa.error = e?.message || '验证码不正确'
+  } finally {
+    tfa.busy = false
+  }
+}
+
+function cancel2faSetup() {
+  tfa.step = 'idle'
+  tfa.error = ''
+  tfa.uri = tfa.secret = tfa.qr = ''
+  tfa.backupCodes = []
+}
+
+async function disable2fa() {
+  tfa.error = ''
+  tfa.ok = ''
+  const password = window.prompt('停用两步验证需验证当前密码：')
+  if (password == null || !password) return
+  try {
+    await session.disable2fa(password)
+    await session.refresh()
+    tfa.ok = '两步验证已停用。'
+  } catch (e) {
+    tfa.error = e?.status === 401 ? '密码不正确' : e?.message || '停用失败'
   }
 }
 
@@ -253,6 +325,76 @@ function shortUa(ua) {
         </div>
         <div style="margin-top: var(--sos-space-5)">
           <SosButton :loading="pkBusy" @click="addPasskey">＋ 添加通行密钥</SosButton>
+        </div>
+      </SosCard>
+
+      <!-- 两步验证 -->
+      <SosCard as="section">
+        <div class="sos-cluster">
+          <div class="sos-stack sos-stack--tight">
+            <SosTitle as="h2" style="font-size: var(--sos-text-lg)">两步验证</SosTitle>
+            <p class="sos-copy sos-copy--small">
+              登录时除密码外再输入验证器动态码，显著提升账号安全。
+            </p>
+          </div>
+          <SosBadge v-if="tfaEnabled" variant="success">已启用</SosBadge>
+        </div>
+
+        <SosNotice v-if="tfa.error" tone="danger" style="margin-top: var(--sos-space-4)">
+          {{ tfa.error }}
+        </SosNotice>
+        <SosNotice v-if="tfa.ok" tone="success" style="margin-top: var(--sos-space-4)">
+          {{ tfa.ok }}
+        </SosNotice>
+
+        <!-- 已启用：停用 -->
+        <div v-if="tfaEnabled" style="margin-top: var(--sos-space-4)">
+          <SosButton variant="danger" @click="disable2fa">停用两步验证</SosButton>
+        </div>
+
+        <!-- 未启用 + 未进入向导：启用入口 -->
+        <div v-else-if="tfa.step === 'idle'" style="margin-top: var(--sos-space-4)">
+          <SosButton :loading="tfa.busy" @click="start2fa">启用两步验证</SosButton>
+        </div>
+
+        <!-- 设置向导 -->
+        <div v-else class="sos-stack" style="margin-top: var(--sos-space-5)">
+          <div>
+            <p class="sos-copy sos-copy--small" style="margin-bottom: var(--sos-space-2)">
+              1. 用验证器 App（如 1Password / Google Authenticator）扫描二维码：
+            </p>
+            <img
+              v-if="tfa.qr"
+              :src="tfa.qr"
+              alt="两步验证二维码"
+              width="180"
+              height="180"
+              style="border: 1px solid var(--sos-border-subtle); border-radius: var(--sos-radius-md)"
+            />
+            <p class="sos-copy sos-copy--small" style="margin-top: var(--sos-space-2)">
+              无法扫描？手动输入密钥：<code>{{ tfa.secret }}</code>
+            </p>
+          </div>
+
+          <div>
+            <p class="sos-copy sos-copy--small" style="margin-bottom: var(--sos-space-2)">
+              2. 妥善保存备用恢复码（验证器丢失时可用，每个仅一次）：
+            </p>
+            <div class="hauth-backup-codes">
+              <code v-for="c in tfa.backupCodes" :key="c">{{ c }}</code>
+            </div>
+          </div>
+
+          <form class="sos-stack sos-stack--tight" @submit.prevent="confirm2fa">
+            <p class="sos-copy sos-copy--small">3. 输入验证器当前的 6 位动态码以完成启用：</p>
+            <SosField label="动态验证码">
+              <SosInput v-model="tfa.code" inputmode="numeric" autocomplete="one-time-code" required />
+            </SosField>
+            <div class="sos-inline">
+              <SosButton type="submit" :loading="tfa.busy">确认启用</SosButton>
+              <SosButton variant="ghost" type="button" @click="cancel2faSetup">取消</SosButton>
+            </div>
+          </form>
         </div>
       </SosCard>
 

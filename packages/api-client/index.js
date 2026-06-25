@@ -137,9 +137,29 @@ export function createAuth(apiBase = '/api') {
     async register(payload) {
       return storeToken(await api.post('/auth/register', payload))
     },
-    // 登录：account 可为邮箱或用户名（兼容旧 login(username, password) 调用）
+    // 登录：account 可为邮箱或用户名（兼容旧 login(username, password) 调用）。
+    // 若账号启用了两步验证，后端返回 { twoFactorRequired, pendingToken }，此时原样返回，
+    // 由调用方跳转二次验证；否则返回 CurrentUser。
     async login(account, password) {
-      return storeToken(await api.post('/auth/login', { account, password }))
+      const r = await api.post('/auth/login', { account, password })
+      if (r && r.twoFactorRequired) {
+        return { twoFactorRequired: true, pendingToken: r.pendingToken }
+      }
+      return storeToken(r)
+    },
+    // 两步验证二次校验（凭 pendingToken）：成功返回 CurrentUser
+    async login2fa(pendingToken, code, backup = false) {
+      return storeToken(await api.post('/auth/2fa/login', { pendingToken, code, backup }))
+    },
+    // 2FA 管理（需登录）
+    setup2fa() {
+      return api.post('/auth/2fa/setup')
+    },
+    enable2fa(code) {
+      return api.post('/auth/2fa/enable', { code })
+    },
+    disable2fa(password) {
+      return api.post('/auth/2fa/disable', { password })
     },
     me() {
       return api.get('/auth/me')
