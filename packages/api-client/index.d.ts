@@ -34,12 +34,27 @@ export interface CurrentUser {
   apps: Record<string, AppRole>
 }
 
+export interface Passkey {
+  id: number
+  name: string | null
+  createdAt: string
+  lastUsedAt: string | null
+}
+
 export interface Auth {
   login(username: string, password: string): Promise<CurrentUser>
   me(): Promise<CurrentUser>
   logout(): void
   getToken(): string
   isLoggedIn(): boolean
+  // 通行密钥（Passkey / WebAuthn）
+  isPasskeySupported(): boolean
+  isConditionalUiAvailable(): Promise<boolean>
+  listPasskeys(): Promise<{ passkeys: Passkey[] }>
+  addPasskey(name?: string): Promise<unknown>
+  deletePasskey(id: number): Promise<unknown>
+  renamePasskey(id: number, name: string): Promise<unknown>
+  loginPasskey(opts?: { conditional?: boolean; signal?: AbortSignal }): Promise<CurrentUser>
 }
 
 export interface LoginResult {

@@ -3,6 +3,8 @@
 // 仍保留 localStorage Bearer 注入作为迁移期兼容（后端提取器同时认 cookie 与 Bearer）。
 // 各 app 用 createApiClient('/api/<module>') 创建模块客户端；账号相关用 createAuth() 走 /api/auth。
 
+import { createCredential, getCredential, isPasskeySupported, isConditionalUiAvailable } from './webauthn.js'
+
 const TOKEN_KEY = 'haruhi_admin_token'
 const CSRF_COOKIE = 'haruhi_csrf'
 // 仅这些方法会改状态，需带 CSRF 双提交头
@@ -175,6 +177,36 @@ export function createAuth(apiBase = '/api') {
     revokeSession(id) {
       return api.del(`/auth/sessions/${encodeURIComponent(id)}`)
     },
+
+    // ---------- 通行密钥（Passkey / WebAuthn） ----------
+    isPasskeySupported,
+    isConditionalUiAvailable,
+    listPasskeys() {
+      return api.get('/auth/passkeys')
+    },
+    deletePasskey(id) {
+      return api.del(`/auth/passkeys/${encodeURIComponent(id)}`)
+    },
+    renamePasskey(id, name) {
+      return api.patch(`/auth/passkeys/${encodeURIComponent(id)}`, { name })
+    },
+    // 注册一把新通行密钥（需已登录）：start → 系统验证器 → finish
+    async addPasskey(name) {
+      const { flowId, options } = await api.post('/auth/passkey/register/start')
+      const credential = await createCredential(options.publicKey)
+      return api.post('/auth/passkey/register/finish', {
+        flowId,
+        name: name || undefined,
+        credential,
+      })
+    },
+    // 用通行密钥登录（无用户名 / discoverable）。conditional=true 走条件式自动填充。
+    async loginPasskey({ conditional = false, signal } = {}) {
+      const { flowId, options } = await api.post('/auth/passkey/login/start')
+      const credential = await getCredential(options.publicKey, { conditional, signal })
+      return storeToken(await api.post('/auth/passkey/login/finish', { flowId, credential }))
+    },
+
     getToken,
     isLoggedIn: () => !!getToken() || hasSessionCookie(),
   }

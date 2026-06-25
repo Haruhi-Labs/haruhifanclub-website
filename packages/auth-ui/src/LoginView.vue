@@ -1,7 +1,7 @@
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { SosCard, SosField, SosInput, SosButton, SosNotice, SosTabs } from '@haruhi/ui'
+import { SosCard, SosField, SosInput, SosButton, SosNotice, SosTabs, SosDivider } from '@haruhi/ui'
 import { useSession } from './useSession.js'
 import './auth.css'
 
@@ -23,6 +23,11 @@ const loading = ref(false)
 const error = ref('')
 const okMsg = ref('')
 const showPw = ref(false)
+
+// 通行密钥（Passkey）
+const supportsPasskey = ref(false)
+const passkeyLoading = ref(false)
+let conditionalAbort = null
 
 const form = reactive({ account: '', email: '', nickname: '', password: '', confirm: '' })
 
@@ -58,6 +63,39 @@ async function onLogin() {
     loading.value = false
   }
 }
+
+// 手动点击「通行密钥登录」
+async function onPasskey() {
+  error.value = ''
+  passkeyLoading.value = true
+  try {
+    await session.loginPasskey()
+    go()
+  } catch (e) {
+    // 用户取消系统弹窗不算错误
+    if (e?.name !== 'NotAllowedError' && e?.name !== 'AbortError') {
+      error.value = e?.message || '通行密钥登录失败'
+    }
+  } finally {
+    passkeyLoading.value = false
+  }
+}
+
+// 条件式自动填充：页面加载即在后台等待用户从输入框自动填充里选择通行密钥
+onMounted(async () => {
+  supportsPasskey.value = session.isPasskeySupported()
+  if (!supportsPasskey.value) return
+  if (!(await session.isConditionalUiAvailable())) return
+  try {
+    conditionalAbort = new AbortController()
+    await session.loginPasskey({ conditional: true, signal: conditionalAbort.signal })
+    go()
+  } catch {
+    /* 条件式自动填充被取消/未选择，静默忽略 */
+  }
+})
+
+onBeforeUnmount(() => conditionalAbort?.abort())
 
 async function onRegister() {
   error.value = ''
@@ -135,7 +173,7 @@ async function onForgot() {
         @submit.prevent="onLogin"
       >
         <SosField label="邮箱或用户名">
-          <SosInput v-model="form.account" autocomplete="username" required />
+          <SosInput v-model="form.account" autocomplete="username webauthn" required />
         </SosField>
         <SosField label="密码">
           <div class="hauth-pw">
@@ -156,6 +194,19 @@ async function onForgot() {
             忘记密码？
           </SosButton>
         </div>
+
+        <template v-if="supportsPasskey">
+          <SosDivider />
+          <SosButton
+            variant="secondary"
+            type="button"
+            class="sos-button--block"
+            :loading="passkeyLoading"
+            @click="onPasskey"
+          >
+            <span aria-hidden="true" style="margin-right: 0.4em">🔑</span>使用通行密钥登录
+          </SosButton>
+        </template>
       </form>
 
       <!-- 注册 -->

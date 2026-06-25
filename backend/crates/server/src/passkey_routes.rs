@@ -57,13 +57,23 @@ fn json_err(e: serde_json::Error) -> AppError {
     AppError::internal(format!("通行密钥序列化失败: {e}"))
 }
 
-/// 由配置推导 WebAuthn 实例。rp_id = `PUBLIC_SITE_URL` 的主机；本地开发放开端口。
+/// 构造 WebAuthn 实例。
+/// 默认由 `PUBLIC_SITE_URL` 推导 rp_id / origin；可用环境变量独立覆盖
+/// （`HARUHI_WEBAUTHN_ORIGIN` / `HARUHI_WEBAUTHN_RP_ID`），便于本地开发把 rp_id 设为
+/// localhost、origin 指向前端端口，而不必改动 PUBLIC_SITE_URL。本地（localhost）放开端口。
 fn build_webauthn(cfg: &Config) -> AppResult<Webauthn> {
-    let site = cfg.public_site_url.trim_end_matches('/');
-    let url = Url::parse(site).map_err(|_| AppError::internal("PUBLIC_SITE_URL 非法"))?;
-    let host = url.host_str().unwrap_or("localhost").to_string();
-    let is_local = host == "localhost" || host == "127.0.0.1";
-    let mut builder = WebauthnBuilder::new(&host, &url)
+    let origin_str = std::env::var("HARUHI_WEBAUTHN_ORIGIN")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| cfg.public_site_url.trim_end_matches('/').to_string());
+    let url = Url::parse(&origin_str)
+        .map_err(|_| AppError::internal("WebAuthn origin 非法（PUBLIC_SITE_URL / HARUHI_WEBAUTHN_ORIGIN）"))?;
+    let rp_id = std::env::var("HARUHI_WEBAUTHN_RP_ID")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| url.host_str().unwrap_or("localhost").to_string());
+    let is_local = rp_id == "localhost" || rp_id == "127.0.0.1";
+    let mut builder = WebauthnBuilder::new(&rp_id, &url)
         .map_err(|e| AppError::internal(format!("WebAuthn 初始化失败: {e:?}")))?
         .rp_name(RP_NAME);
     if is_local {

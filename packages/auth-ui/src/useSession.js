@@ -68,6 +68,13 @@ export function useSession(apiBase = '/api') {
     return state.user
   }
 
+  // 通行密钥登录：成功后写回登录态
+  async function loginPasskey(opts) {
+    state.user = await a.loginPasskey(opts)
+    state.ready = true
+    return state.user
+  }
+
   return {
     state,
     isLoggedIn,
@@ -78,6 +85,7 @@ export function useSession(apiBase = '/api') {
     register,
     logout,
     updateProfile,
+    loginPasskey,
     // 直通后端账号端点
     forgotPassword: (email) => a.forgotPassword(email),
     resetPassword: (token, password) => a.resetPassword(token, password),
@@ -86,5 +94,12 @@ export function useSession(apiBase = '/api') {
     changePassword: (oldPassword, newPassword) => a.changePassword(oldPassword, newPassword),
     listSessions: () => a.listSessions(),
     revokeSession: (id) => a.revokeSession(id),
+    // 通行密钥管理
+    isPasskeySupported: () => a.isPasskeySupported(),
+    isConditionalUiAvailable: () => a.isConditionalUiAvailable(),
+    listPasskeys: () => a.listPasskeys(),
+    addPasskey: (name) => a.addPasskey(name),
+    deletePasskey: (id) => a.deletePasskey(id),
+    renamePasskey: (id, name) => a.renamePasskey(id, name),
   }
 }
