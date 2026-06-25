@@ -10,6 +10,7 @@ pub mod auth_routes;
 pub mod middleware;
 pub mod modules;
 pub mod notify;
+pub mod passkey_routes;
 pub mod pagination;
 pub mod ratelimit;
 pub mod routes;

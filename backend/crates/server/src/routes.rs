@@ -14,7 +14,7 @@ use tower_http::trace::TraceLayer;
 const MAX_BODY_BYTES: usize = 256 * 1024 * 1024;
 
 use crate::state::AppState;
-use crate::{admin_routes, auth_routes, modules};
+use crate::{admin_routes, auth_routes, modules, passkey_routes};
 
 pub fn router(state: AppState) -> Router {
     let uploads_dir = state.cfg.uploads_dir.clone();
@@ -25,6 +25,7 @@ pub fn router(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/health/ready", get(ready))
         .merge(auth_routes::router())
+        .merge(passkey_routes::router())
         .merge(admin_routes::router());
     // CSRF 中间件只罩 /api：写方法 + 带会话 cookie 时校验双提交 token。
     let api = modules::mount(api)

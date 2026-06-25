@@ -142,7 +142,7 @@ async fn deliver(state: &AppState, to: &str, subject: &str, html: &str, text: &s
 }
 
 /// 创建会话并附带 cookie + 兼容 JWT，组装登录成功响应。
-async fn login_response(
+pub(crate) async fn login_response(
     state: &AppState,
     headers: &HeaderMap,
     user_id: i64,

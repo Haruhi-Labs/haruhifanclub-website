@@ -33,6 +33,12 @@ sha2.workspace = true
 rand.workspace = true
 uuid = { workspace = true }
 base64.workspace = true
+# Passkey / WebAuthn：高层 API；状态需在 start/finish 间持久化，故开启状态序列化 feature。
+# 固定 0.5.4：0.5.5 起 MSRV 抬到 1.88，与工具链锁定的 1.87 冲突。
+webauthn-rs = { version = "=0.5.4", features = [
+    "danger-allow-state-serialisation",
+    "conditional-ui",
+] }
 
 [dev-dependencies]
 # 集成测试：tower oneshot 打路由、http-body-util 读响应体、tempfile 建临时数据目录
