@@ -1352,4 +1352,199 @@ async function submit(){
     padding-top: 12px;
   }
 }
+
+/* 大屏一屏适配：三栏展开核心信息，避免整页纵向滚动。 */
+@media (min-width: 1120px) {
+  .upload-page {
+    min-height: calc(100dvh - 72px);
+    display: flex;
+    align-items: stretch;
+  }
+
+  .container-card {
+    height: clamp(560px, calc(100dvh - 94px), 780px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .page-header {
+    flex: 0 0 auto;
+  }
+
+  .main-form {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1fr) minmax(340px, 0.95fr);
+    grid-template-rows: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    overflow: hidden;
+  }
+
+  .main-form > .form-section {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .main-form > .form-section:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .main-form > .form-section:nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .main-form > .form-section:nth-child(3) {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .upload-section {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+
+  .main-form > .form-section:nth-child(3),
+  .upload-section {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .main-form > .form-section:nth-child(3) > .form-grid,
+  .upload-section .file-upload-wrapper {
+    min-height: 0;
+  }
+
+  .main-form > .form-section:nth-child(3) > .form-grid {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    gap: 14px;
+    margin-bottom: 0;
+  }
+
+  .license-split-layout {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .license-col {
+    min-height: 0;
+  }
+
+  .checkbox-list {
+    min-height: 0;
+  }
+
+  .info-card {
+    display: none;
+  }
+
+  .tags-container {
+    max-height: 68px;
+    overflow: hidden;
+  }
+
+  .files-manager {
+    flex: 0 1 auto;
+    max-height: min(260px, 34dvh);
+  }
+
+  .file-upload-wrapper {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .file-drop-area {
+    flex: 1 1 auto;
+    min-height: 132px;
+  }
+
+  .file-drop-label {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .form-actions {
+    flex: 0 0 auto;
+  }
+}
+
+@media (min-width: 1120px) and (max-height: 760px) {
+  .container-card {
+    height: calc(100dvh - 82px);
+  }
+
+  .page-header {
+    margin-bottom: 6px;
+  }
+
+  .main-title {
+    font-size: 25px;
+  }
+
+  .header-decoration .deco-img {
+    height: 64px;
+  }
+
+  .main-form {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .main-form > .form-section {
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+
+  .section-head {
+    margin-bottom: 8px;
+  }
+
+  .section-title {
+    font-size: 16px;
+  }
+
+  .section-desc,
+  .form-hint.center,
+  .license-col .form-hint {
+    display: none;
+  }
+
+  .form-input,
+  .form-textarea {
+    padding: 8px 11px;
+    font-size: 13px;
+  }
+
+  .form-textarea {
+    min-height: 48px;
+    line-height: 1.35;
+  }
+
+  .segment-btn {
+    min-height: 34px;
+    padding: 7px 8px;
+  }
+
+  .checkbox-card {
+    padding: 7px 8px;
+  }
+
+  .file-drop-area {
+    min-height: 102px;
+  }
+
+  .upload-icon {
+    font-size: 30px;
+  }
+
+  .submit-btn {
+    padding: 11px;
+    font-size: 15px;
+  }
+}
 </style>
