@@ -1,5 +1,5 @@
 <template>
-  <section class="container-card guild-page">
+  <section class="guild-page">
     <header class="guild-hero panel">
       <div>
         <p class="eyebrow">SOS Brigade Guild</p>
@@ -35,6 +35,23 @@
         <strong>{{ profile.accessShortLabel || '档案0' }}</strong>
       </article>
     </section>
+
+    <div class="rule-corner">
+      <button type="button" class="rule-toggle" @click="rulesOpen = !rulesOpen">
+        规则书
+      </button>
+      <div v-if="rulesOpen" class="rule-popover">
+        <button
+          v-for="book in ruleBooks"
+          :key="book.id"
+          type="button"
+          class="rule-btn"
+          @click="activeRule = book; rulesOpen = false"
+        >
+          {{ book.title }}
+        </button>
+      </div>
+    </div>
 
     <nav class="guild-tabs panel" aria-label="公会功能分页">
       <button
@@ -202,24 +219,6 @@
       </button>
     </section>
 
-    <section v-else class="guild-rules panel guild-tab-panel">
-      <div>
-        <p class="eyebrow">Rule Books</p>
-        <h2>公会规则书</h2>
-      </div>
-      <div class="rule-actions">
-        <button
-          v-for="book in ruleBooks"
-          :key="book.id"
-          type="button"
-          class="rule-btn"
-          @click="activeRule = book"
-        >
-          {{ book.title }}
-        </button>
-      </div>
-    </section>
-
     <footer class="guild-feedback panel" aria-live="polite">
       {{ feedback }}
     </footer>
@@ -263,6 +262,7 @@ const feedback = ref('公会柜台待机中。委托进度会由系统根据你�
 const ratingNote = ref('')
 const activeRule = ref(null)
 const activeTab = ref('quests')
+const rulesOpen = ref(false)
 const busyQuestId = ref(null)
 const busyRewardId = ref(null)
 const applyingRating = ref(false)
@@ -335,12 +335,6 @@ const guildTabs = computed(() => [
     eyebrow: 'Rank Up',
     label: '评级',
     summary: profile.value.nextRating?.target ? `申请${profile.value.nextRating.target}` : '当前'
-  },
-  {
-    id: 'rules',
-    eyebrow: 'Rules',
-    label: '规则',
-    summary: `${ruleBooks.length}册`
   }
 ])
 
@@ -533,20 +527,26 @@ onMounted(async () => {
 
 <style scoped>
 .guild-page {
+  position: relative;
   display: grid;
+  width: min(1220px, calc(100% - 32px));
   max-width: 1220px;
+  margin: 0 auto;
+  padding: 18px 0 36px;
   gap: 18px;
 }
 
 .panel {
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  border: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(255, 247, 251, 0.48)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(255, 247, 251, 0.2)),
     radial-gradient(circle at 8% 0%, rgba(245, 51, 93, 0.12), transparent 34%);
-  box-shadow: 0 18px 40px rgba(31, 41, 55, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: 22px;
+  box-shadow: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 0;
 }
 
 .guild-hero {
@@ -644,36 +644,76 @@ p {
   white-space: nowrap;
 }
 
+.rule-corner {
+  position: absolute;
+  top: 20px;
+  right: 0;
+  z-index: 6;
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.rule-toggle {
+  min-height: 34px;
+  padding: 8px 13px;
+  color: #0f4f63;
+  font-size: 13px;
+  font-weight: 950;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(103, 232, 249, 0.34);
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+}
+
+.rule-popover {
+  display: grid;
+  width: min(260px, calc(100vw - 32px));
+  gap: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.13);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
 .guild-tabs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-  padding: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  padding: 0;
 }
 
 .guild-tab {
   display: grid;
   gap: 4px;
   min-width: 0;
-  padding: 12px 14px;
+  padding: 14px;
   color: var(--muted);
   text-align: left;
-  background: rgba(255, 255, 255, 0.46);
-  border: 1px solid rgba(255, 255, 255, 0.58);
-  border-radius: 18px;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.guild-tab:last-child {
+  border-right: 0;
 }
 
 .guild-tab:hover,
 .guild-tab.active {
   color: var(--text);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(255, 247, 251, 0.58)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 247, 251, 0.26)),
     radial-gradient(circle at 0% 0%, rgba(244, 63, 94, 0.12), transparent 40%);
-  border-color: rgba(244, 63, 94, 0.22);
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
-  transform: translateY(-1px);
+  box-shadow: inset 0 -2px 0 rgba(244, 63, 94, 0.62);
+  transform: none;
 }
 
 .guild-tab span {
@@ -736,7 +776,7 @@ p {
 .rule-btn,
 .ghost-btn {
   color: #0f4f63;
-  background: rgba(255, 255, 255, 0.64);
+  background: rgba(255, 255, 255, 0.54);
   border: 1px solid rgba(103, 232, 249, 0.26);
 }
 
@@ -769,6 +809,15 @@ p {
 .rank-page,
 .rating-page {
   max-width: 880px;
+}
+
+.rule-dialog.panel {
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(255, 247, 251, 0.68)),
+    radial-gradient(circle at 8% 0%, rgba(245, 51, 93, 0.12), transparent 34%);
+  box-shadow: 0 18px 40px rgba(31, 41, 55, 0.16);
+  border-radius: 22px;
 }
 
 .guild-side {
@@ -1067,11 +1116,21 @@ p {
 }
 
 :global(html.art-lights-out) .panel {
-  border-color: rgba(125, 211, 252, 0.16);
+  border-top-color: rgba(125, 211, 252, 0.18);
+  border-bottom-color: rgba(125, 211, 252, 0.14);
   background:
-    linear-gradient(135deg, rgba(8, 14, 33, 0.72), rgba(28, 22, 58, 0.56)),
+    linear-gradient(135deg, rgba(8, 14, 33, 0.44), rgba(28, 22, 58, 0.26)),
     radial-gradient(circle at 10% 0%, rgba(125, 211, 252, 0.12), transparent 34%);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+:global(html.art-lights-out) .rule-toggle,
+:global(html.art-lights-out) .rule-popover,
+:global(html.art-lights-out) .rule-dialog.panel {
+  color: #bae6fd;
+  background: rgba(12, 20, 44, 0.78);
+  border-color: rgba(125, 211, 252, 0.18);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.32);
 }
 
 :global(html.art-lights-out) .guild-hero h1,
@@ -1099,8 +1158,7 @@ p {
   background:
     linear-gradient(135deg, rgba(14, 23, 54, 0.78), rgba(35, 28, 68, 0.64)),
     radial-gradient(circle at 0% 0%, rgba(125, 211, 252, 0.14), transparent 40%);
-  border-color: rgba(125, 211, 252, 0.24);
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 -2px 0 rgba(125, 211, 252, 0.64);
 }
 
 :global(html.art-lights-out) .quest-meta span,
@@ -1124,7 +1182,7 @@ p {
   }
 
   .guild-tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

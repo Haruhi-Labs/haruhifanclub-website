@@ -1,5 +1,5 @@
 <template>
-  <section class="container-card terminal-page">
+  <section class="terminal-page">
     <div v-if="loading" class="terminal-loading panel">正在连接公会终端...</div>
     <div v-else-if="error" class="terminal-loading panel">{{ error }}</div>
 
@@ -203,19 +203,24 @@ onMounted(loadProfile)
 <style scoped>
 .terminal-page {
   display: grid;
+  width: min(1180px, calc(100% - 32px));
   max-width: 1180px;
+  margin: 0 auto;
+  padding: 18px 0 36px;
   gap: 18px;
 }
 
 .panel {
-  border: 1px solid rgba(255, 255, 255, 0.56);
+  border: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(245, 250, 255, 0.5)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(245, 250, 255, 0.22)),
     radial-gradient(circle at 10% 0%, rgba(103, 232, 249, 0.16), transparent 38%);
-  box-shadow: 0 18px 40px rgba(31, 41, 55, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: 22px;
+  box-shadow: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 0;
 }
 
 .terminal-loading {
@@ -511,11 +516,12 @@ p {
 }
 
 :global(html.art-lights-out) .panel {
-  border-color: rgba(125, 211, 252, 0.16);
+  border-top-color: rgba(125, 211, 252, 0.18);
+  border-bottom-color: rgba(125, 211, 252, 0.14);
   background:
-    linear-gradient(135deg, rgba(8, 14, 33, 0.72), rgba(28, 22, 58, 0.56)),
+    linear-gradient(135deg, rgba(8, 14, 33, 0.44), rgba(28, 22, 58, 0.26)),
     radial-gradient(circle at 10% 0%, rgba(125, 211, 252, 0.12), transparent 34%);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: none;
 }
 
 :global(html.art-lights-out) .terminal-hero h1,
