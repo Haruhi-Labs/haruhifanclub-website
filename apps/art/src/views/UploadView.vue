@@ -1134,9 +1134,11 @@ async function submit(){
 /* 桌面端工作台布局：把填写区和上传区分栏，减少纵向滚动。 */
 @media (min-width: 1120px) {
   .container-card {
+    --upload-decor-slot: clamp(84px, 6.4vw, 118px);
+    --upload-decor-size: clamp(66px, 5.2vw, 94px);
     width: min(1640px, calc(100vw - 20px));
     max-width: none;
-    padding-left: clamp(62px, 5vw, 88px);
+    padding-left: var(--upload-decor-slot);
     padding-bottom: 28px;
   }
 
@@ -1148,11 +1150,11 @@ async function submit(){
 
   .header-decoration {
     position: absolute;
-    left: clamp(-30px, -1.8vw, -14px);
+    left: clamp(8px, calc((var(--upload-decor-slot) - var(--upload-decor-size)) / 2), 24px);
     top: clamp(74px, 9dvh, 112px);
     z-index: 3;
     display: flex;
-    width: clamp(64px, 5.6vw, 96px);
+    width: var(--upload-decor-size);
     align-items: flex-start;
     justify-content: center;
     pointer-events: none;
@@ -1507,8 +1509,9 @@ async function submit(){
 
 @media (min-width: 1120px) and (max-height: 760px) {
   .container-card {
+    --upload-decor-slot: clamp(72px, 5.6vw, 94px);
+    --upload-decor-size: clamp(58px, 4.6vw, 78px);
     height: calc(100dvh - 82px);
-    padding-left: clamp(54px, 4.4vw, 76px);
   }
 
   .page-header {
