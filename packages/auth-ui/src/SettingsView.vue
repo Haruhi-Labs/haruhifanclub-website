@@ -21,6 +21,8 @@ const props = defineProps({
   loginPath: { type: String, default: '/login' },
   home: { type: String, default: '/' },
   site: { type: String, default: undefined },
+  // 嵌入个人控制台时为 true：不自绘 .hauth-root/.hauth-account 外壳，融入 layout。
+  embedded: { type: Boolean, default: false },
 })
 
 const session = useSession(props.apiBase)
@@ -239,8 +241,11 @@ function shortUa(ua) {
 </script>
 
 <template>
-  <div class="hauth-root sos-scope" :data-sos-site="site">
-    <div v-if="user" class="hauth-account">
+  <div
+    :class="embedded ? '' : 'hauth-root sos-scope'"
+    :data-sos-site="embedded ? undefined : site"
+  >
+    <div v-if="user" :class="embedded ? 'sos-stack huc-page' : 'hauth-account'">
       <header class="sos-stack sos-stack--tight">
         <SosEyebrow>账号</SosEyebrow>
         <SosTitle as="h1" size="xl">账号设置</SosTitle>
