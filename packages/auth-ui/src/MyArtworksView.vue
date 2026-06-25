@@ -167,8 +167,8 @@ async function claimHistory() {
         </button>
         <div class="huc-mcard__body">
           <h3 class="huc-mcard__title">{{ a.title || '未命名' }}</h3>
-          <div v-if="a.tags && a.tags.length" class="huc-mcard__tags">
-            <span v-for="t in a.tags.slice(0, 3)" :key="t">#{{ t }}</span>
+          <div class="huc-mcard__tags">
+            <span v-for="t in (a.tags || []).slice(0, 3)" :key="t">#{{ t }}</span>
           </div>
           <div class="huc-mcard__foot">
             <span class="huc-mcard__likes">♥ {{ a.like_total ?? 0 }}</span>
