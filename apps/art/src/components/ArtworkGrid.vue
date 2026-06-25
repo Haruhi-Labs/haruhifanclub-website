@@ -65,8 +65,8 @@ function likeCount(item){
 function displayUploader(item){
   const uid = (item?.uploader_uid || '').trim()
   const name = (item?.uploader_name || '').trim()
-  if(uid) return uid
   if(name) return name
+  if(uid) return uid
   return session.state.user?.nickname || session.state.user?.email || '匿名'
 }
 
@@ -94,10 +94,16 @@ function goAuthor(item, e){
   e?.stopPropagation?.()
   const uid = (item?.uploader_uid || '').trim()
   if(!uid) return
-  // 旧逻辑：router.push
-  // 新逻辑：emit author 事件，让父组件处理筛选
   const name = (item?.uploader_name || '').trim()
-  emit('author', { uid, name: name || uid })
+  emit('author', { uid, name: name || uid, guild: item?.guild || null, profile: true })
+}
+
+function guildRating(item){
+  return item?.guild?.rating || ''
+}
+
+function guildAccess(item){
+  return item?.guild?.accessShortLabel || ''
 }
 
 function clickTag(tag, item, e){
@@ -245,6 +251,14 @@ onBeforeUnmount(() => {
                 {{ displayUploader(it) }}
               </a>
               <span v-else class="byline__v">{{ displayUploader(it) }}</span>
+              <span
+                v-if="guildRating(it)"
+                class="guild-badge"
+                :class="`rating-${guildRating(it)}`"
+              >
+                {{ guildRating(it) }}
+              </span>
+              <span v-if="guildAccess(it)" class="access-badge">{{ guildAccess(it) }}</span>
             </div>
 
             <div class="tags" v-if="Array.isArray(it.tags) && it.tags.length">
@@ -555,6 +569,42 @@ body.modal-open .art-card-wrap {
   color: #fff;
   border-bottom-color: #fff;
   text-shadow: 0 0 12px var(--neon-cyan);
+}
+
+.guild-badge,
+.access-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  box-shadow: 0 0 12px rgba(103, 232, 249, 0.16);
+}
+
+.guild-badge {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.84), rgba(124, 58, 237, 0.82));
+}
+
+.guild-badge.rating-S,
+.guild-badge.rating-X {
+  color: #07111f;
+  background: linear-gradient(135deg, #fef08a, #67e8f9, #f0abfc);
+  box-shadow: 0 0 16px rgba(103, 232, 249, 0.42);
+}
+
+.guild-badge.rating-A,
+.guild-badge.rating-B {
+  background: linear-gradient(135deg, #38bdf8, #8b5cf6);
+}
+
+.access-badge {
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(15, 23, 42, 0.42);
 }
 
 /* =========================

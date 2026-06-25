@@ -1,20 +1,23 @@
 <script setup>
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { AccountMenu } from '@haruhi/auth-ui'
+import { AccountMenu, useSession } from '@haruhi/auth-ui'
 
 const route = useRoute()
 const router = useRouter()
+const session = useSession('/api')
 
 const navItems = [
   { path: '/gallery', label: '画廊' },
   { path: '/upload', label: '投稿' },
-  { path: '/points', label: '积分' },
-  { path: '/exchange', label: '兑换' },
+  { path: '/exchange', label: '公会' },
 ]
 const announcementPath = '/announcements'
+const showTerminal = computed(() => !!session.state.user)
 
 const isActive = (path) => {
-  if (path === '/gallery' && route.path.startsWith('/creator')) return true
+  if (path === '/gallery' && route.path.startsWith('/profile/')) return true
+  if (path === '/exchange' && route.path === '/points') return true
   return route.path === path
 }
 const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
@@ -54,6 +57,14 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
           data-sfx="click"
         >
           {{ item.label }}
+        </RouterLink>
+        <RouterLink
+          v-if="showTerminal"
+          :class="linkClass('/terminal')"
+          to="/terminal"
+          data-sfx="click"
+        >
+          终端
         </RouterLink>
       </nav>
 

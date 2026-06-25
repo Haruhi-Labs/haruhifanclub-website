@@ -212,6 +212,54 @@ export const api = {
     return data
   },
   pointsHistory: (uid) => request('GET', `${API_PREFIX}/points/history`, { params: { uid } }),
+  // Guild / Adventurer system
+  guildMe: () => request('GET', `${API_PREFIX}/guild/me`),
+  guildTerminal: async () => {
+    const data = await request('GET', `${API_PREFIX}/guild/terminal`)
+    if (Array.isArray(data.artworks)) data.artworks = data.artworks.map(transformArtwork)
+    return data
+  },
+  guildProfile: async (uid) => {
+    const data = await request('GET', `${API_PREFIX}/guild/profile/${encodeURIComponent(uid)}`)
+    if (Array.isArray(data.artworks)) data.artworks = data.artworks.map(transformArtwork)
+    return data
+  },
+  guildProfileArtworks: async (uid, params = {}) => {
+    const data = await request('GET', `${API_PREFIX}/guild/profile/${encodeURIComponent(uid)}/artworks`, { params })
+    if (Array.isArray(data.data)) data.data = data.data.map(transformArtwork)
+    return data
+  },
+  guildQuests: () => request('GET', `${API_PREFIX}/guild/quests`),
+  guildClaimQuest: (id) => request('POST', `${API_PREFIX}/guild/quests/${id}/claim`, { body: {} }),
+  guildLeaderboard: () => request('GET', `${API_PREFIX}/guild/leaderboard`),
+  guildCoinHistory: () => request('GET', `${API_PREFIX}/guild/coins/history`),
+  guildApplyRating: (body) => request('POST', `${API_PREFIX}/guild/rating/apply`, { body }),
+  guildRewards: () => request('GET', `${API_PREFIX}/guild/rewards`),
+  guildRedeemReward: (id, body = {}) => request('POST', `${API_PREFIX}/guild/rewards/${id}/redeem`, { body }),
+  guildMyRedemptions: () => request('GET', `${API_PREFIX}/guild/redemptions/me`),
+
+  // Admin - Guild
+  adminGuildQuests: () => request('GET', `${API_PREFIX}/admin/guild/quests`),
+  adminCreateGuildQuest: (body) => request('POST', `${API_PREFIX}/admin/guild/quests`, { body }),
+  adminUpdateGuildQuest: (id, body) => request('PUT', `${API_PREFIX}/admin/guild/quests/${id}`, { body }),
+  adminDeleteGuildQuest: (id) => request('DELETE', `${API_PREFIX}/admin/guild/quests/${id}`),
+  adminUpdateGuildQuestStatus: (id, status) => request('POST', `${API_PREFIX}/admin/guild/quests/${id}/status`, { body: { status } }),
+  adminGuildRewards: () => request('GET', `${API_PREFIX}/admin/guild/rewards`),
+  adminCreateGuildReward: (body) => request('POST', `${API_PREFIX}/admin/guild/rewards`, { body }),
+  adminUpdateGuildReward: (id, body) => request('PUT', `${API_PREFIX}/admin/guild/rewards/${id}`, { body }),
+  adminDeleteGuildReward: (id) => request('DELETE', `${API_PREFIX}/admin/guild/rewards/${id}`),
+  adminUpdateGuildRewardStatus: (id, status) => request('POST', `${API_PREFIX}/admin/guild/rewards/${id}/status`, { body: { status } }),
+  adminUpdateGuildRewardStock: (id, stock) => request('POST', `${API_PREFIX}/admin/guild/rewards/${id}/stock`, { body: { stock } }),
+  adminGuildRedemptions: () => request('GET', `${API_PREFIX}/admin/guild/redemptions`),
+  adminApproveGuildRedemption: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/redemptions/${id}/approve`, { body: { note } }),
+  adminRejectGuildRedemption: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/redemptions/${id}/reject`, { body: { note } }),
+  adminCancelGuildRedemption: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/redemptions/${id}/cancel`, { body: { note } }),
+  adminFulfillGuildRedemption: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/redemptions/${id}/fulfilled`, { body: { note } }),
+  adminGuildRatingApplications: () => request('GET', `${API_PREFIX}/admin/guild/rating-applications`),
+  adminApproveGuildRating: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/rating-applications/${id}/approve`, { body: { note } }),
+  adminRejectGuildRating: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/rating-applications/${id}/reject`, { body: { note } }),
+  adminGuildProfiles: () => request('GET', `${API_PREFIX}/admin/guild/profiles`),
+  adminUpdateGuildProfileAccess: (uid, accessTier) => request('POST', `${API_PREFIX}/admin/guild/profiles/${encodeURIComponent(uid)}/access`, { body: { accessTier } }),
   searchCreators: async (q) => {
     const data = await request('GET', `${API_PREFIX}/creators/search`, { params: { q } })
     if (data.data) {

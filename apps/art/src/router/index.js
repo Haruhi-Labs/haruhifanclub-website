@@ -11,9 +11,9 @@ import {
 import HomeView from '../views/HomeView.vue'
 import GalleryView from '../views/GalleryView.vue'
 import UploadView from '../views/UploadView.vue'
-import PointsView from '../views/PointsView.vue'
 import AnnouncementView from '../views/AnnouncementView.vue'
 import ExchangeView from '../views/ExchangeView.vue'
+import AdventurerProfileView from '../views/AdventurerProfileView.vue'
 
 const AdminView = () => import('../views/AdminView.vue')
 const LicenseView = () => import('../views/LicenseView.vue')
@@ -25,9 +25,11 @@ const router = createRouter({
     { path: '/gallery', name: 'gallery', component: GalleryView },
     { path: '/upload', name: 'upload', component: UploadView, meta: { requiresAuth: true } },
     { path: '/admin', name: 'admin', component: AdminView, meta: { requiresAuth: true } },
-    { path: '/points', name: 'points', component: PointsView },
+    { path: '/points', redirect: '/exchange' },
     { path: '/announcements', name: 'announcements', component: AnnouncementView },
-    { path: '/exchange', name: 'exchange', component: ExchangeView, meta: { requiresAuth: true } },
+    { path: '/exchange', name: 'exchange', component: ExchangeView },
+    { path: '/terminal', name: 'terminal', component: AdventurerProfileView, meta: { requiresAuth: true } },
+    { path: '/profile/:uid', name: 'adventurer-profile', component: AdventurerProfileView, props: true },
     { path: '/license', name: 'license', component: LicenseView },
 
     { path: '/login', name: 'login', component: LoginView, props: { title: '应援团画廊', home: '/' }, meta: { public: true } },

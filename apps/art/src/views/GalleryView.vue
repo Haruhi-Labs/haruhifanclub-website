@@ -60,6 +60,7 @@
       :item="activeItem"
       @update:model-value="val => !val && closeModal()"
       @tag="onTag"
+      @author="onAuthor"
       @close="closeModal"
     />
   </section>
@@ -139,7 +140,8 @@ function onTag(t) {
 }
 
 function onAuthor(authorInfo) {
-  router.push({ query: { ...route.query, author: authorInfo.uid, tag: undefined, artwork: undefined } })
+  if (!authorInfo?.uid) return
+  router.push({ name: 'adventurer-profile', params: { uid: authorInfo.uid } })
 }
 
 function openItem(it) {
