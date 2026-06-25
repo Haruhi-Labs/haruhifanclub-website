@@ -817,4 +817,300 @@ p {
     border-bottom: 1px solid rgba(15, 23, 42, 0.1);
   }
 }
+
+/* Design-system aligned pass: personal archive terminal using art expression tokens. */
+.terminal-page {
+  width: min(var(--sos-container-wide), calc(100% - var(--sos-page-gutter) * 2));
+  padding-block: var(--sos-space-8) var(--sos-space-14);
+  gap: var(--sos-space-8);
+  isolation: isolate;
+}
+
+.terminal-page::before {
+  background:
+    radial-gradient(circle at 12% 5%, color-mix(in srgb, var(--sos-accent-soft) 70%, transparent), transparent 34%),
+    radial-gradient(circle at 88% 16%, color-mix(in srgb, var(--sos-accent-2) 12%, transparent), transparent 28%);
+}
+
+.terminal-page::after {
+  display: none;
+}
+
+.panel,
+:global(html.art-lights-out) .panel {
+  color: var(--sos-text-primary);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--sos-bg-surface) 86%, transparent), color-mix(in srgb, var(--sos-bg-subtle) 72%, transparent)),
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--sos-accent-soft) 54%, transparent), transparent 32%);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-xl);
+  box-shadow: var(--sos-shadow-card);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.terminal-loading {
+  padding: var(--sos-space-8);
+  color: var(--sos-text-primary);
+  font-weight: var(--sos-weight-heavy);
+}
+
+.terminal-hero,
+:global(html.art-lights-out) .terminal-hero {
+  min-height: auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--sos-space-6);
+  padding: var(--sos-space-8);
+  border: 1px solid var(--sos-border-subtle);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--sos-bg-surface) 92%, transparent), color-mix(in srgb, var(--sos-accent-soft) 40%, var(--sos-bg-surface))),
+    radial-gradient(circle at 90% 18%, color-mix(in srgb, var(--sos-accent-2) 16%, transparent), transparent 32%);
+}
+
+.terminal-hero::before {
+  right: var(--sos-space-8);
+  bottom: var(--sos-space-6);
+  width: min(34vw, 22rem);
+  height: min(18vw, 11rem);
+  border: 1px solid color-mix(in srgb, var(--sos-accent) 18%, transparent);
+  border-radius: var(--sos-radius-full);
+  transform: none;
+}
+
+.avatar-shell {
+  width: clamp(5rem, 10vw, 7rem);
+  height: clamp(5rem, 10vw, 7rem);
+  background: linear-gradient(135deg, var(--sos-accent), var(--sos-accent-2));
+  border: 1px solid color-mix(in srgb, var(--sos-bg-surface) 80%, transparent);
+  border-radius: var(--sos-radius-xl);
+  box-shadow: var(--sos-shadow-card);
+  clip-path: none;
+}
+
+.eyebrow {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-heavy);
+  letter-spacing: var(--sos-tracking-wider);
+}
+
+.eyebrow::before {
+  display: inline-block;
+  width: 1.75rem;
+  height: 0.25rem;
+  margin-right: var(--sos-space-2);
+  vertical-align: middle;
+  background: var(--sos-signal);
+  border-radius: var(--sos-radius-full);
+  content: "";
+}
+
+.terminal-hero h1 {
+  color: var(--sos-text-primary);
+  font-family: var(--sos-display-family);
+  font-size: var(--sos-text-hero);
+  font-weight: var(--sos-weight-black);
+  line-height: var(--sos-leading-tight);
+  letter-spacing: var(--sos-tracking-tighter);
+}
+
+.identity-line span,
+.identity-line b,
+.section-head span,
+.muted-line,
+:global(html.art-lights-out) .identity-line span,
+:global(html.art-lights-out) .identity-line b,
+:global(html.art-lights-out) .section-head span,
+:global(html.art-lights-out) .muted-line {
+  color: var(--sos-text-secondary);
+  background: var(--sos-bg-subtle);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-full);
+}
+
+.ghost-btn,
+:global(html.art-lights-out) .ghost-btn {
+  min-height: var(--sos-control-md);
+  padding-inline: var(--sos-space-5);
+  color: var(--sos-text-primary);
+  background: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-default);
+  border-radius: var(--sos-control-radius);
+  box-shadow: var(--sos-shadow-xs);
+}
+
+.terminal-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sos-space-4);
+  border: 0;
+}
+
+.stat-card {
+  padding: var(--sos-space-5);
+  border: 1px solid var(--sos-border-subtle);
+}
+
+.stat-card span,
+.stat-card em {
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-heavy);
+}
+
+.stat-card strong {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-2xl);
+  font-weight: var(--sos-weight-black);
+  font-variant-numeric: var(--sos-numeric-tabular);
+}
+
+.terminal-layout {
+  grid-template-columns: minmax(0, 1.45fr) minmax(18rem, 0.75fr);
+  gap: var(--sos-space-6);
+}
+
+.artwork-panel,
+.license-card,
+.activity-card,
+.history-panel,
+:global(html.art-lights-out) .artwork-panel,
+:global(html.art-lights-out) .license-card,
+:global(html.art-lights-out) .activity-card,
+:global(html.art-lights-out) .history-panel {
+  padding: var(--sos-space-6);
+  border: 1px solid var(--sos-border-subtle);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--sos-bg-surface) 88%, transparent), color-mix(in srgb, var(--sos-bg-subtle) 72%, transparent));
+  border-radius: var(--sos-radius-xl);
+  box-shadow: var(--sos-shadow-card);
+}
+
+.section-head {
+  padding: 0 0 var(--sos-space-4);
+  border: 0;
+  border-bottom: 1px solid var(--sos-border-subtle);
+}
+
+.section-head h2,
+.license-card h2,
+.activity-card h2,
+.history-panel h2 {
+  color: var(--sos-text-primary);
+  font-family: var(--sos-display-family);
+  font-size: var(--sos-text-2xl);
+  font-weight: var(--sos-weight-heavy);
+  letter-spacing: var(--sos-tracking-tight);
+}
+
+.profile-art-grid {
+  gap: var(--sos-space-4);
+  background: transparent;
+}
+
+.profile-art-card {
+  min-height: 13rem;
+  overflow: hidden;
+  background: var(--sos-bg-strong);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-lg);
+  box-shadow: var(--sos-shadow-xs);
+  transition:
+    transform var(--sos-duration-fast) var(--sos-ease-out),
+    box-shadow var(--sos-duration-base) var(--sos-ease-standard);
+}
+
+.profile-art-card:hover {
+  box-shadow: var(--sos-shadow-card);
+  transform: translateY(-2px);
+}
+
+.profile-art-card b {
+  top: var(--sos-space-2);
+  right: var(--sos-space-2);
+  color: var(--sos-text-primary);
+  background: color-mix(in srgb, var(--sos-bg-surface) 84%, transparent);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-full);
+}
+
+.license-code {
+  padding: var(--sos-space-6);
+  color: var(--sos-accent);
+  font-size: clamp(2.5rem, 6vw, 4.75rem);
+  background: var(--sos-accent-soft);
+  background-clip: initial;
+  -webkit-background-clip: initial;
+  border: 1px solid color-mix(in srgb, var(--sos-accent) 30%, var(--sos-border-subtle));
+  border-radius: var(--sos-radius-lg);
+}
+
+.license-card p {
+  color: var(--sos-text-secondary);
+}
+
+.activity-row,
+.ledger-row {
+  padding: var(--sos-space-3) 0;
+  border-bottom: 1px solid var(--sos-border-subtle);
+}
+
+.activity-row span,
+.ledger-row span,
+:global(html.art-lights-out) .activity-row span,
+:global(html.art-lights-out) .ledger-row span {
+  color: var(--sos-text-primary);
+}
+
+.activity-row b,
+.activity-row em,
+.ledger-row b {
+  color: var(--sos-text-secondary);
+}
+
+.history-layout {
+  gap: var(--sos-space-6);
+}
+
+.plus {
+  color: var(--sos-success) !important;
+}
+
+.minus {
+  color: var(--sos-danger) !important;
+}
+
+.empty {
+  color: var(--sos-text-tertiary);
+}
+
+@media (max-width: 980px) {
+  .terminal-hero,
+  .terminal-layout,
+  .history-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .terminal-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .terminal-page {
+    width: min(var(--sos-container-wide), calc(100% - var(--sos-space-5)));
+  }
+
+  .terminal-hero,
+  .artwork-panel,
+  .license-card,
+  .activity-card,
+  .history-panel {
+    padding: var(--sos-space-5);
+  }
+
+  .terminal-stats,
+  .profile-art-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

@@ -1618,4 +1618,437 @@ p {
     padding-left: 18px;
   }
 }
+
+/* Design-system aligned pass: art mode surfaces, token-only color, content-first hierarchy. */
+.guild-page {
+  width: min(var(--sos-container-wide), calc(100% - var(--sos-page-gutter) * 2));
+  padding-block: var(--sos-space-8) var(--sos-space-14);
+  gap: var(--sos-space-8);
+}
+
+.guild-page::before {
+  background:
+    radial-gradient(circle at 14% 4%, color-mix(in srgb, var(--sos-accent-soft) 70%, transparent), transparent 34%),
+    radial-gradient(circle at 84% 22%, color-mix(in srgb, var(--sos-accent-2) 12%, transparent), transparent 28%);
+}
+
+.guild-page::after {
+  display: none;
+}
+
+.panel,
+:global(html.art-lights-out) .panel {
+  color: var(--sos-text-primary);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--sos-bg-surface) 86%, transparent), color-mix(in srgb, var(--sos-bg-subtle) 72%, transparent)),
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--sos-accent-soft) 56%, transparent), transparent 32%);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-xl);
+  box-shadow: var(--sos-shadow-card);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.guild-hero,
+:global(html.art-lights-out) .guild-hero {
+  min-height: auto;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  gap: var(--sos-space-8);
+  padding: var(--sos-space-8);
+  border: 1px solid var(--sos-border-subtle);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--sos-bg-surface) 92%, transparent), color-mix(in srgb, var(--sos-accent-soft) 42%, var(--sos-bg-surface))),
+    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--sos-accent-2) 18%, transparent), transparent 34%);
+}
+
+.guild-hero::before {
+  inset: auto var(--sos-space-8) var(--sos-space-6) auto;
+  width: min(34vw, 20rem);
+  height: min(34vw, 20rem);
+  border: 1px solid color-mix(in srgb, var(--sos-accent) 18%, transparent);
+  border-radius: var(--sos-radius-full);
+}
+
+.guild-hero::after {
+  right: var(--sos-space-8);
+  bottom: var(--sos-space-8);
+  width: min(30rem, 52%);
+  height: var(--sos-space-1);
+  background: linear-gradient(90deg, var(--sos-accent), var(--sos-accent-2), transparent);
+  opacity: 0.58;
+}
+
+.eyebrow {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-heavy);
+  letter-spacing: var(--sos-tracking-wider);
+}
+
+.eyebrow::before {
+  display: inline-block;
+  width: 1.75rem;
+  height: 0.25rem;
+  margin-right: var(--sos-space-2);
+  vertical-align: middle;
+  background: var(--sos-signal);
+  border-radius: var(--sos-radius-full);
+  content: "";
+}
+
+.guild-hero h1 {
+  max-width: 12ch;
+  color: var(--sos-text-primary);
+  font-family: var(--sos-display-family);
+  font-size: var(--sos-text-hero);
+  font-weight: var(--sos-weight-black);
+  line-height: var(--sos-leading-tight);
+  letter-spacing: var(--sos-tracking-tighter);
+}
+
+.guild-hero p,
+.side-copy,
+.quest-card p,
+.reward-card p {
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-md);
+  line-height: var(--sos-leading-body);
+}
+
+.guild-card {
+  align-content: end;
+  min-height: 12rem;
+  padding: var(--sos-space-6);
+  color: var(--sos-text-primary);
+  background: color-mix(in srgb, var(--sos-bg-surface) 72%, transparent);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-lg);
+  box-shadow: var(--sos-shadow-xs);
+}
+
+.guild-card strong {
+  color: var(--sos-accent);
+  font-size: clamp(4rem, 8vw, 7rem);
+  background: none;
+}
+
+.guild-card span,
+.guild-card em,
+.status-tile span,
+.redemption-strip span {
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-heavy);
+}
+
+.guild-status {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sos-space-4);
+  border: 0;
+}
+
+.status-tile {
+  padding: var(--sos-space-5);
+  border: 1px solid var(--sos-border-subtle);
+}
+
+.status-tile strong {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-2xl);
+  font-weight: var(--sos-weight-black);
+  font-variant-numeric: var(--sos-numeric-tabular);
+}
+
+.guild-tabs,
+:global(html.art-lights-out) .guild-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sos-space-5);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--sos-border-subtle);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.guild-tab {
+  position: relative;
+  gap: var(--sos-space-1);
+  min-width: 9rem;
+  padding: var(--sos-space-3) 0 var(--sos-space-4);
+  color: var(--sos-text-secondary);
+  background: transparent;
+  border: 0;
+}
+
+.guild-tab::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--sos-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--sos-duration-base) var(--sos-ease-out);
+  content: "";
+}
+
+.guild-tab:hover,
+.guild-tab.active,
+:global(html.art-lights-out) .guild-tab:hover,
+:global(html.art-lights-out) .guild-tab.active {
+  color: var(--sos-text-primary);
+  background: transparent;
+  box-shadow: none;
+}
+
+.guild-tab.active::after {
+  transform: scaleX(1);
+}
+
+.guild-tab strong {
+  font-size: var(--sos-text-lg);
+}
+
+.guild-tab span,
+.guild-tab em {
+  color: var(--sos-text-tertiary);
+}
+
+.quest-column,
+.reward-section,
+.rank-panel,
+.rating-panel,
+.guild-feedback,
+.rule-corner,
+:global(html.art-lights-out) .quest-column,
+:global(html.art-lights-out) .reward-section,
+:global(html.art-lights-out) .rank-panel,
+:global(html.art-lights-out) .rating-panel,
+:global(html.art-lights-out) .guild-feedback,
+:global(html.art-lights-out) .rule-corner {
+  padding: var(--sos-space-6);
+  border: 1px solid var(--sos-border-subtle);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--sos-bg-surface) 88%, transparent), color-mix(in srgb, var(--sos-bg-subtle) 72%, transparent));
+  border-radius: var(--sos-radius-xl);
+  box-shadow: var(--sos-shadow-card);
+}
+
+.section-head {
+  align-items: end;
+  padding: 0 0 var(--sos-space-4);
+  border: 0;
+  border-bottom: 1px solid var(--sos-border-subtle);
+}
+
+.section-head h2 {
+  color: var(--sos-text-primary);
+  font-family: var(--sos-display-family);
+  font-size: var(--sos-text-2xl);
+  font-weight: var(--sos-weight-heavy);
+  letter-spacing: var(--sos-tracking-tight);
+}
+
+.quest-group {
+  padding-left: 0;
+}
+
+.quest-group-title {
+  margin-block: var(--sos-space-6) var(--sos-space-3);
+  padding: 0;
+  color: var(--sos-text-primary);
+  border: 0;
+}
+
+.quest-group-title b {
+  width: auto;
+  height: auto;
+  padding: var(--sos-space-1) var(--sos-space-2);
+  color: var(--sos-link);
+  background: var(--sos-accent-soft);
+  border-radius: var(--sos-radius-full);
+}
+
+.quest-card,
+.reward-card,
+:global(html.art-lights-out) .quest-card,
+:global(html.art-lights-out) .reward-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sos-space-4);
+  padding: var(--sos-space-5);
+  margin-bottom: var(--sos-space-3);
+  background: color-mix(in srgb, var(--sos-bg-surface) 76%, transparent);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-lg);
+  box-shadow: var(--sos-shadow-xs);
+  transition:
+    transform var(--sos-duration-fast) var(--sos-ease-out),
+    border-color var(--sos-duration-base) var(--sos-ease-standard),
+    box-shadow var(--sos-duration-base) var(--sos-ease-standard);
+}
+
+.quest-card::before {
+  display: none;
+}
+
+.quest-card:hover,
+.reward-card:hover,
+:global(html.art-lights-out) .quest-card:hover,
+:global(html.art-lights-out) .reward-card:hover {
+  background: var(--sos-bg-surface);
+  border-color: color-mix(in srgb, var(--sos-accent) 34%, var(--sos-border-default));
+  box-shadow: var(--sos-shadow-card);
+  transform: translateY(-2px);
+}
+
+.quest-title-row h3,
+.reward-card h3 {
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-lg);
+  font-weight: var(--sos-weight-heavy);
+}
+
+.quest-title-row span,
+.quest-meta span,
+.redemption-strip b {
+  color: var(--sos-text-secondary);
+  background: var(--sos-bg-subtle);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-full);
+}
+
+.progress-line {
+  height: var(--sos-space-2);
+  background: color-mix(in srgb, var(--sos-border-default) 50%, transparent);
+  border-radius: var(--sos-radius-full);
+}
+
+.progress-line span {
+  background: linear-gradient(90deg, var(--sos-accent), var(--sos-accent-2));
+  border-radius: inherit;
+}
+
+.action-btn,
+.ghost-btn,
+.rule-toggle,
+.rule-btn {
+  min-height: var(--sos-control-md);
+  padding-inline: var(--sos-space-5);
+  border-radius: var(--sos-control-radius);
+  font-size: var(--sos-text-sm);
+  transition:
+    transform var(--sos-duration-fast) var(--sos-ease-out),
+    background-color var(--sos-duration-base) var(--sos-ease-standard),
+    border-color var(--sos-duration-base) var(--sos-ease-standard);
+}
+
+.action-btn {
+  color: var(--sos-accent-contrast);
+  background: var(--sos-accent);
+  border: 1px solid transparent;
+  box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--sos-accent) 60%, transparent);
+}
+
+.ghost-btn,
+.rule-toggle,
+.rule-btn {
+  color: var(--sos-text-primary);
+  background: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-default);
+}
+
+.reward-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
+  gap: var(--sos-space-4);
+}
+
+.reward-card {
+  grid-template-columns: 6rem minmax(0, 1fr);
+}
+
+.reward-card .action-btn {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.reward-visual {
+  border-radius: var(--sos-media-radius);
+  clip-path: none;
+  background: linear-gradient(135deg, var(--sos-accent), var(--sos-accent-2));
+}
+
+.leader-row {
+  min-height: var(--sos-space-12);
+  padding: var(--sos-space-3) 0;
+  border-bottom: 1px solid var(--sos-border-subtle);
+}
+
+.leader-rating {
+  background: var(--sos-accent);
+  border-radius: var(--sos-radius-full);
+}
+
+.rating-panel textarea {
+  min-height: 8rem;
+  color: var(--sos-text-primary);
+  background: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-default);
+  border-radius: var(--sos-radius-md);
+}
+
+.guild-feedback {
+  color: var(--sos-text-secondary);
+}
+
+.rule-corner {
+  justify-content: space-between;
+}
+
+.rule-popover {
+  gap: var(--sos-space-2);
+}
+
+.rule-dialog.panel,
+:global(html.art-lights-out) .rule-dialog.panel {
+  width: min(36rem, 100%);
+  background: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-default);
+  border-radius: var(--sos-radius-xl);
+  box-shadow: var(--sos-shadow-overlay);
+}
+
+@media (max-width: 980px) {
+  .guild-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .guild-status {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .guild-page {
+    width: min(var(--sos-container-wide), calc(100% - var(--sos-space-5)));
+  }
+
+  .guild-hero,
+  .quest-column,
+  .reward-section,
+  .rank-panel,
+  .rating-panel,
+  .guild-feedback,
+  .rule-corner {
+    padding: var(--sos-space-5);
+  }
+
+  .guild-status,
+  .quest-card,
+  .reward-card {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
