@@ -122,6 +122,7 @@ const loginLoading = ref(false);
 // 每个 tab：key / label / 需要的 RBAC 子作用域 / 异步组件 / 额外按钮样式 class / 传给组件的 mode
 const ActivityAdmin = defineAsyncComponent(() => import('@/features/activity/admin/ActivityAdmin.vue'));
 const PrizeAdmin = defineAsyncComponent(() => import('@/features/store/admin/PrizeAdmin.vue'));
+const RedemptionAdmin = defineAsyncComponent(() => import('@/features/store/admin/RedemptionAdmin.vue'));
 const ArticleAdmin = defineAsyncComponent(() => import('@/features/blog/admin/ArticleAdmin.vue'));
 const GeneratorAdmin = defineAsyncComponent(() => import('@/features/blog/admin/GeneratorAdmin.vue'));
 const PointsAdmin = defineAsyncComponent(() => import('@/features/points/admin/PointsAdmin.vue'));
@@ -129,6 +130,7 @@ const PointsAdmin = defineAsyncComponent(() => import('@/features/points/admin/P
 const TABS = [
     { key: 'activities', label: '活动管理', scope: 'news.activity', comp: ActivityAdmin },
     { key: 'prizes', label: '奖品管理', scope: 'news.store', comp: PrizeAdmin },
+    { key: 'redemptions', label: '兑换发放', scope: 'news.store', comp: RedemptionAdmin },
     { key: 'pending', label: '待审核', scope: 'news.blog', comp: ArticleAdmin, mode: 'pending', btnClass: 'tab-btn-relative' },
     { key: 'published', label: '已发布内容', scope: 'news.blog', comp: ArticleAdmin, mode: 'published' },
     { key: 'points', label: '积分管理', scope: 'news.points', comp: PointsAdmin },

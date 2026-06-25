@@ -42,6 +42,8 @@ pub fn router() -> Router<AppState> {
         .route("/admin/prizes/reorder", post(reorder_prizes))
         .route("/admin/prizes/{id}", put(update_prize).delete(delete_prize))
         .route("/prizes/{id}/redeem", post(redeem_prize))
+        .route("/admin/redemptions", get(admin_redemptions))
+        .route("/admin/redemptions/{id}/status", post(admin_redemption_status))
         // ---- 文章（Articles）----
         .route("/articles", get(list_articles).post(create_article))
         .route(
@@ -1425,6 +1427,9 @@ async fn redeem_prize(
 
     tx.commit().await?;
 
+    // 通知管理员安排发放（异步、不阻塞、邮件未启用/失败均不影响兑换）
+    crate::notify::redemption_created(&state, redemption_id, &uid, &name, points);
+
     let new_total: Option<i64> =
         sqlx::query_scalar("SELECT CAST(NULLIF(TRIM(total), '') AS INTEGER) FROM users WHERE id = ?")
             .bind(&uid)
@@ -1442,6 +1447,125 @@ async fn redeem_prize(
         }
     }))
     .into_response())
+}
+
+// ============================================================
+// 兑换发放管理（后台，news.store 权限）
+// ============================================================
+
+/// GET /api/news/admin/redemptions?status=all|pending|fulfilled|cancelled —— 兑换记录列表。
+async fn admin_redemptions(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "news.store", Action::Read).await?;
+    let status = q.get("status").map(|s| s.as_str()).unwrap_or("all");
+    let base = "SELECT id, user_id, prize_id, prize_name, \
+        CAST(COALESCE(NULLIF(TRIM(points_cost), ''), '0') AS INTEGER) AS points_cost, \
+        status, created_at FROM redemptions";
+    let rows: Vec<(i64, String, i64, Option<String>, i64, Option<String>, Option<String>)> =
+        if status != "all" {
+            let sql = format!("{base} WHERE status = ? ORDER BY id DESC LIMIT 300");
+            sqlx::query_as(&sql)
+                .bind(status)
+                .fetch_all(&state.pools.news)
+                .await?
+        } else {
+            let sql = format!("{base} ORDER BY id DESC LIMIT 300");
+            sqlx::query_as(&sql).fetch_all(&state.pools.news).await?
+        };
+    let data: Vec<Value> = rows
+        .into_iter()
+        .map(|(id, user_id, prize_id, prize_name, points_cost, status, created_at)| {
+            json!({
+                "id": id, "user_id": user_id, "prize_id": prize_id, "prize_name": prize_name,
+                "points_cost": points_cost, "status": status, "created_at": created_at,
+            })
+        })
+        .collect();
+    Ok(Json(json!({ "message": "success", "data": data })))
+}
+
+/// POST /api/news/admin/redemptions/{id}/status { status } —— 更新发放状态。
+/// pending → cancelled 视为撤销兑换：退还积分 + 恢复库存（写流水）；其余仅改状态。
+async fn admin_redemption_status(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+    Json(body): Json<Value>,
+) -> AppResult<Response> {
+    authorize(&state.pools.core, &user, "news.store", Action::Manage).await?;
+    let new_status = body.get("status").and_then(|v| v.as_str()).unwrap_or("");
+    if !["pending", "fulfilled", "cancelled"].contains(&new_status) {
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "无效状态" })),
+        )
+            .into_response());
+    }
+
+    let row: Option<(String, String, i64, i64)> = sqlx::query_as(
+        "SELECT status, user_id, prize_id, \
+         CAST(COALESCE(NULLIF(TRIM(points_cost), ''), '0') AS INTEGER) \
+         FROM redemptions WHERE id = ?",
+    )
+    .bind(&id)
+    .fetch_optional(&state.pools.news)
+    .await?;
+    let (cur_status, uid, prize_id, points_cost) = match row {
+        Some(r) => r,
+        None => {
+            return Ok((
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "兑换记录不存在" })),
+            )
+                .into_response())
+        }
+    };
+
+    // 撤销（pending → cancelled）：退积分 + 恢复库存 + 写流水
+    if new_status == "cancelled" && cur_status == "pending" {
+        let mut tx = state.pools.news.begin().await?;
+        sqlx::query(
+            "UPDATE users SET total = CAST(NULLIF(TRIM(total), '') AS INTEGER) + ? WHERE id = ?",
+        )
+        .bind(points_cost)
+        .bind(&uid)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "UPDATE prizes SET stock = CAST(COALESCE(NULLIF(TRIM(stock), ''), '0') AS INTEGER) + 1 WHERE id = ?",
+        )
+        .bind(prize_id)
+        .execute(&mut *tx)
+        .await?;
+        let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+        let timestamp = chrono::Utc::now().timestamp_millis();
+        sqlx::query(
+            "INSERT INTO points_history (user_id, date, change, reason, timestamp) VALUES (?, ?, ?, ?, ?)",
+        )
+        .bind(&uid)
+        .bind(&date)
+        .bind(format!("+{points_cost}"))
+        .bind("兑换撤销退还")
+        .bind(timestamp)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("UPDATE redemptions SET status = 'cancelled' WHERE id = ?")
+            .bind(&id)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        return Ok(Json(json!({ "message": "success", "refunded": points_cost })).into_response());
+    }
+
+    sqlx::query("UPDATE redemptions SET status = ? WHERE id = ?")
+        .bind(new_status)
+        .bind(&id)
+        .execute(&state.pools.news)
+        .await?;
+    Ok(Json(json!({ "message": "success" })).into_response())
 }
 
 // ============================================================
