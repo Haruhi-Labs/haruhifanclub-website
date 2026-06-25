@@ -84,6 +84,11 @@ ci(workflows): 拆分前端检查并改为手动审计
 
 本地自查按改动范围选择执行，具体命令以 README 和 package scripts 为准。PR 模板中的验证清单用于记录实际跑过的检查。
 
+**push 前务必本地跑过对应门禁，不要把格式化 / lint 问题留给 CI**（后端 PR 已多次因 Rust 未格式化卡红）：
+
+- 全量自查：`pnpm lint`（即 `eslint .` + `cargo fmt --check` + `cargo clippy -- -D warnings`），可提前覆盖 `frontend-lint`（ESLint）与 `backend` 的 fmt / clippy 部分；注意 `backend` job 还会跑 `cargo test --workspace --lib`，改了后端逻辑需另跑 `cargo test`。只改前端时可只跑 `pnpm lint:js`。
+- **改了 Rust 一定先 `cargo fmt`**：CI `backend` job 的第一步就是 `cargo fmt --all --check`，未格式化会让整个后端门禁直接失败、`clippy` 都来不及跑。提交前跑一次 `pnpm lint`（或至少 `cargo fmt`）即可避免。
+
 CI 规则：
 
 - `ci-ok` 是 CI 聚合门禁。PR 合并前应确认它通过。
