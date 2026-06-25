@@ -1615,6 +1615,7 @@ async fn redemptions_for_uid(state: &AppState, uid: &str) -> AppResult<Vec<Value
         i64,
         String,
         String,
+        String,
         i64,
         String,
         Option<String>,
@@ -1623,7 +1624,7 @@ async fn redemptions_for_uid(state: &AppState, uid: &str) -> AppResult<Vec<Value
         Option<String>,
         Option<String>,
     )> = sqlx::query_as(
-        "SELECT r.id, r.reward_id, gr.name, gr.reward_type, r.frozen_coins, r.status,
+        "SELECT r.id, r.reward_id, r.uid, gr.name, gr.reward_type, r.frozen_coins, r.status,
                     r.user_note, r.admin_note, r.created_at, r.reviewed_at, r.fulfilled_at
              FROM guild_reward_redemptions r JOIN guild_rewards gr ON gr.id=r.reward_id
              WHERE r.uid=? ORDER BY datetime(r.created_at) DESC",
@@ -1640,6 +1641,7 @@ async fn all_redemptions(state: &AppState) -> AppResult<Vec<Value>> {
         i64,
         String,
         String,
+        String,
         i64,
         String,
         Option<String>,
@@ -1648,7 +1650,7 @@ async fn all_redemptions(state: &AppState) -> AppResult<Vec<Value>> {
         Option<String>,
         Option<String>,
     )> = sqlx::query_as(
-        "SELECT r.id, r.reward_id, gr.name, gr.reward_type, r.frozen_coins, r.status,
+        "SELECT r.id, r.reward_id, r.uid, gr.name, gr.reward_type, r.frozen_coins, r.status,
                     r.user_note, r.admin_note, r.created_at, r.reviewed_at, r.fulfilled_at
              FROM guild_reward_redemptions r JOIN guild_rewards gr ON gr.id=r.reward_id
              ORDER BY datetime(r.created_at) DESC",
@@ -1664,6 +1666,7 @@ fn redemption_value(
         i64,
         String,
         String,
+        String,
         i64,
         String,
         Option<String>,
@@ -1676,6 +1679,7 @@ fn redemption_value(
     let (
         id,
         reward_id,
+        uid,
         reward_name,
         reward_type,
         frozen_coins,
@@ -1689,6 +1693,7 @@ fn redemption_value(
     json!({
         "id": id,
         "rewardId": reward_id,
+        "uid": uid,
         "rewardName": reward_name,
         "rewardType": reward_type,
         "frozenCoins": frozen_coins,
