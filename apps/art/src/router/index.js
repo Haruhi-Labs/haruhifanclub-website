@@ -25,7 +25,7 @@ const router = createRouter({
     { path: '/gallery', name: 'gallery', component: GalleryView },
     { path: '/upload', name: 'upload', component: UploadView, meta: { requiresAuth: true } },
     { path: '/admin', name: 'admin', component: AdminView, meta: { requiresAuth: true } },
-    { path: '/points', name: 'points', component: PointsView, meta: { requiresAuth: true } },
+    { path: '/points', name: 'points', component: PointsView },
     { path: '/announcements', name: 'announcements', component: AnnouncementView },
     { path: '/exchange', name: 'exchange', component: ExchangeView, meta: { requiresAuth: true } },
     { path: '/license', name: 'license', component: LicenseView },
