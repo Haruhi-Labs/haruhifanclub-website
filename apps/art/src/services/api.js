@@ -107,6 +107,7 @@ export const api = {
   health: () => request('GET', `${API_PREFIX}/health`),
 
   // Public
+  recordVisitor: () => request('GET', `${API_PREFIX}/visitors`),
   artworksList: async (params) => {
     const data = await request('GET', `${API_PREFIX}/artworks`, { params })
     if (data.data) data.data = data.data.map(transformArtwork)

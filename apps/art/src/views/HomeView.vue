@@ -372,10 +372,9 @@ let pendingHaruhiBackgroundText = null
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { seedArtworks, seedCreators } from '../mock/seedData'
-import { useSession } from '@haruhi/auth-ui'
+import { api } from '../services/api'
 
 const router = useRouter()
-const session = useSession('/api')
 defineOptions({ name: 'HomeView' })
 const DAY_MS = 24 * 60 * 60 * 1000
 const SHIFT_LAYER_COUNT = 32
@@ -511,16 +510,6 @@ async function loadHaruhiBackgroundText() {
   }
 }
 
-function visitorNumberFromUserId(userId) {
-  const match = String(userId || '').match(/\d+/)
-  const parsed = match ? Number(match[0]) : 0
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
-}
-
-function makeVisitorNumber(userId = '') {
-  return visitorNumberFromUserId(userId)
-}
-
 function formatShortTime(value) {
   return new Intl.DateTimeFormat('zh-CN', {
     month: '2-digit',
@@ -538,9 +527,27 @@ function getSummerCountdown() {
   return Math.max(0, Math.ceil((end.getTime() - nowDate.getTime()) / DAY_MS))
 }
 
-const visitorNumber = makeVisitorNumber(session.state.user?.id)
-const visitorNumberText = visitorNumber.toLocaleString('zh-CN')
-const loopCode = String(15000 + (visitorNumber % 532)).padStart(5, '0')
+const visitorNumber = ref(null)
+const visitorNumberForVisual = computed(() => visitorNumber.value || 1)
+const visitorNumberText = computed(() => {
+  return visitorNumber.value ? visitorNumber.value.toLocaleString('zh-CN') : '同步中'
+})
+const loopCode = computed(() => String(15000 + (visitorNumberForVisual.value % 532)).padStart(5, '0'))
+let visitorNumberPromise = null
+
+function loadVisitorNumber() {
+  if (visitorNumberPromise) return visitorNumberPromise
+  visitorNumberPromise = api.recordVisitor()
+    .then((result) => {
+      const total = Number(result?.total || 0)
+      visitorNumber.value = Number.isFinite(total) && total > 0 ? total : null
+    })
+    .catch((error) => {
+      visitorNumberPromise = null
+      console.warn('访客统计同步失败:', error)
+    })
+  return visitorNumberPromise
+}
 
 const approvedArtworks = seedArtworks.filter((item) => item.status === 'approved')
 const artworkCount = approvedArtworks.length
@@ -564,15 +571,15 @@ const todayCount = Math.max(
   approvedArtworks.filter((item) => now - new Date(item.created_at).getTime() <= DAY_MS * 1.2).length
 )
 const weekCount = approvedArtworks.filter((item) => now - new Date(item.created_at).getTime() <= DAY_MS * 7.2).length
-const heatScore = Math.min(99, Math.round(totalLikes * 2 + (visitorNumber % 23)))
+const heatScore = computed(() => Math.min(99, Math.round(totalLikes * 2 + (visitorNumberForVisual.value % 23))))
 
-const satelliteMetrics = [
+const satelliteMetrics = computed(() => [
   { key: 'artworks', label: '当前画作', value: artworkCount, note: 'approved seed' },
   { key: 'creators', label: '创作者', value: creatorCount, note: '本地观测对象' },
   { key: 'latest', label: '最近上传', value: latestUploadText, note: latestArtwork?.title || '暂无作品' },
-  { key: 'likes', label: '应援热度', value: `${heatScore}%`, note: `${totalLikes} 次点赞` },
+  { key: 'likes', label: '应援热度', value: `${heatScore.value}%`, note: `${totalLikes} 次点赞` },
   { key: 'week', label: '本周入库', value: weekCount, note: `今日新增 ${todayCount}` },
-]
+])
 
 const shiftHovering = ref(false)
 const shiftDragging = ref(false)
@@ -1552,11 +1559,13 @@ function deactivateHomeView() {
 
 onMounted(() => {
   homeViewHasMounted = true
+  loadVisitorNumber()
   activateHomeView()
 })
 
 onActivated(() => {
   if (!homeViewHasMounted) return
+  if (!visitorNumber.value) loadVisitorNumber()
   activateHomeView()
 })
 
@@ -1632,16 +1641,16 @@ const haruhiAngle = haruhiRatio * 3.6
 const haruhiLabelPosition = getSectorLabelPosition(-90 + haruhiAngle / 2)
 const otherLabelPosition = getSectorLabelPosition(-90 + haruhiAngle + (360 - haruhiAngle) / 2)
 
-const stageStyle = {
+const stageStyle = computed(() => ({
   '--haruhi-angle': `${haruhiAngle}deg`,
   '--haruhi-label-x': haruhiLabelPosition.x,
   '--haruhi-label-y': haruhiLabelPosition.y,
   '--other-label-x': otherLabelPosition.x,
   '--other-label-y': otherLabelPosition.y,
-  '--heat-level': `${heatScore}%`,
+  '--heat-level': `${heatScore.value}%`,
   '--week-level': `${Math.min(100, weekCount * 18)}%`,
-  '--loop-offset': `${visitorNumber % 360}deg`,
-}
+  '--loop-offset': `${visitorNumberForVisual.value % 360}deg`,
+}))
 </script>
 
 <style scoped>

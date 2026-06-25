@@ -31,6 +31,7 @@ pub fn router() -> Router<AppState> {
         .route("/points/history", get(points_history))
         .route("/creators/search", get(creators_search))
         .route("/creators/verify", get(creators_verify))
+        .route("/visitors", get(record_visitor))
         .route("/artworks", get(list_artworks).post(create_artwork))
         .route("/artworks/{id}", get(get_artwork))
         .route("/thumb", get(get_thumb))
@@ -363,6 +364,59 @@ fn now_iso() -> String {
 // ============================================================
 // 公开接口
 // ============================================================
+
+// 0. 真实唯一访客计数：复用 art 匿名 Cookie，同一浏览器刷新不重复计入访客总数。
+async fn record_visitor(State(state): State<AppState>, headers: HeaderMap) -> AppResult<Response> {
+    let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
+    let now = now_iso();
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS art_visitors (
+            anon_id TEXT PRIMARY KEY,
+            first_seen_at TEXT NOT NULL,
+            last_seen_at TEXT NOT NULL,
+            visit_count INTEGER DEFAULT 1
+        )",
+    )
+    .execute(&state.pools.art)
+    .await?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_art_visitors_last_seen ON art_visitors(last_seen_at)",
+    )
+    .execute(&state.pools.art)
+    .await?;
+
+    let insert = sqlx::query(
+        "INSERT OR IGNORE INTO art_visitors(anon_id, first_seen_at, last_seen_at, visit_count)
+         VALUES(?,?,?,1)",
+    )
+    .bind(&anon_id)
+    .bind(&now)
+    .bind(&now)
+    .execute(&state.pools.art)
+    .await?;
+    let is_new = insert.rows_affected() > 0;
+
+    if !is_new {
+        sqlx::query(
+            "UPDATE art_visitors SET last_seen_at=?, visit_count=visit_count+1 WHERE anon_id=?",
+        )
+        .bind(&now)
+        .bind(&anon_id)
+        .execute(&state.pools.art)
+        .await?;
+    }
+
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM art_visitors")
+        .fetch_one(&state.pools.art)
+        .await?;
+
+    Ok(json_with_cookie(
+        json!({ "ok": true, "total": total, "isNew": is_new }),
+        set,
+    ))
+}
 
 // 1. 积分排行榜
 async fn points_leaderboard(
