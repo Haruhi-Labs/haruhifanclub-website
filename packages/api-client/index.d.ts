@@ -34,12 +34,32 @@ export interface CurrentUser {
   apps: Record<string, AppRole>
 }
 
+export interface Passkey {
+  id: number
+  name: string | null
+  createdAt: string
+  lastUsedAt: string | null
+}
+
 export interface Auth {
   login(username: string, password: string): Promise<CurrentUser>
   me(): Promise<CurrentUser>
   logout(): void
   getToken(): string
   isLoggedIn(): boolean
+  // 通行密钥（Passkey / WebAuthn）
+  isPasskeySupported(): boolean
+  isConditionalUiAvailable(): Promise<boolean>
+  listPasskeys(): Promise<{ passkeys: Passkey[] }>
+  addPasskey(name?: string): Promise<unknown>
+  deletePasskey(id: number): Promise<unknown>
+  renamePasskey(id: number, name: string): Promise<unknown>
+  loginPasskey(opts?: { conditional?: boolean; signal?: AbortSignal }): Promise<CurrentUser>
+  // 两步验证（2FA / TOTP）
+  login2fa(pendingToken: string, code: string, backup?: boolean): Promise<CurrentUser>
+  setup2fa(): Promise<{ otpauthUri: string; secret: string; backupCodes: string[] }>
+  enable2fa(code: string): Promise<unknown>
+  disable2fa(password: string): Promise<unknown>
 }
 
 export interface LoginResult {

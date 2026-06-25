@@ -1,12 +1,15 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { SosCard, SosButton, SosNotice, SosSpinner } from '@haruhi/ui'
 import { useSession } from './useSession.js'
 import './auth.css'
 
 const props = defineProps({
   apiBase: { type: String, default: '/api' },
   home: { type: String, default: '/' },
+  title: { type: String, default: '凉宫春日应援团' },
+  site: { type: String, default: undefined },
 })
 
 const session = useSession(props.apiBase)
@@ -34,18 +37,50 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="hauth-root hauth-page">
-    <div class="hauth-card">
-      <h2 class="hauth-title">邮箱验证</h2>
-      <div v-if="state === 'loading'" class="hauth-spin">正在验证…</div>
+  <div class="hauth-root sos-scope hauth-shell" :data-sos-site="site">
+    <SosCard class="hauth-card" as="section">
+      <header class="hauth-brand">
+        <span class="hauth-brand__mark" aria-hidden="true">{{ title.slice(0, 1) }}</span>
+        <h1 class="sos-title" style="font-size: var(--sos-text-2xl)">邮箱验证</h1>
+      </header>
+
+      <div
+        v-if="state === 'loading'"
+        class="sos-inline"
+        style="justify-content: center; margin-top: var(--sos-space-4)"
+      >
+        <SosSpinner />
+        <span class="sos-copy sos-copy--small">正在验证…</span>
+      </div>
+
       <template v-else-if="state === 'ok'">
-        <div class="hauth-msg hauth-msg--ok">邮箱验证成功！现在你可以发布内容了。</div>
-        <a class="hauth-btn" :href="home" style="display:block;text-align:center;text-decoration:none">返回首页</a>
+        <SosNotice tone="success" title="验证成功" style="margin-top: var(--sos-space-4)">
+          你的邮箱已验证，现在可以发布内容了。
+        </SosNotice>
+        <SosButton
+          as="a"
+          :href="home"
+          class="sos-button--block"
+          style="margin-top: var(--sos-space-5)"
+        >
+          返回首页
+        </SosButton>
       </template>
+
       <template v-else>
-        <div class="hauth-msg hauth-msg--err">{{ error }}</div>
-        <a class="hauth-btn hauth-btn--ghost" :href="home" style="display:block;text-align:center;text-decoration:none">返回首页</a>
+        <SosNotice tone="danger" title="验证失败" style="margin-top: var(--sos-space-4)">
+          {{ error }}
+        </SosNotice>
+        <SosButton
+          as="a"
+          :href="home"
+          variant="secondary"
+          class="sos-button--block"
+          style="margin-top: var(--sos-space-5)"
+        >
+          返回首页
+        </SosButton>
       </template>
-    </div>
+    </SosCard>
   </div>
 </template>

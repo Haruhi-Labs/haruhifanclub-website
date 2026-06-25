@@ -56,10 +56,10 @@
 /* =========================================
    UI 组件 (Buttons)
    ========================================= */
-button.ui { border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 13px; color: #1a1c20; background: rgba(255, 255, 255, .88); box-shadow: 0 2px 6px rgba(0, 0, 0, .08); cursor: pointer; white-space: nowrap; }
+button.ui { border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 13px; color: var(--sos-text-primary); background: color-mix(in srgb, var(--sos-bg-surface) 88%, transparent); box-shadow: 0 2px 6px rgba(0, 0, 0, .08); cursor: pointer; white-space: nowrap; }
 button.ui.ghost { background: rgba(0, 0, 0, .04); color: rgba(0, 0, 0, .75); box-shadow: none; }
-button.ui.red { background: #c8171e; color: #fff; box-shadow: 0 4px 10px rgba(200, 23, 30, .25); border: none; }
-button.ui.green { background: #16a34a; color: #fff; box-shadow: 0 4px 10px rgba(22, 163, 74, .25); border: none; }
+/* 通用主操作：统一到 exam 阅卷红（提交/下一步等推进动作） */
+button.ui.red, button.ui.green { background: var(--sos-accent); color: var(--sos-accent-contrast); box-shadow: 0 4px 10px color-mix(in srgb, var(--sos-accent) 25%, transparent); border: none; }
 button.ui:active { transform: translateY(1px); }
 button.ui:disabled { opacity: 0.6; pointer-events: none; }
 

@@ -655,7 +655,7 @@ async function submit(){
   font-weight: 950;
   letter-spacing: -0.5px;
   margin: 0;
-  background: linear-gradient(135deg, var(--text-main) 0%, #4b5563 100%);
+  background: linear-gradient(135deg, var(--text-main) 0%, var(--sos-text-secondary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -755,7 +755,7 @@ async function submit(){
   align-items: center;
   gap: 4px;
 }
-.form-label .req { color: #ef4444; }
+.form-label .req { color: var(--sos-danger); }
 .form-label .opt { color: var(--text-sub); font-weight: 400; font-size: 12px; }
 
 /* 输入框样式 */
@@ -783,7 +783,7 @@ async function submit(){
 }
 
 .form-input:focus, .form-textarea:focus {
-  background: #fff;
+  background: var(--sos-bg-surface);
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-soft);
   outline: none;
@@ -800,7 +800,7 @@ async function submit(){
   color: var(--text-sub);
   margin-top: 4px;
 }
-.form-hint.warning { color: #d97706; }
+.form-hint.warning { color: var(--sos-warning); }
 .form-hint.center { text-align: center; }
 
 /* Segment Control */
@@ -831,7 +831,7 @@ async function submit(){
 }
 .segment-btn:hover { color: var(--text-main); }
 .segment-btn.active {
-  background: #fff;
+  background: var(--sos-bg-surface);
   color: var(--primary);
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
@@ -847,7 +847,7 @@ async function submit(){
   border-radius: var(--radius-md);
   border: none;
   background: var(--text-main);
-  color: #fff;
+  color: var(--sos-bg-surface);
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
@@ -873,19 +873,19 @@ async function submit(){
   border-radius: 12px;
 }
 .status-badge { font-size: 14px; font-weight: 700; }
-.status-badge.ok { color: #10b981; }
-.status-badge.bad { color: #ef4444; }
+.status-badge.ok { color: var(--sos-success); }
+.status-badge.bad { color: var(--sos-danger); }
 .creator-avatar {
   width: 32px; height: 32px;
   border-radius: 50%;
-  border: 2px solid #fff;
+  border: 2px solid var(--sos-bg-surface);
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .info-card {
   margin-top: 12px;
   padding: 16px;
-  background: #eff6ff;
+  background: var(--sos-accent-soft);
   border-radius: 12px;
   font-size: 13px;
   color: #1e40af;
@@ -1012,7 +1012,7 @@ async function submit(){
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  background: #fff;
+  background: var(--sos-bg-surface);
   border: 1px solid rgba(0,0,0,0.06);
   border-radius: 20px;
   font-size: 13px;
@@ -1023,14 +1023,14 @@ async function submit(){
 .tag-remove {
   border: none;
   background: transparent;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   cursor: pointer;
   font-size: 16px;
   line-height: 1;
   padding: 0 2px;
   border-radius: 4px;
 }
-.tag-remove:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+.tag-remove:hover { color: var(--sos-danger); background: rgba(239,68,68,0.1); }
 .text-btn {
   margin-top: 8px;
   background: none;
@@ -1065,10 +1065,10 @@ async function submit(){
 }
 .badge-private {
   font-size: 10px;
-  background: #f3f4f6;
+  background: var(--sos-bg-muted);
   padding: 2px 6px;
   border-radius: 4px;
-  color: #6b7280;
+  color: var(--sos-text-tertiary);
 }
 
 .checkbox-list {
@@ -1088,7 +1088,7 @@ async function submit(){
   transition: all 0.2s;
   border: 1px solid transparent;
 }
-.checkbox-card:hover { background: #fff; box-shadow: var(--shadow-sm); }
+.checkbox-card:hover { background: var(--sos-bg-surface); box-shadow: var(--shadow-sm); }
 .checkbox-card:has(.chk-input:checked) {
   background: #f0fdfa; /* Teal-50 */
   border-color: var(--primary);
@@ -1097,12 +1097,12 @@ async function submit(){
 .chk-input { display: none; }
 .chk-custom {
   width: 18px; height: 18px;
-  border: 2px solid #d1d5db;
+  border: 2px solid var(--sos-border-strong);
   border-radius: 5px;
   position: relative;
   transition: all 0.2s;
   flex-shrink: 0;
-  background: #fff;
+  background: var(--sos-bg-surface);
 }
 .chk-input:checked + .chk-custom {
   background: var(--primary);
@@ -1202,8 +1202,8 @@ async function submit(){
   width: 100%;
   animation: fadeIn 0.3s;
 }
-.message-box.error { background: #fee2e2; color: #b91c1c; }
-.message-box.success { background: #d1fae5; color: #047857; }
+.message-box.error { background: var(--sos-danger-soft); color: #b91c1c; }
+.message-box.success { background: var(--sos-success-soft); color: var(--sos-success); }
 
 .submit-btn {
   position: relative;
@@ -1212,8 +1212,8 @@ async function submit(){
   padding: 16px;
   border: none;
   border-radius: 16px;
-  background: linear-gradient(135deg, var(--text-main) 0%, #111827 100%);
-  color: #fff;
+  background: linear-gradient(135deg, var(--text-main) 0%, var(--sos-text-primary) 100%);
+  color: var(--sos-bg-surface);
   font-size: 18px;
   font-weight: 800;
   letter-spacing: 0.5px;
@@ -1228,7 +1228,7 @@ async function submit(){
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 15px 30px -5px rgba(0,0,0,0.3);
-  background: linear-gradient(135deg, #000 0%, #1f2937 100%);
+  background: linear-gradient(135deg, #000 0%, var(--sos-text-primary) 100%);
 }
 .submit-btn:active:not(:disabled) { transform: translateY(0); }
 .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(1); }
@@ -1237,7 +1237,7 @@ async function submit(){
   width: 20px; height: 20px;
   border: 3px solid rgba(255,255,255,0.3);
   border-radius: 50%;
-  border-top-color: #fff;
+  border-top-color: var(--sos-bg-surface);
   animation: spin 0.8s linear infinite;
 }
 
@@ -1260,7 +1260,7 @@ async function submit(){
   margin-bottom: 24px;
 }
 .file-card {
-  background: #fff;
+  background: var(--sos-bg-surface);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 10px rgba(0,0,0,0.05);
@@ -1274,7 +1274,7 @@ async function submit(){
   outline-offset: 2px;
 }
 
-.file-thumb { height: 120px; position: relative; background: #eee; }
+.file-thumb { height: 120px; position: relative; background: var(--sos-border-default); }
 .file-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
 .remove-btn {
@@ -1282,7 +1282,7 @@ async function submit(){
   width: 24px; height: 24px;
   border-radius: 50%;
   background: rgba(0,0,0,0.5);
-  color: #fff;
+  color: var(--sos-bg-surface);
   border: none;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -1294,7 +1294,7 @@ async function submit(){
 .cover-badge {
   position: absolute; bottom: 0; left: 0; right: 0;
   background: rgba(16, 185, 129, 0.9); /* primary color variant */
-  color: #fff;
+  color: var(--sos-bg-surface);
   font-size: 10px; text-align: center;
   padding: 2px 0; font-weight: 700;
 }

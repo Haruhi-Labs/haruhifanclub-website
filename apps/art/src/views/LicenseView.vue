@@ -176,7 +176,7 @@ onMounted(() => {
 .title-group h1 {
   font-size: 32px;
   font-weight: 900;
-  color: #fff;
+  color: var(--sos-bg-surface);
   margin: 0 0 8px 0;
   letter-spacing: 1px;
 }
@@ -250,7 +250,7 @@ onMounted(() => {
 .art-title {
   font-size: 16px;
   font-weight: 700;
-  color: #fff;
+  color: var(--sos-bg-surface);
   margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;

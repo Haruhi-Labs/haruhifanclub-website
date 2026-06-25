@@ -1138,13 +1138,13 @@ onUnmounted(() => {
   position: relative;
   overflow-x: hidden;
   background-color: #050505;
-  color: #fff;
+  color: var(--sos-bg-surface);
   font-family: "Noto Sans SC", sans-serif;
 }
 
 .activity-page ::selection {
   background: #f0f;
-  color: #fff;
+  color: var(--sos-bg-surface);
 }
 
 /* ================= 背景层 ================= */
@@ -1164,7 +1164,7 @@ onUnmounted(() => {
   right: 0;
   bottom: 0;
   left: 0;
-  background-color: #000;
+  background-color: var(--sos-text-primary);
 }
 
 .bg-layer-image {
@@ -1315,7 +1315,7 @@ onUnmounted(() => {
 }
 
 .subtitle-text {
-  color: #d1d5db;
+  color: var(--sos-border-strong);
   font-family: "Noto Sans SC", sans-serif;
   font-size: 0.75rem;
   letter-spacing: 0.3em;
@@ -1436,7 +1436,7 @@ onUnmounted(() => {
   margin-top: 0.5rem;
   border-radius: 1rem 1rem 0.375rem 0.375rem;
   overflow: hidden;
-  background-color: #111827;
+  background-color: var(--sos-text-primary);
   z-index: 10;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   transition: transform 500ms ease-out;
@@ -1486,7 +1486,7 @@ onUnmounted(() => {
   right: 0;
   bottom: 0;
   left: 0;
-  background: linear-gradient(to top, #0a0a0a, transparent, transparent);
+  background: linear-gradient(to top, var(--sos-text-primary), transparent, transparent);
 }
 
 /* ================= 卡片：状态角标 ================= */
@@ -1565,7 +1565,7 @@ onUnmounted(() => {
   font-weight: 900;
   font-style: italic;
   font-family: "Noto Sans SC", sans-serif;
-  color: #fff;
+  color: var(--sos-bg-surface);
   margin-bottom: 0.5rem;
   transition: color 300ms;
   filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.04)) drop-shadow(0 4px 3px rgba(0, 0, 0, 0.1));
@@ -1585,7 +1585,7 @@ onUnmounted(() => {
 
 /* ================= 卡片介绍 ================= */
 .card-intro {
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   font-size: 0.875rem;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1606,7 +1606,7 @@ onUnmounted(() => {
 }
 
 .group:hover .card-intro {
-  color: #e5e7eb;
+  color: var(--sos-border-default);
 }
 
 .card-intro--left-aligned {
@@ -1657,7 +1657,7 @@ onUnmounted(() => {
 
 .reward-label {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -1754,13 +1754,13 @@ onUnmounted(() => {
 }
 
 .reward-action-points--event {
-  color: #f5f5f5;
+  color: var(--sos-bg-subtle);
   font-size: 1rem;
   letter-spacing: 0.05em;
 }
 
 .reward-action-name {
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -1768,7 +1768,7 @@ onUnmounted(() => {
 }
 
 .reward-action-name--event {
-  color: #d1d5db;
+  color: var(--sos-border-strong);
   letter-spacing: 0.08em;
 }
 
@@ -1790,7 +1790,7 @@ onUnmounted(() => {
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
   background-color: #f0f;
-  color: #fff;
+  color: var(--sos-bg-surface);
   font-weight: 900;
   font-size: 0.875rem;
   text-transform: uppercase;
@@ -1832,7 +1832,7 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   max-width: 64rem;
-  background-color: #000;
+  background-color: var(--sos-text-primary);
   border: 1px solid #0ff;
   box-shadow: 0 0 50px rgba(0, 255, 255, 0.2);
   overflow: hidden;
@@ -1895,13 +1895,13 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   height: 6rem;
-  background: linear-gradient(to top, #000, transparent);
+  background: linear-gradient(to top, var(--sos-text-primary), transparent);
 }
 
 .modal-body {
   width: 100%;
   padding: 1.5rem;
-  background-color: #000;
+  background-color: var(--sos-text-primary);
   position: relative;
 }
 
@@ -1936,7 +1936,7 @@ onUnmounted(() => {
   font-size: 1.5rem;
   font-weight: 900;
   font-style: italic;
-  color: #fff;
+  color: var(--sos-bg-surface);
   margin-bottom: 1.5rem;
   filter: drop-shadow(2px 2px 0 #f0f);
   position: relative;
@@ -1988,7 +1988,7 @@ onUnmounted(() => {
 .modal-intro-text {
   font-weight: 700;
   font-size: 1.125rem;
-  color: #fff;
+  color: var(--sos-bg-surface);
   margin-bottom: 1rem;
   border-left: 4px solid #0ff;
   padding-left: 1rem;
@@ -2003,7 +2003,7 @@ onUnmounted(() => {
 .modal-detail-content {
   opacity: 0.8;
   font-size: 0.875rem;
-  color: #d1d5db;
+  color: var(--sos-border-strong);
 }
 
 @media (min-width: 768px) {
@@ -2015,7 +2015,7 @@ onUnmounted(() => {
 .modal-footer {
   margin-top: 2.5rem;
   padding-top: 1.5rem;
-  border-top: 1px dashed #333;
+  border-top: 1px dashed var(--sos-text-secondary);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2029,8 +2029,8 @@ onUnmounted(() => {
 
 .modal-close-btn {
   padding: 0.5rem 1.5rem;
-  background-color: #fff;
-  color: #000;
+  background-color: var(--sos-bg-surface);
+  color: var(--sos-text-primary);
   font-weight: 900;
   transition: background-color 300ms;
   transform: skewX(-10deg);
@@ -2069,7 +2069,7 @@ onUnmounted(() => {
 }
 
 :deep(.detail-bold) {
-  color: #fff;
+  color: var(--sos-bg-surface);
   font-size: 1.125rem;
 }
 
@@ -2386,8 +2386,8 @@ onUnmounted(() => {
 
 /* 滚动条 */
 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: #000; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: var(--sos-text-primary); }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--sos-text-secondary); border-radius: 3px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #0ff; }
 
 /* ================= 分页控件 ================= */
@@ -2419,7 +2419,7 @@ onUnmounted(() => {
 }
 
 .cyber-page-btn:hover:not(:disabled) {
-  color: #000;
+  color: var(--sos-text-primary);
   background: #0ff;
   border-color: #0ff;
   box-shadow: 0 0 18px rgba(0, 255, 255, 0.55);
@@ -2427,7 +2427,7 @@ onUnmounted(() => {
 }
 
 .cyber-page-btn.is-active {
-  color: #000;
+  color: var(--sos-text-primary);
   background: linear-gradient(135deg, #0ff 0%, #f0f 100%);
   border-color: #f0f;
   box-shadow: 0 0 20px rgba(255, 0, 255, 0.55);

@@ -7,10 +7,13 @@
 
 pub mod admin_routes;
 pub mod auth_routes;
+pub mod middleware;
 pub mod modules;
 pub mod notify;
 pub mod pagination;
+pub mod passkey_routes;
 pub mod ratelimit;
 pub mod routes;
 pub mod seed;
 pub mod state;
+pub mod totp_routes;

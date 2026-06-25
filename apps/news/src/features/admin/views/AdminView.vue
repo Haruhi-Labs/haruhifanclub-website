@@ -236,10 +236,10 @@ watch(() => store.isAdmin, (val) => {
 }
 
 .login-card {
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
   padding: 2.5rem;
   border-radius: 0.75rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
   max-width: 24rem;
   width: 100%;
@@ -254,7 +254,7 @@ watch(() => store.isAdmin, (val) => {
   left: 0;
   width: 100%;
   height: 0.25rem;
-  background-color: #000;
+  background-color: var(--sos-text-primary);
 }
 
 .login-header {
@@ -264,8 +264,8 @@ watch(() => store.isAdmin, (val) => {
 .login-avatar {
   width: 4rem;
   height: 4rem;
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   border-radius: 9999px;
   display: flex;
   align-items: center;
@@ -289,7 +289,7 @@ watch(() => store.isAdmin, (val) => {
 .login-subtitle {
   font-size: 0.75rem;
   line-height: 1rem;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   margin-top: 0.25rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -297,8 +297,8 @@ watch(() => store.isAdmin, (val) => {
 
 .login-input {
   width: 100%;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background-color: var(--sos-bg-subtle);
+  border: 1px solid var(--sos-border-default);
   padding: 0.75rem;
   border-radius: 0.5rem;
   margin-bottom: 1rem;
@@ -309,12 +309,12 @@ watch(() => store.isAdmin, (val) => {
 }
 
 .login-input:focus {
-  border-color: #000;
-  box-shadow: 0 0 0 1px #000;
+  border-color: var(--sos-text-primary);
+  box-shadow: 0 0 0 1px var(--sos-text-primary);
 }
 
 .login-msg {
-  color: #dc2626;
+  color: var(--sos-danger);
   font-size: 0.85rem;
   text-align: center;
   margin: -0.25rem 0 0.75rem;
@@ -327,8 +327,8 @@ watch(() => store.isAdmin, (val) => {
 
 .login-btn {
   width: 100%;
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
   border-radius: 0.5rem;
@@ -341,7 +341,7 @@ watch(() => store.isAdmin, (val) => {
 }
 
 .login-btn:hover {
-  background-color: #1f2937;
+  background-color: var(--sos-text-primary);
 }
 
 .login-btn:active {
@@ -387,14 +387,14 @@ watch(() => store.isAdmin, (val) => {
   font-size: 1.875rem;
   line-height: 2.25rem;
   font-weight: 900;
-  color: #000;
+  color: var(--sos-text-primary);
   margin-bottom: 0.25rem;
 }
 
 .top-bar-subtitle {
   font-size: 0.875rem;
   line-height: 1.25rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   font-family: "Noto Sans SC", sans-serif;
 }
 
@@ -409,14 +409,14 @@ watch(() => store.isAdmin, (val) => {
   font-size: 0.875rem;
   line-height: 1.25rem;
   font-weight: 700;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   border-radius: 0.5rem;
   transition: color 150ms, background-color 150ms;
 }
 
 .btn-back:hover {
-  color: #000;
-  background-color: #fff;
+  color: var(--sos-text-primary);
+  background-color: var(--sos-bg-surface);
 }
 
 .btn-logout {
@@ -424,17 +424,17 @@ watch(() => store.isAdmin, (val) => {
   font-size: 0.875rem;
   line-height: 1.25rem;
   font-weight: 700;
-  background-color: #fff;
-  border: 1px solid #e5e7eb;
-  color: #ef4444;
+  background-color: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-default);
+  color: var(--sos-danger);
   border-radius: 0.5rem;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   transition: all 150ms;
 }
 
 .btn-logout:hover {
-  border-color: #000;
-  color: #dc2626;
+  border-color: var(--sos-text-primary);
+  color: var(--sos-danger);
 }
 
 .btn-new-content {
@@ -442,8 +442,8 @@ watch(() => store.isAdmin, (val) => {
   font-size: 0.875rem;
   line-height: 1.25rem;
   font-weight: 700;
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   border-radius: 0.5rem;
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
   transition: transform 150ms;
@@ -453,7 +453,7 @@ watch(() => store.isAdmin, (val) => {
 }
 
 .btn-new-content:hover {
-  background-color: #1f2937;
+  background-color: var(--sos-text-primary);
 }
 
 .btn-new-content:active {
@@ -475,10 +475,10 @@ watch(() => store.isAdmin, (val) => {
 }
 
 .stat-card {
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
   padding: 1.5rem;
   border-radius: 0.75rem;
-  border: 1px solid #f3f4f6;
+  border: 1px solid var(--sos-bg-muted);
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   transition: box-shadow 150ms;
 }
@@ -490,7 +490,7 @@ watch(() => store.isAdmin, (val) => {
 .stat-label {
   font-size: 0.75rem;
   line-height: 1rem;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 700;
@@ -507,13 +507,13 @@ watch(() => store.isAdmin, (val) => {
 
 .stat-purple { color: #9333ea; }
 
-.stat-green { color: #16a34a; }
+.stat-green { color: var(--sos-success); }
 
 /* ==================== Content Area ==================== */
 .content-area {
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
   border-radius: 1rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   overflow: hidden;
   min-height: 600px;
@@ -524,7 +524,7 @@ watch(() => store.isAdmin, (val) => {
 /* ==================== Tabs ==================== */
 .tabs-bar {
   display: flex;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--sos-bg-muted);
   padding-left: 1.5rem;
   padding-right: 1.5rem;
   padding-top: 0.5rem;
@@ -556,23 +556,23 @@ watch(() => store.isAdmin, (val) => {
 }
 
 .tab-active {
-  color: #000;
-  border-bottom-color: #000;
+  color: var(--sos-text-primary);
+  border-bottom-color: var(--sos-text-primary);
 }
 
 .tab-inactive {
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   border-bottom-color: transparent;
 }
 
 .tab-inactive:hover {
-  color: #4b5563;
+  color: var(--sos-text-secondary);
 }
 
 .pending-badge {
   margin-left: 0.5rem;
   background-color: #eab308;
-  color: #fff;
+  color: var(--sos-bg-surface);
   font-size: 10px;
   padding: 0.125rem 0.375rem;
   border-radius: 9999px;

@@ -14,9 +14,21 @@ use rand_core::OsRng;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
+pub mod session;
+pub use session::{
+    clear_cookie, consume_user_token, cookie_value, create_session, csrf_set_cookie, hash_token,
+    issue_user_token, lookup_session, revoke_session, revoke_session_by_cookie,
+    revoke_user_sessions, session_id_of, session_set_cookie, SessionInfo, CSRF_COOKIE, CSRF_HEADER,
+    SESSION_COOKIE,
+};
+
 /// 从 AppState 中取出的 JWT 密钥（通过 FromRef 提供给提取器）。
 #[derive(Clone)]
 pub struct AuthSecret(pub Arc<String>);
+
+/// 从 AppState 中取出的 core.db 连接池（会话提取器据此查 sessions 表）。
+#[derive(Clone)]
+pub struct CoreDb(pub SqlitePool);
 
 /// JWT 载荷。
 #[derive(Debug, Serialize, Deserialize)]
@@ -180,34 +192,55 @@ pub fn require_super(user: &AuthUser) -> AppResult<()> {
 
 // ---------- axum 提取器 ----------
 
+/// 从请求里解析当前用户：**优先**会话 cookie（可吊销、抗 XSS），
+/// **回退**到旧的 `Authorization: Bearer <JWT>`（兼容迁移期，待全站切 cookie 后删除）。
+async fn resolve_user<S>(parts: &Parts, state: &S) -> Option<AuthUser>
+where
+    AuthSecret: FromRef<S>,
+    CoreDb: FromRef<S>,
+    S: Send + Sync,
+{
+    // 1) 会话 cookie
+    if let Some(raw) = session::cookie_value(&parts.headers, SESSION_COOKIE) {
+        let core = CoreDb::from_ref(state).0;
+        if let Ok(Some(info)) = lookup_session(&core, &raw).await {
+            return Some(info.user);
+        }
+    }
+    // 2) 兼容回退：Bearer JWT
+    let secret = AuthSecret::from_ref(state);
+    let token = parts
+        .headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))?;
+    decode_token(&secret.0, token).ok().map(|claims| AuthUser {
+        id: claims.sub,
+        is_super: claims.is_super,
+    })
+}
+
 impl<S> FromRequestParts<S> for AuthUser
 where
     AuthSecret: FromRef<S>,
+    CoreDb: FromRef<S>,
     S: Send + Sync,
 {
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let secret = AuthSecret::from_ref(state);
-        let token = parts
-            .headers
-            .get(axum::http::header::AUTHORIZATION)
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.strip_prefix("Bearer "))
-            .ok_or(AppError::Unauthorized)?;
-        let claims = decode_token(&secret.0, token)?;
-        Ok(AuthUser {
-            id: claims.sub,
-            is_super: claims.is_super,
-        })
+        resolve_user(parts, state)
+            .await
+            .ok_or(AppError::Unauthorized)
     }
 }
 
-/// 可选鉴权：`Option<AuthUser>`。无 Bearer 头或 token 非法时为 None，
-/// 仅在“可选登录”的端点（如游客投稿、公开详情）使用。axum 0.8 要求单独实现此 trait。
+/// 可选鉴权：`Option<AuthUser>`。无有效会话/令牌时为 None，
+/// 仅在“可选登录”的端点（如公开详情、个性化展示）使用。axum 0.8 要求单独实现此 trait。
 impl<S> OptionalFromRequestParts<S> for AuthUser
 where
     AuthSecret: FromRef<S>,
+    CoreDb: FromRef<S>,
     S: Send + Sync,
 {
     type Rejection = AppError;
@@ -216,22 +249,7 @@ where
         parts: &mut Parts,
         state: &S,
     ) -> Result<Option<Self>, Self::Rejection> {
-        let secret = AuthSecret::from_ref(state);
-        let token = parts
-            .headers
-            .get(axum::http::header::AUTHORIZATION)
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.strip_prefix("Bearer "));
-        match token {
-            Some(token) => match decode_token(&secret.0, token) {
-                Ok(claims) => Ok(Some(AuthUser {
-                    id: claims.sub,
-                    is_super: claims.is_super,
-                })),
-                Err(_) => Ok(None),
-            },
-            None => Ok(None),
-        }
+        Ok(resolve_user(parts, state).await)
     }
 }
 

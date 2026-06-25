@@ -299,7 +299,7 @@ const downloadImage = async () => {
 /* ==================== Generator Tab (Tab 5) ==================== */
 .generator-tab {
   padding: 2rem;
-  background-color: #f9fafb;
+  background-color: var(--sos-bg-subtle);
   flex: 1;
 }
 
@@ -338,10 +338,10 @@ const downloadImage = async () => {
 }
 
 .generator-config-box {
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
   padding: 1.5rem;
   border-radius: 0.75rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
@@ -351,7 +351,7 @@ const downloadImage = async () => {
 
 .gen-date-input {
   width: 100%;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom: 2px solid var(--sos-border-default);
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -377,7 +377,7 @@ const downloadImage = async () => {
 
 .gen-match-info {
   padding-top: 1rem;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--sos-bg-muted);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -386,18 +386,18 @@ const downloadImage = async () => {
 }
 
 .gen-match-text {
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 .gen-match-count {
-  color: #000;
+  color: var(--sos-text-primary);
 }
 
 .gen-export-btn {
   width: 100%;
   padding: 1rem;
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   border-radius: 0.75rem;
   font-weight: 700;
   font-size: 1.125rem;
@@ -406,7 +406,7 @@ const downloadImage = async () => {
 }
 
 .gen-export-btn:hover {
-  background-color: #1f2937;
+  background-color: var(--sos-text-primary);
 }
 
 .gen-export-btn:disabled {
@@ -422,7 +422,7 @@ const downloadImage = async () => {
   background-color: rgba(229,231,235,0.5);
   border-radius: 0.75rem;
   padding: 2rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   overflow-x: auto;
   overflow-y: auto;
 }
@@ -437,8 +437,8 @@ const downloadImage = async () => {
 .poster-canvas {
   width: 450px;
   min-height: 800px;
-  background-color: #fff;
-  color: #000;
+  background-color: var(--sos-bg-surface);
+  color: var(--sos-text-primary);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -459,8 +459,8 @@ const downloadImage = async () => {
 }
 
 .poster-header {
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   padding: 2rem;
   padding-bottom: 1.5rem;
 }
@@ -478,7 +478,7 @@ const downloadImage = async () => {
 .poster-header-line {
   width: 3rem;
   height: 0.25rem;
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
   margin-bottom: 1.5rem;
 }
 
@@ -550,14 +550,14 @@ const downloadImage = async () => {
 .poster-item {
   position: relative;
   padding-left: 1.5rem;
-  border-left: 2px solid #e5e7eb;
+  border-left: 2px solid var(--sos-border-default);
   min-width: 0;
 }
 
 .poster-item--dense {
   padding-left: 0.9rem;
   border-left-width: 1px;
-  border-left-color: #d1d5db;
+  border-left-color: var(--sos-border-strong);
 }
 
 .poster-item-dot {
@@ -567,7 +567,7 @@ const downloadImage = async () => {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 9999px;
-  background-color: #000;
+  background-color: var(--sos-text-primary);
 }
 
 .poster-item--dense .poster-item-dot {
@@ -581,7 +581,7 @@ const downloadImage = async () => {
   font-size: 10px;
   font-family: "Noto Sans SC", sans-serif;
   font-weight: 700;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   letter-spacing: 0.05em;
   margin-bottom: 0.25rem;
 }
@@ -613,7 +613,7 @@ const downloadImage = async () => {
 .poster-item-summary {
   font-size: 0.75rem;
   line-height: 1rem;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   line-height: 1.625;
   font-family: "Noto Sans SC", sans-serif;
   text-align: justify;
@@ -651,7 +651,7 @@ const downloadImage = async () => {
 }
 
 .poster-footer-inner {
-  border-top: 2px solid #000;
+  border-top: 2px solid var(--sos-text-primary);
   padding-top: 1rem;
   display: flex;
   justify-content: space-between;
@@ -676,19 +676,19 @@ const downloadImage = async () => {
 
 /* ==================== Option Active/Inactive ==================== */
 .opt-active {
-  background-color: #000;
-  color: #fff;
-  border-color: #000;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
+  border-color: var(--sos-text-primary);
 }
 
 .opt-inactive {
-  background-color: #fff;
-  color: #4b5563;
-  border-color: #e5e7eb;
+  background-color: var(--sos-bg-surface);
+  color: var(--sos-text-secondary);
+  border-color: var(--sos-border-default);
 }
 
 .opt-inactive:hover {
-  border-color: #9ca3af;
+  border-color: var(--sos-text-tertiary);
 }
 
 /* ==================== Form Elements ==================== */
@@ -697,7 +697,7 @@ const downloadImage = async () => {
   font-size: 0.75rem;
   line-height: 1rem;
   font-weight: 700;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 0.25rem;
@@ -708,7 +708,7 @@ const downloadImage = async () => {
   font-size: 0.75rem;
   line-height: 1rem;
   font-weight: 700;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 0.75rem;

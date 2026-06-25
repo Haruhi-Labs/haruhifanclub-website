@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@haruhi/api-client": "workspace:*",
+    "@haruhi/design-system": "workspace:*",
     "vue": "^3.5.22",
     "vue-router": "^4.6.3"
   },

@@ -1,100 +1,43 @@
 <template>
-  <div class="animate-fade-in">
-
-    <!-- ============================================== -->
-    <!-- CASE A: 作者页专用头部 -->
-    <!-- ============================================== -->
-    <div v-if="viewType === 'author'" class="author-header">
-        <!-- 装饰背景 -->
-        <div class="decorative-overlay">
-             <div class="radial-gradient-bg"></div>
-        </div>
-
-        <!-- 头像 (占位符) -->
-        <div class="author-avatar">
-            <!-- 使用封装的函数获取头像 -->
-            <img :src="getAvatarUrl(route.params.author)" class="avatar-img">
-        </div>
-
-        <!-- 作者名 -->
-        <h1 class="author-name">
-            <span class="author-label">作者</span>
-            <span>{{ route.params.author }}</span>
-        </h1>
-
-        <!-- 统计与链接 -->
-        <div class="author-stats">
-            <div class="stat-item">
-                <span class="stat-number">{{ filteredArticles.length }}</span>
-                <span>篇文章</span>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- ============================================== -->
-    <!-- CASE B: 标签/参与者/普通页 头部 -->
-    <!-- ============================================== -->
-    <div
-      v-else-if="viewType !== 'home' && viewType !== 'search'"
-      :class="headerClass"
-      class="section-header"
+  <div class="news-home-flow">
+    <section
+      v-if="viewType === 'author'"
+      class="news-context-header news-context-header--author"
     >
-      <h1
-        class="section-title serif-font"
-      >
-        {{ headerTitle }}
-      </h1>
-      <p
-        class="section-subtitle"
-      >
-        {{ filteredArticles.length }} 篇相关文章
-      </p>
-      <div
-        class="section-bg-pattern"
-      >
-        <span
-          v-for="n in 20"
-          :key="n"
-          class="bg-pattern-text"
-        >
-          {{ headerTitle }}
-        </span>
+      <img
+        :src="getAvatarUrl(route.params.author)"
+        :alt="`${route.params.author} 头像`"
+        class="author-avatar"
+      />
+      <div>
+        <p class="sos-eyebrow">作者</p>
+        <h1>{{ route.params.author }}</h1>
+        <p>{{ filteredArticles.length }} 篇文章</p>
       </div>
-    </div>
+    </section>
 
-    <!-- ============================================== -->
-    <!-- CASE C: 搜索页 头部 -->
-    <!-- ============================================== -->
-    <div
-      v-else-if="viewType === 'search'"
-      class="search-header"
-    >
-      <h1 class="search-title serif-font">
-        搜索结果: "{{ store.searchQuery }}"
-      </h1>
-      <span class="search-count">
-        {{ filteredArticles.length }} 篇文章
-      </span>
-    </div>
+    <section v-else-if="viewType === 'search'" class="news-context-header">
+      <div>
+        <h1>搜索结果: "{{ store.searchQuery }}"</h1>
+        <p>{{ filteredArticles.length }} 篇文章</p>
+      </div>
+    </section>
 
-    <!-- 列表内容区 -->
+    <section v-else-if="viewType !== 'home'" :class="headerClass" class="news-context-header">
+      <div>
+        <h1>{{ headerTitle }}</h1>
+        <p>{{ filteredArticles.length }} 篇相关文章</p>
+      </div>
+    </section>
+
+    <!-- 不等高双列瀑布流：保留宝贵的 Grid Lanes 气质，仅去掉重叠、加间距。
+         报头在左列单列内，其高度一同计入瀑布流平衡（见 firstPageLeftOffset）。 -->
     <div class="content-columns">
-      <!-- 左侧列 (包含 Banner) -->
       <div class="column-left">
-        <!-- 首页 Banner -->
-        <div
-          v-if="viewType === 'home'"
-          class="home-banner"
-        >
-          <!-- 背景噪点与光影 -->
+        <div v-if="viewType === 'home'" class="home-banner">
           <div class="banner-bg">
-            <div
-              class="banner-radial-gradient"
-            ></div>
-            <svg
-              class="banner-noise-svg"
-            >
+            <div class="banner-radial-gradient"></div>
+            <svg class="banner-noise-svg">
               <filter id="noiseFilter">
                 <feTurbulence
                   type="fractalNoise"
@@ -103,18 +46,11 @@
                   stitchTiles="stitch"
                 />
               </filter>
-              <rect
-                width="100%"
-                height="100%"
-                filter="url(#noiseFilter)"
-              />
+              <rect width="100%" height="100%" filter="url(#noiseFilter)" />
             </svg>
           </div>
-
-          <!-- [修改] Logo 图片区域 -->
           <div class="banner-logo-wrapper">
-             <!-- 使用 object-contain 确保 Logo 完整显示且不变形，增加 drop-shadow 提升层次感 -->
-             <img src="/春日团报白.png" alt="春日团报 Logo" class="banner-logo-img">
+            <img src="/春日团报白.png" alt="春日团报 Logo" class="banner-logo-img" />
           </div>
         </div>
 
@@ -122,41 +58,33 @@
           v-for="article in leftCol"
           :key="article.id"
           :article="article"
-          class="card-overlap"
           @click="store.openModal(article)"
         />
       </div>
-
-      <!-- 右侧列 -->
       <div class="column-right">
         <NewsCard
           v-for="article in rightCol"
           :key="article.id"
           :article="article"
-          class="card-overlap"
           @click="store.openModal(article)"
         />
       </div>
     </div>
 
-    <!-- Pagination -->
-    <!-- [修改] 移除了 border-t border-black -->
-    <div
-      class="pagination-bar"
-    >
-      <div
-        class="sort-label"
-      >
+    <nav class="pagination-bar" aria-label="团报分页">
+      <div class="sort-label">
         <span>发布时间倒序</span>
+        <span>{{ pageNum }} / {{ totalPages }}</span>
       </div>
       <div class="page-buttons">
         <button
           v-for="p in visiblePages"
           :key="p"
-          @click="pageNum = p; scrollToTop()"
+          @click="goPage(p)"
+          :aria-current="pageNum === p ? 'page' : undefined"
           :class="{
             'pagination-active': pageNum === p,
-            'page-inactive': pageNum !== p
+            'page-inactive': pageNum !== p,
           }"
           class="page-btn"
         >
@@ -164,534 +92,296 @@
           <span v-else>{{ p }}</span>
         </button>
       </div>
-    </div>
+    </nav>
 
-    <!-- Tags Footer (仅首页显示) -->
-    <!-- [修改] 移除了 border-t-4 border-black -->
-    <div
-      v-if="viewType === 'home'"
-      class="tags-footer"
-    >
-      <div class="tags-label">
-        热门标签
-      </div>
-
-      <div
-        class="tags-list"
-      >
-        <span
+    <section v-if="viewType === 'home'" class="tags-footer">
+      <div class="tags-label">热门标签</div>
+      <div class="tags-list">
+        <button
           v-for="t in store.allTags"
           :key="t"
-          @click="$router.push(`/tag/${t}`)"
           class="tag-item"
+          type="button"
+          @click="$router.push(`/tag/${t}`)"
         >
           #{{ t }}
-        </span>
+        </button>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
-import { useMainStore } from '@/stores/main';
-import { buildMasonryPages } from '@/utils/masonry';
-import NewsCard from '@/features/blog/components/NewsCard.vue';
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { useMainStore } from '@/stores/main'
+import { buildMasonryPages } from '@/utils/masonry'
+import NewsCard from '@/features/blog/components/NewsCard.vue'
 
-const route = useRoute();
-const store = useMainStore();
+const route = useRoute()
+const store = useMainStore()
 
 // 当前页码（从 1 开始）
-const pageNum = ref(1);
+const pageNum = ref(1)
 
 // 判断视图类型
 const viewType = computed(() => {
-  if (route.name === 'tag') return 'tag';
-  if (route.name === 'participant') return 'participant';
-  if (route.name === 'author') return 'author';
-  if (route.name === 'search') return 'search';
-  return 'home';
-});
+  if (route.name === 'tag') return 'tag'
+  if (route.name === 'participant') return 'participant'
+  if (route.name === 'author') return 'author'
+  if (route.name === 'search') return 'search'
+  return 'home'
+})
 
 // 获取头像 URL 的辅助函数
 const getAvatarUrl = (authorName) => {
-    const seed = authorName || 'default';
-     return `https://api.dicebear.com/7.x/notionists/svg?seed=${seed}&backgroundColor=c0aede`;
-};
+  const seed = authorName || 'default'
+  return `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(seed)}&backgroundColor=c0aede`
+}
 
 // 动态 Header 内容 (用于非作者页的普通Header)
 const headerTitle = computed(() => {
-  if (viewType.value === 'tag') return `# ${route.params.tag}`;
-  if (viewType.value === 'participant') return route.params.name;
-  return '';
-});
+  if (viewType.value === 'tag') return `# ${route.params.tag}`
+  if (viewType.value === 'participant') return route.params.name
+  return ''
+})
 
 // 动态 Header 样式
 const headerClass = computed(() => {
-  if (viewType.value === 'participant') return 'header-participant';
-  return 'header-default';
-});
+  if (viewType.value === 'participant') return 'header-participant'
+  return 'header-default'
+})
 
 // 排序逻辑（置顶优先）
 const sortArticles = (list) => {
   return [...list].sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
-    if (a.isPinned && b.isPinned) return (a.pinOrder || 0) - (b.pinOrder || 0);
-    return 0;
-  });
-};
+    if (a.isPinned && !b.isPinned) return -1
+    if (!a.isPinned && b.isPinned) return 1
+    if (a.isPinned && b.isPinned) return (a.pinOrder || 0) - (b.pinOrder || 0)
+    return 0
+  })
+}
 
 // 过滤文章（标签 / 参与者 / 作者 / 搜索）
 const filteredArticles = computed(() => {
-  let list = store.allArticles;
+  let list = store.allArticles
 
   if (viewType.value === 'tag') {
-    list = list.filter(
-      (a) => a.tags && a.tags.includes(route.params.tag)
-    );
+    list = list.filter((a) => a.tags && a.tags.includes(route.params.tag))
   } else if (viewType.value === 'participant') {
     list = list.filter(
-      (a) =>
-        a.type === 'news' &&
-        a.participants?.some((p) => p.name === route.params.name)
-    );
+      (a) => a.type === 'news' && a.participants?.some((p) => p.name === route.params.name)
+    )
   } else if (viewType.value === 'author') {
     // --- 新增作者筛选逻辑 (已修改) ---
     // 目标作者
-    const targetAuthor = route.params.author;
-    const defaultName = '凉宫春日应援团';
+    const targetAuthor = route.params.author
+    const defaultName = '凉宫春日应援团'
 
     list = list.filter((a) => {
-        // 如果文章没有作者，则视为默认作者
-        const articleAuthor = a.author || defaultName;
-        return articleAuthor === targetAuthor;
-    });
-
+      // 后端旧数据可能没有显式作者字段。
+      const articleAuthor = a.author || defaultName
+      return articleAuthor === targetAuthor
+    })
   } else if (viewType.value === 'search') {
-    const q = store.searchQuery.toLowerCase();
+    const q = store.searchQuery.toLowerCase()
     if (q) {
       list = list.filter((a) => {
-        const inTitle = a.title.toLowerCase().includes(q);
-        const inAuthor =
-          (a.author || '凉宫春日应援团').toLowerCase().includes(q);
+        const inTitle = a.title.toLowerCase().includes(q)
+        const inAuthor = (a.author || '凉宫春日应援团').toLowerCase().includes(q)
         const inParticipants =
-          a.participants &&
-          a.participants.some((p) =>
-            p.name.toLowerCase().includes(q)
-          );
-        return inTitle || inAuthor || inParticipants;
-      });
+          a.participants && a.participants.some((p) => p.name.toLowerCase().includes(q))
+        return inTitle || inAuthor || inParticipants
+      })
     }
   }
 
-  return sortArticles(list);
-});
+  return sortArticles(list)
+})
 
-// 用"高度 + 瀑布流"把所有文章拆成多页
+// 不等高双列瀑布流（CSS Grid Lanes 式）：按高度把文章分配到左右两列，保留这一宝贵气质；
+// 仅去掉卡片重叠、改为有间距，让有厚度的卡片各自完整呈现。
+// 报头在左列：高度（约 10rem + 列内间距）一同计入，让两列高度平衡
+const BANNER_OFFSET = 184
 const masonryPages = computed(() => {
-  const list = filteredArticles.value;
-  if (!list || list.length === 0)
-    return [{ left: [], right: [] }];
-
-  // 首页左侧第一个块被 Banner 占用，所以有 offset
-  const firstPageLeftOffset =
-    viewType.value === 'home' ? 170 : 0;
-
+  const list = filteredArticles.value
+  if (!list || list.length === 0) return [{ left: [], right: [] }]
   return buildMasonryPages(list, {
-    firstPageLeftOffset,
+    firstPageLeftOffset: viewType.value === 'home' ? BANNER_OFFSET : 0,
     pageTargetHeight: 1300,
-  });
-});
+  })
+})
 
-const totalPages = computed(
-  () => masonryPages.value.length
-);
+const totalPages = computed(() => masonryPages.value.length)
 
 const currentPage = computed(() => {
-  const idx = Math.max(
-    0,
-    Math.min(pageNum.value - 1, totalPages.value - 1)
-  );
-  return (
-    masonryPages.value[idx] || { left: [], right: [] }
-  );
-});
+  const idx = Math.max(0, Math.min(pageNum.value - 1, totalPages.value - 1))
+  return masonryPages.value[idx] || { left: [], right: [] }
+})
 
-const leftCol = computed(() => currentPage.value.left);
-const rightCol = computed(() => currentPage.value.right);
+const leftCol = computed(() => currentPage.value.left)
+const rightCol = computed(() => currentPage.value.right)
 
 const visiblePages = computed(() => {
-  const p = pageNum.value;
-  const total = totalPages.value;
-  const pages = [];
+  const p = pageNum.value
+  const total = totalPages.value
+  const pages = []
 
   if (total <= 5) {
-    for (let i = 1; i <= total; i++) pages.push(i);
+    for (let i = 1; i <= total; i++) pages.push(i)
   } else {
-    if (p <= 3) return [1, 2, 3, 4, 5];
-    if (p >= total - 2)
-      return [
-        total - 4,
-        total - 3,
-        total - 2,
-        total - 1,
-        total,
-      ];
-    return [p - 2, p - 1, p, p + 1, p + 2];
+    if (p <= 3) return [1, 2, 3, 4, 5]
+    if (p >= total - 2) return [total - 4, total - 3, total - 2, total - 1, total]
+    return [p - 2, p - 1, p, p + 1, p + 2]
   }
 
-  return pages;
-});
+  return pages
+})
 
-const scrollToTop = () =>
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
+
+const goPage = (page) => {
+  pageNum.value = page
+  scrollToTop()
+}
 
 // 路由变化时：重置页码
 watch(
   () => route.path,
   () => {
-    pageNum.value = 1;
-    scrollToTop();
-    // 注意：这里不再清空 searchQuery，改为在 onMounted 中处理，或由 NavBar 控制
+    pageNum.value = 1
+    scrollToTop()
+    // 非搜索页清空残留搜索词，避免组件复用时 NewsCard.highlight() 继续高亮旧关键词
+    if (route.name !== 'search') store.searchQuery = ''
   }
-);
+)
 
 // 增加 onMounted 钩子：组件挂载时如果不是搜索页，确保清空残留的搜索词
 onMounted(() => {
-    if (route.name !== 'search') {
-        store.searchQuery = '';
-    }
-});
+  if (route.name !== 'search') {
+    store.searchQuery = ''
+  }
+})
 
 watch(
   () => totalPages.value,
   (tp) => {
-    if (pageNum.value > tp) pageNum.value = tp || 1;
+    if (pageNum.value > tp) pageNum.value = tp || 1
   }
-);
+)
 </script>
 
 <style scoped>
-/* ============================================= */
-/* CASE A: Author Header                         */
-/* ============================================= */
-
-.author-header {
-  width: 100%;
-  background-color: #222;
-  color: #fff;
-  padding-top: 4rem;
-  padding-bottom: 4rem;
-  margin-bottom: 3rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.1), 0 8px 10px rgba(0, 0, 0, 0.04);
-  border-radius: 0.125rem;
+.news-home-flow {
+  display: grid;
+  gap: var(--sos-space-8);
 }
 
-.decorative-overlay {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  opacity: 0.1;
-  pointer-events: none;
+.news-context-header {
+  border: 1px solid var(--sos-border-strong);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-surface);
+  box-shadow: var(--sos-shadow-hairline);
 }
 
-.radial-gradient-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at center, #6b7280, #222, #222);
+.tag-item,
+.page-btn {
+  border: 1px solid var(--sos-border-default);
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  font-weight: 800;
+  line-height: 1;
+  transition:
+    background-color var(--sos-duration-base) var(--sos-ease-standard),
+    border-color var(--sos-duration-base) var(--sos-ease-standard),
+    color var(--sos-duration-base) var(--sos-ease-standard),
+    transform var(--sos-duration-fast) var(--sos-ease-out);
 }
 
-.author-avatar {
-  position: relative;
-  z-index: 10;
-  width: 7rem;
-  height: 7rem;
-  margin-bottom: 1.5rem;
-  border-radius: 9999px;
-  overflow: hidden;
-  border: 4px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
-  background-color: #4b5563;
+.tag-item {
+  padding: 0.45rem 0.7rem;
 }
 
-@media (min-width: 768px) {
-  .author-avatar {
-    width: 8rem;
-    height: 8rem;
-  }
+.tag-item:hover,
+.page-btn:hover {
+  border-color: var(--sos-ink-950);
+  color: var(--sos-text-primary);
+  transform: translateY(-1px);
 }
 
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.author-name {
-  position: relative;
-  z-index: 10;
-  font-size: 1.875rem;
-  line-height: 2.25rem;
-  font-weight: 700;
-  font-family: "Noto Sans SC", sans-serif;
-  margin-bottom: 0.75rem;
+.news-context-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--sos-space-5);
+  padding: var(--sos-space-6);
 }
 
-@media (min-width: 768px) {
-  .author-name {
-    font-size: 2.25rem;
-  }
+.news-context-header h1,
+.news-context-header p {
+  margin: 0;
 }
 
-.author-label {
-  opacity: 0.6;
-  font-family: "Noto Serif SC", serif;
-  font-style: italic;
-  font-size: 1.25rem;
+.news-context-header h1 {
+  margin-top: var(--sos-space-2);
+  color: var(--sos-text-primary);
+  font-family: var(--sos-display-family);
+  font-size: var(--sos-text-3xl);
+  font-weight: 850;
+  line-height: 1.1;
 }
 
-.author-stats {
-  position: relative;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.8);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: 1.5rem;
-}
-
-@media (min-width: 768px) {
-  .author-stats {
-    font-size: 0.875rem;
-  }
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.stat-number {
-  font-size: 1.25rem;
-  font-family: "Noto Serif SC", serif;
-  color: #fff;
-}
-
-/* ============================================= */
-/* CASE B: Section Header (Tag / Participant)    */
-/* ============================================= */
-
-.section-header {
-  width: 100%;
-  padding: 3rem;
-  margin-bottom: 2rem;
-  position: relative;
-  overflow: hidden;
-  border: 1px solid #000;
-}
-
-.header-default {
-  background-color: #222;
-  color: #fff;
+.news-context-header p:last-child {
+  margin-top: var(--sos-space-2);
+  color: var(--sos-text-secondary);
 }
 
 .header-participant {
-  background-color: #1e3a8a;
-  color: #fff;
+  border-left: 6px solid var(--sos-signal);
 }
 
-.section-title {
-  font-size: 2.25rem;
-  font-weight: 900;
-  position: relative;
-  z-index: 10;
-  text-align: center;
+.author-avatar {
+  width: 4.5rem;
+  height: 4.5rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--sos-border-default);
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-bg-subtle);
 }
-
-@media (min-width: 768px) {
-  .section-title {
-    font-size: 3.75rem;
-  }
-}
-
-.section-subtitle {
-  text-align: center;
-  margin-top: 0.5rem;
-  position: relative;
-  z-index: 10;
-  font-family: "Noto Serif SC", serif;
-  font-style: italic;
-  opacity: 0.8;
-  color: #fff;
-}
-
-.section-bg-pattern {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  opacity: 0.1;
-  pointer-events: none;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: center;
-  justify-content: center;
-  gap: 1rem;
-  transform: rotate(12deg) scale(1.5);
-}
-
-.bg-pattern-text {
-  font-size: 2.25rem;
-  font-family: "Noto Serif SC", serif;
-  color: #fff;
-}
-
-/* ============================================= */
-/* CASE C: Search Header                         */
-/* ============================================= */
-
-.search-header {
-  border-bottom: 2px solid #000;
-  padding-bottom: 1rem;
-  margin-bottom: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.search-title {
-  font-size: 1.875rem;
-  line-height: 2.25rem;
-  font-weight: 700;
-}
-
-.search-count {
-  color: #6b7280;
-  font-family: "Noto Serif SC", serif;
-  font-style: italic;
-}
-
-/* ============================================= */
-/* Content Columns (Masonry Layout)              */
-/* ============================================= */
-
-.content-columns {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  align-items: flex-start;
-  margin-bottom: 3rem;
-}
-
-@media (min-width: 768px) {
-  .content-columns {
-    flex-direction: row;
-  }
-}
-
-.column-left {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  z-index: 10;
-}
-
-@media (min-width: 768px) {
-  .column-left {
-    width: 50%;
-  }
-}
-
-.column-right {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-@media (min-width: 768px) {
-  .column-right {
-    width: 50%;
-    margin-left: -1px;
-  }
-}
-
-.card-overlap {
-  margin-top: -1px;
-}
-
-/* ============================================= */
-/* Home Banner                                   */
-/* ============================================= */
 
 .home-banner {
-  width: 100%;
   position: relative;
-  overflow: hidden;
-  cursor: default;
-  height: 10rem;
-  background-color: #1a1a1a;
-  border-style: double;
-  border-color: #4a4a4a;
-  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
   display: flex;
+  width: 100%;
+  height: 10rem;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--sos-border-strong);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-ink-950);
+  box-shadow: var(--sos-shadow-hairline);
 }
 
-@media (min-width: 768px) {
-  .home-banner {
-    height: 12rem;
-  }
+.banner-bg,
+.banner-radial-gradient,
+.banner-noise-svg {
+  position: absolute;
+  inset: 0;
 }
 
 .banner-bg {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  background-color: #171717;
+  background: var(--sos-text-primary);
 }
 
 .banner-radial-gradient {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
   opacity: 0.2;
-  background: radial-gradient(circle at center, #374151, #000, #000);
+  background: radial-gradient(circle at center, var(--sos-text-secondary), var(--sos-text-primary), var(--sos-text-primary));
 }
 
 .banner-noise-svg {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
   width: 100%;
   height: 100%;
   opacity: 0.2;
@@ -701,13 +391,13 @@ watch(
 
 .banner-logo-wrapper {
   position: relative;
-  z-index: 10;
+  z-index: 1;
+  display: flex;
   width: 100%;
   height: 100%;
-  padding: 1rem;
-  display: flex;
   align-items: center;
   justify-content: center;
+  padding: var(--sos-space-4);
 }
 
 .banner-logo-img {
@@ -718,100 +408,107 @@ watch(
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
 }
 
-/* ============================================= */
-/* Pagination                                    */
-/* ============================================= */
+/* 不等高双列瀑布流（Grid Lanes）：按高度分配到左右两列，保留这一宝贵气质。
+   去掉旧的 card-overlap(-1px) 密集重叠，改为列间 + 列内卡片都有间距，
+   让有厚度的 recipe 卡片各自完整、不挤压。 */
+.content-columns {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: var(--sos-space-6);
+}
+
+@media (min-width: 768px) {
+  .content-columns {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.column-left,
+.column-right {
+  display: grid;
+  align-content: start;
+  gap: var(--sos-space-6);
+  min-width: 0;
+}
 
 .pagination-bar {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding-top: 1rem;
-  margin-bottom: 4rem;
-  font-size: 0.875rem;
-  font-family: "Noto Serif SC", serif;
-}
-
-@media (min-width: 768px) {
-  .pagination-bar {
-    flex-direction: row;
-  }
+  gap: var(--sos-space-4);
+  border-top: 1px solid var(--sos-border-default);
+  padding-top: var(--sos-space-5);
 }
 
 .sort-label {
-  display: flex;
+  display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  margin-bottom: 1rem;
+  gap: var(--sos-space-2);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  font-weight: 750;
 }
 
-.sort-label:hover {
-  color: #4b5563;
-}
-
-@media (min-width: 768px) {
-  .sort-label {
-    margin-bottom: 0;
-  }
+.sort-label span:last-child {
+  color: var(--sos-text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .page-buttons {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: var(--sos-space-2);
 }
 
 .page-btn {
-  transition: color 150ms;
+  min-height: 2.25rem;
+  padding: 0 var(--sos-space-3);
 }
 
-.page-btn:hover {
-  color: #000;
+.pagination-active {
+  border-color: var(--sos-signal);
+  background: var(--sos-signal);
+  color: var(--sos-ink-950);
 }
 
 .page-inactive {
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
 }
 
-/* ============================================= */
-/* Tags Footer                                   */
-/* ============================================= */
-
 .tags-footer {
-  padding-top: 2rem;
+  display: grid;
+  gap: var(--sos-space-3);
+  border-top: 1px solid var(--sos-border-subtle);
+  padding-top: var(--sos-space-5);
 }
 
 .tags-label {
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-  color: #9ca3af;
-  font-family: "Noto Serif SC", serif;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .tags-list {
   display: flex;
   flex-wrap: wrap;
-  column-gap: 1rem;
-  row-gap: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 700;
-  line-height: 2;
+  gap: var(--sos-space-2);
 }
 
-@media (min-width: 768px) {
-  .tags-list {
-    font-size: 1.125rem;
+@media (max-width: 767px) {
+  .news-context-header {
+    padding: var(--sos-space-5);
   }
-}
 
-.tag-item {
-  cursor: pointer;
-  color: #6b7280;
-  transition: color 200ms;
-}
+  .news-context-header {
+    align-items: flex-start;
+  }
 
-.tag-item:hover {
-  color: #000;
+  .news-context-header h1 {
+    font-size: var(--sos-text-2xl);
+  }
 }
 </style>

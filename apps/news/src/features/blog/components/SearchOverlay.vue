@@ -13,22 +13,24 @@
             </button>
 
             <div class="search-container animate-up">
-                <div class="search-input-wrapper">
+                <!-- 统一搜索规范 .sos-search（大尺寸，方角贴合编辑部气质） -->
+                <div class="sos-search sos-search--lg sos-search--square overlay-search">
+                    <span class="sos-search__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+                        </svg>
+                    </span>
                     <input
                         ref="inputRef"
-                        type="text"
+                        type="search"
                         v-model="store.searchQuery"
                         @keyup.enter="performSearch"
                         placeholder="搜索: 凉宫春日..."
-                        class="search-input"
+                        class="sos-search__input"
+                        aria-label="搜索团报"
                     >
-
-                    <button
-                        @click="performSearch"
-                        class="search-submit"
-                    >
-                        <span>ENTER</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="submit-icon">
+                    <button class="sos-search__submit" @click="performSearch" aria-label="搜索">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="18" height="18">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
                         </svg>
                     </button>
@@ -79,7 +81,8 @@ const quickSearch = (term) => {
     right: 0;
     bottom: 0;
     left: 0;
-    z-index: 50;
+    /* 高于统一页头（z-sticky 1100），覆盖页头并露出右上角关闭按钮 */
+    z-index: var(--sos-z-overlay);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -98,13 +101,13 @@ const quickSearch = (term) => {
     top: 1.5rem;
     right: 1.5rem;
     padding: 0.5rem;
-    color: #6b7280;
+    color: var(--sos-text-secondary);
     border-radius: 9999px;
     transition: all 300ms;
 }
 
 .close-button:hover {
-    color: #000000;
+    color: var(--sos-text-primary);
     background-color: rgba(0, 0, 0, 0.05);
 }
 
@@ -132,7 +135,7 @@ const quickSearch = (term) => {
     font-weight: 700;
     background: transparent;
     border: none;
-    border-bottom: 2px solid #e5e7eb;
+    border-bottom: 2px solid var(--sos-border-default);
     padding-top: 1.5rem;
     padding-bottom: 1.5rem;
     padding-right: 8rem;
@@ -150,11 +153,11 @@ const quickSearch = (term) => {
 
 .search-input:focus {
     outline: none;
-    border-color: #000000;
+    border-color: var(--sos-text-primary);
 }
 
 .search-input::placeholder {
-    color: #d1d5db;
+    color: var(--sos-border-strong);
 }
 
 /* Search Submit Button */
@@ -165,7 +168,7 @@ const quickSearch = (term) => {
     font-size: 1.25rem;
     line-height: 1.75rem;
     font-weight: 500;
-    color: #9ca3af;
+    color: var(--sos-text-tertiary);
     transition-property: color, background-color, border-color;
     transition-duration: 150ms;
     display: flex;
@@ -174,7 +177,7 @@ const quickSearch = (term) => {
 }
 
 .search-submit:hover {
-    color: #000000;
+    color: var(--sos-text-primary);
 }
 
 .submit-icon {
@@ -189,7 +192,7 @@ const quickSearch = (term) => {
     gap: 1rem;
     font-size: 0.875rem;
     line-height: 1.25rem;
-    color: #6b7280;
+    color: var(--sos-text-secondary);
 }
 
 .hot-search-item {
@@ -197,7 +200,7 @@ const quickSearch = (term) => {
 }
 
 .hot-search-item:hover {
-    color: #000000;
+    color: var(--sos-text-primary);
     text-decoration: underline;
 }
 

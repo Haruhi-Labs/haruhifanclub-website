@@ -20,20 +20,20 @@ export interface SessionApi {
   isVerified: ComputedRef<boolean>
   isSuperAdmin: ComputedRef<boolean>
   refresh(): Promise<SessionUser | null>
-  login(account: string, password: string): Promise<SessionUser>
-  register(payload: { email: string; password: string; nickname?: string }): Promise<SessionUser>
+  login(_account: string, _password: string): Promise<SessionUser>
+  register(_payload: { email: string; password: string; nickname?: string }): Promise<SessionUser>
   logout(): Promise<void>
-  updateProfile(patch: { nickname?: string; avatar?: string; bio?: string }): Promise<SessionUser>
-  forgotPassword(email: string): Promise<unknown>
-  resetPassword(token: string, password: string): Promise<unknown>
-  verifyEmail(token: string): Promise<unknown>
+  updateProfile(_patch: { nickname?: string; avatar?: string; bio?: string }): Promise<SessionUser>
+  forgotPassword(_email: string): Promise<unknown>
+  resetPassword(_token: string, _password: string): Promise<unknown>
+  verifyEmail(_token: string): Promise<unknown>
   resendVerification(): Promise<unknown>
-  changePassword(oldPassword: string, newPassword: string): Promise<unknown>
+  changePassword(_oldPassword: string, _newPassword: string): Promise<unknown>
   listSessions(): Promise<{ sessions: any[] }>
-  revokeSession(id: string): Promise<unknown>
+  revokeSession(_id: string): Promise<unknown>
 }
 
-export function useSession(apiBase?: string): SessionApi
+export function useSession(_apiBase?: string): SessionApi
 
 export const LoginView: DefineComponent<Record<string, any>>
 export const ResetPasswordView: DefineComponent<Record<string, any>>

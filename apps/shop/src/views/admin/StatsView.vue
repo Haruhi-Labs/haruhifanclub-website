@@ -43,7 +43,7 @@
         </div>
         <div class="panel-body">
             <div class="chart-header">
-                <h3 style="margin: 0; color: #374151;">销售趋势（销售额 + 订单量）</h3>
+                <h3 style="margin: 0; color: var(--sos-text-secondary);">销售趋势（销售额 + 订单量）</h3>
                 <span class="text-sub">
                     销售口径：已支付、待发货、已发货、已完成
                     <span v-if="usingMockTrend" style="margin-left: 0.5rem; color: #b45309;">(当前为模拟数据)</span>
@@ -65,7 +65,7 @@
 
     <div class="panel">
         <div class="toolbar">
-            <div style="font-weight: bold; color: #374151;">商品销售报表</div>
+            <div style="font-weight: bold; color: var(--sos-text-secondary);">商品销售报表</div>
             <div class="filter-group">
                 <button
                     v-for="option in productPeriodOptions"
@@ -113,7 +113,7 @@
 
     <div class="panel">
         <div class="panel-body">
-            <h3 style="margin: 0 0 0.5rem 0; color: #374151;">转化率漏斗</h3>
+            <h3 style="margin: 0 0 0.5rem 0; color: var(--sos-text-secondary);">转化率漏斗</h3>
             <div class="text-sub" style="margin-bottom: 1rem;">{{ conversionRangeText }}</div>
             <div v-if="trendLoading" class="empty-tip">转化数据加载中...</div>
             <div v-else class="table-container">
@@ -460,8 +460,8 @@ onBeforeUnmount(() => {
 .empty-tip {
     padding: 2rem 1rem;
     text-align: center;
-    color: #9ca3af;
-    background: #f9fafb;
+    color: var(--sos-text-tertiary);
+    background: var(--sos-bg-subtle);
     border-radius: 8px;
 }
 

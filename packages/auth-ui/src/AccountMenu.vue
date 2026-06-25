@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { SosAvatar } from '@haruhi/ui'
 import { useSession } from './useSession.js'
 import './auth.css'
 
@@ -17,23 +18,9 @@ const router = useRouter()
 
 const open = ref(false)
 const user = computed(() => session.state.user)
-const displayName = computed(() => {
-  const currentUser = user.value
-  return currentUser?.nickname || currentUser?.displayName || currentUser?.username || currentUser?.email || '未命名'
-})
-const secondaryLabel = computed(() => {
-  const currentUser = user.value
-  if (!currentUser) return ''
-  if (currentUser.email) return currentUser.email
-  return currentUser.isSuperAdmin ? '超级管理员' : '画廊成员'
-})
-const roleLabel = computed(() => {
-  const currentUser = user.value
-  if (!currentUser) return ''
-  if (currentUser.isSuperAdmin) return '超管'
-  return currentUser.emailVerified === false ? '待验证' : '成员'
-})
-const initial = computed(() => displayName.value.slice(0, 1).toUpperCase())
+const accountLabel = computed(
+  () => user.value?.nickname || user.value?.email || user.value?.username || ''
+)
 
 onMounted(() => {
   if (!session.state.ready) session.refresh()
@@ -57,42 +44,45 @@ async function logout() {
 </script>
 
 <template>
-  <div class="hauth-root hauth-menu" ref="rootEl">
+  <div ref="rootEl" class="hauth-menu">
     <!-- 未登录 -->
-    <button v-if="!user" class="hauth-btn hauth-btn--sm" @click="goLogin">登录 / 注册</button>
+    <button
+      v-if="!user"
+      type="button"
+      class="sos-button sos-button--secondary sos-button--sm"
+      @click="goLogin"
+    >
+      登录 / 注册
+    </button>
 
     <!-- 已登录 -->
     <template v-else>
-      <button class="hauth-trigger" @click="open = !open" aria-haspopup="true" :aria-expanded="open">
-        <span class="hauth-avatar-wrap">
-          <img v-if="user.avatar" :src="user.avatar" class="hauth-avatar" alt="" />
-          <span v-else class="hauth-avatar">{{ initial }}</span>
-          <span class="hauth-presence" aria-hidden="true"></span>
-        </span>
-        <span class="hauth-trigger-main">
-          <span class="hauth-trigger-name">{{ displayName }}</span>
-          <span class="hauth-trigger-meta">{{ roleLabel }}</span>
-        </span>
-        <span class="hauth-trigger-caret" aria-hidden="true"></span>
+      <button
+        type="button"
+        class="hauth-trigger"
+        aria-haspopup="menu"
+        :aria-expanded="open"
+        @click="open = !open"
+      >
+        <SosAvatar :src="user.avatar || undefined" :name="accountLabel || 'U'" size="sm" />
+        <span v-if="accountLabel" class="hauth-trigger__name">{{ accountLabel }}</span>
       </button>
-      <div v-if="open" class="hauth-dropdown">
-        <div class="hauth-dropdown-head">
-          <div class="hauth-dropdown-profile">
-            <span class="hauth-avatar-wrap">
-              <img v-if="user.avatar" :src="user.avatar" class="hauth-avatar" alt="" />
-              <span v-else class="hauth-avatar">{{ initial }}</span>
-            </span>
-            <div class="hauth-dropdown-copy">
-              <div class="hauth-dropdown-name">{{ displayName }}</div>
-              <div class="hauth-dropdown-mail">{{ secondaryLabel }}</div>
-            </div>
-          </div>
-          <span v-if="user.isSuperAdmin" class="hauth-badge hauth-badge--ok">超级管理员</span>
-          <span v-if="user.emailVerified === false" class="hauth-badge hauth-badge--warn" style="margin-top:6px">邮箱未验证</span>
+
+      <div v-if="open" class="hauth-menu__panel sos-menu sos-scope" role="menu">
+        <div class="hauth-menu-head">
+          <span class="hauth-menu-head__name">{{ user.nickname || '未命名' }}</span>
+          <span class="hauth-menu-head__mail">{{ user.email || user.username }}</span>
         </div>
-        <router-link class="hauth-item" :to="profilePath" @click="open = false">个人资料</router-link>
-        <router-link class="hauth-item" :to="settingsPath" @click="open = false">账号设置</router-link>
-        <button class="hauth-item hauth-item--danger" @click="logout">退出登录</button>
+        <router-link class="sos-menu__item" :to="profilePath" @click="open = false">
+          个人资料
+        </router-link>
+        <router-link class="sos-menu__item" :to="settingsPath" @click="open = false">
+          账号设置
+        </router-link>
+        <div class="sos-menu__sep"></div>
+        <button type="button" class="sos-menu__item sos-menu__item--danger" @click="logout">
+          退出登录
+        </button>
       </div>
     </template>
   </div>

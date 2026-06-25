@@ -1,0 +1,641 @@
+/* SOS / Parallel Design System — Card Recipes (L2)
+ *
+ * 一套共享卡片解剖 + 五个按内容类型特化的 recipe：
+ *   article(团报) · product(商城) · artwork(美术) · book(书库) · exam(考场)
+ *
+ * 设计原则——「恰当抽出来，又各自做好」：
+ *  - 共享 .sos-card 容器与 .sos-card__* 解剖词汇，保证一致性与可访问性；
+ *  - 每个 recipe 只特化它内容类型独有的版式、母题与状态；
+ *  - recipe 消费当前表达模式的语义 token，因此在各自站点里天然契合。
+ * 这些类由 @haruhi/ui/recipes 的 Vue 组件输出，内容仍由业务传入。
+ */
+
+/* ============================================================
+ *  SHARED CARD ANATOMY — 跨 recipe 复用的内容词汇
+ * ============================================================ */
+.sos-card__media {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: var(--sos-bg-subtle);
+}
+.sos-card__media > img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.sos-card__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-2xs);
+  font-weight: var(--sos-weight-heavy);
+  letter-spacing: var(--sos-tracking-wider);
+  text-transform: uppercase;
+}
+
+.sos-card__heading {
+  margin: 0;
+  color: var(--sos-text-primary);
+  font-family: var(--sos-display-family);
+  font-weight: var(--sos-weight-heavy);
+  line-height: var(--sos-leading-heading);
+  letter-spacing: var(--sos-tracking-snug);
+  text-wrap: balance;
+}
+
+.sos-card__excerpt {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.62;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--sos-clamp, 3);
+  overflow: hidden;
+}
+
+.sos-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sos-space-2);
+}
+.sos-card__tag {
+  border: 1px solid var(--sos-border-default);
+  border-radius: var(--sos-radius-full);
+  background: transparent;
+  color: var(--sos-text-secondary);
+  padding: 0.28rem 0.55rem;
+  font-size: var(--sos-text-2xs);
+  font-weight: var(--sos-weight-bold);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color var(--sos-duration-base),
+    background-color var(--sos-duration-base),
+    color var(--sos-duration-base);
+}
+.sos-card__tag:hover {
+  border-color: var(--sos-accent);
+  background: var(--sos-accent-soft);
+  color: var(--sos-link);
+}
+
+/* 价格组合 */
+.sos-price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sos-space-2);
+  font-variant-numeric: var(--sos-numeric-tabular);
+}
+.sos-price__now {
+  color: var(--sos-link);
+  font-size: var(--sos-text-xl);
+  font-weight: var(--sos-weight-black);
+  line-height: 1;
+}
+.sos-price__original {
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-sm);
+  text-decoration: line-through;
+}
+
+/* 角标 ribbon */
+.sos-ribbon {
+  position: absolute;
+  top: var(--sos-space-3);
+  left: var(--sos-space-3);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
+  padding: 0.22rem 0.5rem;
+  font-size: var(--sos-text-2xs);
+  font-weight: var(--sos-weight-heavy);
+  letter-spacing: var(--sos-tracking-wide);
+  box-shadow: var(--sos-shadow-sm);
+}
+.sos-ribbon--signal {
+  background: var(--sos-signal);
+  color: var(--sos-ink-950);
+}
+.sos-ribbon--danger {
+  background: var(--sos-danger);
+  color: var(--sos-white);
+}
+
+/* 内联统计（点赞 / 浏览 / 题数等） */
+.sos-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-bold);
+  font-variant-numeric: var(--sos-numeric-tabular);
+}
+.sos-stat > svg {
+  width: 0.95em;
+  height: 0.95em;
+}
+
+/* ============================================================
+ *  ARTICLE CARD — 团报 / 编辑部阅读卡
+ * ============================================================ */
+.sos-article-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-color: var(--sos-border-default);
+}
+/* 顶部细信号线，作为唯一品牌点缀 */
+.sos-article-card::before {
+  content: '';
+  display: block;
+  height: 3px;
+  background: var(--sos-signal);
+}
+.sos-article-card.sos-card--interactive:hover {
+  transform: translateY(-3px);
+  border-color: var(--sos-ink-700);
+  box-shadow: var(--sos-hover-shadow);
+}
+.sos-article-card .sos-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sos-space-2);
+  flex: 1;
+}
+/* footer 置于 body 内并贴底，继承 body 横向内距，不再贴边 */
+.sos-article-card__footer {
+  margin-top: auto;
+  padding-top: var(--sos-space-4);
+  flex-wrap: wrap;
+  gap: var(--sos-space-2) var(--sos-space-3);
+}
+.sos-article-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sos-space-2);
+}
+.sos-article-card__label {
+  display: inline-flex;
+  align-items: center;
+  border-left: 0.35rem solid var(--sos-signal);
+  background: var(--sos-ink-950);
+  color: var(--sos-white);
+  padding: 0.32rem 0.6rem;
+  font-size: var(--sos-text-2xs);
+  font-weight: var(--sos-weight-black);
+  letter-spacing: var(--sos-tracking-wide);
+  line-height: 1;
+  text-transform: uppercase;
+}
+.sos-article-card__media {
+  aspect-ratio: 16 / 9;
+  border-radius: var(--sos-media-radius);
+}
+.sos-article-card__media > img {
+  transition: transform var(--sos-duration-slow) var(--sos-ease-out);
+}
+.sos-article-card.sos-card--interactive:hover .sos-article-card__media > img {
+  transform: scale(1.03);
+}
+.sos-article-card__title {
+  font-size: 1.2rem;
+  line-height: 1.28;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sos-article-card__subtitle {
+  /* 标题与副标题成组，副标题下留出小间距（合并自此前被覆盖的重复规则） */
+  margin: 0 0 var(--sos-space-1);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  font-weight: var(--sos-weight-bold);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.sos-article-card__excerpt {
+  font-family: var(--sos-reading-family);
+  line-height: 1.7;
+  --sos-clamp: 3;
+}
+.sos-article-card__meta {
+  margin-left: auto;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-variant-numeric: var(--sos-numeric-tabular);
+  white-space: nowrap;
+}
+
+/* ============================================================
+ *  PRODUCT CARD — 商城交易卡
+ * ============================================================ */
+.sos-product-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.sos-product-card__media {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: var(--sos-bg-subtle);
+}
+.sos-product-card__media > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--sos-duration-slow) var(--sos-ease-out);
+}
+.sos-product-card.sos-card--interactive:hover .sos-product-card__media > img {
+  transform: scale(1.05);
+}
+.sos-product-card__veil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--sos-ink-950) 52%, transparent);
+  color: var(--sos-white);
+  font-size: var(--sos-text-lg);
+  font-weight: var(--sos-weight-black);
+  letter-spacing: var(--sos-tracking-wide);
+}
+.sos-product-card__actions {
+  position: absolute;
+  inset: auto var(--sos-space-3) var(--sos-space-3);
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  gap: var(--sos-space-2);
+  opacity: 0;
+  transform: translateY(0.5rem);
+  transition:
+    opacity var(--sos-duration-base),
+    transform var(--sos-duration-base) var(--sos-ease-out);
+}
+.sos-product-card:hover .sos-product-card__actions,
+.sos-product-card:focus-within .sos-product-card__actions {
+  opacity: 1;
+  transform: translateY(0);
+}
+.sos-product-card .sos-card__body {
+  display: grid;
+  gap: var(--sos-space-3);
+  align-content: start;
+  flex: 1;
+}
+.sos-product-card__title {
+  margin: 0;
+  font-size: var(--sos-text-md);
+  font-weight: var(--sos-weight-bold);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.sos-product-card__desc {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  line-height: 1.55;
+}
+.sos-product-card__price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+  margin-top: auto;
+  padding-top: var(--sos-space-1);
+}
+.sos-product-card__state {
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-bold);
+  font-variant-numeric: var(--sos-numeric-tabular);
+  white-space: nowrap;
+}
+
+/* ============================================================
+ *  ARTWORK CARD — 美术部画廊卡
+ * ============================================================ */
+/* 玻璃感画作卡：浅色发光面板 + 作品图 + 深色信息条（题注 / 标签 / 粉色点赞） */
+.sos-artwork-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.sos-artwork-card__frame {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: var(--sos-artwork-ratio, 4 / 3);
+  background: var(--sos-bg-subtle);
+}
+.sos-artwork-card__frame > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--sos-duration-slow) var(--sos-ease-out);
+}
+.sos-artwork-card.sos-card--interactive:hover .sos-artwork-card__frame > img {
+  transform: scale(1.04);
+}
+.sos-artwork-card__bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+  flex: 1;
+  padding: var(--sos-space-4);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--sos-night-900) 88%, var(--sos-accent)),
+    var(--sos-night-900)
+  );
+  color: var(--sos-white);
+}
+.sos-artwork-card__bar-main {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+.sos-artwork-card__cat {
+  color: color-mix(in srgb, var(--sos-white) 64%, var(--sos-accent));
+  font-size: var(--sos-text-2xs);
+  font-weight: var(--sos-weight-heavy);
+  letter-spacing: var(--sos-tracking-wide);
+  text-transform: uppercase;
+}
+.sos-artwork-card__title {
+  margin: 0;
+  font-size: var(--sos-text-md);
+  font-weight: var(--sos-weight-bold);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+}
+.sos-artwork-card__author {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--sos-text-xs);
+}
+.sos-artwork-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+}
+.sos-artwork-card__tag {
+  border-radius: var(--sos-radius-full);
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.88);
+  padding: 0.15rem 0.5rem;
+  font-size: var(--sos-text-2xs);
+  font-weight: var(--sos-weight-bold);
+}
+.sos-artwork-card__like {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-accent-2);
+  color: var(--sos-white);
+  padding: 0.25rem 0.6rem;
+  font-size: var(--sos-text-2xs);
+  font-weight: var(--sos-weight-heavy);
+  font-variant-numeric: var(--sos-numeric-tabular);
+}
+
+/* ============================================================
+ *  BOOK CARD — 书库书封卡
+ * ============================================================ */
+.sos-book-card {
+  display: grid;
+  gap: var(--sos-space-3);
+  /* 作者下方留出呼吸空间，标题/作者不贴卡片底 */
+  padding-bottom: var(--sos-space-3);
+  text-align: center;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+/* 封面是主角：填满栅格单元呈现大尺寸封面，无硬描边/书脊装裱，
+   仅以一层极轻柔光与栅格留白分隔，hover 简单上浮。 */
+.sos-book-card__cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: var(--sos-media-radius);
+  /* 占位面向页面底色靠拢，淡化与背景的色差 */
+  background: var(--book-color, color-mix(in srgb, var(--sos-paper-100) 55%, var(--sos-bg-page)));
+  /* 静止时只留一丝接地柔光、几乎无边界；hover 才浮起 */
+  box-shadow: var(--sos-book-cover-shadow, 0 1px 6px -4px rgba(40, 28, 12, 0.14));
+  transition:
+    transform var(--sos-duration-base) var(--sos-ease-out),
+    box-shadow var(--sos-duration-base) var(--sos-ease-out);
+}
+.sos-book-card:hover .sos-book-card__cover {
+  transform: translateY(-6px);
+  box-shadow: var(--sos-book-cover-shadow-hover, 0 14px 28px -14px rgba(40, 28, 12, 0.28));
+}
+.sos-book-card__cover > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* 无封面占位：纯净纸色面 + 居中书名首字，克制优雅，不做实体书脊
+   （完整书名与作者在封面下方陈列，封面上只留一个识别字） */
+.sos-book-card__vertical {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: color-mix(in srgb, var(--sos-ink-950) 30%, transparent);
+  font-family: var(--sos-font-reading);
+  font-size: clamp(2.25rem, 1.4rem + 3.4vw, 3.25rem);
+  font-weight: var(--sos-weight-bold);
+  line-height: 1;
+}
+.sos-book-card__badge {
+  position: absolute;
+  top: var(--sos-space-2);
+  right: var(--sos-space-2);
+  z-index: 3;
+}
+/* 标题不强制衬线，沿用所在 scope 的界面字体；字重克制，位置呼吸感更好 */
+.sos-book-card__title {
+  margin: 0;
+  font-size: var(--sos-text-sm);
+  font-weight: var(--sos-weight-bold);
+  line-height: 1.3;
+  color: var(--sos-text-primary);
+  transition: color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.sos-book-card:hover .sos-book-card__title {
+  color: var(--sos-link);
+}
+.sos-book-card__author {
+  margin: 0.1rem 0 0;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+}
+
+/* ============================================================
+ *  EXAM CARD — 考场试卷卡
+ * ============================================================ */
+.sos-exam-card {
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.sos-exam-card__paper {
+  position: relative;
+  min-height: 16rem;
+  overflow: hidden;
+  border: 1px solid rgba(26, 43, 61, 0.14);
+  border-radius: var(--sos-card-radius);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.025), transparent 18%), var(--sos-bg-surface);
+  box-shadow: var(--sos-card-shadow);
+  padding: var(--sos-space-6);
+  transition:
+    transform var(--sos-duration-base) var(--sos-ease-out),
+    box-shadow var(--sos-duration-base);
+}
+.sos-exam-card.sos-card--interactive:hover .sos-exam-card__paper,
+.sos-exam-card:hover .sos-exam-card__paper {
+  transform: translateY(-4px);
+  box-shadow: var(--sos-hover-shadow);
+}
+/* 横格答题纸 */
+.sos-exam-card__paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0 27px,
+    rgba(26, 43, 61, 0.08) 28px
+  );
+  pointer-events: none;
+}
+/* 右上折角 */
+.sos-exam-card__paper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  border-width: 0 1.6rem 1.6rem 0;
+  border-style: solid;
+  border-color: var(--sos-bg-subtle) var(--sos-bg-page);
+  filter: drop-shadow(-2px 2px 2px rgba(0, 0, 0, 0.08));
+}
+.sos-exam-card__content {
+  position: relative;
+  z-index: 1;
+}
+.sos-exam-card__subject {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--sos-radius-xs);
+  background: var(--sos-bg-strong);
+  color: var(--sos-text-on-strong);
+  padding: 0.2rem 0.5rem;
+  font-size: var(--sos-text-2xs);
+  font-weight: var(--sos-weight-heavy);
+  letter-spacing: var(--sos-tracking-wide);
+}
+.sos-exam-card__stamp {
+  position: absolute;
+  top: var(--sos-space-4);
+  right: var(--sos-space-5);
+  z-index: 2;
+  display: inline-grid;
+  place-items: center;
+  border: 2.5px solid var(--sos-danger);
+  border-radius: var(--sos-radius-full);
+  width: 3.4rem;
+  height: 3.4rem;
+  color: var(--sos-danger);
+  font-family: var(--sos-font-reading);
+  font-size: var(--sos-text-lg);
+  font-weight: var(--sos-weight-black);
+  letter-spacing: 0.05em;
+  transform: rotate(-12deg);
+  opacity: 0.92;
+}
+.sos-exam-card__title {
+  max-width: 82%;
+  margin: var(--sos-space-4) 0 var(--sos-space-2);
+  font-family: var(--sos-reading-family);
+  font-size: var(--sos-text-xl);
+  font-weight: var(--sos-weight-bold);
+  line-height: 1.35;
+}
+.sos-exam-card__rule {
+  margin: var(--sos-space-4) 0;
+  border: 0;
+  border-top: 2px solid var(--sos-student-navy);
+}
+.sos-exam-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sos-space-4);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-bold);
+}
+
+/* ============================================================
+ *  RECIPE — 响应式 / 动效降级
+ * ============================================================ */
+@media (hover: none) {
+  .sos-product-card__actions {
+    opacity: 1;
+    transform: none;
+  }
+  .sos-book-card:hover .sos-book-card__cover,
+  .sos-exam-card:hover .sos-exam-card__paper {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sos-article-card__media > img,
+  .sos-product-card__media > img,
+  .sos-product-card__actions,
+  .sos-artwork-card__frame > img,
+  .sos-book-card__cover,
+  .sos-exam-card__paper {
+    transition-duration: 1ms !important;
+  }
+  .sos-article-card.sos-card--interactive:hover,
+  .sos-book-card:hover .sos-book-card__cover,
+  .sos-exam-card:hover .sos-exam-card__paper {
+    transform: none;
+  }
+}

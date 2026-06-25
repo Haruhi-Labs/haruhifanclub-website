@@ -314,11 +314,11 @@ onMounted(() => {
 }
 
 .table-head {
-  background-color: #f9fafb;
+  background-color: var(--sos-bg-subtle);
   font-size: 0.75rem;
   line-height: 1rem;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 .table-body {
@@ -344,9 +344,9 @@ onMounted(() => {
 }
 
 /* ==================== Utility Colors ==================== */
-.text-success { color: #16a34a; }
+.text-success { color: var(--sos-success); }
 
-.text-danger { color: #ef4444; }
+.text-danger { color: var(--sos-danger); }
 
 /* ==================== Points Tab (Tab 4) ==================== */
 .points-tab {
@@ -365,7 +365,7 @@ onMounted(() => {
 
 .points-sidebar {
   width: 100%;
-  border-right: 1px solid #f3f4f6;
+  border-right: 1px solid var(--sos-bg-muted);
   display: flex;
   flex-direction: column;
   background-color: rgba(249,250,251,0.5);
@@ -379,8 +379,8 @@ onMounted(() => {
 
 .points-search-bar {
   padding: 1rem;
-  border-bottom: 1px solid #f3f4f6;
-  background-color: #fff;
+  border-bottom: 1px solid var(--sos-bg-muted);
+  background-color: var(--sos-bg-surface);
   position: sticky;
   top: 0;
   z-index: 20;
@@ -395,22 +395,23 @@ onMounted(() => {
   position: relative;
   display: flex;
   align-items: center;
-  background-color: #fff;
-  border: 1px solid #d1d5db;
+  background-color: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-strong);
   border-radius: 0.5rem;
   transition: all 150ms;
 }
 
 .points-search-input-wrap:focus-within {
-  border-color: #000;
-  box-shadow: 0 0 0 1px #000;
+  /* 对齐统一搜索规范的焦点环 */
+  border-color: var(--sos-focus);
+  box-shadow: var(--sos-ring);
 }
 
 .search-icon {
   width: 1rem;
   height: 1rem;
   margin-left: 0.75rem;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
 }
 
 .points-search-input {
@@ -429,8 +430,8 @@ onMounted(() => {
   right: 0;
   top: 100%;
   margin-top: 0.5rem;
-  background-color: #fff;
-  border: 1px solid #e5e7eb;
+  background-color: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-default);
   border-radius: 0.5rem;
   box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
   z-index: 50;
@@ -444,11 +445,11 @@ onMounted(() => {
   font-size: 0.875rem;
   line-height: 1.25rem;
   cursor: pointer;
-  border-bottom: 1px solid #f9fafb;
+  border-bottom: 1px solid var(--sos-bg-subtle);
 }
 
 .suggestion-item:hover {
-  background-color: #f9fafb;
+  background-color: var(--sos-bg-subtle);
 }
 
 .suggestion-item:last-child {
@@ -469,7 +470,7 @@ onMounted(() => {
   text-align: center;
   padding-top: 2.5rem;
   padding-bottom: 2.5rem;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   font-size: 0.75rem;
   line-height: 1rem;
   padding-left: 1rem;
@@ -502,19 +503,19 @@ onMounted(() => {
 }
 
 .user-card-active {
-  background-color: #000;
-  color: #fff;
-  border-color: #000;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
+  border-color: var(--sos-text-primary);
 }
 
 .user-card-inactive {
-  background-color: #fff;
-  border-color: #e5e7eb;
-  color: #374151;
+  background-color: var(--sos-bg-surface);
+  border-color: var(--sos-border-default);
+  color: var(--sos-text-secondary);
 }
 
 .user-card-inactive:hover {
-  border-color: #d1d5db;
+  border-color: var(--sos-border-strong);
 }
 
 .user-card-top {
@@ -561,7 +562,7 @@ onMounted(() => {
   width: 100%;
   padding: 1.5rem;
   overflow-y: auto;
-  background-color: #fff;
+  background-color: var(--sos-bg-surface);
   position: relative;
 }
 
@@ -584,7 +585,7 @@ onMounted(() => {
   justify-content: space-between;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--sos-bg-muted);
 }
 
 .points-detail-title {
@@ -597,7 +598,7 @@ onMounted(() => {
 
 .points-detail-id {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
 }
 
 .points-detail-total-wrap {
@@ -607,7 +608,7 @@ onMounted(() => {
 .points-total-label {
   font-size: 0.75rem;
   line-height: 1rem;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 0.25rem;
@@ -622,8 +623,8 @@ onMounted(() => {
 }
 
 .points-adjust-box {
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background-color: var(--sos-bg-subtle);
+  border: 1px solid var(--sos-border-default);
   padding: 1.5rem;
   border-radius: 0.75rem;
   margin-bottom: 2rem;
@@ -676,18 +677,18 @@ onMounted(() => {
 
 /* History Table */
 .history-row {
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--sos-bg-muted);
 }
 
 .history-row:hover {
-  background-color: #f9fafb;
+  background-color: var(--sos-bg-subtle);
 }
 
 .htd-date {
   padding: 0.75rem;
   padding-left: 1rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  color: #6b7280;
+  color: var(--sos-text-secondary);
   font-size: 0.75rem;
   line-height: 1rem;
 }
@@ -711,7 +712,7 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #d1d5db;
+  color: var(--sos-border-strong);
 }
 
 .points-empty-text {
@@ -721,8 +722,8 @@ onMounted(() => {
 }
 
 .btn-primary-disabled {
-  background-color: #000;
-  color: #fff;
+  background-color: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
   padding: 0.5rem 1.5rem;
   border-radius: 0.5rem;
   font-weight: 700;
@@ -731,7 +732,7 @@ onMounted(() => {
 }
 
 .btn-primary-disabled:hover {
-  background-color: #1f2937;
+  background-color: var(--sos-text-primary);
 }
 
 .btn-primary-disabled:disabled {
@@ -744,7 +745,7 @@ onMounted(() => {
   font-size: 0.75rem;
   line-height: 1rem;
   font-weight: 700;
-  color: #9ca3af;
+  color: var(--sos-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 0.25rem;
@@ -753,7 +754,7 @@ onMounted(() => {
 .form-input {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 0.25rem;
 }
 

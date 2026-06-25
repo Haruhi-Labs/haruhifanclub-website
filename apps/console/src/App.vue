@@ -100,6 +100,20 @@ function logout() {
         <h1>{{ ($route.meta.title as string) || '控制台' }}</h1>
       </header>
       <RouterView />
+
+      <!-- 精简统一页脚（暗色），保留侧栏招牌 -->
+      <footer class="sos-footer console-footer">
+        <div class="sos-footer__inner">
+          <div class="sos-footer__bottom">
+            <span>© 2026 HARUHIFANCLUB · 凉宫春日应援团控制台</span>
+            <div class="sos-footer__bottom-meta">
+              <a class="sos-footer__link" href="https://haruyuki.cn" target="_blank" rel="noopener noreferrer">应援团主站</a>
+              <span class="sos-footer__bottom-sep" aria-hidden="true"></span>
+              <a class="sos-footer__link" href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" rel="noopener noreferrer">皖ICP备2025089290号-1</a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </main>
   </div>
 

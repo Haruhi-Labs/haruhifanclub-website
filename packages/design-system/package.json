@@ -1,0 +1,16 @@
+{
+  "name": "@haruhi/design-system",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "SOS / Parallel Design System CSS tokens, components and legacy bridges.",
+  "exports": {
+    "./tokens.css": "./src/styles/tokens.css",
+    "./components.css": "./src/styles/components.css",
+    "./recipes.css": "./src/styles/recipes.css",
+    "./bridges.css": "./src/styles/bridges.css"
+  },
+  "files": [
+    "src/styles"
+  ]
+}

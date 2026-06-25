@@ -101,11 +101,11 @@ bash deploy/deploy.sh
 
 可选变量：
 
-| 变量                                   | 作用             |
-| -------------------------------------- | ---------------- |
-| `HARUHI_SKIP_FRONTEND=1`               | 只发后端         |
-| `HARUHI_SKIP_BACKEND=1`                | 只发前端         |
-| `HARUHI_RUST_IMAGE=rust:1.87-bookworm` | 修改交叉编译镜像 |
+| 变量                                   | 作用                                                       |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `HARUHI_SKIP_FRONTEND=1`               | 只发后端                                                   |
+| `HARUHI_SKIP_BACKEND=1`                | 只发前端                                                   |
+| `HARUHI_RUST_IMAGE=rust:1.87-bookworm` | 修改交叉编译镜像                                           |
 | `HARUHI_BACKEND_PORT=17778`            | 健康门禁探测端口，默认 17777（生产）；部署测试站时传 17778 |
 
 本机手动构建命令：
@@ -167,7 +167,7 @@ systemctl reload nginx
 - `/api/` 反代 `127.0.0.1:17777`。
 - `/uploads/art/.thumbs/` 静态直出画廊缩略图；未命中走 `@thumb_fallback` 回源 `/api/art/thumb` 现场生成并落盘，下次即静态命中（`^~` 前缀保证优先级高于 `/uploads/` 与任何正则 location）。
 - `/uploads/` alias 到部署根的 `uploads/`。
-- `/news/`、`/art/`、`/exam/`、`/library/`、`/shop/`、`/console/` alias 到各 app 的 `dist/`。
+- `/news/`、`/art/`、`/exam/`、`/library/`、`/shop/`、`/console/`、`/design-system/` alias 到各 app 的 `dist/`。
 - SPA 子路径使用 `try_files ... /<base>/index.html`。
 - `client_max_body_size 256m` 与后端 body 上限一致。
 - `server_tokens off` 不暴露 nginx 版本。

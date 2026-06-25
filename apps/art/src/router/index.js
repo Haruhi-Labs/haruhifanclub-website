@@ -18,6 +18,8 @@ import AdventurerProfileView from '../views/AdventurerProfileView.vue'
 const AdminView = () => import('../views/AdminView.vue')
 const LicenseView = () => import('../views/LicenseView.vue')
 
+const authProps = { site: 'art', title: '应援团画廊', home: '/' }
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -32,11 +34,17 @@ const router = createRouter({
     { path: '/profile/:uid', name: 'adventurer-profile', component: AdventurerProfileView, props: true },
     { path: '/license', name: 'license', component: LicenseView },
 
-    { path: '/login', name: 'login', component: LoginView, props: { title: '应援团画廊', home: '/' }, meta: { public: true } },
-    { path: '/account', name: 'account', component: ProfileView, meta: { requiresAuth: true } },
-    { path: '/account/settings', name: 'account-settings', component: SettingsView, meta: { requiresAuth: true } },
-    { path: '/verify-email', name: 'verify-email', component: VerifyEmailView, meta: { public: true } },
-    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView, meta: { public: true } },
+    { path: '/login', name: 'login', component: LoginView, props: authProps },
+    { path: '/account', name: 'account', component: ProfileView, props: authProps, meta: { requiresAuth: true } },
+    {
+      path: '/account/settings',
+      name: 'account-settings',
+      component: SettingsView,
+      props: authProps,
+      meta: { requiresAuth: true }
+    },
+    { path: '/verify-email', name: 'verify-email', component: VerifyEmailView, props: authProps },
+    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView, props: authProps },
 
     { path: '/:pathMatch(.*)*', redirect: '/' }
   ],
@@ -50,7 +58,6 @@ const router = createRouter({
 const session = useSession('/api')
 
 router.beforeEach(async (to) => {
-  if (to.meta.public) return true
   if (!to.matched.some((record) => record.meta.requiresAuth)) return true
 
   if (!session.state.ready) {

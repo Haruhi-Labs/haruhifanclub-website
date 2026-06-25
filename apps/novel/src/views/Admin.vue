@@ -1,190 +1,187 @@
 <template>
-  <div class="min-h-screen bg-[#FAF9DE] flex flex-col items-center py-12 px-4 text-[#4A3B32]">
-    <h1 class="text-3xl font-bold mb-8 font-serif text-[#5C4B41]">
-      藏书阁管理
-    </h1>
+  <div class="admin-view">
+    <main class="sos-page sos-page--contained admin-page">
+      <header class="admin-head">
+        <p class="sos-eyebrow">长门有希的书架</p>
+        <h1 class="sos-title admin-title">藏书阁管理</h1>
+      </header>
 
-    <!-- 登录框 -->
-    <div
-      v-if="!isLoggedIn"
-      class="bg-white p-8 rounded-lg shadow-sm border border-[#E6DFD0] w-full max-w-md"
-    >
-      <p class="mb-4 text-sm text-[#8C7B70]">管理员登录</p>
-      <input
-        type="text"
-        v-model="loginForm.username"
-        class="w-full px-4 py-2 border border-[#D1C4B6] rounded focus:outline-none focus:border-[#D97757] mb-3"
-        placeholder="用户名"
-        @keyup.enter="login"
-      />
-      <input
-        type="password"
-        v-model="loginForm.password"
-        class="w-full px-4 py-2 border border-[#D1C4B6] rounded focus:outline-none focus:border-[#D97757] mb-4"
-        placeholder="密码"
-        @keyup.enter="login"
-      />
-      <button
-        @click="login"
-        class="w-full bg-[#D97757] text-white py-2 rounded hover:bg-[#C05F40] transition-colors"
+      <!-- 登录框 -->
+      <section
+        v-if="!isLoggedIn"
+        class="sos-surface sos-surface--padded admin-login"
       >
-        进入
-      </button>
-      <p v-if="loginError" class="mt-3 text-sm text-red-500">{{ loginError }}</p>
-    </div>
-
-    <!-- 管理面板 -->
-    <div v-else class="w-full max-w-5xl space-y-8">
-      <!-- 上传区 -->
-      <div class="bg-white p-8 rounded-lg shadow-sm border border-[#E6DFD0]">
-        <h2 class="text-xl font-bold mb-4">上传新书 (EPUB)</h2>
-        <div class="flex flex-col sm:flex-row gap-4 items-center">
+        <h2 class="admin-card-title">管理员登录</h2>
+        <div class="sos-field">
+          <label class="sos-field__label" for="admin-username">用户名</label>
           <input
-            type="file"
-            ref="fileInput"
-            accept=".epub"
-            class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#F2EFE4] file:text-[#5C4B41] hover:file:bg-[#EBE5D5]"
+            id="admin-username"
+            v-model="loginForm.username"
+            type="text"
+            class="sos-input"
+            placeholder="用户名"
+            autocomplete="username"
+            @keyup.enter="login"
           />
-          <button
-            @click="uploadBook"
-            :disabled="uploading"
-            class="px-6 py-2 bg-[#D97757] text-white rounded disabled:opacity-50 hover:bg-[#C05F40]"
-          >
-            {{ uploading ? '解析中...' : '上传' }}
-          </button>
         </div>
-        <p
-          v-if="message"
-          :class="{
-            'text-green-600': success,
-            'text-red-500': !success,
-          }"
-          class="mt-3 text-sm"
-        >
-          {{ message }}
-        </p>
-      </div>
-
-      <!-- 分栏说明 -->
-      <div
-        class="bg-[#F2EFE4] border border-dashed border-[#E6DFD0] rounded-lg p-4 text-xs text-[#8C7B70]"
-      >
-        <p class="mb-1 font-semibold text-[#5C4B41]">分栏 & 排序说明</p>
-        <p class="mb-1">
-          「分栏」会影响书架上的分组展示，例如：
-          <span class="font-mono">正传小说 / 设定集 / 社区同人</span>。
-        </p>
-        <p>
-          「排序值」为数字，<span class="font-semibold">数值越小越靠前</span>。
-          默认会按导入时间生成，你可以在这里自由调整。
-        </p>
-      </div>
-
-      <!-- 书籍列表 -->
-      <div class="bg-white rounded-lg shadow-sm border border-[#E6DFD0] overflow-hidden">
-        <div
-          class="p-4 bg-[#F2EFE4] font-bold border-b border-[#E6DFD0] flex items-center justify-between"
-        >
-          <span>已发布书籍</span>
-          <span class="text-xs text-[#8C7B70]">共 {{ books.length }} 本</span>
+        <div class="sos-field">
+          <label class="sos-field__label" for="admin-password">密码</label>
+          <input
+            id="admin-password"
+            v-model="loginForm.password"
+            type="password"
+            class="sos-input"
+            placeholder="密码"
+            autocomplete="current-password"
+            @keyup.enter="login"
+          />
         </div>
+        <button
+          type="button"
+          class="sos-button sos-button--primary sos-button--block"
+          @click="login"
+        >
+          进入
+        </button>
+        <p v-if="loginError" class="admin-msg is-error" role="alert">{{ loginError }}</p>
+      </section>
 
-        <ul>
-          <li
-            v-for="book in books"
-            :key="book.id"
-            class="p-4 border-b border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between hover:bg-gray-50"
+      <!-- 管理面板 -->
+      <div v-else class="admin-panel">
+        <!-- 上传区 -->
+        <section class="sos-surface sos-surface--padded">
+          <h2 class="admin-card-title">上传新书（EPUB）</h2>
+          <div class="admin-upload">
+            <input
+              ref="fileInput"
+              type="file"
+              accept=".epub"
+              class="admin-file"
+            />
+            <button
+              type="button"
+              class="sos-button sos-button--primary"
+              :disabled="uploading"
+              :aria-busy="uploading"
+              @click="uploadBook"
+            >
+              {{ uploading ? '解析中…' : '上传' }}
+            </button>
+          </div>
+          <p
+            v-if="message"
+            class="admin-msg"
+            :class="success ? 'is-success' : 'is-error'"
+            role="status"
           >
-            <!-- 左边：封面 + 可编辑信息 -->
-            <div class="flex items-start gap-3 min-w-0 flex-1">
-              <div class="w-10 h-14 bg-gray-200 overflow-hidden rounded flex-shrink-0">
-                <img
-                  v-if="book.cover_path"
-                  :src="getCoverUrl(book.cover_path)"
-                  class="w-full h-full object-cover"
-                />
-              </div>
+            {{ message }}
+          </p>
+        </section>
 
-              <div class="min-w-0 space-y-1 flex-1">
-                <!-- 标题 -->
-                <input
-                  v-model="book.title"
-                  class="w-full text-sm font-bold bg-transparent border-b border-dashed border-transparent focus:border-[#D97757] focus:outline-none"
-                  placeholder="书名"
-                />
+        <!-- 分栏说明 -->
+        <aside class="sos-surface sos-surface--subtle admin-note">
+          <p class="admin-note__title">分栏 &amp; 排序说明</p>
+          <p>
+            「分栏」会影响书架上的分组展示，例如：
+            <code class="admin-code">正传小说 / 设定集 / 社区同人</code>。
+          </p>
+          <p>
+            「排序值」为数字，<strong>数值越小越靠前</strong>。
+            默认按导入时间生成，可在这里自由调整。
+          </p>
+        </aside>
 
-                <!-- 作者 -->
-                <input
-                  v-model="book.author"
-                  class="w-full text-xs text-gray-600 bg-transparent border-b border-dashed border-transparent focus:border-[#D97757] focus:outline-none"
-                  placeholder="作者"
-                />
+        <!-- 书籍列表 -->
+        <section class="sos-surface admin-list">
+          <header class="admin-list__head">
+            <span class="admin-list__title">已发布书籍</span>
+            <span class="sos-badge">共 {{ books.length }} 本</span>
+          </header>
 
-                <!-- 分栏 + 排序 -->
-                <div class="mt-2 flex flex-wrap items-center gap-3 text-xs">
-                  <div class="flex items-center gap-1">
-                    <span class="text-[#8C7B70]">分栏</span>
-                    <select
-                      v-model="book.category"
-                      class="border border-[#D1C4B6] rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-[#D97757]"
-                    >
-                      <option :value="null">自动归类（默认）</option>
-                      <option
-                        v-for="cat in CATEGORY_OPTIONS"
-                        :key="cat.key"
-                        :value="cat.key"
-                      >
-                        {{ cat.label }}
-                      </option>
-                    </select>
+          <ul class="admin-books">
+            <li v-for="book in books" :key="book.id" class="admin-book">
+              <!-- 左边：封面 + 可编辑信息 -->
+              <div class="admin-book__main">
+                <div class="admin-book__cover">
+                  <img
+                    v-if="book.cover_path"
+                    :src="getCoverUrl(book.cover_path)"
+                    :alt="book.title"
+                  />
+                </div>
+
+                <div class="admin-book__fields">
+                  <input
+                    v-model="book.title"
+                    class="admin-edit admin-edit--title"
+                    placeholder="书名"
+                    aria-label="书名"
+                  />
+                  <input
+                    v-model="book.author"
+                    class="admin-edit admin-edit--author"
+                    placeholder="作者"
+                    aria-label="作者"
+                  />
+
+                  <div class="admin-book__meta">
+                    <label class="admin-inline">
+                      <span class="admin-inline__label">分栏</span>
+                      <select v-model="book.category" class="sos-select admin-inline__select">
+                        <option :value="null">自动归类（默认）</option>
+                        <option
+                          v-for="cat in CATEGORY_OPTIONS"
+                          :key="cat.key"
+                          :value="cat.key"
+                        >
+                          {{ cat.label }}
+                        </option>
+                      </select>
+                    </label>
+
+                    <label class="admin-inline">
+                      <span class="admin-inline__label">排序值</span>
+                      <input
+                        v-model.number="book.order"
+                        type="number"
+                        class="sos-input admin-inline__order"
+                        placeholder="越小越靠前"
+                      />
+                    </label>
+
+                    <span v-if="book.category" class="sos-badge sos-badge--outline">
+                      {{ getCategoryLabel(book.category) }}
+                    </span>
                   </div>
-
-                  <div class="flex items-center gap-1">
-                    <span class="text-[#8C7B70]">排序值</span>
-                    <input
-                      type="number"
-                      v-model.number="book.order"
-                      class="w-24 border border-[#D1C4B6] rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-[#D97757]"
-                      placeholder="越小越靠前"
-                    />
-                  </div>
-
-                  <span
-                    v-if="book.category"
-                    class="px-2 py-0.5 rounded-full bg-[#FAF9DE] border border-[#E6DFD0] text-[10px] text-[#8C7B70]"
-                  >
-                    {{ getCategoryLabel(book.category) }}
-                  </span>
                 </div>
               </div>
-            </div>
 
-            <!-- 右边：操作 -->
-            <div class="flex items-center gap-3 justify-end">
-              <button
-                @click="saveBook(book)"
-                class="px-3 py-1 text-xs rounded bg-[#4CAF50]/90 text-white hover:bg-[#43A047]"
-              >
-                保存
-              </button>
-              <button
-                @click="deleteBook(book.id)"
-                class="px-3 py-1 text-xs rounded text-red-500 hover:bg-red-50"
-              >
-                删除
-              </button>
-            </div>
-          </li>
-        </ul>
+              <!-- 右边：操作 -->
+              <div class="admin-book__actions">
+                <button
+                  type="button"
+                  class="sos-button sos-button--secondary sos-button--sm"
+                  @click="saveBook(book)"
+                >
+                  保存
+                </button>
+                <button
+                  type="button"
+                  class="sos-button sos-button--ghost sos-button--sm admin-delete"
+                  @click="deleteBook(book.id)"
+                >
+                  删除
+                </button>
+              </div>
+            </li>
+          </ul>
 
-        <div
-          v-if="!books.length"
-          class="p-6 text-center text-sm text-[#8C7B70]"
-        >
-          当前还没有书籍，请先上传 EPUB 文件。
-        </div>
+          <div v-if="!books.length" class="admin-empty">
+            当前还没有书籍，请先上传 EPUB 文件。
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
@@ -312,4 +309,243 @@ onMounted(async () => {
   }
 });
 </script>
+
+<style scoped>
+.admin-page {
+  padding-block: var(--sos-space-12) var(--sos-space-16);
+}
+.admin-head {
+  display: grid;
+  justify-items: center;
+  gap: var(--sos-space-2);
+  text-align: center;
+}
+.admin-title {
+  font-size: var(--sos-text-3xl);
+}
+.admin-card-title {
+  margin: 0 0 var(--sos-space-4);
+  font-family: var(--sos-display-family);
+  font-size: var(--sos-text-lg);
+  font-weight: var(--sos-weight-heavy);
+  color: var(--sos-text-primary);
+}
+
+/* 登录卡居中 */
+.admin-login {
+  width: 100%;
+  max-width: 26rem;
+  margin-inline: auto;
+  display: grid;
+  gap: var(--sos-space-4);
+}
+
+.admin-panel {
+  display: grid;
+  gap: var(--sos-space-8);
+}
+
+/* 上传 */
+.admin-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sos-space-4);
+}
+.admin-file {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--sos-text-sm);
+  color: var(--sos-text-tertiary);
+}
+.admin-file::file-selector-button {
+  margin-right: var(--sos-space-3);
+  padding: var(--sos-space-2) var(--sos-space-4);
+  border: 0;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-bg-muted);
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-sm);
+  font-weight: var(--sos-weight-heavy);
+  cursor: pointer;
+  transition: background-color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.admin-file::file-selector-button:hover {
+  background: var(--sos-accent-soft);
+}
+
+/* 反馈文案 */
+.admin-msg {
+  margin: 0;
+  font-size: var(--sos-text-sm);
+}
+.admin-msg.is-success {
+  color: var(--sos-success);
+}
+.admin-msg.is-error {
+  color: var(--sos-danger);
+}
+
+/* 说明 */
+.admin-note {
+  display: grid;
+  gap: var(--sos-space-1);
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-secondary);
+  border-style: dashed;
+}
+.admin-note__title {
+  font-weight: var(--sos-weight-heavy);
+  color: var(--sos-text-primary);
+}
+.admin-code {
+  font-family: var(--sos-font-mono);
+  font-size: var(--sos-text-2xs);
+  padding: 0 0.3em;
+  border-radius: var(--sos-radius-xs);
+  background: var(--sos-bg-muted);
+}
+
+/* 书籍列表 */
+.admin-list {
+  padding: 0;
+  overflow: hidden;
+}
+.admin-list__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sos-space-4) var(--sos-space-5);
+  background: var(--sos-bg-subtle);
+  border-bottom: 1px solid var(--sos-border-subtle);
+}
+.admin-list__title {
+  font-weight: var(--sos-weight-heavy);
+  color: var(--sos-text-primary);
+}
+.admin-books {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.admin-book {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sos-space-3);
+  padding: var(--sos-space-4) var(--sos-space-5);
+  border-bottom: 1px solid var(--sos-border-subtle);
+  transition: background-color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.admin-book:last-child {
+  border-bottom: 0;
+}
+.admin-book:hover {
+  background: color-mix(in srgb, var(--sos-bg-subtle) 50%, transparent);
+}
+.admin-book__main {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sos-space-3);
+  min-width: 0;
+  flex: 1;
+}
+.admin-book__cover {
+  width: 2.5rem;
+  height: 3.5rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--sos-media-radius);
+  border: 1px solid var(--sos-border-subtle);
+  background: var(--sos-bg-muted);
+}
+.admin-book__cover > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.admin-book__fields {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: var(--sos-space-1);
+}
+.admin-book__meta {
+  margin-top: var(--sos-space-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sos-space-3);
+  font-size: var(--sos-text-xs);
+}
+.admin-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-1);
+}
+.admin-inline__label {
+  color: var(--sos-text-tertiary);
+}
+.admin-inline__select,
+.admin-inline__order {
+  height: auto;
+  padding: var(--sos-space-1) var(--sos-space-2);
+  font-size: var(--sos-text-xs);
+}
+.admin-inline__order {
+  width: 7rem;
+}
+
+/* 行内可编辑：虚线下划线，聚焦着色 */
+.admin-edit {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed transparent;
+  color: var(--sos-text-primary);
+  transition: border-color var(--sos-duration-fast) var(--sos-ease-out);
+}
+.admin-edit:hover {
+  border-bottom-color: var(--sos-border-default);
+}
+.admin-edit:focus {
+  outline: none;
+  border-bottom-color: var(--sos-accent);
+}
+.admin-edit--title {
+  font-size: var(--sos-text-sm);
+  font-weight: var(--sos-weight-heavy);
+}
+.admin-edit--author {
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-secondary);
+}
+
+.admin-book__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sos-space-2);
+}
+.admin-delete {
+  color: var(--sos-danger);
+}
+.admin-delete:hover:not(:disabled) {
+  background: var(--sos-danger-soft);
+}
+
+.admin-empty {
+  padding: var(--sos-space-6);
+  text-align: center;
+  font-size: var(--sos-text-sm);
+  color: var(--sos-text-tertiary);
+}
+
+@media (min-width: 640px) {
+  .admin-book {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+</style>
 

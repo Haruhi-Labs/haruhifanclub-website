@@ -1,5 +1,9 @@
 <template>
-  <div :class="['app-container', { 'sidebar-open': sidebarOpen }]">
+  <div
+    :class="['app-container', 'sos-scope', { 'sidebar-open': sidebarOpen }]"
+    data-sos-site="shop"
+    data-sos-density="compact"
+  >
     <aside class="sidebar">
         <div class="sidebar-header">
             <h1 class="sidebar-title"><i class="fa fa-star" style="margin-right: 0.5rem;"></i>SOS团支部</h1>

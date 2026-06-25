@@ -248,14 +248,15 @@ export default defineConfig({
 
 已占用端口：
 
-| app     | 端口 |
-| ------- | ---- |
-| console | 5200 |
-| art     | 5201 |
-| exam    | 5202 |
-| novel   | 5203 |
-| news    | 5204 |
-| shop    | 5205 |
+| app           | 端口 |
+| ------------- | ---- |
+| console       | 5200 |
+| art           | 5201 |
+| exam          | 5202 |
+| novel         | 5203 |
+| news          | 5204 |
+| shop          | 5205 |
+| design-system | 5206 |
 
 接入共享客户端：
 

@@ -1,6 +1,17 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import {
+  SosCard,
+  SosField,
+  SosInput,
+  SosTextarea,
+  SosButton,
+  SosNotice,
+  SosAvatar,
+  SosEyebrow,
+  SosTitle,
+} from '@haruhi/ui'
 import { useSession } from './useSession.js'
 import './auth.css'
 
@@ -8,6 +19,7 @@ const props = defineProps({
   apiBase: { type: String, default: '/api' },
   loginPath: { type: String, default: '/login' },
   settingsPath: { type: String, default: '/account/settings' },
+  site: { type: String, default: undefined },
 })
 
 const session = useSession(props.apiBase)
@@ -17,10 +29,8 @@ const form = reactive({ nickname: '', avatar: '', bio: '' })
 const saving = ref(false)
 const error = ref('')
 const okMsg = ref('')
-const resendMsg = ref('')
 
 const user = computed(() => session.state.user)
-const initial = computed(() => (form.nickname || user.value?.nickname || 'U').slice(0, 1).toUpperCase())
 
 function load() {
   const u = session.state.user
@@ -61,61 +71,62 @@ async function save() {
     saving.value = false
   }
 }
-
-async function resend() {
-  resendMsg.value = ''
-  try {
-    await session.resendVerification()
-    resendMsg.value = '验证邮件已重新发送，请查收。'
-  } catch (e) {
-    resendMsg.value = e?.message || '发送失败'
-  }
-}
 </script>
 
 <template>
-  <div class="hauth-root hauth-page">
-    <div class="hauth-card hauth-card--wide" v-if="user">
-      <h2 class="hauth-title">个人资料</h2>
-      <p class="hauth-sub">这些信息会作为你发布内容的署名展示。</p>
+  <div class="hauth-root sos-scope" :data-sos-site="site">
+    <div v-if="user" class="hauth-account">
+      <header class="sos-stack sos-stack--tight">
+        <SosEyebrow>账号</SosEyebrow>
+        <SosTitle as="h1" size="xl">个人资料</SosTitle>
+        <p class="sos-copy">这些信息会作为你发布内容的署名展示。</p>
+      </header>
 
-      <div class="hauth-row" style="margin-bottom:20px">
-        <div style="display:flex;align-items:center;gap:14px">
-          <img v-if="form.avatar" :src="form.avatar" class="hauth-avatar" style="width:56px;height:56px" alt="" />
-          <div v-else class="hauth-avatar" style="width:56px;height:56px;font-size:1.3rem">{{ initial }}</div>
-          <div>
-            <div style="font-weight:600">{{ user.email || user.username }}</div>
-            <span v-if="user.emailVerified" class="hauth-badge hauth-badge--ok">✓ 邮箱已验证</span>
-            <span v-else class="hauth-badge hauth-badge--warn">邮箱未验证</span>
+      <!-- 身份卡 -->
+      <SosCard as="section">
+        <div class="sos-cluster">
+          <div class="hauth-identity">
+            <SosAvatar :src="form.avatar || undefined" :name="form.nickname || 'U'" size="lg" />
+            <div class="hauth-identity__main">
+              <p class="hauth-identity__name">{{ form.nickname || '未命名' }}</p>
+              <p class="hauth-identity__mail">{{ user.email || user.username }}</p>
+            </div>
           </div>
+          <SosButton variant="secondary" size="sm" as="a" :href="settingsPath">
+            账号设置 →
+          </SosButton>
         </div>
-        <router-link class="hauth-link" :to="settingsPath">账号设置 →</router-link>
-      </div>
+      </SosCard>
 
-      <div v-if="!user.emailVerified" class="hauth-msg hauth-msg--err" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <span>邮箱未验证，无法发布内容。</span>
-        <button class="hauth-btn hauth-btn--sm hauth-btn--ghost" @click="resend">重发验证邮件</button>
-      </div>
-      <div v-if="resendMsg" class="hauth-msg hauth-msg--ok">{{ resendMsg }}</div>
-
-      <div v-if="error" class="hauth-msg hauth-msg--err">{{ error }}</div>
-      <div v-if="okMsg" class="hauth-msg hauth-msg--ok">{{ okMsg }}</div>
-
-      <form @submit.prevent="save">
-        <div class="hauth-field">
-          <label class="hauth-label">昵称</label>
-          <input class="hauth-input" v-model="form.nickname" maxlength="32" required />
-        </div>
-        <div class="hauth-field">
-          <label class="hauth-label">头像 URL（可选）</label>
-          <input class="hauth-input" v-model="form.avatar" placeholder="https://…" />
-        </div>
-        <div class="hauth-field">
-          <label class="hauth-label">个人简介（可选，最多 280 字）</label>
-          <textarea class="hauth-textarea" v-model="form.bio" maxlength="280"></textarea>
-        </div>
-        <button class="hauth-btn" :disabled="saving">{{ saving ? '保存中…' : '保存资料' }}</button>
-      </form>
+      <!-- 编辑表单 -->
+      <SosCard as="section">
+        <SosTitle as="h2" style="font-size: var(--sos-text-lg)">编辑资料</SosTitle>
+        <SosNotice v-if="error" tone="danger" style="margin-top: var(--sos-space-4)">
+          {{ error }}
+        </SosNotice>
+        <SosNotice v-if="okMsg" tone="success" style="margin-top: var(--sos-space-4)">
+          {{ okMsg }}
+        </SosNotice>
+        <form class="sos-stack" style="margin-top: var(--sos-space-5)" @submit.prevent="save">
+          <SosField label="昵称" required>
+            <SosInput v-model="form.nickname" maxlength="32" required />
+          </SosField>
+          <SosField label="头像 URL" help="可选，留空则显示昵称首字">
+            <SosInput v-model="form.avatar" placeholder="https://…" />
+          </SosField>
+          <SosField label="个人简介" help="可选，最多 280 字">
+            <SosTextarea
+              v-model="form.bio"
+              :rows="4"
+              maxlength="280"
+              placeholder="介绍一下你自己…"
+            />
+          </SosField>
+          <div>
+            <SosButton type="submit" :loading="saving">保存资料</SosButton>
+          </div>
+        </form>
+      </SosCard>
     </div>
   </div>
 </template>

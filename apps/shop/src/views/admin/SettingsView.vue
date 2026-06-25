@@ -1,7 +1,7 @@
 <template>
   <div class="panel">
     <div class="toolbar">
-      <h3 style="font-weight: bold; color: #374151; margin: 0;">收款与联系配置</h3>
+      <h3 style="font-weight: bold; color: var(--sos-text-secondary); margin: 0;">收款与联系配置</h3>
       <button class="admin-btn btn-blue" :disabled="saving || loading" @click="saveConfig">
         {{ saving ? '保存中...' : '保存配置' }}
       </button>
@@ -120,7 +120,7 @@ onMounted(async () => {
 }
 
 .setting-block {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sos-border-default);
   border-radius: 8px;
   padding: 1rem;
   background: #fafafa;
@@ -129,9 +129,9 @@ onMounted(async () => {
 .qr-preview {
   width: 180px;
   height: 180px;
-  border: 1px dashed #d1d5db;
+  border: 1px dashed var(--sos-border-strong);
   border-radius: 8px;
-  background: #fff;
+  background: var(--sos-bg-surface);
   display: flex;
   align-items: center;
   justify-content: center;

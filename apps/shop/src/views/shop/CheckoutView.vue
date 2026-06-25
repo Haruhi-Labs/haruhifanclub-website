@@ -46,7 +46,7 @@
         
         <div class="form-card">
             <h3 class="section-title">支付说明</h3>
-            <div style="padding: 1rem; background-color: #fefce8; color: #854d0e; border-radius: var(--radius-md); font-size: 0.875rem;">
+            <div style="padding: 1rem; background-color: var(--sos-warning-soft); color: var(--sos-warning); border-radius: var(--radius-md); font-size: 0.875rem;">
                 <i class="fa fa-exclamation-triangle mr-1"></i> 
                 订单提交后系统将为您锁定库存，请在 24 小时内完成支付。
             </div>
@@ -60,10 +60,10 @@
                     <span>合并到旧订单</span>
                 </label>
             </div>
-            <p style="margin: 0.5rem 0 0; font-size: 0.8rem; color: #6b7280;">
+            <p style="margin: 0.5rem 0 0; font-size: 0.8rem; color: var(--sos-text-tertiary);">
                 支持合并所有未发货订单，需要校验完整订单号与手机号后四位。合并后邮费可一起计算，若合并后达到免邮标准，还可额外返还已付邮费。
             </p>
-            <p style="margin: 0.4rem 0 0; font-size: 0.78rem; color: #9ca3af;">
+            <p style="margin: 0.4rem 0 0; font-size: 0.78rem; color: var(--sos-text-tertiary);">
                 若旧订单与本次填写的收货信息不一致，合并后将以本次填写的收货信息为准。
             </p>
 
@@ -105,11 +105,11 @@
                     </div>
                     <div class="merge-preview-row" v-if="shippingAdjustmentEstimate < 0">
                         <span>合并运费返还</span>
-                        <span style="color: #16a34a;">-¥{{ shippingRefundEstimate }}</span>
+                        <span style="color: var(--sos-success);">-¥{{ shippingRefundEstimate }}</span>
                     </div>
                     <div class="merge-preview-row" v-else-if="shippingAdjustmentEstimate > 0">
                         <span>合并追加运费</span>
-                        <span style="color: #dc2626;">+¥{{ shippingExtraEstimate }}</span>
+                        <span style="color: var(--sos-danger);">+¥{{ shippingExtraEstimate }}</span>
                     </div>
                     <div class="merge-preview-total">
                         <span>本次追加应付</span>
@@ -123,21 +123,21 @@
     <!-- 右侧概览 -->
     <div>
         <div class="form-card summary-card">
-            <h3 style="font-weight: bold; color: #374151; margin: 0 0 1rem 0;">订单概览</h3>
+            <h3 style="font-weight: bold; color: var(--sos-text-secondary); margin: 0 0 1rem 0;">订单概览</h3>
             <div class="order-item-list custom-scrollbar">
                 <div v-for="item in cart" :key="item.id" class="summary-row">
                     <span class="summary-item-name">{{ item.name }} x{{ item.quantity }}</span>
-                    <span style="color: #1f2937;">¥{{ item.price * item.quantity }}</span>
+                    <span style="color: var(--sos-text-primary);">¥{{ item.price * item.quantity }}</span>
                 </div>
             </div>
-            <hr style="border: none; border-top: 1px dashed #eee; margin: 1rem 0;">
-            <div class="summary-row"><span style="color: #666;">商品总额</span><span>¥{{ cartTotal }}</span></div>
+            <hr style="border: none; border-top: 1px dashed var(--sos-border-default); margin: 1rem 0;">
+            <div class="summary-row"><span style="color: var(--sos-text-secondary);">商品总额</span><span>¥{{ cartTotal }}</span></div>
             <div class="summary-row">
-                <span style="color: #666;">运费 (满{{ store.freeShippingThreshold }}元包邮)</span>
+                <span style="color: var(--sos-text-secondary);">运费 (满{{ store.freeShippingThreshold }}元包邮)</span>
                 <span>¥{{ shippingFee }}</span>
             </div>
-            <div style="margin: 0.75rem 0; padding: 0.75rem; background: #f9fafb; border: 1px dashed #d1d5db; border-radius: 8px;">
-                <div style="font-size: 0.85rem; color: #4b5563; margin-bottom: 0.5rem;">优惠券</div>
+            <div style="margin: 0.75rem 0; padding: 0.75rem; background: var(--sos-bg-subtle); border: 1px dashed var(--sos-border-strong); border-radius: 8px;">
+                <div style="font-size: 0.85rem; color: var(--sos-text-secondary); margin-bottom: 0.5rem;">优惠券</div>
                 <div class="coupon-row">
                     <input
                         v-model.trim="couponCode"
@@ -160,32 +160,32 @@
                         清除
                     </button>
                 </div>
-                <div v-if="appliedCoupon" style="margin-top: 0.5rem; font-size: 0.75rem; color: #16a34a;">
+                <div v-if="appliedCoupon" style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--sos-success);">
                     已应用: {{ appliedCoupon.code }} ({{ appliedCoupon.benefitText }})
                 </div>
             </div>
             <div v-if="discountAmount > 0" class="summary-row">
-                <span style="color: #666;">优惠减免</span>
-                <span style="color: #16a34a;">-¥{{ discountAmount }}</span>
+                <span style="color: var(--sos-text-secondary);">优惠减免</span>
+                <span style="color: var(--sos-success);">-¥{{ discountAmount }}</span>
             </div>
             <div v-if="mergeForm.enabled && mergePreview" class="summary-row">
-                <span style="color: #666;">旧订单金额</span>
+                <span style="color: var(--sos-text-secondary);">旧订单金额</span>
                 <span>¥{{ mergePreview.total }}</span>
             </div>
             <div v-if="mergeForm.enabled && mergePreview" class="summary-row">
-                <span style="color: #666;">合并后总金额</span>
+                <span style="color: var(--sos-text-secondary);">合并后总金额</span>
                 <span>¥{{ mergedTotalEstimate }}</span>
             </div>
             <div v-if="mergeForm.enabled && mergePreview && shippingAdjustmentEstimate < 0" class="summary-row">
-                <span style="color: #666;">合并运费返还</span>
-                <span style="color: #16a34a;">-¥{{ shippingRefundEstimate }}</span>
+                <span style="color: var(--sos-text-secondary);">合并运费返还</span>
+                <span style="color: var(--sos-success);">-¥{{ shippingRefundEstimate }}</span>
             </div>
             <div v-if="mergeForm.enabled && mergePreview && shippingAdjustmentEstimate > 0" class="summary-row">
-                <span style="color: #666;">合并追加运费</span>
-                <span style="color: #dc2626;">+¥{{ shippingExtraEstimate }}</span>
+                <span style="color: var(--sos-text-secondary);">合并追加运费</span>
+                <span style="color: var(--sos-danger);">+¥{{ shippingExtraEstimate }}</span>
             </div>
             <div class="total-row">
-                <span style="font-weight: bold; color: #374151;">本次应付</span>
+                <span style="font-weight: bold; color: var(--sos-text-secondary);">本次应付</span>
                 <span class="total-price">¥{{ displayPayableTotal }}</span>
             </div>
             <button @click="submitOrder" :disabled="isSubmitting || isApplyingCoupon || mergeValidating" class="market-btn primary-action" style="width: 100%; margin-top: 1.5rem; padding: 0.75rem;">
@@ -481,8 +481,8 @@ const submitOrder = async () => {
 </script>
 
 <style scoped>
-.required { color: #ef4444; margin-left: 2px; }
-.select-field { flex: 1; padding: 0.625rem; border: 1px solid #ddd; border-radius: var(--radius-md); outline: none; background: white; max-width: 32%; }
+.required { color: var(--sos-danger); margin-left: 2px; }
+.select-field { flex: 1; padding: 0.625rem; border: 1px solid var(--sos-border-default); border-radius: var(--radius-md); outline: none; background: white; max-width: 32%; }
 .checkout-layout { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
 @media (min-width: 768px) { .checkout-layout { grid-template-columns: 2fr 1fr; } }
 .form-card { background: white; padding: 1.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); margin-bottom: 1.5rem; }
@@ -490,13 +490,13 @@ const submitOrder = async () => {
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .col-span-2 { grid-column: span 2; }
 .input-group label { display: block; font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.25rem; }
-.input-field { width: 100%; padding: 0.625rem 1rem; border: 1px solid #ddd; border-radius: var(--radius-md); outline: none; transition: border-color 0.3s; }
+.input-field { width: 100%; padding: 0.625rem 1rem; border: 1px solid var(--sos-border-default); border-radius: var(--radius-md); outline: none; transition: border-color 0.3s; }
 .input-field:focus { border-color: var(--primary-color); }
 textarea.input-field { resize: none; height: 6rem; }
 .summary-card { position: sticky; top: 1.5rem; }
 .order-item-list { max-height: 15rem; overflow-y: auto; margin-bottom: 1rem; padding-right: 0.5rem; }
 .summary-row { display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 0.5rem; }
-.total-row { display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #eee; padding-top: 1rem; margin-top: 1rem; }
+.total-row { display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid var(--sos-border-default); padding-top: 1rem; margin-top: 1rem; }
 .total-price { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); }
 .market-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .summary-item-name {
@@ -519,14 +519,14 @@ textarea.input-field { resize: none; height: 6rem; }
     align-items: center;
     gap: 0.4rem;
     font-size: 0.82rem;
-    color: #374151;
+    color: var(--sos-text-secondary);
 }
 .merge-panel {
     margin-top: 0.8rem;
     padding: 0.8rem;
-    border: 1px dashed #d1d5db;
+    border: 1px dashed var(--sos-border-strong);
     border-radius: 8px;
-    background: #f9fafb;
+    background: var(--sos-bg-subtle);
 }
 .merge-grid {
     display: grid;
@@ -539,18 +539,18 @@ textarea.input-field { resize: none; height: 6rem; }
 .merge-error {
     margin: 0.55rem 0 0;
     font-size: 0.8rem;
-    color: #dc2626;
+    color: var(--sos-danger);
 }
 .merge-preview {
     margin-top: 0.6rem;
     padding-top: 0.6rem;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--sos-border-default);
 }
 .merge-preview-row {
     display: flex;
     justify-content: space-between;
     font-size: 0.84rem;
-    color: #4b5563;
+    color: var(--sos-text-secondary);
     margin-bottom: 0.35rem;
 }
 .merge-preview-total {
@@ -558,7 +558,7 @@ textarea.input-field { resize: none; height: 6rem; }
     justify-content: space-between;
     font-size: 0.92rem;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--sos-text-primary);
 }
 
 @media (max-width: 639px) {

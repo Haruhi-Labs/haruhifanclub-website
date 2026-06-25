@@ -2,7 +2,14 @@
   <!-- [修改] 根据路由 meta 决定是否显示 NavBar -->
   <NavBar v-if="!$route.meta.hideNavbar" :overlay="isBlogDetail" />
 
-  <main :class="mainClass">
+  <!-- 设计系统浅层接入：仅保留 data-sos-site 提供 token 表达，不再套 SosPage（DS 基础皮）。 -->
+  <main v-if="!$route.meta.hideNavbar" :class="mainClass" data-sos-site="news">
+    <router-view />
+
+    <SiteFooter />
+  </main>
+
+  <main v-else>
     <router-view />
 
     <SiteFooter />
@@ -13,30 +20,30 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
-import NavBar from '@/shell/NavBar.vue';
-import SiteFooter from '@/shell/SiteFooter.vue';
-import SearchOverlay from '@/features/blog/components/SearchOverlay.vue';
-import DetailModal from '@/features/blog/components/DetailModal.vue';
+import NavBar from '@/shell/NavBar.vue'
+import SiteFooter from '@/shell/SiteFooter.vue'
+import SearchOverlay from '@/features/blog/components/SearchOverlay.vue'
+import DetailModal from '@/features/blog/components/DetailModal.vue'
 
-const route = useRoute();
+const route = useRoute()
 
-const isBlogDetail = computed(() => route.path.startsWith('/blog/'));
+const isBlogDetail = computed(() => route.path.startsWith('/blog/'))
 
 const mainClass = computed(() => {
   // 如果是隐藏导航栏的页面（如 Quiz），则不应用任何布局限制，由页面自己全权接管
   if (route.meta.hideNavbar) {
-    return '';
+    return ''
   }
 
-  const base = 'main-base';
+  const base = 'main-base'
   if (isBlogDetail.value) {
-    return base;
+    return base
   }
-  return `${base} main-default`;
-});
+  return `${base} main-default`
+})
 </script>
 
 <style scoped>

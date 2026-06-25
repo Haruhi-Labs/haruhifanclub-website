@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import TopBar from './components/TopBar.vue'
+import SiteFooter from './components/SiteFooter.vue'
 
 const LIGHTS_OUT_KEY = 'haruhi-art-lights-out'
 const lightsOut = ref(false)
@@ -141,11 +142,9 @@ onBeforeUnmount(() => {
 <template>
   <div class="bg-layer gallery-bg"></div>
   <div class="bg-layer gallery-mask"></div>
-  
-  <div class="app-shell" :class="{ 'is-home-route': isHomeRoute }">
-    <header class="topbar" :class="{ 'is-home-route': isHomeRoute }">
-      <TopBar />
-    </header>
+
+  <div class="app-shell sos-scope" :class="{ 'is-home-route': isHomeRoute }" data-sos-site="art">
+    <TopBar />
 
     <main class="main" :class="{ 'is-home-route': isHomeRoute }">
       <router-view v-slot="{ Component, route }">
@@ -154,6 +153,8 @@ onBeforeUnmount(() => {
         </KeepAlive>
       </router-view>
     </main>
+
+    <SiteFooter />
   </div>
 
   <aside class="secret-toolbar" :class="{ 'is-active': lightsOut }" aria-label="特殊功能工具栏">
@@ -170,15 +171,19 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
-/* =========================================
-   全局页面布局约束
-   ========================================= */
 .app-shell {
-  /* ⚠️ 重要：因为导航栏是 fixed 定位，必须给内容区一个顶部内边距。
-     数值 = 导航栏高度 (约72px) + 间距 (24px) = 96px */
-  padding-top: 96px;
-  /* Ensure the shell takes full height so short pages don't abruptly end */
+  display: flex;
+  flex-direction: column;
   min-height: 100dvh;
+}
+
+.app-shell > .main {
+  flex: 1;
+  padding-top: 96px;
+}
+
+html.art-home-route .app-shell > .main {
+  padding-top: 0;
 }
 
 .secret-toolbar {
@@ -286,6 +291,14 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
+  .app-shell > .main {
+    padding-top: 90px;
+  }
+
+  html.art-home-route .app-shell > .main {
+    padding-top: 0;
+  }
+
   .secret-toolbar {
     right: 10px;
     bottom: 12px;
@@ -298,30 +311,20 @@ onBeforeUnmount(() => {
   }
 }
 
-/* =========================================
-   全局页面切换动画：磨砂浮动 + 缩放效果
-   ========================================= */
-
-/* 1. 进场和离场的激活状态 */
 .page-enter-active,
 .page-leave-active {
-  /* 使用贝塞尔曲线模拟物理惯性，比 linear 更自然 */
-  transition: 
+  transition:
     opacity 0.18s cubic-bezier(0.2, 0.8, 0.2, 1),
     transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* 2. 进场开始状态 (页面刚要出来时) */
 .page-enter-from {
   opacity: 0;
-  /* 稍微向下偏移 15px，有一种浮上来的感觉 */
   transform: translateY(8px) scale(0.995);
 }
 
-/* 3. 离场结束状态 (旧页面离开后) */
 .page-leave-to {
   opacity: 0;
-  /* 稍微向上偏移 -15px，有一种飘走的感觉 */
   transform: translateY(-8px) scale(0.995);
 }
 </style>
