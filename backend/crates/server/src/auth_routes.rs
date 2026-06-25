@@ -613,7 +613,7 @@ async fn upload_avatar(
         .await?;
 
     if old.as_deref() != Some(url.as_str()) {
-        remove_local_avatar(&state, old.as_deref()).await;
+        remove_local_avatar(&state, user.id, old.as_deref()).await;
     }
 
     let profile = load_profile(&state, user.id).await?;
@@ -631,21 +631,35 @@ async fn remove_avatar(State(state): State<AppState>, user: AuthUser) -> AppResu
         .bind(user.id)
         .execute(&state.pools.core)
         .await?;
-    remove_local_avatar(&state, old.as_deref()).await;
+    remove_local_avatar(&state, user.id, old.as_deref()).await;
     let profile = load_profile(&state, user.id).await?;
     Ok(Json(profile))
 }
 
-/// 删除本机生成的头像文件（路径形如 `/uploads/avatars/xxx.webp`）。
-/// 仅限 avatars 目录，外链 http(s) 或空值一律跳过，杜绝误删或路径穿越。
-async fn remove_local_avatar(state: &AppState, avatar: Option<&str>) {
-    let Some(rel) = avatar.and_then(|p| p.strip_prefix("/uploads/")) else {
+/// 校验头像路径是否为「当前用户自己的」单层 `avatars/*.webp` 文件，是则返回安全文件名。
+///
+/// 只放行 `/uploads/avatars/u{user_id}-….webp`：既挡外链/空值/路径穿越，又确保
+/// **只能删自己的文件**——存量 `users.avatar` 若被设成他人头像路径（历史 URL 填写遗留），
+/// 这里会判为不归属而返回 None，避免误删别人的文件。
+fn own_avatar_filename(user_id: i64, avatar: &str) -> Option<&str> {
+    let name = avatar.strip_prefix("/uploads/avatars/")?;
+    // 必须是单层文件名（无子目录 / 无 ..）、属于本用户、且为 .webp
+    if name.contains('/') || name.contains("..") || !name.ends_with(".webp") {
+        return None;
+    }
+    if !name.starts_with(&format!("u{user_id}-")) {
+        return None;
+    }
+    Some(name)
+}
+
+/// 删除当前用户自己的头像文件（路径形如 `/uploads/avatars/u{id}-<ts>.webp`）。
+/// 归属与安全校验全在 [`own_avatar_filename`]；不归属/外链/空值一律跳过（宁可漏删不可错删）。
+async fn remove_local_avatar(state: &AppState, user_id: i64, avatar: Option<&str>) {
+    let Some(name) = avatar.and_then(|a| own_avatar_filename(user_id, a)) else {
         return;
     };
-    if !rel.starts_with("avatars/") || rel.contains("..") {
-        return;
-    }
-    let abs = state.cfg.uploads_dir.join(rel);
+    let abs = state.cfg.uploads_dir.join("avatars").join(name);
     let _ = tokio::fs::remove_file(abs).await;
 }
 
@@ -782,4 +796,52 @@ async fn audit(state: &AppState, user_id: Option<i64>, app: &str, action: &str, 
         .bind(target)
         .execute(&state.pools.core)
         .await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::own_avatar_filename;
+
+    #[test]
+    fn own_avatar_accepts_own_webp_file() {
+        assert_eq!(
+            own_avatar_filename(14, "/uploads/avatars/u14-1782414268500.webp"),
+            Some("u14-1782414268500.webp")
+        );
+    }
+
+    #[test]
+    fn own_avatar_rejects_other_users_file() {
+        // 别人的头像文件：不归属当前用户 → 不可删
+        assert_eq!(
+            own_avatar_filename(14, "/uploads/avatars/u99-1782414268500.webp"),
+            None
+        );
+        // 前缀仅相似（u140- 不等于 u14-）也必须拒绝
+        assert_eq!(
+            own_avatar_filename(14, "/uploads/avatars/u140-x.webp"),
+            None
+        );
+    }
+
+    #[test]
+    fn own_avatar_rejects_external_traversal_and_nonwebp() {
+        // 外链
+        assert_eq!(
+            own_avatar_filename(14, "https://evil.example/u14-x.webp"),
+            None
+        );
+        // 非 avatars 目录
+        assert_eq!(own_avatar_filename(14, "/uploads/news/u14-x.webp"), None);
+        // 路径穿越 / 子目录
+        assert_eq!(own_avatar_filename(14, "/uploads/avatars/../core.db"), None);
+        assert_eq!(
+            own_avatar_filename(14, "/uploads/avatars/sub/u14-x.webp"),
+            None
+        );
+        // 非 .webp
+        assert_eq!(own_avatar_filename(14, "/uploads/avatars/u14-x.png"), None);
+        // 空值占位
+        assert_eq!(own_avatar_filename(14, ""), None);
+    }
 }

@@ -12,13 +12,35 @@ pub fn encode_webp(input: &[u8], quality: f32) -> anyhow::Result<Vec<u8>> {
     Ok(encoded.to_vec())
 }
 
+/// 头像解码时的单边像素上限：覆盖真实相机/手机大图（数千万像素），
+/// 但能在解码前据图头尺寸拒掉「小文件解出超大画布」的解压炸弹。
+const AVATAR_MAX_DECODE_DIM: u32 = 8_000;
+/// 头像解码时的内存分配上限（字节），与尺寸上限互为兜底。
+const AVATAR_MAX_DECODE_ALLOC: u64 = 384 * 1024 * 1024;
+
 /// 头像专用：把任意图片居中裁成正方形并缩放到 `size`×`size`，编码为 WebP。
 ///
 /// 前端已做交互式裁切，但服务端仍统一兜底裁切 + 限尺寸 + 转 WebP——既杜绝
 /// 客户端绕过直传超大原图，又保证库里头像格式/尺寸可控。`resize_to_fill`
 /// 保持比例缩放后居中裁剪到精确边长，等价于成熟产品「填满正方形」的语义。
+///
+/// 解码走带 `Limits` 的 `ImageReader`：仅靠字节上限挡不住高压缩比图片/解压炸弹
+/// （几十 KB 可解出上亿像素），这里在解码前按图头尺寸与分配额提前拒绝，避免
+/// 在阻塞线程池上吃满 CPU/内存。
 pub fn square_avatar_webp(input: &[u8], size: u32, quality: f32) -> anyhow::Result<Vec<u8>> {
-    let img = image::load_from_memory(input).map_err(|e| anyhow::anyhow!("图片解码失败: {e}"))?;
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(AVATAR_MAX_DECODE_DIM);
+    limits.max_image_height = Some(AVATAR_MAX_DECODE_DIM);
+    limits.max_alloc = Some(AVATAR_MAX_DECODE_ALLOC);
+
+    let mut reader = image::ImageReader::new(std::io::Cursor::new(input))
+        .with_guessed_format()
+        .map_err(|e| anyhow::anyhow!("图片格式识别失败: {e}"))?;
+    reader.limits(limits);
+    let img = reader
+        .decode()
+        .map_err(|e| anyhow::anyhow!("图片解码失败: {e}"))?;
+
     let square = img.resize_to_fill(size, size, image::imageops::FilterType::Lanczos3);
     let encoder = webp::Encoder::from_image(&square)
         .map_err(|e| anyhow::anyhow!("WebP 编码器创建失败: {e}"))?;
