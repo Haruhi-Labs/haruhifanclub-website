@@ -13,7 +13,24 @@ import {
   SettingsView,
   VerifyEmailView,
   ResetPasswordView,
+  UserConsoleLayout,
+  OverviewView as AccountOverviewView,
+  MyArtworksView,
+  MyArticlesView,
+  MyCommentsView,
+  PointsView as AccountPointsView,
 } from '@haruhi/auth-ui'
+
+// 个人控制台导航分区：全集（全站可用——从任一 app 进入都能管理全站内容）。
+const ACCOUNT_SECTIONS = [
+  'overview',
+  'artworks',
+  'articles',
+  'comments',
+  'points',
+  'profile',
+  'settings',
+]
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -23,12 +40,29 @@ const router = createRouter({
     { path: '/admin', name: 'Admin', component: Admin },
     { path: '/feedback', name: 'Feedback', component: FeedbackView }, // 顺便大小写统一一下
     { path: '/login', name: 'login', component: LoginView, props: { site: 'library' } },
-    { path: '/account', name: 'account', component: ProfileView, props: { site: 'library' } },
     {
-      path: '/account/settings',
-      name: 'account-settings',
-      component: SettingsView,
-      props: { site: 'library' },
+      path: '/account',
+      component: UserConsoleLayout,
+      props: { site: 'library', basePath: '/account', sections: ACCOUNT_SECTIONS },
+      children: [
+        { path: '', name: 'account', component: AccountOverviewView },
+        { path: 'artworks', name: 'account-artworks', component: MyArtworksView },
+        { path: 'articles', name: 'account-articles', component: MyArticlesView },
+        { path: 'comments', name: 'account-comments', component: MyCommentsView },
+        { path: 'points', name: 'account-points', component: AccountPointsView },
+        {
+          path: 'profile',
+          name: 'account-profile',
+          component: ProfileView,
+          props: { site: 'library', embedded: true },
+        },
+        {
+          path: 'settings',
+          name: 'account-settings',
+          component: SettingsView,
+          props: { site: 'library', embedded: true },
+        },
+      ],
     },
     {
       path: '/verify-email',

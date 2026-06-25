@@ -15,6 +15,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '用户与权限' },
   },
   {
+    path: '/migration',
+    name: 'migration',
+    component: () => import('./pages/MigrationView.vue'),
+    meta: { title: '内容归属迁移' },
+  },
+  {
     path: '/notify',
     name: 'notify',
     component: () => import('./pages/NotifyView.vue'),

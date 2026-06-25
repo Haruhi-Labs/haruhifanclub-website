@@ -12,6 +12,7 @@ const isSuper = computed(() => session.me?.isSuperAdmin === true)
 const nav = [
   { to: '/dashboard', label: '概览', icon: '◈' },
   { to: '/users', label: '用户与权限', icon: '☻' },
+  { to: '/migration', label: '内容归属迁移', icon: '⇄' },
   { to: '/notify', label: '通知设置', icon: '✉' },
   { to: '/audit', label: '审计日志', icon: '◷' },
 ]

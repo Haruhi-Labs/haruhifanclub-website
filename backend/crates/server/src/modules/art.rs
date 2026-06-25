@@ -38,6 +38,18 @@ pub fn router() -> Router<AppState> {
         .route("/likes/artwork/{id}", post(like_artwork))
         .route("/likes/comment/{id}", post(like_comment))
         .route("/claim", post(claim_anon))
+        // ---- 个人中心（需登录，按 author_user_id 归属本人）----
+        .route("/me/artworks", get(my_artworks))
+        .route("/me/comments", get(my_comments))
+        .route("/me/points", get(my_points))
+        .route(
+            "/me/artworks/{id}",
+            axum::routing::patch(update_my_artwork).delete(delete_my_artwork),
+        )
+        .route(
+            "/me/comments/{id}",
+            axum::routing::delete(delete_my_comment),
+        )
         // ---- 后台接口（RBAC）----
         .route("/admin/pending-artworks", get(admin_pending_artworks))
         .route("/admin/audit-history", get(admin_audit_history))
@@ -1387,6 +1399,260 @@ async fn claim_anon(
     Ok(Json(
         json!({ "ok": true, "claimed": aw + cm, "artworks": aw, "comments": cm }),
     ))
+}
+
+// ============================================================
+// 个人中心（需登录；一律按 author_user_id 限定为本人内容）
+// ============================================================
+
+/// GET /api/art/me/artworks —— 我的作品（按 author_user_id 归属本人，分页 + 可选状态筛选）。
+/// 与公开 list_artworks 不同：不限 approved，作者能看到自己 pending/flagged/hidden 的全部作品。
+async fn my_artworks(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<std::collections::HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    let getq = |k: &str| q.get(k).map(|s| s.as_str());
+    let status = getq("status").unwrap_or("all").to_string();
+    let page = clamp_int(getq("page"), 1, 9999, 1);
+    let page_size = clamp_int(getq("pageSize"), 6, 60, 24);
+    let offset = (page - 1) * page_size;
+
+    let mut where_sql = String::from("WHERE a.author_user_id = ?");
+    if status != "all" {
+        where_sql.push_str(" AND a.status = ?");
+    }
+
+    let count_sql = format!("SELECT COUNT(1) FROM artworks a {where_sql}");
+    let mut count_q = sqlx::query_scalar::<_, i64>(&count_sql).bind(user.id);
+    if status != "all" {
+        count_q = count_q.bind(&status);
+    }
+    let total: i64 = count_q.fetch_one(&state.pools.art).await?;
+
+    let list_sql = format!(
+        "{SELECT_ART} {where_sql} ORDER BY datetime(a.created_at) DESC, a.id DESC LIMIT ? OFFSET ?"
+    );
+    let mut list_q = sqlx::query_as::<_, ArtRow>(&list_sql).bind(user.id);
+    if status != "all" {
+        list_q = list_q.bind(&status);
+    }
+    list_q = list_q.bind(page_size).bind(offset);
+    let rows: Vec<ArtRow> = list_q.fetch_all(&state.pools.art).await?;
+    let data: Vec<Value> = rows.iter().map(map_artwork_row).collect();
+
+    Ok(Json(json!({ "ok": true, "data": data, "total": total })))
+}
+
+/// GET /api/art/me/comments —— 我的评论（按 author_user_id），附所属作品标题/状态以便跳转。
+async fn my_comments(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<std::collections::HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    let page = clamp_int(q.get("page").map(|s| s.as_str()), 1, 9999, 1);
+    let page_size = clamp_int(q.get("pageSize").map(|s| s.as_str()), 6, 60, 24);
+    let offset = (page - 1) * page_size;
+
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(1) FROM comments WHERE author_user_id = ?")
+        .bind(user.id)
+        .fetch_one(&state.pools.art)
+        .await?;
+
+    let rows: Vec<(
+        i64,
+        i64,
+        Option<String>,
+        Option<String>,
+        i64,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT cm.id, cm.artwork_id, cm.body, cm.created_at, \
+         COALESCE(CAST(NULLIF(TRIM(cm.like_total), '') AS INTEGER), 0) AS like_total, \
+         cm.status, a.title AS artwork_title, a.status AS artwork_status \
+         FROM comments cm LEFT JOIN artworks a ON a.id = cm.artwork_id \
+         WHERE cm.author_user_id = ? ORDER BY datetime(cm.created_at) DESC LIMIT ? OFFSET ?",
+    )
+    .bind(user.id)
+    .bind(page_size)
+    .bind(offset)
+    .fetch_all(&state.pools.art)
+    .await?;
+    let data: Vec<Value> = rows
+        .into_iter()
+        .map(
+            |(
+                id,
+                artwork_id,
+                body,
+                created_at,
+                like_total,
+                status,
+                artwork_title,
+                artwork_status,
+            )| {
+                json!({
+                    "id": id, "artwork_id": artwork_id, "body": body, "created_at": created_at,
+                    "like_total": like_total, "status": status,
+                    "artwork_title": artwork_title, "artwork_status": artwork_status,
+                })
+            },
+        )
+        .collect();
+    Ok(Json(json!({ "ok": true, "data": data, "total": total })))
+}
+
+/// GET /api/art/me/points —— 我的画廊积分（创作激励分：余额 + 最近流水）。
+/// uid 取 "u{user_id}"，沿用既有 points_ledger 体系。
+async fn my_points(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+    let uid = crate::auth_routes::member_uid(user.id);
+    let total: Option<i64> = sqlx::query_scalar(
+        "SELECT CAST(SUM(CAST(NULLIF(TRIM(points), '') AS INTEGER)) AS INTEGER) FROM points_ledger WHERE uid=?",
+    )
+    .bind(&uid)
+    .fetch_one(&state.pools.art)
+    .await?;
+    let total = total.unwrap_or(0);
+
+    let history_rows: Vec<(Option<i64>, Option<String>, Option<String>, Option<String>)> =
+        sqlx::query_as(
+            "SELECT CAST(NULLIF(TRIM(pl.points), '') AS INTEGER) AS points, pl.note, pl.created_at, a.title AS artwork_title \
+             FROM points_ledger pl LEFT JOIN artworks a ON a.id = pl.artwork_id \
+             WHERE pl.uid=? ORDER BY datetime(pl.created_at) DESC LIMIT 100",
+        )
+        .bind(&uid)
+        .fetch_all(&state.pools.art)
+        .await?;
+    let history: Vec<Value> = history_rows
+        .into_iter()
+        .map(|(points, note, created_at, artwork_title)| {
+            json!({ "points": points, "note": note, "created_at": created_at, "artwork_title": artwork_title })
+        })
+        .collect();
+
+    Ok(Json(
+        json!({ "ok": true, "uid": uid, "total": total, "history": history }),
+    ))
+}
+
+/// PATCH /api/art/me/artworks/{id} —— 作者本人编辑作品文本字段（标题/简介/标签/来源链接）。
+/// 仅限 author_user_id == 当前用户；状态与审核归属由管理员把关，此处不改 status。
+async fn update_my_artwork(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+    Json(body): Json<Value>,
+) -> AppResult<Response> {
+    let owner: Option<Option<i64>> =
+        sqlx::query_scalar("SELECT author_user_id FROM artworks WHERE id=?")
+            .bind(id)
+            .fetch_optional(&state.pools.art)
+            .await?;
+    match owner {
+        Some(Some(uid)) if uid == user.id => {}
+        Some(_) => {
+            return Ok((
+                StatusCode::FORBIDDEN,
+                Json(json!({ "ok": false, "message": "无权编辑该作品" })),
+            )
+                .into_response())
+        }
+        None => {
+            return Ok((
+                StatusCode::NOT_FOUND,
+                Json(json!({ "ok": false, "message": "作品不存在" })),
+            )
+                .into_response())
+        }
+    }
+
+    let s = |k: &str| body.get(k).and_then(|v| v.as_str());
+    let title = clamp_len(s("title"), 200);
+    if title.is_empty() {
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "ok": false, "message": "标题不能为空" })),
+        )
+            .into_response());
+    }
+    let description = clamp_len(s("description"), 4000);
+    let tags_arr = normalize_tags_to_array(s("tags"));
+    let tags_json = serde_json::to_string(&tags_arr).unwrap_or_else(|_| "[]".into());
+    let tags_norm = make_tags_norm(&tags_arr);
+    let origin_url = clamp_len(s("origin_url"), 500);
+
+    let updated = sqlx::query(
+        "UPDATE artworks SET title=?, description=?, tags_json=?, tags_norm=?, origin_url=? \
+         WHERE id=? AND author_user_id=?",
+    )
+    .bind(&title)
+    .bind(&description)
+    .bind(&tags_json)
+    .bind(&tags_norm)
+    .bind(&origin_url)
+    .bind(id)
+    .bind(user.id)
+    .execute(&state.pools.art)
+    .await?
+    .rows_affected();
+    // 两次 SQL 之间记录可能被删除或改绑：0 行更新即视为失败，不能谎报成功
+    if updated == 0 {
+        return Ok((
+            StatusCode::CONFLICT,
+            Json(json!({ "ok": false, "message": "作品不存在或无权修改" })),
+        )
+            .into_response());
+    }
+    Ok(Json(json!({ "ok": true })).into_response())
+}
+
+/// DELETE /api/art/me/artworks/{id} —— 作者本人下架作品（软删为 hidden）。
+/// 保留行与文件，符合「旧数据保留」原则；彻底删除仍仅限管理员。
+async fn delete_my_artwork(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+) -> AppResult<Response> {
+    let affected =
+        sqlx::query("UPDATE artworks SET status='hidden' WHERE id=? AND author_user_id=?")
+            .bind(id)
+            .bind(user.id)
+            .execute(&state.pools.art)
+            .await?
+            .rows_affected();
+    if affected == 0 {
+        return Ok((
+            StatusCode::FORBIDDEN,
+            Json(json!({ "ok": false, "message": "无权操作或作品不存在" })),
+        )
+            .into_response());
+    }
+    Ok(Json(json!({ "ok": true, "status": "hidden" })).into_response())
+}
+
+/// DELETE /api/art/me/comments/{id} —— 作者本人删除评论（软删为 hidden）。
+async fn delete_my_comment(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+) -> AppResult<Response> {
+    let affected =
+        sqlx::query("UPDATE comments SET status='hidden' WHERE id=? AND author_user_id=?")
+            .bind(id)
+            .bind(user.id)
+            .execute(&state.pools.art)
+            .await?
+            .rows_affected();
+    if affected == 0 {
+        return Ok((
+            StatusCode::FORBIDDEN,
+            Json(json!({ "ok": false, "message": "无权操作或评论不存在" })),
+        )
+            .into_response());
+    }
+    Ok(Json(json!({ "ok": true, "status": "hidden" })).into_response())
 }
 
 // ============================================================

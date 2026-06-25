@@ -69,7 +69,7 @@ pub async fn send_ai_flagged(
     }
 
     let label = app_label(app);
-    let url = admin_url(app);
+    let url = admin_url(&cfg.public_site_url, app);
     let reason = if reason.trim().is_empty() {
         "未提供"
     } else {
@@ -115,6 +115,110 @@ pub async fn send_ai_flagged(
     }
 }
 
+/// 积分兑换成功 → 邮件通知管理员去后台安排发放。
+/// 收件人：超管 ∪ 拥有 `news` / `news.store` 角色的管理员（须填邮箱）。
+/// 异步触发，邮件未启用/失败均不影响兑换主流程。
+pub fn redemption_created(
+    state: &AppState,
+    redemption_id: i64,
+    user_label: &str,
+    prize_name: &str,
+    points_cost: i64,
+) {
+    let core = state.pools.core.clone();
+    let cfg = state.cfg.clone();
+    let user_label = user_label.to_string();
+    let prize_name = prize_name.to_string();
+    tokio::spawn(async move {
+        send_redemption_created(
+            &core,
+            &cfg,
+            redemption_id,
+            &user_label,
+            &prize_name,
+            points_cost,
+        )
+        .await;
+    });
+}
+
+async fn send_redemption_created(
+    core: &SqlitePool,
+    cfg: &Config,
+    redemption_id: i64,
+    user_label: &str,
+    prize_name: &str,
+    points_cost: i64,
+) {
+    if !cfg.mail.enabled {
+        tracing::info!(
+            "[兑换通知] 邮件未启用，跳过（兑换 #{redemption_id}：{user_label} 兑换 {prize_name}）"
+        );
+        return;
+    }
+    let mailer = match haruhi_mail::Mailer::from_config(cfg) {
+        Some(m) => m,
+        None => return,
+    };
+    let recipients: Vec<(String,)> = match sqlx::query_as(
+        "SELECT DISTINCT email FROM users \
+         WHERE status = 'active' AND email IS NOT NULL AND TRIM(email) <> '' \
+           AND (is_super_admin = 1 OR id IN (SELECT user_id FROM user_app_roles WHERE app IN ('news', 'news.store')))",
+    )
+    .fetch_all(core)
+    .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!("[兑换通知] 查询收件人失败: {e}");
+            return;
+        }
+    };
+    if recipients.is_empty() {
+        tracing::info!("[兑换通知] 暂无可通知的管理员邮箱，跳过");
+        return;
+    }
+
+    let esc = |s: &str| {
+        s.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+    };
+    let url = admin_url(&cfg.public_site_url, "news");
+    let subject = format!(
+        "【凉宫春日应援团·积分商城】新的兑换待发放：{}",
+        esc(prize_name)
+    );
+    let html = format!(
+        "<div style=\"font-family:system-ui,'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;color:#1f2328\">\
+         <h2 style=\"font-size:17px;margin:0 0 12px\">有用户用积分兑换了奖品，待安排发放</h2>\
+         <table style=\"border-collapse:collapse;font-size:14px;line-height:1.7\">\
+         <tr><td style=\"color:#6b7280;padding-right:14px\">兑换单号</td><td>#{id}</td></tr>\
+         <tr><td style=\"color:#6b7280;padding-right:14px\">兑换用户</td><td>{user}</td></tr>\
+         <tr><td style=\"color:#6b7280;padding-right:14px\">奖品</td><td>{prize}</td></tr>\
+         <tr><td style=\"color:#6b7280;padding-right:14px\">消耗积分</td><td>{cost}</td></tr>\
+         </table>\
+         <p style=\"margin:18px 0 0\"><a href=\"{url}\" style=\"background:#D97757;color:#fff;text-decoration:none;padding:9px 16px;border-radius:8px;display:inline-block\">去后台安排发放 →</a></p>\
+         <p style=\"color:#9ca3af;font-size:12px;margin-top:18px\">本邮件由统一后端在用户兑换积分奖品时自动发送。你收到是因为你是超级管理员或团报积分商城的管理员。</p>\
+         </div>",
+        id = redemption_id,
+        user = esc(user_label),
+        prize = esc(prize_name),
+        cost = points_cost,
+        url = url,
+    );
+    let text = format!(
+        "新的积分兑换待发放\n兑换单号：#{redemption_id}\n兑换用户：{user_label}\n奖品：{prize_name}\n消耗积分：{points_cost}\n去后台安排发放：{url}\n"
+    );
+
+    for (email,) in recipients {
+        match mailer.send(&email, &subject, &html, &text).await {
+            Ok(()) => tracing::info!("[兑换通知] 已通知 {email}（兑换 #{redemption_id}）"),
+            Err(e) => tracing::error!("[兑换通知] 发送给 {email} 失败: {e}"),
+        }
+    }
+}
+
 fn app_label(app: &str) -> String {
     match app {
         "art" => "画廊",
@@ -127,11 +231,12 @@ fn app_label(app: &str) -> String {
     .to_string()
 }
 
-fn admin_url(app: &str) -> String {
-    let base = "https://haruyuki.cn";
+fn admin_url(base: &str, app: &str) -> String {
+    let base = base.trim_end_matches('/');
     match app {
         "art" => format!("{base}/art/admin"),
         "exam" => format!("{base}/exam/admin"),
+        "news" | "news.store" => format!("{base}/news/admin"),
         other => format!("{base}/{other}/"),
     }
 }

@@ -10,7 +10,24 @@ import {
   SettingsView,
   VerifyEmailView,
   ResetPasswordView,
+  UserConsoleLayout,
+  OverviewView as AccountOverviewView,
+  MyArtworksView,
+  MyArticlesView,
+  MyCommentsView,
+  PointsView as AccountPointsView,
 } from '@haruhi/auth-ui'
+
+// 个人控制台导航分区：全集（全站可用——从任一 app 进入都能管理全站内容）。
+const ACCOUNT_SECTIONS = [
+  'overview',
+  'artworks',
+  'articles',
+  'comments',
+  'points',
+  'profile',
+  'settings',
+]
 
 const UploadView = () => import('../views/UploadView.vue')
 const AdminView = () => import('../views/AdminView.vue')
@@ -29,12 +46,29 @@ const router = createRouter({
 
     // 统一账号系统
     { path: '/login', name: 'login', component: LoginView, props: { site: 'art' } },
-    { path: '/account', name: 'account', component: ProfileView, props: { site: 'art' } },
     {
-      path: '/account/settings',
-      name: 'account-settings',
-      component: SettingsView,
-      props: { site: 'art' },
+      path: '/account',
+      component: UserConsoleLayout,
+      props: { site: 'art', basePath: '/account', sections: ACCOUNT_SECTIONS },
+      children: [
+        { path: '', name: 'account', component: AccountOverviewView },
+        { path: 'artworks', name: 'account-artworks', component: MyArtworksView },
+        { path: 'articles', name: 'account-articles', component: MyArticlesView },
+        { path: 'comments', name: 'account-comments', component: MyCommentsView },
+        { path: 'points', name: 'account-points', component: AccountPointsView },
+        {
+          path: 'profile',
+          name: 'account-profile',
+          component: ProfileView,
+          props: { site: 'art', embedded: true },
+        },
+        {
+          path: 'settings',
+          name: 'account-settings',
+          component: SettingsView,
+          props: { site: 'art', embedded: true },
+        },
+      ],
     },
     {
       path: '/verify-email',

@@ -14,16 +14,53 @@ import {
   SettingsView,
   VerifyEmailView,
   ResetPasswordView,
+  UserConsoleLayout,
+  OverviewView,
+  MyArtworksView,
+  MyArticlesView,
+  MyCommentsView,
+  PointsView,
 } from '@haruhi/auth-ui'
 
+// 个人控制台：/account 为带侧边导航的「个人空间」外壳，子页嵌套渲染。
+// sections 控制导航显示的分区（随子页接入逐步扩展）。
 const accountRoutes = [
   { path: '/login', name: 'login', component: LoginView, props: { site: 'news' } },
-  { path: '/account', name: 'account', component: ProfileView, props: { site: 'news' } },
   {
-    path: '/account/settings',
-    name: 'account-settings',
-    component: SettingsView,
-    props: { site: 'news' },
+    path: '/account',
+    component: UserConsoleLayout,
+    props: {
+      site: 'news',
+      basePath: '/account',
+      sections: [
+        'overview',
+        'artworks',
+        'articles',
+        'comments',
+        'points',
+        'profile',
+        'settings',
+      ],
+    },
+    children: [
+      { path: '', name: 'account', component: OverviewView },
+      { path: 'artworks', name: 'account-artworks', component: MyArtworksView },
+      { path: 'articles', name: 'account-articles', component: MyArticlesView },
+      { path: 'comments', name: 'account-comments', component: MyCommentsView },
+      { path: 'points', name: 'account-points', component: PointsView },
+      {
+        path: 'profile',
+        name: 'account-profile',
+        component: ProfileView,
+        props: { site: 'news', embedded: true },
+      },
+      {
+        path: 'settings',
+        name: 'account-settings',
+        component: SettingsView,
+        props: { site: 'news', embedded: true },
+      },
+    ],
   },
   {
     path: '/verify-email',

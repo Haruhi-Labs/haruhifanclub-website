@@ -35,9 +35,33 @@ export interface SessionApi {
 
 export function useSession(_apiBase?: string): SessionApi
 
+/** 个人中心数据访问层：统一封装各模块 /me/* 与跨库 /me/summary。 */
+export interface UserHub {
+  summary(): Promise<any>
+  art: Record<string, (..._args: any[]) => Promise<any>>
+  news: Record<string, (..._args: any[]) => Promise<any>>
+}
+export function useUserHub(_apiBase?: string): UserHub
+
+/** 个人控制台上下文（UserConsoleLayout 经 provide 下发）。 */
+export interface ConsoleContext {
+  apiBase: string
+  site?: string
+  basePath: string
+  loginPath: string
+  home: string
+}
+export function useConsoleContext(): ConsoleContext
+
 export const LoginView: DefineComponent<Record<string, any>>
 export const ResetPasswordView: DefineComponent<Record<string, any>>
 export const VerifyEmailView: DefineComponent<Record<string, any>>
 export const ProfileView: DefineComponent<Record<string, any>>
 export const SettingsView: DefineComponent<Record<string, any>>
 export const AccountMenu: DefineComponent<Record<string, any>>
+export const UserConsoleLayout: DefineComponent<Record<string, any>>
+export const OverviewView: DefineComponent<Record<string, any>>
+export const MyArtworksView: DefineComponent<Record<string, any>>
+export const MyArticlesView: DefineComponent<Record<string, any>>
+export const MyCommentsView: DefineComponent<Record<string, any>>
+export const PointsView: DefineComponent<Record<string, any>>

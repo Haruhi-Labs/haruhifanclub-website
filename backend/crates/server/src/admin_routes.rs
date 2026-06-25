@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use haruhi_auth::{hash_password, require_super, AuthUser};
@@ -38,6 +38,9 @@ pub fn router() -> Router<AppState> {
         .route("/admin/users/{id}/roles", axum::routing::put(set_roles))
         .route("/admin/roles", get(list_roles))
         .route("/admin/audit", get(list_audit))
+        // 旧 ID 归属迁移：把历史匿名内容（author_user_id IS NULL）绑定到现有账户
+        .route("/admin/migration/orphans", get(migration_orphans))
+        .route("/admin/migration/bind", post(migration_bind))
 }
 
 async fn list_roles(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
@@ -351,4 +354,202 @@ async fn audit(state: &AppState, user_id: i64, app: &str, action: &str, target: 
         .execute(&state.pools.core)
         .await
         .map_err(|e| tracing::warn!("写审计日志失败: {e}"));
+}
+
+// ============================================================
+// 旧 ID 归属迁移（require_super）：把历史匿名内容绑定到现有账户
+// ============================================================
+
+#[derive(Deserialize)]
+struct BindReq {
+    module: String,
+    ids: Vec<String>,
+    #[serde(rename = "userId")]
+    user_id: i64,
+}
+
+/// GET /api/admin/migration/orphans?module=art|news|exam&q=&page=
+/// 列出某模块中尚未归属（author_user_id IS NULL）的历史内容，供管理员挑选迁移。
+async fn migration_orphans(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<std::collections::HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    require_super(&user)?;
+    let module = q.get("module").map(|s| s.as_str()).unwrap_or("art");
+    let search = q.get("q").map(|s| s.trim()).unwrap_or("").to_string();
+    let page: i64 = q
+        .get("page")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1)
+        .max(1);
+    let page_size: i64 = 20;
+    let offset = (page - 1) * page_size;
+    let like = format!("%{search}%");
+
+    let (total, items): (i64, Vec<Value>) = match module {
+        "art" => {
+            let cond = if search.is_empty() {
+                "author_user_id IS NULL".to_string()
+            } else {
+                "author_user_id IS NULL AND (title LIKE ? OR uploader_name LIKE ? OR uploader_uid LIKE ?)".to_string()
+            };
+            let count_sql = format!("SELECT COUNT(*) FROM artworks WHERE {cond}");
+            let mut cq = sqlx::query_scalar::<_, i64>(&count_sql);
+            if !search.is_empty() {
+                cq = cq.bind(&like).bind(&like).bind(&like);
+            }
+            let total = cq.fetch_one(&state.pools.art).await?;
+            let list_sql = format!("SELECT id, title, uploader_name, uploader_uid, created_at FROM artworks WHERE {cond} ORDER BY id DESC LIMIT ? OFFSET ?");
+            let mut lq = sqlx::query_as::<
+                _,
+                (
+                    i64,
+                    Option<String>,
+                    Option<String>,
+                    Option<String>,
+                    Option<String>,
+                ),
+            >(&list_sql);
+            if !search.is_empty() {
+                lq = lq.bind(&like).bind(&like).bind(&like);
+            }
+            let rows = lq
+                .bind(page_size)
+                .bind(offset)
+                .fetch_all(&state.pools.art)
+                .await?;
+            let items = rows
+                .into_iter()
+                .map(|(id, title, uname, uuid, at)| {
+                    json!({ "id": id.to_string(), "title": title.unwrap_or_default(), "by": uname.or(uuid), "at": at })
+                })
+                .collect();
+            (total, items)
+        }
+        "news" => {
+            let cond = if search.is_empty() {
+                "author_user_id IS NULL".to_string()
+            } else {
+                "author_user_id IS NULL AND (title LIKE ? OR author LIKE ?)".to_string()
+            };
+            let count_sql = format!("SELECT COUNT(*) FROM articles WHERE {cond}");
+            let mut cq = sqlx::query_scalar::<_, i64>(&count_sql);
+            if !search.is_empty() {
+                cq = cq.bind(&like).bind(&like);
+            }
+            let total = cq.fetch_one(&state.pools.news).await?;
+            let list_sql = format!("SELECT id, title, author, date FROM articles WHERE {cond} ORDER BY id DESC LIMIT ? OFFSET ?");
+            let mut lq = sqlx::query_as::<_, (i64, Option<String>, Option<String>, Option<String>)>(
+                &list_sql,
+            );
+            if !search.is_empty() {
+                lq = lq.bind(&like).bind(&like);
+            }
+            let rows = lq
+                .bind(page_size)
+                .bind(offset)
+                .fetch_all(&state.pools.news)
+                .await?;
+            let items = rows
+                .into_iter()
+                .map(|(id, title, author, date)| {
+                    json!({ "id": id.to_string(), "title": title.unwrap_or_default(), "by": author, "at": date })
+                })
+                .collect();
+            (total, items)
+        }
+        "exam" => {
+            let cond = if search.is_empty() {
+                "author_user_id IS NULL".to_string()
+            } else {
+                "author_user_id IS NULL AND title LIKE ?".to_string()
+            };
+            let count_sql = format!("SELECT COUNT(*) FROM exams WHERE {cond}");
+            let mut cq = sqlx::query_scalar::<_, i64>(&count_sql);
+            if !search.is_empty() {
+                cq = cq.bind(&like);
+            }
+            let total = cq.fetch_one(&state.pools.exam).await?;
+            let list_sql = format!("SELECT id, title, edit_token, created_at FROM exams WHERE {cond} ORDER BY created_at DESC LIMIT ? OFFSET ?");
+            let mut lq = sqlx::query_as::<
+                _,
+                (String, Option<String>, Option<String>, Option<String>),
+            >(&list_sql);
+            if !search.is_empty() {
+                lq = lq.bind(&like);
+            }
+            let rows = lq
+                .bind(page_size)
+                .bind(offset)
+                .fetch_all(&state.pools.exam)
+                .await?;
+            let items = rows
+                .into_iter()
+                .map(|(id, title, token, at)| {
+                    let by = token.map(|t| format!("token:{}", &t[..t.len().min(8)]));
+                    json!({ "id": id, "title": title.unwrap_or_default(), "by": by, "at": at })
+                })
+                .collect();
+            (total, items)
+        }
+        _ => return Err(AppError::bad_request("无效模块")),
+    };
+
+    Ok(Json(json!({
+        "module": module, "total": total, "page": page, "pageSize": page_size, "items": items
+    })))
+}
+
+/// POST /api/admin/migration/bind { module, ids:[], userId }
+/// 把选中的历史内容批量绑定到指定账户（仅设 author_user_id，且仅作用于尚未归属的行）。
+async fn migration_bind(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(req): Json<BindReq>,
+) -> AppResult<Json<Value>> {
+    require_super(&user)?;
+    let table = match req.module.as_str() {
+        "art" => "artworks",
+        "news" => "articles",
+        "exam" => "exams",
+        _ => return Err(AppError::bad_request("无效模块")),
+    };
+    if req.ids.is_empty() {
+        return Err(AppError::bad_request("未选择内容"));
+    }
+    let exists: Option<i64> =
+        sqlx::query_scalar("SELECT id FROM users WHERE id = ? AND deleted_at IS NULL")
+            .bind(req.user_id)
+            .fetch_optional(&state.pools.core)
+            .await?;
+    if exists.is_none() {
+        return Err(AppError::bad_request("目标用户不存在"));
+    }
+
+    let pool = match req.module.as_str() {
+        "art" => &state.pools.art,
+        "news" => &state.pools.news,
+        _ => &state.pools.exam,
+    };
+    let placeholders = req.ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!(
+        "UPDATE {table} SET author_user_id = ? WHERE id IN ({placeholders}) AND author_user_id IS NULL"
+    );
+    let mut qy = sqlx::query(&sql).bind(req.user_id);
+    for id in &req.ids {
+        qy = qy.bind(id);
+    }
+    let bound = qy.execute(pool).await?.rows_affected();
+
+    audit(
+        &state,
+        user.id,
+        "console",
+        "migrate_bind",
+        &format!("{}: {} 项 → u{}", req.module, bound, req.user_id),
+    )
+    .await;
+
+    Ok(Json(json!({ "ok": true, "bound": bound })))
 }
