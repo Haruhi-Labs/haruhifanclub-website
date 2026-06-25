@@ -7,11 +7,11 @@ const router = useRouter()
 
 const navItems = [
   { path: '/gallery', label: '画廊' },
-  { path: '/announcements', label: '公告' },
   { path: '/upload', label: '投稿' },
   { path: '/points', label: '积分' },
   { path: '/exchange', label: '兑换' },
 ]
+const announcementPath = '/announcements'
 
 const isActive = (path) => {
   if (path === '/gallery' && route.path.startsWith('/creator')) return true
@@ -31,6 +31,20 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
     </div>
 
     <div class="topbar-actions">
+      <RouterLink
+        :class="['notice-orb', isActive(announcementPath) ? 'on' : '']"
+        :to="announcementPath"
+        aria-label="公告"
+        title="公告"
+        data-sfx="click"
+      >
+        <span class="notice-orb__sign" aria-hidden="true">
+          <span class="notice-orb__pin"></span>
+          <span class="notice-orb__line long"></span>
+          <span class="notice-orb__line short"></span>
+        </span>
+      </RouterLink>
+
       <nav class="nav" aria-label="画廊功能导航">
         <RouterLink
           v-for="item in navItems"
@@ -137,6 +151,105 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
   gap: 10px;
   min-width: 0;
   margin-left: auto;
+}
+
+.notice-orb {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.18) 56%, rgba(255, 255, 255, 0.08)),
+    linear-gradient(135deg, rgba(255, 240, 166, 0.54), rgba(103, 232, 249, 0.2));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+  color: #073b4c;
+  text-decoration: none;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease, background 0.24s ease;
+}
+
+.notice-orb:hover {
+  transform: translateY(-1px) scale(1.04);
+  border-color: rgba(255, 255, 255, 0.78);
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.28) 58%, rgba(255, 255, 255, 0.12)),
+    linear-gradient(135deg, rgba(254, 240, 138, 0.72), rgba(103, 232, 249, 0.3));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 4px rgba(254, 240, 138, 0.16);
+}
+
+.notice-orb.on {
+  border-color: rgba(255, 255, 255, 0.84);
+  background:
+    radial-gradient(circle at 36% 24%, rgba(255, 255, 255, 0.9), transparent 34%),
+    linear-gradient(135deg, #fef08a 0%, #fb7185 48%, #67e8f9 100%);
+  box-shadow: 0 14px 32px rgba(244, 63, 94, 0.22), 0 0 0 4px rgba(103, 232, 249, 0.14);
+}
+
+.notice-orb__sign {
+  position: relative;
+  display: block;
+  width: 25px;
+  height: 21px;
+  border: 2px solid currentColor;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.52);
+  box-shadow: inset 0 -3px 0 rgba(7, 59, 76, 0.08);
+}
+
+.notice-orb__sign::before,
+.notice-orb__sign::after {
+  content: "";
+  position: absolute;
+  top: -7px;
+  width: 2px;
+  height: 7px;
+  border-radius: 99px;
+  background: currentColor;
+}
+
+.notice-orb__sign::before {
+  left: 6px;
+}
+
+.notice-orb__sign::after {
+  right: 6px;
+}
+
+.notice-orb__pin {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fb7185;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.74);
+  transform: translateX(-50%);
+}
+
+.notice-orb__line {
+  position: absolute;
+  left: 6px;
+  height: 2px;
+  border-radius: 99px;
+  background: currentColor;
+  opacity: 0.78;
+}
+
+.notice-orb__line.long {
+  right: 6px;
+  top: 8px;
+}
+
+.notice-orb__line.short {
+  right: 11px;
+  top: 13px;
 }
 
 .nav {
@@ -249,6 +362,28 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
     radial-gradient(circle at top right, rgba(103, 232, 249, 0.2), transparent 42%);
 }
 
+:global(html.art-lights-out) .notice-orb {
+  border-color: rgba(125, 211, 252, 0.28);
+  background:
+    radial-gradient(circle at 34% 24%, rgba(186, 230, 253, 0.28), rgba(15, 23, 42, 0.4) 58%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(30, 27, 75, 0.62));
+  color: #bae6fd;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+:global(html.art-lights-out) .notice-orb:hover,
+:global(html.art-lights-out) .notice-orb.on {
+  border-color: rgba(125, 211, 252, 0.52);
+  background:
+    radial-gradient(circle at 36% 24%, rgba(186, 230, 253, 0.38), transparent 36%),
+    linear-gradient(135deg, rgba(30, 41, 59, 0.78), rgba(88, 28, 135, 0.58));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32), 0 0 0 4px rgba(125, 211, 252, 0.1);
+}
+
+:global(html.art-lights-out) .notice-orb__sign {
+  background: rgba(15, 23, 42, 0.46);
+}
+
 /* =========================================
    手机端自适应优化 (宽度 <= 768px)
    ========================================= */
@@ -289,9 +424,19 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
   }
 
   .nav {
-    max-width: 52vw;
+    max-width: 44vw;
     gap: 3px;
     padding: 4px;
+  }
+
+  .notice-orb {
+    width: 42px;
+    height: 42px;
+  }
+
+  .notice-orb__sign {
+    width: 23px;
+    height: 19px;
   }
 
   .navlink {
@@ -316,7 +461,7 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
   }
 
   .nav {
-    max-width: calc(100vw - 126px);
+    max-width: calc(100vw - 178px);
   }
 }
 </style>
