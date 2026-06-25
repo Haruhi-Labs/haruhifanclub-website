@@ -128,6 +128,112 @@
   white-space: nowrap;
 }
 
+/* ---------- 头像编辑（当前头像 + 操作按钮） ---------- */
+.hauth-avatar-edit {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-5);
+  flex-wrap: wrap;
+}
+.hauth-avatar-edit__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sos-space-2);
+  min-width: 0;
+}
+.hauth-avatar-edit__row {
+  display: flex;
+  gap: var(--sos-space-2);
+  flex-wrap: wrap;
+}
+.hauth-avatar-edit__hint {
+  margin: 0;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+}
+
+/* ---------- 头像裁切器 ---------- */
+.hauth-cropper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sos-space-4);
+}
+.hauth-cropper__stage {
+  position: relative;
+  width: min(360px, 78vw);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-inset, #11151c);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.hauth-cropper__stage:active {
+  cursor: grabbing;
+}
+.hauth-cropper__img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  max-width: none;
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
+.hauth-cropper__ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  border-radius: var(--sos-radius-full);
+  box-shadow: 0 0 0 9999px rgba(15, 18, 25, 0.55);
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: -1px;
+  pointer-events: none;
+}
+.hauth-cropper__zoom {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-3);
+  width: min(360px, 78vw);
+}
+.hauth-cropper__zoom-btn {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-bg-subtle);
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+.hauth-cropper__zoom-btn:hover {
+  border-color: var(--sos-border-strong, var(--sos-border-subtle));
+}
+.hauth-cropper__zoom-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--sos-ring);
+}
+.hauth-cropper__slider {
+  flex: 1;
+  accent-color: var(--sos-accent);
+  cursor: pointer;
+}
+.hauth-cropper__hint {
+  margin: 0;
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-xs);
+}
+
 /* ---------- 登录设备行 ---------- */
 .hauth-session {
   display: flex;
