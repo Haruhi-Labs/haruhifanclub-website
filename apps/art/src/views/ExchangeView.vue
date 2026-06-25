@@ -1223,4 +1223,399 @@ p {
     min-width: 132px;
   }
 }
+
+.guild-page {
+  position: relative;
+  width: min(1240px, calc(100% - 32px));
+  padding: 28px 0 52px;
+  gap: 24px;
+  isolation: isolate;
+}
+
+.guild-page::before,
+.guild-page::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+}
+
+.guild-page::before {
+  background:
+    linear-gradient(115deg, transparent 0 15%, rgba(244, 63, 94, 0.08) 15% 16%, transparent 16% 100%),
+    linear-gradient(160deg, transparent 0 58%, rgba(56, 189, 248, 0.08) 58% 59%, transparent 59% 100%),
+    radial-gradient(circle at 8% 8%, rgba(244, 63, 94, 0.13), transparent 28%),
+    radial-gradient(circle at 90% 34%, rgba(99, 102, 241, 0.12), transparent 34%);
+}
+
+.guild-page::after {
+  top: 96px;
+  bottom: auto;
+  height: 1px;
+  background: linear-gradient(90deg, #f43f5e, transparent 42%, #38bdf8);
+  opacity: 0.5;
+}
+
+.panel {
+  position: relative;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.guild-hero {
+  min-height: 246px;
+  padding: 42px 0 36px 42px;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  border-left: 10px solid #f43f5e;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.14);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.52), transparent 72%),
+    repeating-linear-gradient(90deg, rgba(15, 23, 42, 0.035) 0 1px, transparent 1px 32px);
+}
+
+.guild-hero::before {
+  position: absolute;
+  right: 126px;
+  bottom: -22px;
+  width: 220px;
+  height: 220px;
+  border: 1px solid rgba(244, 63, 94, 0.18);
+  border-radius: 50%;
+  content: "";
+}
+
+.guild-hero::after {
+  position: absolute;
+  right: 12px;
+  bottom: 28px;
+  width: 46%;
+  height: 42px;
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.16), rgba(244, 63, 94, 0.12));
+  content: "";
+}
+
+.guild-hero h1 {
+  font-size: clamp(42px, 7vw, 82px);
+  line-height: 0.95;
+}
+
+.guild-hero p {
+  max-width: 720px;
+  margin-top: 18px;
+}
+
+.guild-card {
+  justify-items: start;
+  align-content: center;
+  min-height: 180px;
+  padding: 0 0 0 24px;
+  color: var(--text);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-left: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.guild-card strong {
+  color: transparent;
+  font-size: 92px;
+  background: linear-gradient(135deg, #f43f5e, #6366f1 55%, #38bdf8);
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+.guild-card span,
+.guild-card em {
+  color: var(--muted);
+}
+
+.guild-status {
+  gap: 0;
+  border-top: 1px solid rgba(15, 23, 42, 0.12);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.status-tile {
+  padding: 20px 18px;
+  border-right: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.status-tile:last-child {
+  border-right: 0;
+}
+
+.status-tile strong {
+  font-size: 28px;
+}
+
+.guild-tabs {
+  gap: 0;
+  background:
+    linear-gradient(90deg, rgba(244, 63, 94, 0.08), transparent 34%, rgba(56, 189, 248, 0.08)),
+    repeating-linear-gradient(90deg, rgba(15, 23, 42, 0.05) 0 1px, transparent 1px 44px);
+  border-top: 1px solid rgba(15, 23, 42, 0.12);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.guild-tab {
+  padding: 18px 20px;
+  border-right: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.guild-tab strong {
+  font-size: 24px;
+}
+
+.guild-tab.active,
+.guild-tab:hover {
+  background:
+    linear-gradient(135deg, rgba(244, 63, 94, 0.12), transparent 52%),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.34), transparent);
+  box-shadow: inset 0 -4px 0 rgba(244, 63, 94, 0.72);
+}
+
+.quest-column,
+.reward-section,
+.rank-panel,
+.rating-panel,
+.guild-feedback,
+.rule-corner {
+  padding: 30px 0;
+  border-top: 1px solid rgba(15, 23, 42, 0.12);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.section-head {
+  padding-left: 22px;
+  border-left: 6px solid #f43f5e;
+}
+
+.section-head h2 {
+  font-size: 30px;
+}
+
+.quest-group {
+  padding-left: 28px;
+}
+
+.quest-group-title {
+  margin: 22px 0 0;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.quest-group-title b {
+  color: #f43f5e;
+  background: transparent;
+  border-radius: 0;
+}
+
+.quest-card {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 18px;
+  padding: 20px 0 20px 24px;
+  margin: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.34), transparent 72%),
+    linear-gradient(90deg, rgba(244, 63, 94, 0.08), transparent 28%);
+  border: 0;
+  border-left: 2px solid rgba(244, 63, 94, 0.44);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.quest-card::before {
+  position: absolute;
+  top: 23px;
+  left: -8px;
+  width: 14px;
+  height: 14px;
+  background: #f43f5e;
+  box-shadow: 0 0 0 6px rgba(244, 63, 94, 0.12);
+  content: "";
+}
+
+.quest-card:hover,
+.reward-card:hover {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.56), transparent 76%),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.12), transparent 30%);
+  border-color: rgba(56, 189, 248, 0.58);
+  box-shadow: none;
+  transform: translateX(5px);
+}
+
+.quest-card.locked,
+.reward-card.locked {
+  opacity: 0.58;
+  filter: saturate(0.72);
+}
+
+.quest-title-row span,
+.quest-meta span,
+.redemption-strip b {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 0;
+}
+
+.progress-line {
+  height: 4px;
+  background: rgba(15, 23, 42, 0.12);
+  border-radius: 0;
+}
+
+.progress-line span {
+  border-radius: 0;
+}
+
+.action-btn,
+.ghost-btn,
+.rule-toggle,
+.rule-btn {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.action-btn {
+  border: 1px solid rgba(244, 63, 94, 0.38);
+  background: linear-gradient(135deg, #f43f5e, #6366f1);
+}
+
+.reward-grid {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.reward-card {
+  grid-template-columns: 112px minmax(0, 1fr) 150px;
+  padding: 18px 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.reward-visual {
+  border-radius: 0;
+  clip-path: polygon(0 0, 92% 0, 100% 100%, 8% 100%);
+}
+
+.leader-row {
+  padding: 16px 0;
+  border-bottom-color: rgba(15, 23, 42, 0.14);
+}
+
+.leader-rating {
+  border-radius: 0;
+}
+
+.rating-panel textarea {
+  min-height: 116px;
+  background: rgba(255, 255, 255, 0.24);
+  border: 0;
+  border-bottom: 2px solid rgba(244, 63, 94, 0.24);
+  border-radius: 0;
+}
+
+.rule-corner {
+  justify-content: flex-start;
+}
+
+.rule-popover {
+  flex: 1 1 520px;
+}
+
+:global(html.art-lights-out) .guild-page::before {
+  background:
+    linear-gradient(115deg, transparent 0 15%, rgba(125, 211, 252, 0.1) 15% 16%, transparent 16% 100%),
+    linear-gradient(160deg, transparent 0 58%, rgba(244, 63, 94, 0.1) 58% 59%, transparent 59% 100%),
+    radial-gradient(circle at 8% 8%, rgba(125, 211, 252, 0.12), transparent 28%),
+    radial-gradient(circle at 90% 34%, rgba(99, 102, 241, 0.12), transparent 34%);
+}
+
+:global(html.art-lights-out) .panel,
+:global(html.art-lights-out) .guild-status,
+:global(html.art-lights-out) .guild-tabs,
+:global(html.art-lights-out) .quest-column,
+:global(html.art-lights-out) .reward-section,
+:global(html.art-lights-out) .rank-panel,
+:global(html.art-lights-out) .rating-panel,
+:global(html.art-lights-out) .guild-feedback,
+:global(html.art-lights-out) .rule-corner {
+  background: transparent;
+  border-top-color: rgba(125, 211, 252, 0.18);
+  border-bottom-color: rgba(125, 211, 252, 0.14);
+  box-shadow: none;
+}
+
+:global(html.art-lights-out) .guild-hero,
+:global(html.art-lights-out) .quest-card,
+:global(html.art-lights-out) .reward-card {
+  background:
+    linear-gradient(90deg, rgba(12, 20, 44, 0.42), transparent 74%),
+    repeating-linear-gradient(90deg, rgba(125, 211, 252, 0.04) 0 1px, transparent 1px 32px);
+}
+
+:global(html.art-lights-out) .guild-card {
+  border-left-color: rgba(125, 211, 252, 0.2);
+}
+
+:global(html.art-lights-out) .quest-card:hover,
+:global(html.art-lights-out) .reward-card:hover {
+  background:
+    linear-gradient(90deg, rgba(12, 20, 44, 0.68), transparent 74%),
+    linear-gradient(90deg, rgba(125, 211, 252, 0.12), transparent 32%);
+}
+
+@media (max-width: 980px) {
+  .guild-hero {
+    grid-template-columns: 1fr;
+    padding-right: 18px;
+  }
+
+  .guild-card {
+    min-height: auto;
+    padding: 18px 0 0;
+    border-left: 0;
+    border-top: 1px solid rgba(15, 23, 42, 0.12);
+  }
+
+  .reward-card {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .reward-card .action-btn {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 680px) {
+  .guild-page {
+    width: min(100% - 20px, 1240px);
+  }
+
+  .guild-tabs {
+    display: flex;
+  }
+
+  .quest-card,
+  .reward-card {
+    grid-template-columns: 1fr;
+    padding-left: 18px;
+  }
+}
 </style>
