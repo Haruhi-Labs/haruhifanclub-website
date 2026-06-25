@@ -44,6 +44,12 @@ function scheduleClose() {
 }
 onBeforeUnmount(() => closeTimer && clearTimeout(closeTimer))
 
+// 键盘可达性收口：焦点移出整个菜单（Tab 到组件外）时收起，避免面板残留（Esc 见模板）
+const rootEl = ref(null)
+function onFocusOut(e) {
+  if (!rootEl.value?.contains(e.relatedTarget)) open.value = false
+}
+
 function goLogin() {
   router.push(props.loginPath)
 }
@@ -64,7 +70,14 @@ async function logout() {
 </script>
 
 <template>
-  <div class="hauth-menu" @mouseenter="openMenu" @mouseleave="scheduleClose">
+  <div
+    ref="rootEl"
+    class="hauth-menu"
+    @mouseenter="openMenu"
+    @mouseleave="scheduleClose"
+    @focusout="onFocusOut"
+    @keydown.esc="open = false"
+  >
     <!-- 未登录 -->
     <button
       v-if="!user"

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import {
   SosButton,
   SosEyebrow,
@@ -8,6 +8,7 @@ import {
   SosSkeleton,
   SosEmptyState,
   SosModal,
+  SosPagination,
   SosField,
   SosInput,
   SosTextarea,
@@ -27,6 +28,9 @@ const FILTERS = [
 const filter = ref('all')
 const items = ref([])
 const total = ref(0)
+const page = ref(1)
+const pageSize = 24
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
 const loading = ref(true)
 const error = ref('')
 const okMsg = ref('')
@@ -43,22 +47,32 @@ function statusLabel(s) {
   )
 }
 
+let loadSeq = 0
 async function load() {
+  const seq = ++loadSeq
   loading.value = true
   error.value = ''
   try {
-    const r = await hub.art.artworks({ status: filter.value, pageSize: 60 })
+    const r = await hub.art.artworks({ status: filter.value, page: page.value, pageSize })
+    if (seq !== loadSeq) return // 丢弃过期响应，避免旧筛选/页结果覆盖当前
     items.value = r.data || []
     total.value = r.total || 0
   } catch (e) {
-    error.value = e?.message || '加载失败'
+    if (seq === loadSeq) error.value = e?.message || '加载失败'
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 function setFilter(k) {
   if (filter.value === k) return
   filter.value = k
+  page.value = 1
+  load()
+}
+function go(p) {
+  const np = Math.min(Math.max(1, p), totalPages.value)
+  if (np === page.value) return
+  page.value = np
   load()
 }
 onMounted(load)
@@ -186,6 +200,13 @@ async function claimHistory() {
         </div>
       </article>
     </div>
+
+    <SosPagination
+      v-if="!loading && totalPages > 1"
+      :model-value="page"
+      :page-count="totalPages"
+      @update:model-value="go"
+    />
 
     <!-- 编辑弹窗 -->
     <SosModal

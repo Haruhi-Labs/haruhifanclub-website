@@ -103,7 +103,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, defineAsyncComponent } from 'vue';
+import { ref, computed, onMounted, watch, provide, defineAsyncComponent } from 'vue';
 import { useMainStore } from '@/stores/main';
 import { createAdminAuth, hasScope } from '@haruhi/api-client';
 
@@ -112,6 +112,8 @@ const store = useMainStore();
 // 后台壳自行持有一个 createAdminAuth('news')，用于在登录/会话恢复后拿当前用户对象（含 apps）算可见 tab。
 const admin = createAdminAuth('news');
 const currentUser = ref(null);
+// 下发当前用户给各 tab（如 RedemptionAdmin 据此判断是否有 Manage 权限），避免只读角色进入必失败的操作。
+provide('adminUser', currentUser);
 
 const username = ref('');
 const password = ref('');

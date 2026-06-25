@@ -40,7 +40,6 @@ export interface UserHub {
   summary(): Promise<any>
   art: Record<string, (..._args: any[]) => Promise<any>>
   news: Record<string, (..._args: any[]) => Promise<any>>
-  exam: Record<string, (..._args: any[]) => Promise<any>>
 }
 export function useUserHub(_apiBase?: string): UserHub
 

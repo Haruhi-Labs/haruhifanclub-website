@@ -35,18 +35,22 @@ function clearChecked() {
   for (const k in checked) delete checked[k]
 }
 
+let loadSeq = 0
 async function load() {
+  const seq = ++loadSeq
   loading.value = true
   try {
     const r = await api.get(
       `/admin/migration/orphans?module=${module.value}&q=${encodeURIComponent(q.value.trim())}&page=${page.value}`,
     )
+    // 丢弃过期响应：切模块/搜索/翻页并发时，旧请求晚返回不得覆盖当前数据（否则会误绑）
+    if (seq !== loadSeq) return
     items.value = r.items || []
     total.value = r.total || 0
   } catch (e) {
-    flash(errMsg(e), 'err')
+    if (seq === loadSeq) flash(errMsg(e), 'err')
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 

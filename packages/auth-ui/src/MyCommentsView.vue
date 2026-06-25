@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   SosButton,
   SosBadge,
@@ -9,6 +9,7 @@ import {
   SosSkeleton,
   SosEmptyState,
   SosModal,
+  SosPagination,
 } from '@haruhi/ui'
 import { useUserHub } from './useUserHub.js'
 import { useConsoleContext } from './console-context.js'
@@ -17,21 +18,35 @@ const ctx = useConsoleContext()
 const hub = useUserHub(ctx.apiBase)
 
 const items = ref([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = 24
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
 const loading = ref(true)
 const error = ref('')
 const okMsg = ref('')
 
+let loadSeq = 0
 async function load() {
+  const seq = ++loadSeq
   loading.value = true
   error.value = ''
   try {
-    const r = await hub.art.comments({ pageSize: 60 })
+    const r = await hub.art.comments({ page: page.value, pageSize })
+    if (seq !== loadSeq) return // 丢弃过期响应，避免旧页结果覆盖当前
     items.value = r.data || []
+    total.value = r.total || 0
   } catch (e) {
-    error.value = e?.message || '加载失败'
+    if (seq === loadSeq) error.value = e?.message || '加载失败'
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
+}
+function go(p) {
+  const np = Math.min(Math.max(1, p), totalPages.value)
+  if (np === page.value) return
+  page.value = np
+  load()
 }
 onMounted(load)
 
@@ -91,6 +106,13 @@ async function confirmRemove() {
         </div>
       </div>
     </div>
+
+    <SosPagination
+      v-if="!loading && totalPages > 1"
+      :model-value="page"
+      :page-count="totalPages"
+      @update:model-value="go"
+    />
 
     <SosModal
       :open="!!removing"

@@ -1336,7 +1336,7 @@ async fn my_redemptions(State(state): State<AppState>, user: AuthUser) -> AppRes
 async fn redeem_prize(
     State(state): State<AppState>,
     user: AuthUser,
-    Path(id): Path<String>,
+    Path(id): Path<i64>,
 ) -> AppResult<Response> {
     let uid = crate::auth_routes::member_uid(user.id);
 
@@ -1346,7 +1346,7 @@ async fn redeem_prize(
          CAST(COALESCE(NULLIF(TRIM(stock), ''), '0') AS INTEGER) AS stock \
          FROM prizes WHERE id = ?",
     )
-    .bind(&id)
+    .bind(id)
     .fetch_optional(&state.pools.news)
     .await?;
     let (name, points, stock) = match prize {
@@ -1382,7 +1382,7 @@ async fn redeem_prize(
         "UPDATE prizes SET stock = CAST(COALESCE(NULLIF(TRIM(stock), ''), '0') AS INTEGER) - 1 \
          WHERE id = ? AND CAST(COALESCE(NULLIF(TRIM(stock), ''), '0') AS INTEGER) >= 1",
     )
-    .bind(&id)
+    .bind(id)
     .execute(&mut *tx)
     .await?
     .rows_affected();
@@ -1427,15 +1427,14 @@ async fn redeem_prize(
     .execute(&mut *tx)
     .await?;
 
-    // 兑换记录
-    let prize_id_num: i64 = id.parse().unwrap_or(0);
+    // 兑换记录（prize_id 直接用整型路由参数，避免 parse 失败回填成 0）
     let created_at = chrono::Utc::now().to_rfc3339();
     let redemption_id: i64 = sqlx::query_scalar(
         "INSERT INTO redemptions (user_id, prize_id, prize_name, points_cost, status, created_at) \
          VALUES (?, ?, ?, ?, 'pending', ?) RETURNING id",
     )
     .bind(&uid)
-    .bind(prize_id_num)
+    .bind(id)
     .bind(&name)
     .bind(points)
     .bind(&created_at)
@@ -1524,7 +1523,8 @@ async fn admin_redemption_status(
 ) -> AppResult<Response> {
     authorize(&state.pools.core, &user, "news.store", Action::Manage).await?;
     let new_status = body.get("status").and_then(|v| v.as_str()).unwrap_or("");
-    if !["pending", "fulfilled", "cancelled"].contains(&new_status) {
+    // 仅允许从 pending 迁移到 fulfilled / cancelled（终态不可再改，避免重复退款/补偿缺失）
+    if !["fulfilled", "cancelled"].contains(&new_status) {
         return Ok((
             StatusCode::BAD_REQUEST,
             Json(json!({ "error": "无效状态" })),
@@ -1532,28 +1532,33 @@ async fn admin_redemption_status(
             .into_response());
     }
 
-    let row: Option<(String, String, i64, i64)> = sqlx::query_as(
-        "SELECT status, user_id, prize_id, \
-         CAST(COALESCE(NULLIF(TRIM(points_cost), ''), '0') AS INTEGER) \
-         FROM redemptions WHERE id = ?",
+    let mut tx = state.pools.news.begin().await?;
+
+    // 事务内原子抢占状态：只有当前仍是 pending 才迁移并取回记录；
+    // 并发下第二个请求 rows_affected == 0 → 直接冲突，杜绝重复退积分/补库存。
+    let claimed: Option<(String, i64, i64)> = sqlx::query_as(
+        "UPDATE redemptions SET status = ? WHERE id = ? AND status = 'pending' \
+         RETURNING user_id, prize_id, \
+         CAST(COALESCE(NULLIF(TRIM(points_cost), ''), '0') AS INTEGER)",
     )
+    .bind(new_status)
     .bind(&id)
-    .fetch_optional(&state.pools.news)
+    .fetch_optional(&mut *tx)
     .await?;
-    let (cur_status, uid, prize_id, points_cost) = match row {
+    let (uid, prize_id, points_cost) = match claimed {
         Some(r) => r,
         None => {
+            tx.rollback().await?;
             return Ok((
-                StatusCode::NOT_FOUND,
-                Json(json!({ "error": "兑换记录不存在" })),
+                StatusCode::CONFLICT,
+                Json(json!({ "error": "兑换记录不存在或已处理" })),
             )
-                .into_response())
+                .into_response());
         }
     };
 
-    // 撤销（pending → cancelled）：退积分 + 恢复库存 + 写流水
-    if new_status == "cancelled" && cur_status == "pending" {
-        let mut tx = state.pools.news.begin().await?;
+    // 撤销（→ cancelled）：退积分 + 恢复库存 + 写流水（与状态迁移同一事务）
+    if new_status == "cancelled" {
         sqlx::query(
             "UPDATE users SET total = CAST(NULLIF(TRIM(total), '') AS INTEGER) + ? WHERE id = ?",
         )
@@ -1579,19 +1584,12 @@ async fn admin_redemption_status(
         .bind(timestamp)
         .execute(&mut *tx)
         .await?;
-        sqlx::query("UPDATE redemptions SET status = 'cancelled' WHERE id = ?")
-            .bind(&id)
-            .execute(&mut *tx)
-            .await?;
         tx.commit().await?;
         return Ok(Json(json!({ "message": "success", "refunded": points_cost })).into_response());
     }
 
-    sqlx::query("UPDATE redemptions SET status = ? WHERE id = ?")
-        .bind(new_status)
-        .bind(&id)
-        .execute(&state.pools.news)
-        .await?;
+    // fulfilled：状态已在上面的原子 UPDATE 中迁移，提交即可
+    tx.commit().await?;
     Ok(Json(json!({ "message": "success" })).into_response())
 }
 

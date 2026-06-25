@@ -1583,7 +1583,7 @@ async fn update_my_artwork(
     let tags_norm = make_tags_norm(&tags_arr);
     let origin_url = clamp_len(s("origin_url"), 500);
 
-    sqlx::query(
+    let updated = sqlx::query(
         "UPDATE artworks SET title=?, description=?, tags_json=?, tags_norm=?, origin_url=? \
          WHERE id=? AND author_user_id=?",
     )
@@ -1595,7 +1595,16 @@ async fn update_my_artwork(
     .bind(id)
     .bind(user.id)
     .execute(&state.pools.art)
-    .await?;
+    .await?
+    .rows_affected();
+    // 两次 SQL 之间记录可能被删除或改绑：0 行更新即视为失败，不能谎报成功
+    if updated == 0 {
+        return Ok((
+            StatusCode::CONFLICT,
+            Json(json!({ "ok": false, "message": "作品不存在或无权修改" })),
+        )
+            .into_response());
+    }
     Ok(Json(json!({ "ok": true })).into_response())
 }
 

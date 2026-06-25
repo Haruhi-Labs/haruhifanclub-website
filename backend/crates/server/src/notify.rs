@@ -69,7 +69,7 @@ pub async fn send_ai_flagged(
     }
 
     let label = app_label(app);
-    let url = admin_url(app);
+    let url = admin_url(&cfg.public_site_url, app);
     let reason = if reason.trim().is_empty() {
         "未提供"
     } else {
@@ -184,7 +184,7 @@ async fn send_redemption_created(
             .replace('<', "&lt;")
             .replace('>', "&gt;")
     };
-    let url = "https://haruyuki.cn/news/admin";
+    let url = admin_url(&cfg.public_site_url, "news");
     let subject = format!(
         "【凉宫春日应援团·积分商城】新的兑换待发放：{}",
         esc(prize_name)
@@ -231,11 +231,12 @@ fn app_label(app: &str) -> String {
     .to_string()
 }
 
-fn admin_url(app: &str) -> String {
-    let base = "https://haruyuki.cn";
+fn admin_url(base: &str, app: &str) -> String {
+    let base = base.trim_end_matches('/');
     match app {
         "art" => format!("{base}/art/admin"),
         "exam" => format!("{base}/exam/admin"),
+        "news" | "news.store" => format!("{base}/news/admin"),
         other => format!("{base}/{other}/"),
     }
 }

@@ -35,12 +35,12 @@ async function loadAll() {
   error.value = ''
   try {
     const [a, n, pz, rd] = await Promise.all([
-      hub.art.points().catch(() => ({ total: 0, history: [] })),
+      hub.art.points().catch(() => ({ data: { total: 0, history: [] } })),
       hub.news.points().catch(() => ({ data: { total: 0, history: [] } })),
       hub.news.prizes().catch(() => ({ data: [] })),
       hub.news.redemptions().catch(() => ({ data: [] })),
     ])
-    artPts.value = { total: a.total || 0, history: a.history || [] }
+    artPts.value = { total: a.data?.total || 0, history: a.data?.history || [] }
     newsPts.value = { total: n.data?.total || 0, history: n.data?.history || [] }
     prizes.value = pz.data || []
     redemptions.value = rd.data || []

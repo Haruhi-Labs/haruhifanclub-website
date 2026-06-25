@@ -89,3 +89,8 @@ export function resolveUploadUrl(path: string, base?: string): string
 export function createAuth(apiBase?: string): Auth
 export function createAdminAuth(app: string, apiBase?: string): AdminAuth
 export function hasScope(user: CurrentUser | null | undefined, scope: string): boolean
+export function hasLevel(
+  user: CurrentUser | null | undefined,
+  scope: string,
+  minLevel: number,
+): boolean

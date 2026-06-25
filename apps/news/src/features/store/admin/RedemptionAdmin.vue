@@ -41,17 +41,11 @@
             </td>
             <td class="td-cell td-muted">{{ (r.created_at || '').slice(0, 10) }}</td>
             <td class="td-cell td-actions">
-              <template v-if="r.status === 'pending'">
+              <span v-if="!canManage" class="td-muted" title="需要管理权限">只读</span>
+              <template v-else-if="r.status === 'pending'">
                 <button class="link-edit" @click="setStatus(r, 'fulfilled')">标记已发放</button>
                 <button class="link-delete" @click="setStatus(r, 'cancelled')">撤销退款</button>
               </template>
-              <button
-                v-else-if="r.status === 'fulfilled'"
-                class="link-edit"
-                @click="setStatus(r, 'pending')"
-              >
-                退回待发放
-              </button>
               <span v-else class="td-muted">—</span>
             </td>
           </tr>
@@ -65,10 +59,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { createApiClient } from '@haruhi/api-client'
+import { ref, computed, inject, onMounted, onBeforeUnmount } from 'vue'
+import { createApiClient, hasLevel } from '@haruhi/api-client'
 
 const api = createApiClient('/api/news')
+
+// 当前管理员（由 AdminView provide）；news.store 改发放状态需 Manage(4)，只读角色隐藏操作按钮。
+const adminUser = inject('adminUser', ref(null))
+const canManage = computed(() => hasLevel(adminUser.value, 'news.store', 4))
 
 const FILTERS = [
   { key: 'pending', label: '待发放' },
@@ -82,24 +80,35 @@ const loading = ref(false)
 const msg = ref('')
 const msgKind = ref('ok')
 
+let flashTimer = null
 function flash(m, kind = 'ok') {
   msg.value = m
   msgKind.value = kind
-  setTimeout(() => (msg.value = ''), 2800)
+  if (flashTimer) clearTimeout(flashTimer)
+  flashTimer = setTimeout(() => {
+    msg.value = ''
+    flashTimer = null
+  }, 2800)
 }
+onBeforeUnmount(() => {
+  if (flashTimer) clearTimeout(flashTimer)
+})
 function statusLabel(s) {
   return { pending: '待发放', fulfilled: '已发放', cancelled: '已撤销' }[s] || s
 }
 
+let loadSeq = 0
 async function load() {
+  const seq = ++loadSeq
   loading.value = true
   try {
     const r = await api.get('/admin/redemptions?status=' + filter.value)
+    if (seq !== loadSeq) return // 丢弃过期响应，避免快速切筛选时旧结果覆盖当前
     items.value = r.data || []
   } catch (e) {
-    flash(e?.message || '加载失败', 'err')
+    if (seq === loadSeq) flash(e?.message || '加载失败', 'err')
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 function setFilter(k) {
@@ -111,7 +120,6 @@ async function setStatus(r, status) {
   const labels = {
     fulfilled: '标记为「已发放」',
     cancelled: '撤销兑换并退还积分 / 库存',
-    pending: '退回「待发放」',
   }
   if (!confirm(`确定将兑换 #${r.id}「${r.prize_name || ''}」${labels[status]}？`)) return
   try {

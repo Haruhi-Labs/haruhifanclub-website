@@ -26,7 +26,7 @@ pnpm dev:design-system     # → http://localhost:5206/design-system/
 | `@haruhi/design-system` | L0  | CSS-first 契约：`tokens.css`（token）、`components.css`（基础组件 class）、`recipes.css`（业务卡片）、`bridges.css`（旧站变量桥）                   |
 | `@haruhi/ui`            | L1  | Vue 封装（~41 组件 + `useToast`）。只输出 L0 的 class，不重定义视觉                                                                                 |
 | `@haruhi/ui/recipes`    | L2  | 业务卡片组件：`SosArticleCard` / `SosProductCard` / `SosArtworkCard` / `SosBookCard` / `SosExamCard`                                                |
-| `@haruhi/auth-ui`       | —   | 全站共享账号 UI（登录/注册/找回/资料/设置/账户菜单）+ 个人控制台（`UserConsoleLayout` 及概览/作品/文章/考试/评论/积分兑换子页），构建于上面两层之上 |
+| `@haruhi/auth-ui`       | —   | 全站共享账号 UI（登录/注册/找回/资料/设置/账户菜单）+ 个人控制台（`UserConsoleLayout` 及概览/作品/文章/评论/积分兑换子页），构建于上面两层之上 |
 
 入口：
 
@@ -213,7 +213,7 @@ Primitive（物理色板，不在业务里直接用）
 | `novel`   | library | **深度**（tokens + components/recipe 类，书架/阅读器/后台重构；正文沿用站点自有衬线排版）                                                     |
 | `exam`    | exam    | **深度**（tokens + components.css；首页/编辑器/审核/页脚全面 token 化，绿+多重红收敛为阅卷红+藏蓝+金；答题纸木纹/手写/阅卷印章作保护区保留）  |
 | `console` | base    | **桥接**（tokens + data-sos-theme=dark；深色超管台局部变量桥接到 DS 暗色语义层，行动色用 DS 蓝）                                              |
-| `auth-ui` | 随站点  | 深度（DS 原生）：账号页 + 个人控制台（带侧边导航的全局工作台，从任一 app 进入均可查看/管理全站内容），由各 app 路由传 `site` 随表达切换       |
+| `auth-ui` | 随站点  | 深度（DS 原生）：账号页 + 个人控制台（带侧边导航的全局工作台，从已接入账号体系的 app 进入可查看/管理全站内容），由各 app 路由传 `site` 随表达切换       |
 
 ---
 

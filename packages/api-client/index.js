@@ -252,6 +252,28 @@ export function hasScope(user, scope) {
   return false
 }
 
+/**
+ * 前端权限级别判定（镜像后端 authorize 的层级比较）：scope 或其任一祖先的 level ≥ minLevel，
+ * 或超管，即视为有权。级别：Read=1 / Write=2 / Moderate=3 / Manage=4。
+ * @param {{isSuperAdmin?:boolean, apps?:Record<string,{level?:number}>}|null} user
+ * @param {string} scope 如 'news.store'
+ * @param {number} minLevel 所需最低级别
+ */
+export function hasLevel(user, scope, minLevel) {
+  if (!user) return false
+  if (user.isSuperAdmin) return true
+  if (!user.apps) return false
+  let cur = scope
+  while (cur) {
+    const r = user.apps[cur]
+    if (r && typeof r.level === 'number' && r.level >= minLevel) return true
+    const i = cur.lastIndexOf('.')
+    if (i < 0) break
+    cur = cur.slice(0, i)
+  }
+  return false
+}
+
 // JWT 本地解码（仅用于同步校验 exp，不验签；验签由后端做）
 function decodeJwtPayload(token) {
   if (!token || typeof token !== 'string') return null
