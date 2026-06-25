@@ -565,6 +565,8 @@ async function submit(){
 
 /* 容器布局 */
 .container-card {
+  position: relative;
+  box-sizing: border-box;
   max-width: 900px;
   margin: 0 auto;
   padding-bottom: 60px;
@@ -1132,15 +1134,36 @@ async function submit(){
 /* 桌面端工作台布局：把填写区和上传区分栏，减少纵向滚动。 */
 @media (min-width: 1120px) {
   .container-card {
-    width: min(1320px, calc(100vw - 48px));
+    width: min(1480px, calc(100vw - 32px));
     max-width: none;
+    padding-left: clamp(98px, 12vw, 178px);
     padding-bottom: 28px;
   }
 
   .page-header {
     align-items: center;
     margin-bottom: 14px;
-    padding: 0 8px;
+    padding: 0 8px 0 0;
+  }
+
+  .header-decoration {
+    position: absolute;
+    left: clamp(10px, 1.4vw, 24px);
+    top: clamp(86px, 10dvh, 126px);
+    bottom: 22px;
+    z-index: 1;
+    display: flex;
+    width: clamp(86px, 10vw, 150px);
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0.92;
+  }
+
+  .header-text,
+  .main-form {
+    position: relative;
+    z-index: 2;
   }
 
   .main-title {
@@ -1148,8 +1171,18 @@ async function submit(){
   }
 
   .header-decoration .deco-img {
-    height: 104px;
-    transform: translateY(4px);
+    width: 100%;
+    height: auto;
+    max-height: min(68dvh, 560px);
+    object-fit: contain;
+    filter:
+      drop-shadow(0 18px 24px rgba(15, 23, 42, 0.14))
+      drop-shadow(0 0 18px rgba(20, 184, 166, 0.16));
+    transform: none;
+  }
+
+  .header-decoration:hover .deco-img {
+    transform: none;
   }
 
   .main-form {
@@ -1375,7 +1408,7 @@ async function submit(){
   .main-form {
     flex: 1 1 auto;
     min-height: 0;
-    grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1fr) minmax(340px, 0.95fr);
+    grid-template-columns: minmax(246px, 0.86fr) minmax(292px, 1fr) minmax(304px, 0.92fr);
     grid-template-rows: minmax(0, 0.9fr) minmax(0, 1.1fr);
     overflow: hidden;
   }
@@ -1476,6 +1509,7 @@ async function submit(){
 @media (min-width: 1120px) and (max-height: 760px) {
   .container-card {
     height: calc(100dvh - 82px);
+    padding-left: clamp(86px, 10vw, 140px);
   }
 
   .page-header {
@@ -1487,7 +1521,7 @@ async function submit(){
   }
 
   .header-decoration .deco-img {
-    height: 64px;
+    max-height: min(64dvh, 440px);
   }
 
   .main-form {
