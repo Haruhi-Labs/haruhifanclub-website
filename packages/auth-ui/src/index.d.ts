@@ -23,7 +23,9 @@ export interface SessionApi {
   login(_account: string, _password: string): Promise<SessionUser>
   register(_payload: { email: string; password: string; nickname?: string }): Promise<SessionUser>
   logout(): Promise<void>
-  updateProfile(_patch: { nickname?: string; avatar?: string; bio?: string }): Promise<SessionUser>
+  updateProfile(_patch: { nickname?: string; bio?: string }): Promise<SessionUser>
+  uploadAvatar(_file: Blob | File): Promise<SessionUser>
+  removeAvatar(): Promise<SessionUser>
   forgotPassword(_email: string): Promise<unknown>
   resetPassword(_token: string, _password: string): Promise<unknown>
   verifyEmail(_token: string): Promise<unknown>
@@ -59,6 +61,7 @@ export const VerifyEmailView: DefineComponent<Record<string, any>>
 export const ProfileView: DefineComponent<Record<string, any>>
 export const SettingsView: DefineComponent<Record<string, any>>
 export const AccountMenu: DefineComponent<Record<string, any>>
+export const AvatarCropper: DefineComponent<Record<string, any>>
 export const UserConsoleLayout: DefineComponent<Record<string, any>>
 export const OverviewView: DefineComponent<Record<string, any>>
 export const MyArtworksView: DefineComponent<Record<string, any>>

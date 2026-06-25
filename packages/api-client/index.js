@@ -3,7 +3,12 @@
 // 仍保留 localStorage Bearer 注入作为迁移期兼容（后端提取器同时认 cookie 与 Bearer）。
 // 各 app 用 createApiClient('/api/<module>') 创建模块客户端；账号相关用 createAuth() 走 /api/auth。
 
-import { createCredential, getCredential, isPasskeySupported, isConditionalUiAvailable } from './webauthn.js'
+import {
+  createCredential,
+  getCredential,
+  isPasskeySupported,
+  isConditionalUiAvailable,
+} from './webauthn.js'
 
 const TOKEN_KEY = 'haruhi_admin_token'
 const CSRF_COOKIE = 'haruhi_csrf'
@@ -117,7 +122,8 @@ export function createApiClient(base = '/api') {
     put: (path, body, opts) => request('PUT', path, { ...opts, body }),
     patch: (path, body, opts) => request('PATCH', path, { ...opts, body }),
     del: (path, opts) => request('DELETE', path, opts),
-    postForm: (path, formData, opts) => request('POST', path, { ...opts, body: formData, isForm: true }),
+    postForm: (path, formData, opts) =>
+      request('POST', path, { ...opts, body: formData, isForm: true }),
   }
 }
 
@@ -187,6 +193,16 @@ export function createAuth(apiBase = '/api') {
     },
     updateProfile(patch) {
       return api.patch('/auth/profile', patch)
+    },
+    // 上传头像（File/Blob）：服务端裁正方形 + 转 WebP，返回更新后的用户档案。
+    uploadAvatar(file) {
+      const fd = new FormData()
+      fd.append('avatar', file, (file && file.name) || 'avatar.webp')
+      return api.postForm('/auth/avatar', fd)
+    },
+    // 移除头像：恢复为昵称首字默认展示，返回更新后的用户档案。
+    removeAvatar() {
+      return api.del('/auth/avatar')
     },
     changePassword(oldPassword, newPassword) {
       return api.post('/auth/change-password', { oldPassword, newPassword })
@@ -343,7 +359,10 @@ export function createAdminAuth(app, apiBase = '/api') {
       return { ok: true, user }
     } catch (e) {
       clearToken()
-      return { ok: false, error: e && e.status === 401 ? '用户名或密码错误' : (e && e.message) || '登录失败' }
+      return {
+        ok: false,
+        error: e && e.status === 401 ? '用户名或密码错误' : (e && e.message) || '登录失败',
+      }
     }
   }
 
