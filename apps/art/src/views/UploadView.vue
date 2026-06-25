@@ -1136,7 +1136,7 @@ async function submit(){
   .container-card {
     width: min(1640px, calc(100vw - 20px));
     max-width: none;
-    padding-left: clamp(88px, 7vw, 130px);
+    padding-left: clamp(62px, 5vw, 88px);
     padding-bottom: 28px;
   }
 
@@ -1148,11 +1148,11 @@ async function submit(){
 
   .header-decoration {
     position: absolute;
-    left: clamp(12px, 1.4vw, 24px);
+    left: clamp(-30px, -1.8vw, -14px);
     top: clamp(74px, 9dvh, 112px);
     z-index: 3;
     display: flex;
-    width: clamp(76px, 6.4vw, 112px);
+    width: clamp(64px, 5.6vw, 96px);
     align-items: flex-start;
     justify-content: center;
     pointer-events: none;
@@ -1177,11 +1177,11 @@ async function submit(){
     filter:
       drop-shadow(0 12px 18px rgba(15, 23, 42, 0.16))
       drop-shadow(0 0 12px rgba(20, 184, 166, 0.14));
-    transform: rotate(-4deg);
+    transform: rotate(-1.5deg);
   }
 
   .header-decoration:hover .deco-img {
-    transform: translateY(-2px) rotate(-2deg) scale(1.02);
+    transform: translateY(-2px) rotate(-0.5deg) scale(1.02);
   }
 
   .main-form {
@@ -1508,7 +1508,7 @@ async function submit(){
 @media (min-width: 1120px) and (max-height: 760px) {
   .container-card {
     height: calc(100dvh - 82px);
-    padding-left: clamp(74px, 6vw, 104px);
+    padding-left: clamp(54px, 4.4vw, 76px);
   }
 
   .page-header {
