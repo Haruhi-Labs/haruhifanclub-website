@@ -36,23 +36,6 @@
       </article>
     </section>
 
-    <div class="rule-corner">
-      <button type="button" class="rule-toggle" @click="rulesOpen = !rulesOpen">
-        规则书
-      </button>
-      <div v-if="rulesOpen" class="rule-popover">
-        <button
-          v-for="book in ruleBooks"
-          :key="book.id"
-          type="button"
-          class="rule-btn"
-          @click="activeRule = book; rulesOpen = false"
-        >
-          {{ book.title }}
-        </button>
-      </div>
-    </div>
-
     <nav class="guild-tabs panel" aria-label="公会功能分页">
       <button
         v-for="tab in guildTabs"
@@ -222,6 +205,23 @@
     <footer class="guild-feedback panel" aria-live="polite">
       {{ feedback }}
     </footer>
+
+    <section class="rule-corner panel">
+      <button type="button" class="rule-toggle" @click="rulesOpen = !rulesOpen">
+        规则书
+      </button>
+      <div v-if="rulesOpen" class="rule-popover">
+        <button
+          v-for="book in ruleBooks"
+          :key="book.id"
+          type="button"
+          class="rule-btn"
+          @click="activeRule = book; rulesOpen = false"
+        >
+          {{ book.title }}
+        </button>
+      </div>
+    </section>
 
     <div v-if="activeRule" class="rule-modal" @click.self="activeRule = null">
       <article class="rule-dialog panel">
@@ -647,11 +647,12 @@ p {
 .rule-corner {
   position: relative;
   z-index: 6;
-  display: grid;
-  justify-self: end;
-  justify-items: end;
-  gap: 8px;
-  margin-top: -4px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 18px;
 }
 
 .rule-toggle {
@@ -668,19 +669,17 @@ p {
 }
 
 .rule-popover {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  display: grid;
-  width: min(260px, calc(100vw - 32px));
+  display: flex;
+  flex-wrap: wrap;
+  width: auto;
   gap: 8px;
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 16px;
-  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.13);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .guild-tabs {
