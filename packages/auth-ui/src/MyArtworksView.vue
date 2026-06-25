@@ -12,7 +12,6 @@ import {
   SosInput,
   SosTextarea,
 } from '@haruhi/ui'
-import { SosArtworkCard } from '@haruhi/ui/recipes'
 import { useUserHub } from './useUserHub.js'
 import { useConsoleContext } from './console-context.js'
 
@@ -161,27 +160,31 @@ async function claimHistory() {
       copy="去画廊上传你的第一件作品吧，发布后会出现在这里。"
     />
     <div v-else class="huc__grid">
-      <div v-for="a in items" :key="a.id" class="huc-art-cell">
-        <SosArtworkCard
-          :title="a.title || '未命名'"
-          :image="imgUrl(a.image_url)"
-          :category="statusLabel(a.status)"
-          :tags="a.tags || []"
-          :likes="a.like_total"
-          @click="openEdit(a)"
-        />
-        <div class="huc-art-cell__actions">
-          <SosButton size="sm" variant="ghost" @click="openEdit(a)">编辑</SosButton>
-          <SosButton
-            v-if="a.status !== 'hidden'"
-            size="sm"
-            variant="ghost"
-            @click="removing = a"
-          >
-            下架
-          </SosButton>
+      <article v-for="a in items" :key="a.id" class="huc-mcard">
+        <button class="huc-mcard__media" type="button" title="编辑作品" @click="openEdit(a)">
+          <img v-if="a.image_url" :src="imgUrl(a.image_url)" :alt="a.title || '作品'" />
+          <span class="huc-mcard__status" :data-status="a.status">{{ statusLabel(a.status) }}</span>
+        </button>
+        <div class="huc-mcard__body">
+          <h3 class="huc-mcard__title">{{ a.title || '未命名' }}</h3>
+          <div v-if="a.tags && a.tags.length" class="huc-mcard__tags">
+            <span v-for="t in a.tags.slice(0, 3)" :key="t">#{{ t }}</span>
+          </div>
+          <div class="huc-mcard__foot">
+            <span class="huc-mcard__likes">♥ {{ a.like_total ?? 0 }}</span>
+            <span class="huc__toolbar-spacer" />
+            <SosButton size="sm" variant="ghost" @click="openEdit(a)">编辑</SosButton>
+            <SosButton
+              v-if="a.status !== 'hidden'"
+              size="sm"
+              variant="ghost"
+              @click="removing = a"
+            >
+              下架
+            </SosButton>
+          </div>
         </div>
-      </div>
+      </article>
     </div>
 
     <!-- 编辑弹窗 -->
