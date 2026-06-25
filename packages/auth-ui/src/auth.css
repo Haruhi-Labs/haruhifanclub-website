@@ -438,6 +438,99 @@
   justify-content: flex-end;
 }
 
+/* 兑换奖品卡 */
+.huc-prize {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-lg);
+  overflow: hidden;
+  background: var(--sos-bg-surface);
+  box-shadow: var(--sos-shadow-xs);
+}
+.huc-prize__media {
+  aspect-ratio: 4 / 3;
+  background: var(--sos-bg-subtle);
+}
+.huc-prize__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.huc-prize__body {
+  display: grid;
+  gap: var(--sos-space-2);
+  padding: var(--sos-space-4);
+}
+.huc-prize__name {
+  margin: 0;
+  font-size: var(--sos-text-md);
+  font-weight: var(--sos-weight-heavy);
+}
+.huc-prize__desc {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+}
+.huc-prize__foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sos-space-2);
+}
+.huc-prize__cost {
+  font-size: var(--sos-text-lg);
+  font-weight: var(--sos-weight-black);
+  color: var(--sos-accent);
+  font-variant-numeric: var(--sos-numeric-tabular);
+}
+.huc-prize__stock {
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-tertiary);
+}
+
+/* 积分流水 */
+.huc__ledger-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--sos-space-5);
+}
+.huc__ledger {
+  list-style: none;
+  margin: var(--sos-space-3) 0 0;
+  padding: 0;
+}
+.huc__ledger-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+  padding: var(--sos-space-2) 0;
+  border-top: 1px solid var(--sos-border-subtle);
+  font-size: var(--sos-text-sm);
+}
+.huc__ledger-item:first-child {
+  border-top: 0;
+}
+.huc__ledger-reason {
+  color: var(--sos-text-secondary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.huc__ledger-change {
+  font-weight: var(--sos-weight-bold);
+  font-variant-numeric: var(--sos-numeric-tabular);
+  flex-shrink: 0;
+}
+.huc__ledger-empty {
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-sm);
+  padding-top: var(--sos-space-2);
+}
+
 /* 窄屏：侧边导航转为顶部横向滚动 */
 @media (max-width: 48rem) {
   .huc__shell {

@@ -17,6 +17,10 @@ import {
   UserConsoleLayout,
   OverviewView,
   MyArtworksView,
+  MyArticlesView,
+  MyExamsView,
+  MyCommentsView,
+  PointsView,
 } from '@haruhi/auth-ui'
 
 // 个人控制台：/account 为带侧边导航的「个人空间」外壳，子页嵌套渲染。
@@ -29,11 +33,24 @@ const accountRoutes = [
     props: {
       site: 'news',
       basePath: '/account',
-      sections: ['overview', 'artworks', 'profile', 'settings'],
+      sections: [
+        'overview',
+        'artworks',
+        'articles',
+        'exams',
+        'comments',
+        'points',
+        'profile',
+        'settings',
+      ],
     },
     children: [
       { path: '', name: 'account', component: OverviewView },
       { path: 'artworks', name: 'account-artworks', component: MyArtworksView },
+      { path: 'articles', name: 'account-articles', component: MyArticlesView },
+      { path: 'exams', name: 'account-exams', component: MyExamsView },
+      { path: 'comments', name: 'account-comments', component: MyCommentsView },
+      { path: 'points', name: 'account-points', component: PointsView },
       {
         path: 'profile',
         name: 'account-profile',

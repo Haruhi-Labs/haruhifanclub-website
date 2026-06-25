@@ -63,3 +63,7 @@ export const AccountMenu: DefineComponent<Record<string, any>>
 export const UserConsoleLayout: DefineComponent<Record<string, any>>
 export const OverviewView: DefineComponent<Record<string, any>>
 export const MyArtworksView: DefineComponent<Record<string, any>>
+export const MyArticlesView: DefineComponent<Record<string, any>>
+export const MyExamsView: DefineComponent<Record<string, any>>
+export const MyCommentsView: DefineComponent<Record<string, any>>
+export const PointsView: DefineComponent<Record<string, any>>
