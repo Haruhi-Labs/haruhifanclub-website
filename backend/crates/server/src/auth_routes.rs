@@ -43,22 +43,20 @@ pub fn member_uid(user_id: i64) -> String {
     format!("u{user_id}")
 }
 
-/// 校验账号可发布内容（邮箱已验证或超管），返回署名昵称（落库快照）。
-/// 未验证邮箱的普通用户被挡在发布之外（取代过去的半匿名发布）。
+/// 解析发布署名昵称（落库快照），并确认账号存在且未注销。
+/// 注：为降低门槛，已取消「发布前须验证邮箱」的限制——登录即可发布。
+/// 函数名保留以兼容各模块调用点。
 pub async fn require_verified_member(
     core: &sqlx::SqlitePool,
     user: &AuthUser,
 ) -> AppResult<String> {
-    let row: Option<(Option<String>, Option<String>, bool)> = sqlx::query_as(
-        "SELECT nickname, username, email_verified FROM users WHERE id = ? AND deleted_at IS NULL",
+    let row: Option<(Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT nickname, username FROM users WHERE id = ? AND deleted_at IS NULL",
     )
     .bind(user.id)
     .fetch_optional(core)
     .await?;
-    let (nickname, username, verified) = row.ok_or(AppError::Unauthorized)?;
-    if !verified && !user.is_super {
-        return Err(AppError::bad_request("请先验证邮箱后再发布内容"));
-    }
+    let (nickname, username) = row.ok_or(AppError::Unauthorized)?;
     Ok(nickname
         .filter(|s| !s.trim().is_empty())
         .or(username)
@@ -230,10 +228,11 @@ async fn register(
     }
 
     let hash = hash_password(&req.password)?;
+    // 为降低门槛、规避验证邮件被误判为垃圾邮件：注册即视为已验证，不再发验证邮件。
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO users (username, password_hash, display_name, nickname, email, \
          is_super_admin, status, email_verified) \
-         VALUES (?, ?, ?, ?, ?, 0, 'active', 0) RETURNING id",
+         VALUES (?, ?, ?, ?, ?, 0, 'active', 1) RETURNING id",
     )
     .bind(&email)
     .bind(&hash)
@@ -242,19 +241,6 @@ async fn register(
     .bind(&email)
     .fetch_one(&state.pools.core)
     .await?;
-
-    // 发验证邮件（不阻塞注册成功）
-    let token = issue_user_token(&state.pools.core, id, "verify_email", VERIFY_TTL).await?;
-    let link = verify_link(&state.cfg, &token);
-    deliver(
-        &state,
-        &email,
-        "请验证你的春日应援团账号邮箱",
-        &format!("<p>你好 {nickname}，请点击链接验证邮箱（24 小时内有效）：</p><p><a href=\"{link}\">{link}</a></p>"),
-        &format!("你好 {nickname}，请在浏览器打开以下链接验证邮箱（24 小时内有效）：\n{link}"),
-        &link,
-    )
-    .await;
 
     audit(&state, Some(id), "auth", "register", &email).await;
     login_response(&state, &headers, id, false).await

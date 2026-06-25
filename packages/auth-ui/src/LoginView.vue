@@ -76,7 +76,7 @@ async function onRegister() {
       password: form.password,
       nickname: form.nickname.trim() || undefined,
     })
-    okMsg.value = '注册成功，已自动登录。验证邮件已发送，请尽快验证邮箱后再发布内容。'
+    okMsg.value = '注册成功，已自动登录。'
     setTimeout(go, 1200)
   } catch (e) {
     error.value = e?.status === 409 ? '该邮箱已注册' : e?.message || '注册失败'
