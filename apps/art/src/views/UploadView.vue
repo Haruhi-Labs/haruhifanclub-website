@@ -756,6 +756,7 @@ async function submit(){
   align-items: center;
   justify-content: center;
   gap: 6px;
+  white-space: nowrap;
 }
 .segment-btn:hover { color: var(--text-main); }
 .segment-btn.active {
@@ -1241,6 +1242,11 @@ async function submit(){
   .form-grid {
     gap: 16px;
     margin-bottom: 16px;
+  }
+
+  .main-form > .form-section:nth-child(2) > .form-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .form-group {
