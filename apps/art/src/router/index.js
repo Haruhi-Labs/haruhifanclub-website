@@ -23,16 +23,16 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/gallery', name: 'gallery', component: GalleryView },
-    { path: '/upload', name: 'upload', component: UploadView },
-    { path: '/admin', name: 'admin', component: AdminView },
-    { path: '/points', name: 'points', component: PointsView },
+    { path: '/upload', name: 'upload', component: UploadView, meta: { requiresAuth: true } },
+    { path: '/admin', name: 'admin', component: AdminView, meta: { requiresAuth: true } },
+    { path: '/points', name: 'points', component: PointsView, meta: { requiresAuth: true } },
     { path: '/announcements', name: 'announcements', component: AnnouncementView },
-    { path: '/exchange', name: 'exchange', component: ExchangeView },
+    { path: '/exchange', name: 'exchange', component: ExchangeView, meta: { requiresAuth: true } },
     { path: '/license', name: 'license', component: LicenseView },
 
     { path: '/login', name: 'login', component: LoginView, props: { title: '应援团画廊', home: '/' }, meta: { public: true } },
-    { path: '/account', name: 'account', component: ProfileView },
-    { path: '/account/settings', name: 'account-settings', component: SettingsView },
+    { path: '/account', name: 'account', component: ProfileView, meta: { requiresAuth: true } },
+    { path: '/account/settings', name: 'account-settings', component: SettingsView, meta: { requiresAuth: true } },
     { path: '/verify-email', name: 'verify-email', component: VerifyEmailView, meta: { public: true } },
     { path: '/reset-password', name: 'reset-password', component: ResetPasswordView, meta: { public: true } },
 
@@ -49,6 +49,7 @@ const session = useSession('/api')
 
 router.beforeEach(async (to) => {
   if (to.meta.public) return true
+  if (!to.matched.some((record) => record.meta.requiresAuth)) return true
 
   if (!session.state.ready) {
     await session.refresh()
