@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { SosAvatar, SosBadge } from '@haruhi/ui'
+import { SosAvatar } from '@haruhi/ui'
 import { useSession } from './useSession.js'
 import './auth.css'
 
@@ -72,9 +72,6 @@ async function logout() {
         <div class="hauth-menu-head">
           <span class="hauth-menu-head__name">{{ user.nickname || '未命名' }}</span>
           <span class="hauth-menu-head__mail">{{ user.email || user.username }}</span>
-          <SosBadge v-if="!user.emailVerified" variant="danger" style="margin-top: 0.25rem">
-            邮箱未验证
-          </SosBadge>
         </div>
         <router-link class="sos-menu__item" :to="profilePath" @click="open = false">
           个人资料

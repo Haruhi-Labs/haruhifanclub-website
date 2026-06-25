@@ -54,6 +54,23 @@
   font-size: var(--sos-text-lg);
 }
 
+/* ---------- 两步验证：备用恢复码网格 ---------- */
+.hauth-backup-codes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sos-space-2);
+}
+.hauth-backup-codes > code {
+  padding: var(--sos-space-2) var(--sos-space-3);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-sm);
+  background: var(--sos-bg-subtle);
+  font-family: var(--sos-font-mono, monospace);
+  font-size: var(--sos-text-sm);
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
 /* ---------- 密码字段 + 显示切换 ---------- */
 .hauth-pw {
   position: relative;

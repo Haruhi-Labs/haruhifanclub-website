@@ -32,7 +32,8 @@ fn random_token() -> String {
 }
 
 /// 取原值的 sha256（base64url），用作库内主键/索引，原值只在 cookie/邮件里出现。
-fn hash_token(raw: &str) -> String {
+/// 对外可见：供 2FA 待验令牌做「先校验后作废」的 peek（不立即消费令牌，验码失败可重试）。
+pub fn hash_token(raw: &str) -> String {
     B64.encode(Sha256::digest(raw.as_bytes()))
 }
 

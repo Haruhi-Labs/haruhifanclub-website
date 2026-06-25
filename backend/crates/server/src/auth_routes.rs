@@ -43,22 +43,19 @@ pub fn member_uid(user_id: i64) -> String {
     format!("u{user_id}")
 }
 
-/// 校验账号可发布内容（邮箱已验证或超管），返回署名昵称（落库快照）。
-/// 未验证邮箱的普通用户被挡在发布之外（取代过去的半匿名发布）。
+/// 解析发布署名昵称（落库快照），并确认账号存在且未注销。
+/// 注：为降低门槛，已取消「发布前须验证邮箱」的限制——登录即可发布。
+/// 函数名保留以兼容各模块调用点。
 pub async fn require_verified_member(
     core: &sqlx::SqlitePool,
     user: &AuthUser,
 ) -> AppResult<String> {
-    let row: Option<(Option<String>, Option<String>, bool)> = sqlx::query_as(
-        "SELECT nickname, username, email_verified FROM users WHERE id = ? AND deleted_at IS NULL",
-    )
-    .bind(user.id)
-    .fetch_optional(core)
-    .await?;
-    let (nickname, username, verified) = row.ok_or(AppError::Unauthorized)?;
-    if !verified && !user.is_super {
-        return Err(AppError::bad_request("请先验证邮箱后再发布内容"));
-    }
+    let row: Option<(Option<String>, Option<String>)> =
+        sqlx::query_as("SELECT nickname, username FROM users WHERE id = ? AND deleted_at IS NULL")
+            .bind(user.id)
+            .fetch_optional(core)
+            .await?;
+    let (nickname, username) = row.ok_or(AppError::Unauthorized)?;
     Ok(nickname
         .filter(|s| !s.trim().is_empty())
         .or(username)
@@ -144,7 +141,7 @@ async fn deliver(state: &AppState, to: &str, subject: &str, html: &str, text: &s
 }
 
 /// 创建会话并附带 cookie + 兼容 JWT，组装登录成功响应。
-async fn login_response(
+pub(crate) async fn login_response(
     state: &AppState,
     headers: &HeaderMap,
     user_id: i64,
@@ -230,10 +227,11 @@ async fn register(
     }
 
     let hash = hash_password(&req.password)?;
+    // 为降低门槛、规避验证邮件被误判为垃圾邮件：注册即视为已验证，不再发验证邮件。
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO users (username, password_hash, display_name, nickname, email, \
          is_super_admin, status, email_verified) \
-         VALUES (?, ?, ?, ?, ?, 0, 'active', 0) RETURNING id",
+         VALUES (?, ?, ?, ?, ?, 0, 'active', 1) RETURNING id",
     )
     .bind(&email)
     .bind(&hash)
@@ -242,19 +240,6 @@ async fn register(
     .bind(&email)
     .fetch_one(&state.pools.core)
     .await?;
-
-    // 发验证邮件（不阻塞注册成功）
-    let token = issue_user_token(&state.pools.core, id, "verify_email", VERIFY_TTL).await?;
-    let link = verify_link(&state.cfg, &token);
-    deliver(
-        &state,
-        &email,
-        "请验证你的春日应援团账号邮箱",
-        &format!("<p>你好 {nickname}，请点击链接验证邮箱（24 小时内有效）：</p><p><a href=\"{link}\">{link}</a></p>"),
-        &format!("你好 {nickname}，请在浏览器打开以下链接验证邮箱（24 小时内有效）：\n{link}"),
-        &link,
-    )
-    .await;
 
     audit(&state, Some(id), "auth", "register", &email).await;
     login_response(&state, &headers, id, false).await
@@ -299,6 +284,22 @@ async fn login(
         return Err(AppError::Unauthorized);
     }
     state.login_limiter.reset(&ip);
+
+    // 两步验证：若该账号已启用 TOTP，则先不发会话，返回短期待验令牌，前端跳二次验证。
+    let totp_enabled: Option<bool> =
+        sqlx::query_scalar("SELECT enabled FROM user_totp WHERE user_id = ?")
+            .bind(id)
+            .fetch_optional(&state.pools.core)
+            .await?;
+    if totp_enabled.unwrap_or(false) {
+        let pending = issue_user_token(&state.pools.core, id, "2fa_pending", 300).await?;
+        audit(&state, Some(id), "auth", "login_2fa_required", account).await;
+        return Ok((
+            HeaderMap::new(),
+            Json(json!({ "twoFactorRequired": true, "pendingToken": pending })),
+        ));
+    }
+
     audit(&state, Some(id), "auth", "login", account).await;
     login_response(&state, &headers, id, is_super).await
 }
@@ -632,6 +633,18 @@ async fn load_profile(state: &AppState, user_id: i64) -> AppResult<Value> {
             .collect(),
     );
 
+    // 账号安全态：是否启用两步验证、是否已有通行密钥（供设置页与守卫判断）。
+    let totp_enabled: Option<bool> =
+        sqlx::query_scalar("SELECT enabled FROM user_totp WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_optional(&state.pools.core)
+            .await?;
+    let passkey_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM user_passkeys WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_one(&state.pools.core)
+            .await?;
+
     Ok(json!({
         "id": user_id,
         "username": username,
@@ -643,6 +656,8 @@ async fn load_profile(state: &AppState, user_id: i64) -> AppResult<Value> {
         "emailVerified": email_verified,
         "isSuperAdmin": is_super,
         "apps": apps,
+        "twoFactorEnabled": totp_enabled.unwrap_or(false),
+        "hasPasskey": passkey_count > 0,
     }))
 }
 

@@ -16,7 +16,7 @@ use sqlx::SqlitePool;
 
 pub mod session;
 pub use session::{
-    clear_cookie, consume_user_token, cookie_value, create_session, csrf_set_cookie,
+    clear_cookie, consume_user_token, cookie_value, create_session, csrf_set_cookie, hash_token,
     issue_user_token, lookup_session, revoke_session, revoke_session_by_cookie,
     revoke_user_sessions, session_id_of, session_set_cookie, SessionInfo, CSRF_COOKIE, CSRF_HEADER,
     SESSION_COOKIE,

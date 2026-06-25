@@ -8,7 +8,6 @@ import {
   SosTextarea,
   SosButton,
   SosNotice,
-  SosBadge,
   SosAvatar,
   SosEyebrow,
   SosTitle,
@@ -30,8 +29,6 @@ const form = reactive({ nickname: '', avatar: '', bio: '' })
 const saving = ref(false)
 const error = ref('')
 const okMsg = ref('')
-const resendMsg = ref('')
-const resendTone = ref('success')
 
 const user = computed(() => session.state.user)
 
@@ -74,18 +71,6 @@ async function save() {
     saving.value = false
   }
 }
-
-async function resend() {
-  resendMsg.value = ''
-  try {
-    await session.resendVerification()
-    resendTone.value = 'success'
-    resendMsg.value = '验证邮件已重新发送，请查收。'
-  } catch (e) {
-    resendTone.value = 'danger'
-    resendMsg.value = e?.message || '发送失败'
-  }
-}
 </script>
 
 <template>
@@ -105,31 +90,12 @@ async function resend() {
             <div class="hauth-identity__main">
               <p class="hauth-identity__name">{{ form.nickname || '未命名' }}</p>
               <p class="hauth-identity__mail">{{ user.email || user.username }}</p>
-              <div>
-                <SosBadge v-if="user.emailVerified" variant="success">✓ 邮箱已验证</SosBadge>
-                <SosBadge v-else variant="danger">邮箱未验证</SosBadge>
-              </div>
             </div>
           </div>
           <SosButton variant="secondary" size="sm" as="a" :href="settingsPath">
             账号设置 →
           </SosButton>
         </div>
-
-        <SosNotice
-          v-if="!user.emailVerified"
-          tone="warning"
-          title="邮箱未验证"
-          style="margin-top: var(--sos-space-5)"
-        >
-          验证邮箱后才能发布内容。
-          <template #action>
-            <SosButton variant="secondary" size="sm" @click="resend">重发验证邮件</SosButton>
-          </template>
-        </SosNotice>
-        <SosNotice v-if="resendMsg" :tone="resendTone" style="margin-top: var(--sos-space-3)">
-          {{ resendMsg }}
-        </SosNotice>
       </SosCard>
 
       <!-- 编辑表单 -->

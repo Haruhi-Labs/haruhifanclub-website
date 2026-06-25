@@ -3,6 +3,8 @@
 // 仍保留 localStorage Bearer 注入作为迁移期兼容（后端提取器同时认 cookie 与 Bearer）。
 // 各 app 用 createApiClient('/api/<module>') 创建模块客户端；账号相关用 createAuth() 走 /api/auth。
 
+import { createCredential, getCredential, isPasskeySupported, isConditionalUiAvailable } from './webauthn.js'
+
 const TOKEN_KEY = 'haruhi_admin_token'
 const CSRF_COOKIE = 'haruhi_csrf'
 // 仅这些方法会改状态，需带 CSRF 双提交头
@@ -135,9 +137,29 @@ export function createAuth(apiBase = '/api') {
     async register(payload) {
       return storeToken(await api.post('/auth/register', payload))
     },
-    // 登录：account 可为邮箱或用户名（兼容旧 login(username, password) 调用）
+    // 登录：account 可为邮箱或用户名（兼容旧 login(username, password) 调用）。
+    // 若账号启用了两步验证，后端返回 { twoFactorRequired, pendingToken }，此时原样返回，
+    // 由调用方跳转二次验证；否则返回 CurrentUser。
     async login(account, password) {
-      return storeToken(await api.post('/auth/login', { account, password }))
+      const r = await api.post('/auth/login', { account, password })
+      if (r && r.twoFactorRequired) {
+        return { twoFactorRequired: true, pendingToken: r.pendingToken }
+      }
+      return storeToken(r)
+    },
+    // 两步验证二次校验（凭 pendingToken）：成功返回 CurrentUser
+    async login2fa(pendingToken, code, backup = false) {
+      return storeToken(await api.post('/auth/2fa/login', { pendingToken, code, backup }))
+    },
+    // 2FA 管理（需登录）
+    setup2fa() {
+      return api.post('/auth/2fa/setup')
+    },
+    enable2fa(code) {
+      return api.post('/auth/2fa/enable', { code })
+    },
+    disable2fa(password) {
+      return api.post('/auth/2fa/disable', { password })
     },
     me() {
       return api.get('/auth/me')
@@ -175,6 +197,36 @@ export function createAuth(apiBase = '/api') {
     revokeSession(id) {
       return api.del(`/auth/sessions/${encodeURIComponent(id)}`)
     },
+
+    // ---------- 通行密钥（Passkey / WebAuthn） ----------
+    isPasskeySupported,
+    isConditionalUiAvailable,
+    listPasskeys() {
+      return api.get('/auth/passkeys')
+    },
+    deletePasskey(id) {
+      return api.del(`/auth/passkeys/${encodeURIComponent(id)}`)
+    },
+    renamePasskey(id, name) {
+      return api.patch(`/auth/passkeys/${encodeURIComponent(id)}`, { name })
+    },
+    // 注册一把新通行密钥（需已登录）：start → 系统验证器 → finish
+    async addPasskey(name) {
+      const { flowId, options } = await api.post('/auth/passkey/register/start')
+      const credential = await createCredential(options.publicKey)
+      return api.post('/auth/passkey/register/finish', {
+        flowId,
+        name: name || undefined,
+        credential,
+      })
+    },
+    // 用通行密钥登录（无用户名 / discoverable）。conditional=true 走条件式自动填充。
+    async loginPasskey({ conditional = false, signal } = {}) {
+      const { flowId, options } = await api.post('/auth/passkey/login/start')
+      const credential = await getCredential(options.publicKey, { conditional, signal })
+      return storeToken(await api.post('/auth/passkey/login/finish', { flowId, credential }))
+    },
+
     getToken,
     isLoggedIn: () => !!getToken() || hasSessionCookie(),
   }

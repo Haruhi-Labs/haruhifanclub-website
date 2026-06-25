@@ -15,7 +15,8 @@
   "dependencies": {
     "@haruhi/api-client": "workspace:*",
     "@haruhi/design-system": "workspace:*",
-    "@haruhi/ui": "workspace:*"
+    "@haruhi/ui": "workspace:*",
+    "qrcode": "^1.5.4"
   },
   "peerDependencies": {
     "vue": "^3.0.0",
