@@ -11,7 +11,26 @@ import {
   SettingsView,
   VerifyEmailView,
   ResetPasswordView,
+  UserConsoleLayout,
+  OverviewView as AccountOverviewView,
+  MyArtworksView,
+  MyArticlesView,
+  MyExamsView,
+  MyCommentsView,
+  PointsView as AccountPointsView,
 } from '@haruhi/auth-ui'
+
+// 个人控制台导航分区：全集（全站可用——从任一 app 进入都能管理全站内容）。
+const ACCOUNT_SECTIONS = [
+  'overview',
+  'artworks',
+  'articles',
+  'exams',
+  'comments',
+  'points',
+  'profile',
+  'settings',
+]
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -30,12 +49,30 @@ const router = createRouter({
       redirect: '/login',
       children: [
         { path: '/login', name: 'login', component: LoginView, props: { site: 'shop' } },
-        { path: '/account', name: 'account', component: ProfileView, props: { site: 'shop' } },
         {
-          path: '/account/settings',
-          name: 'account-settings',
-          component: SettingsView,
-          props: { site: 'shop' },
+          path: '/account',
+          component: UserConsoleLayout,
+          props: { site: 'shop', basePath: '/account', sections: ACCOUNT_SECTIONS },
+          children: [
+            { path: '', name: 'account', component: AccountOverviewView },
+            { path: 'artworks', name: 'account-artworks', component: MyArtworksView },
+            { path: 'articles', name: 'account-articles', component: MyArticlesView },
+            { path: 'exams', name: 'account-exams', component: MyExamsView },
+            { path: 'comments', name: 'account-comments', component: MyCommentsView },
+            { path: 'points', name: 'account-points', component: AccountPointsView },
+            {
+              path: 'profile',
+              name: 'account-profile',
+              component: ProfileView,
+              props: { site: 'shop', embedded: true },
+            },
+            {
+              path: 'settings',
+              name: 'account-settings',
+              component: SettingsView,
+              props: { site: 'shop', embedded: true },
+            },
+          ],
         },
         {
           path: '/verify-email',
