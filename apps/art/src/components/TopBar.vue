@@ -30,20 +30,22 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
       </div>
     </div>
 
-    <nav class="nav" aria-label="画廊功能导航">
-      <RouterLink
-        v-for="item in navItems"
-        :key="item.path"
-        :class="linkClass(item.path)"
-        :to="item.path"
-        data-sfx="click"
-      >
-        {{ item.label }}
-      </RouterLink>
-    </nav>
+    <div class="topbar-actions">
+      <nav class="nav" aria-label="画廊功能导航">
+        <RouterLink
+          v-for="item in navItems"
+          :key="item.path"
+          :class="linkClass(item.path)"
+          :to="item.path"
+          data-sfx="click"
+        >
+          {{ item.label }}
+        </RouterLink>
+      </nav>
 
-    <div class="account-entry">
-      <AccountMenu login-path="/login" profile-path="/account" settings-path="/account/settings" />
+      <div class="account-entry">
+        <AccountMenu login-path="/login" profile-path="/account" settings-path="/account/settings" />
+      </div>
     </div>
   </div>
 </template>
@@ -60,7 +62,7 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
   
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 18px;
   padding: 0 24px;
   
@@ -128,6 +130,15 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
   overflow: hidden;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+  margin-left: auto;
+}
+
 .nav {
   display: flex;
   align-items: center;
@@ -140,7 +151,8 @@ const linkClass = (path) => ['navlink', isActive(path) ? 'on' : ''].join(' ')
   box-shadow: 0 10px 30px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.38);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  flex-shrink: 0; /* 导航区不许被压缩，保证按钮完整 */
+  flex: 0 1 auto;
+  min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
