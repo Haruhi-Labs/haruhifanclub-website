@@ -159,10 +159,12 @@ async fn enable(
     if !ok {
         return Err(AppError::bad_request("验证码不正确"));
     }
-    sqlx::query("UPDATE user_totp SET enabled = 1, confirmed_at = datetime('now') WHERE user_id = ?")
-        .bind(user.id)
-        .execute(&state.pools.core)
-        .await?;
+    sqlx::query(
+        "UPDATE user_totp SET enabled = 1, confirmed_at = datetime('now') WHERE user_id = ?",
+    )
+    .bind(user.id)
+    .execute(&state.pools.core)
+    .await?;
     Ok(Json(json!({ "ok": true })))
 }
 

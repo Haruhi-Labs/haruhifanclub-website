@@ -50,12 +50,11 @@ pub async fn require_verified_member(
     core: &sqlx::SqlitePool,
     user: &AuthUser,
 ) -> AppResult<String> {
-    let row: Option<(Option<String>, Option<String>)> = sqlx::query_as(
-        "SELECT nickname, username FROM users WHERE id = ? AND deleted_at IS NULL",
-    )
-    .bind(user.id)
-    .fetch_optional(core)
-    .await?;
+    let row: Option<(Option<String>, Option<String>)> =
+        sqlx::query_as("SELECT nickname, username FROM users WHERE id = ? AND deleted_at IS NULL")
+            .bind(user.id)
+            .fetch_optional(core)
+            .await?;
     let (nickname, username) = row.ok_or(AppError::Unauthorized)?;
     Ok(nickname
         .filter(|s| !s.trim().is_empty())

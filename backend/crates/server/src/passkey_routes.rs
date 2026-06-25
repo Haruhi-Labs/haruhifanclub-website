@@ -66,8 +66,9 @@ fn build_webauthn(cfg: &Config) -> AppResult<Webauthn> {
         .ok()
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| cfg.public_site_url.trim_end_matches('/').to_string());
-    let url = Url::parse(&origin_str)
-        .map_err(|_| AppError::internal("WebAuthn origin 非法（PUBLIC_SITE_URL / HARUHI_WEBAUTHN_ORIGIN）"))?;
+    let url = Url::parse(&origin_str).map_err(|_| {
+        AppError::internal("WebAuthn origin 非法（PUBLIC_SITE_URL / HARUHI_WEBAUTHN_ORIGIN）")
+    })?;
     let rp_id = std::env::var("HARUHI_WEBAUTHN_RP_ID")
         .ok()
         .filter(|s| !s.trim().is_empty())
@@ -187,10 +188,7 @@ async fn register_start(State(state): State<AppState>, user: AuthUser) -> AppRes
     // 但严格遵守 discouraged 的验证器不会）。这里强制 residentKey=required 以确保是 passkey
     // （可发现凭据）。该字段仅为客户端提示，不参与 finish 的密码学校验，故安全。
     let mut options = serde_json::to_value(&ccr).map_err(json_err)?;
-    if let Some(pk) = options
-        .get_mut("publicKey")
-        .and_then(|v| v.as_object_mut())
-    {
+    if let Some(pk) = options.get_mut("publicKey").and_then(|v| v.as_object_mut()) {
         let sel = pk
             .entry("authenticatorSelection")
             .or_insert_with(|| json!({}));
@@ -362,7 +360,10 @@ async fn login_finish(
     if passkeys.is_empty() {
         return Err(AppError::Unauthorized);
     }
-    let dkeys: Vec<DiscoverableKey> = passkeys.iter().map(|(_, p)| DiscoverableKey::from(p)).collect();
+    let dkeys: Vec<DiscoverableKey> = passkeys
+        .iter()
+        .map(|(_, p)| DiscoverableKey::from(p))
+        .collect();
     let auth_result = webauthn
         .finish_discoverable_authentication(&req.credential, auth_state, &dkeys)
         .map_err(wa_err)?;
@@ -392,11 +393,12 @@ async fn login_finish(
     }
 
     // 校验账号可登录。
-    let row: Option<(String, bool)> =
-        sqlx::query_as("SELECT status, is_super_admin FROM users WHERE id = ? AND deleted_at IS NULL")
-            .bind(user_id)
-            .fetch_optional(&state.pools.core)
-            .await?;
+    let row: Option<(String, bool)> = sqlx::query_as(
+        "SELECT status, is_super_admin FROM users WHERE id = ? AND deleted_at IS NULL",
+    )
+    .bind(user_id)
+    .fetch_optional(&state.pools.core)
+    .await?;
     let (status, is_super) = row.ok_or(AppError::Unauthorized)?;
     if status != "active" {
         return Err(AppError::Forbidden);
