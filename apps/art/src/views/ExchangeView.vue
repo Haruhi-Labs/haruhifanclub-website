@@ -645,13 +645,13 @@ p {
 }
 
 .rule-corner {
-  position: absolute;
-  top: 20px;
-  right: 0;
+  position: relative;
   z-index: 6;
   display: grid;
+  justify-self: end;
   justify-items: end;
   gap: 8px;
+  margin-top: -4px;
 }
 
 .rule-toggle {
@@ -668,6 +668,9 @@ p {
 }
 
 .rule-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
   display: grid;
   width: min(260px, calc(100vw - 32px));
   gap: 8px;
