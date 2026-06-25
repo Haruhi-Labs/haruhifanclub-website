@@ -21,12 +21,12 @@ pnpm dev:design-system     # → http://localhost:5206/design-system/
 
 ### 1.1 包与分层
 
-| 包                      | 层  | 职责                                                                                                                              |
-| ----------------------- | --- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `@haruhi/design-system` | L0  | CSS-first 契约：`tokens.css`（token）、`components.css`（基础组件 class）、`recipes.css`（业务卡片）、`bridges.css`（旧站变量桥） |
-| `@haruhi/ui`            | L1  | Vue 封装（~41 组件 + `useToast`）。只输出 L0 的 class，不重定义视觉                                                               |
-| `@haruhi/ui/recipes`    | L2  | 业务卡片组件：`SosArticleCard` / `SosProductCard` / `SosArtworkCard` / `SosBookCard` / `SosExamCard`                              |
-| `@haruhi/auth-ui`       | —   | 全站共享账号 UI（登录/注册/找回/资料/设置/账户菜单），构建于上面两层之上                                                          |
+| 包                      | 层  | 职责                                                                                                                                                |
+| ----------------------- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@haruhi/design-system` | L0  | CSS-first 契约：`tokens.css`（token）、`components.css`（基础组件 class）、`recipes.css`（业务卡片）、`bridges.css`（旧站变量桥）                   |
+| `@haruhi/ui`            | L1  | Vue 封装（~41 组件 + `useToast`）。只输出 L0 的 class，不重定义视觉                                                                                 |
+| `@haruhi/ui/recipes`    | L2  | 业务卡片组件：`SosArticleCard` / `SosProductCard` / `SosArtworkCard` / `SosBookCard` / `SosExamCard`                                                |
+| `@haruhi/auth-ui`       | —   | 全站共享账号 UI（登录/注册/找回/资料/设置/账户菜单）+ 个人控制台（`UserConsoleLayout` 及概览/作品/文章/考试/评论/积分兑换子页），构建于上面两层之上 |
 
 入口：
 
@@ -129,6 +129,8 @@ Primitive（物理色板，不在业务里直接用）
 | L2    | Composition Recipe     | `recipes.css` + `@haruhi/ui/recipes` | 五类业务卡片；只定义 anatomy / 母题 / 状态，业务字段由调用方传入 |
 | L3    | Product Component      | 未来评估                             | 多页面共享同一信息结构、状态机、数据契约后再评估                 |
 
+**「个人控制台」的层级定位**：跨 app 全局个人空间（`UserConsoleLayout` + 各子页）不是新的 L2/L3 抽象，而是用 **L1 组件 + 布局原语**（`SosPage` / `SosCard` / `SosModal` / `SosBadge` 等）拼装、并复用 L2 业务卡片（`SosArtworkCard` 等）的**页面级组合**。其复杂度（多子页、侧边导航、跨模块数据）由一个独立 shell 承载，而非下沉为通用组件——符合「页面层级匹配复杂度、能用现有层拼装就不另造抽象」的原则。布局类收敛在 `auth-ui/auth.css` 的 `.huc__*` 命名空间，全部走 `--sos-*` token，随 `site` 切换表达。
+
 ### 5.2 @haruhi/ui 组件清单（~41）
 
 - **布局**：Page · PageHeader · Toolbar · Stack · Inline · Cluster · Grid · Split · Surface · MediaFrame · Divider
@@ -211,7 +213,7 @@ Primitive（物理色板，不在业务里直接用）
 | `novel`   | library | **深度**（tokens + components/recipe 类，书架/阅读器/后台重构；正文沿用站点自有衬线排版）                                                     |
 | `exam`    | exam    | **深度**（tokens + components.css；首页/编辑器/审核/页脚全面 token 化，绿+多重红收敛为阅卷红+藏蓝+金；答题纸木纹/手写/阅卷印章作保护区保留）  |
 | `console` | base    | **桥接**（tokens + data-sos-theme=dark；深色超管台局部变量桥接到 DS 暗色语义层，行动色用 DS 蓝）                                              |
-| `auth-ui` | 随站点  | 深度（DS 原生），由各 app 路由传 `site`                                                                                                       |
+| `auth-ui` | 随站点  | 深度（DS 原生）：账号页 + 个人控制台（带侧边导航的全局工作台，从任一 app 进入均可查看/管理全站内容），由各 app 路由传 `site` 随表达切换       |
 
 ---
 
