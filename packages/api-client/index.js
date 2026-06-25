@@ -135,9 +135,9 @@ export function createAuth(apiBase = '/api') {
     async register(payload) {
       return storeToken(await api.post('/auth/register', payload))
     },
-    // 登录：account 可为邮箱或用户名（兼容旧 login(username, password) 调用）
+    // 登录：account 可为邮箱或用户名；username 字段兼容旧版后端 LoginReq。
     async login(account, password) {
-      return storeToken(await api.post('/auth/login', { account, password }))
+      return storeToken(await api.post('/auth/login', { account, username: account, password }))
     },
     me() {
       return api.get('/auth/me')
