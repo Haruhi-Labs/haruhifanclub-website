@@ -130,8 +130,15 @@ pub fn redemption_created(
     let user_label = user_label.to_string();
     let prize_name = prize_name.to_string();
     tokio::spawn(async move {
-        send_redemption_created(&core, &cfg, redemption_id, &user_label, &prize_name, points_cost)
-            .await;
+        send_redemption_created(
+            &core,
+            &cfg,
+            redemption_id,
+            &user_label,
+            &prize_name,
+            points_cost,
+        )
+        .await;
     });
 }
 
@@ -178,7 +185,10 @@ async fn send_redemption_created(
             .replace('>', "&gt;")
     };
     let url = "https://haruyuki.cn/news/admin";
-    let subject = format!("【凉宫春日应援团·积分商城】新的兑换待发放：{}", esc(prize_name));
+    let subject = format!(
+        "【凉宫春日应援团·积分商城】新的兑换待发放：{}",
+        esc(prize_name)
+    );
     let html = format!(
         "<div style=\"font-family:system-ui,'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;color:#1f2328\">\
          <h2 style=\"font-size:17px;margin:0 0 12px\">有用户用积分兑换了奖品，待安排发放</h2>\

@@ -378,7 +378,11 @@ async fn migration_orphans(
     require_super(&user)?;
     let module = q.get("module").map(|s| s.as_str()).unwrap_or("art");
     let search = q.get("q").map(|s| s.trim()).unwrap_or("").to_string();
-    let page: i64 = q.get("page").and_then(|s| s.parse().ok()).unwrap_or(1).max(1);
+    let page: i64 = q
+        .get("page")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1)
+        .max(1);
     let page_size: i64 = 20;
     let offset = (page - 1) * page_size;
     let like = format!("%{search}%");
@@ -397,11 +401,24 @@ async fn migration_orphans(
             }
             let total = cq.fetch_one(&state.pools.art).await?;
             let list_sql = format!("SELECT id, title, uploader_name, uploader_uid, created_at FROM artworks WHERE {cond} ORDER BY id DESC LIMIT ? OFFSET ?");
-            let mut lq = sqlx::query_as::<_, (i64, Option<String>, Option<String>, Option<String>, Option<String>)>(&list_sql);
+            let mut lq = sqlx::query_as::<
+                _,
+                (
+                    i64,
+                    Option<String>,
+                    Option<String>,
+                    Option<String>,
+                    Option<String>,
+                ),
+            >(&list_sql);
             if !search.is_empty() {
                 lq = lq.bind(&like).bind(&like).bind(&like);
             }
-            let rows = lq.bind(page_size).bind(offset).fetch_all(&state.pools.art).await?;
+            let rows = lq
+                .bind(page_size)
+                .bind(offset)
+                .fetch_all(&state.pools.art)
+                .await?;
             let items = rows
                 .into_iter()
                 .map(|(id, title, uname, uuid, at)| {
@@ -423,11 +440,17 @@ async fn migration_orphans(
             }
             let total = cq.fetch_one(&state.pools.news).await?;
             let list_sql = format!("SELECT id, title, author, date FROM articles WHERE {cond} ORDER BY id DESC LIMIT ? OFFSET ?");
-            let mut lq = sqlx::query_as::<_, (i64, Option<String>, Option<String>, Option<String>)>(&list_sql);
+            let mut lq = sqlx::query_as::<_, (i64, Option<String>, Option<String>, Option<String>)>(
+                &list_sql,
+            );
             if !search.is_empty() {
                 lq = lq.bind(&like).bind(&like);
             }
-            let rows = lq.bind(page_size).bind(offset).fetch_all(&state.pools.news).await?;
+            let rows = lq
+                .bind(page_size)
+                .bind(offset)
+                .fetch_all(&state.pools.news)
+                .await?;
             let items = rows
                 .into_iter()
                 .map(|(id, title, author, date)| {
@@ -449,11 +472,18 @@ async fn migration_orphans(
             }
             let total = cq.fetch_one(&state.pools.exam).await?;
             let list_sql = format!("SELECT id, title, edit_token, created_at FROM exams WHERE {cond} ORDER BY created_at DESC LIMIT ? OFFSET ?");
-            let mut lq = sqlx::query_as::<_, (String, Option<String>, Option<String>, Option<String>)>(&list_sql);
+            let mut lq = sqlx::query_as::<
+                _,
+                (String, Option<String>, Option<String>, Option<String>),
+            >(&list_sql);
             if !search.is_empty() {
                 lq = lq.bind(&like);
             }
-            let rows = lq.bind(page_size).bind(offset).fetch_all(&state.pools.exam).await?;
+            let rows = lq
+                .bind(page_size)
+                .bind(offset)
+                .fetch_all(&state.pools.exam)
+                .await?;
             let items = rows
                 .into_iter()
                 .map(|(id, title, token, at)| {

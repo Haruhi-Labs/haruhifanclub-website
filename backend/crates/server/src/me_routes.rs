@@ -39,11 +39,12 @@ async fn summary(State(state): State<AppState>, user: AuthUser) -> AppResult<Jso
     let uid = crate::auth_routes::member_uid(user.id);
 
     // ---- art：作品按状态分组、评论数、画廊创作激励积分 ----
-    let art_status: Vec<(Option<String>, i64)> =
-        sqlx::query_as("SELECT status, COUNT(*) FROM artworks WHERE author_user_id = ? GROUP BY status")
-            .bind(user.id)
-            .fetch_all(&state.pools.art)
-            .await?;
+    let art_status: Vec<(Option<String>, i64)> = sqlx::query_as(
+        "SELECT status, COUNT(*) FROM artworks WHERE author_user_id = ? GROUP BY status",
+    )
+    .bind(user.id)
+    .fetch_all(&state.pools.art)
+    .await?;
     let art_comments: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM comments WHERE author_user_id = ?")
             .bind(user.id)
@@ -58,11 +59,12 @@ async fn summary(State(state): State<AppState>, user: AuthUser) -> AppResult<Jso
     .await?;
 
     // ---- news：文章按状态、团报积分、兑换记录数 ----
-    let news_status: Vec<(Option<String>, i64)> =
-        sqlx::query_as("SELECT status, COUNT(*) FROM articles WHERE author_user_id = ? GROUP BY status")
-            .bind(user.id)
-            .fetch_all(&state.pools.news)
-            .await?;
+    let news_status: Vec<(Option<String>, i64)> = sqlx::query_as(
+        "SELECT status, COUNT(*) FROM articles WHERE author_user_id = ? GROUP BY status",
+    )
+    .bind(user.id)
+    .fetch_all(&state.pools.news)
+    .await?;
     let news_points: i64 = sqlx::query_scalar(
         "SELECT COALESCE(CAST(NULLIF(TRIM(total), '') AS INTEGER), 0) FROM users WHERE id = ?",
     )

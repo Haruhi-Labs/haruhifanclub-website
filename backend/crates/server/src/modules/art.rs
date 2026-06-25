@@ -46,7 +46,10 @@ pub fn router() -> Router<AppState> {
             "/me/artworks/{id}",
             axum::routing::patch(update_my_artwork).delete(delete_my_artwork),
         )
-        .route("/me/comments/{id}", axum::routing::delete(delete_my_comment))
+        .route(
+            "/me/comments/{id}",
+            axum::routing::delete(delete_my_comment),
+        )
         // ---- 后台接口（RBAC）----
         .route("/admin/pending-artworks", get(admin_pending_artworks))
         .route("/admin/audit-history", get(admin_audit_history))
@@ -1480,7 +1483,16 @@ async fn my_comments(
     let data: Vec<Value> = rows
         .into_iter()
         .map(
-            |(id, artwork_id, body, created_at, like_total, status, artwork_title, artwork_status)| {
+            |(
+                id,
+                artwork_id,
+                body,
+                created_at,
+                like_total,
+                status,
+                artwork_title,
+                artwork_status,
+            )| {
                 json!({
                     "id": id, "artwork_id": artwork_id, "body": body, "created_at": created_at,
                     "like_total": like_total, "status": status,
@@ -1520,7 +1532,9 @@ async fn my_points(State(state): State<AppState>, user: AuthUser) -> AppResult<J
         })
         .collect();
 
-    Ok(Json(json!({ "ok": true, "uid": uid, "total": total, "history": history })))
+    Ok(Json(
+        json!({ "ok": true, "uid": uid, "total": total, "history": history }),
+    ))
 }
 
 /// PATCH /api/art/me/artworks/{id} —— 作者本人编辑作品文本字段（标题/简介/标签/来源链接）。
@@ -1592,12 +1606,13 @@ async fn delete_my_artwork(
     user: AuthUser,
     Path(id): Path<i64>,
 ) -> AppResult<Response> {
-    let affected = sqlx::query("UPDATE artworks SET status='hidden' WHERE id=? AND author_user_id=?")
-        .bind(id)
-        .bind(user.id)
-        .execute(&state.pools.art)
-        .await?
-        .rows_affected();
+    let affected =
+        sqlx::query("UPDATE artworks SET status='hidden' WHERE id=? AND author_user_id=?")
+            .bind(id)
+            .bind(user.id)
+            .execute(&state.pools.art)
+            .await?
+            .rows_affected();
     if affected == 0 {
         return Ok((
             StatusCode::FORBIDDEN,
@@ -1614,12 +1629,13 @@ async fn delete_my_comment(
     user: AuthUser,
     Path(id): Path<i64>,
 ) -> AppResult<Response> {
-    let affected = sqlx::query("UPDATE comments SET status='hidden' WHERE id=? AND author_user_id=?")
-        .bind(id)
-        .bind(user.id)
-        .execute(&state.pools.art)
-        .await?
-        .rows_affected();
+    let affected =
+        sqlx::query("UPDATE comments SET status='hidden' WHERE id=? AND author_user_id=?")
+            .bind(id)
+            .bind(user.id)
+            .execute(&state.pools.art)
+            .await?
+            .rows_affected();
     if affected == 0 {
         return Ok((
             StatusCode::FORBIDDEN,

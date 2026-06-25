@@ -43,7 +43,10 @@ pub fn router() -> Router<AppState> {
         .route("/admin/prizes/{id}", put(update_prize).delete(delete_prize))
         .route("/prizes/{id}/redeem", post(redeem_prize))
         .route("/admin/redemptions", get(admin_redemptions))
-        .route("/admin/redemptions/{id}/status", post(admin_redemption_status))
+        .route(
+            "/admin/redemptions/{id}/status",
+            post(admin_redemption_status),
+        )
         // ---- 文章（Articles）----
         .route("/articles", get(list_articles).post(create_article))
         .route(
@@ -1299,23 +1302,31 @@ async fn delete_my_article(
 /// GET /api/news/me/redemptions —— 我的兑换记录。
 async fn my_redemptions(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     let uid = crate::auth_routes::member_uid(user.id);
-    let rows: Vec<(i64, i64, Option<String>, i64, Option<String>, Option<String>)> =
-        sqlx::query_as(
-            "SELECT id, prize_id, prize_name, \
+    let rows: Vec<(
+        i64,
+        i64,
+        Option<String>,
+        i64,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT id, prize_id, prize_name, \
              CAST(COALESCE(NULLIF(TRIM(points_cost), ''), '0') AS INTEGER) AS points_cost, \
              status, created_at FROM redemptions WHERE user_id = ? ORDER BY id DESC LIMIT 100",
-        )
-        .bind(&uid)
-        .fetch_all(&state.pools.news)
-        .await?;
+    )
+    .bind(&uid)
+    .fetch_all(&state.pools.news)
+    .await?;
     let data: Vec<Value> = rows
         .into_iter()
-        .map(|(id, prize_id, prize_name, points_cost, status, created_at)| {
-            json!({
-                "id": id, "prize_id": prize_id, "prize_name": prize_name,
-                "points_cost": points_cost, "status": status, "created_at": created_at,
-            })
-        })
+        .map(
+            |(id, prize_id, prize_name, points_cost, status, created_at)| {
+                json!({
+                    "id": id, "prize_id": prize_id, "prize_name": prize_name,
+                    "points_cost": points_cost, "status": status, "created_at": created_at,
+                })
+            },
+        )
         .collect();
     Ok(Json(json!({ "message": "success", "data": data })))
 }
@@ -1341,9 +1352,11 @@ async fn redeem_prize(
     let (name, points, stock) = match prize {
         Some(p) => p,
         None => {
-            return Ok(
-                (StatusCode::NOT_FOUND, Json(json!({ "error": "奖品不存在" }))).into_response(),
+            return Ok((
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "奖品不存在" })),
             )
+                .into_response())
         }
     };
     let name = name.unwrap_or_default();
@@ -1355,9 +1368,11 @@ async fn redeem_prize(
             .into_response());
     }
     if stock < 1 {
-        return Ok(
-            (StatusCode::BAD_REQUEST, Json(json!({ "error": "库存不足" }))).into_response(),
-        );
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "库存不足" })),
+        )
+            .into_response());
     }
 
     let mut tx = state.pools.news.begin().await?;
@@ -1372,9 +1387,11 @@ async fn redeem_prize(
     .await?
     .rows_affected();
     if dec_stock == 0 {
-        return Ok(
-            (StatusCode::BAD_REQUEST, Json(json!({ "error": "库存不足" }))).into_response(),
-        );
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "库存不足" })),
+        )
+            .into_response());
     }
 
     // 原子扣积分（账户须存在且余额足；条件更新防超扣）
@@ -1430,12 +1447,13 @@ async fn redeem_prize(
     // 通知管理员安排发放（异步、不阻塞、邮件未启用/失败均不影响兑换）
     crate::notify::redemption_created(&state, redemption_id, &uid, &name, points);
 
-    let new_total: Option<i64> =
-        sqlx::query_scalar("SELECT CAST(NULLIF(TRIM(total), '') AS INTEGER) FROM users WHERE id = ?")
-            .bind(&uid)
-            .fetch_optional(&state.pools.news)
-            .await?
-            .flatten();
+    let new_total: Option<i64> = sqlx::query_scalar(
+        "SELECT CAST(NULLIF(TRIM(total), '') AS INTEGER) FROM users WHERE id = ?",
+    )
+    .bind(&uid)
+    .fetch_optional(&state.pools.news)
+    .await?
+    .flatten();
 
     Ok(Json(json!({
         "message": "success",
@@ -1464,25 +1482,34 @@ async fn admin_redemptions(
     let base = "SELECT id, user_id, prize_id, prize_name, \
         CAST(COALESCE(NULLIF(TRIM(points_cost), ''), '0') AS INTEGER) AS points_cost, \
         status, created_at FROM redemptions";
-    let rows: Vec<(i64, String, i64, Option<String>, i64, Option<String>, Option<String>)> =
-        if status != "all" {
-            let sql = format!("{base} WHERE status = ? ORDER BY id DESC LIMIT 300");
-            sqlx::query_as(&sql)
-                .bind(status)
-                .fetch_all(&state.pools.news)
-                .await?
-        } else {
-            let sql = format!("{base} ORDER BY id DESC LIMIT 300");
-            sqlx::query_as(&sql).fetch_all(&state.pools.news).await?
-        };
+    let rows: Vec<(
+        i64,
+        String,
+        i64,
+        Option<String>,
+        i64,
+        Option<String>,
+        Option<String>,
+    )> = if status != "all" {
+        let sql = format!("{base} WHERE status = ? ORDER BY id DESC LIMIT 300");
+        sqlx::query_as(&sql)
+            .bind(status)
+            .fetch_all(&state.pools.news)
+            .await?
+    } else {
+        let sql = format!("{base} ORDER BY id DESC LIMIT 300");
+        sqlx::query_as(&sql).fetch_all(&state.pools.news).await?
+    };
     let data: Vec<Value> = rows
         .into_iter()
-        .map(|(id, user_id, prize_id, prize_name, points_cost, status, created_at)| {
-            json!({
-                "id": id, "user_id": user_id, "prize_id": prize_id, "prize_name": prize_name,
-                "points_cost": points_cost, "status": status, "created_at": created_at,
-            })
-        })
+        .map(
+            |(id, user_id, prize_id, prize_name, points_cost, status, created_at)| {
+                json!({
+                    "id": id, "user_id": user_id, "prize_id": prize_id, "prize_name": prize_name,
+                    "points_cost": points_cost, "status": status, "created_at": created_at,
+                })
+            },
+        )
         .collect();
     Ok(Json(json!({ "message": "success", "data": data })))
 }
