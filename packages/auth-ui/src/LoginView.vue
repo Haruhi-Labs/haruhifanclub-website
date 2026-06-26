@@ -130,6 +130,11 @@ onBeforeUnmount(() => conditionalAbort?.abort())
 
 async function onRegister() {
   error.value = ''
+  // 昵称地位等同用户名：必填、唯一
+  if (!form.nickname.trim()) {
+    error.value = '请填写昵称'
+    return
+  }
   if (form.password.length < 8) {
     error.value = '密码至少 8 位'
     return
@@ -143,12 +148,13 @@ async function onRegister() {
     await session.register({
       email: form.email.trim(),
       password: form.password,
-      nickname: form.nickname.trim() || undefined,
+      nickname: form.nickname.trim(),
     })
     okMsg.value = '注册成功，已自动登录。'
     setTimeout(go, 1200)
   } catch (e) {
-    error.value = e?.status === 409 ? '该邮箱已注册' : e?.message || '注册失败'
+    // 409 既可能是邮箱已注册、也可能是昵称已占用，直接透传后端文案
+    error.value = e?.message || '注册失败'
   } finally {
     loading.value = false
   }
@@ -255,8 +261,8 @@ async function onForgot() {
           <SosField label="邮箱">
             <SosInput v-model="form.email" type="email" autocomplete="email" required />
           </SosField>
-          <SosField label="昵称" help="留空则用邮箱前缀">
-            <SosInput v-model="form.nickname" maxlength="32" placeholder="你希望别人怎么称呼你" />
+          <SosField label="昵称" required help="别人看到的名字，需唯一、不可与他人重名">
+            <SosInput v-model="form.nickname" maxlength="32" required placeholder="你希望别人怎么称呼你" />
           </SosField>
           <SosField label="密码" help="至少 8 位">
             <div class="hauth-pw">

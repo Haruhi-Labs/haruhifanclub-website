@@ -208,13 +208,14 @@ async fn register(
     if req.password.len() < PASSWORD_MIN {
         return Err(AppError::bad_request(format!("密码至少 {PASSWORD_MIN} 位")));
     }
-    let nickname = req
-        .nickname
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string)
-        .unwrap_or_else(|| email.split('@').next().unwrap_or("用户").to_string());
+    // 昵称地位等同用户名：必填、唯一、不可留空，不再用邮箱前缀兜底。
+    let nickname = req.nickname.as_deref().map(str::trim).unwrap_or("");
+    if nickname.is_empty() {
+        return Err(AppError::bad_request("请填写昵称"));
+    }
+    if nickname.chars().count() > 32 {
+        return Err(AppError::bad_request("昵称需为 1–32 字"));
+    }
 
     // 邮箱（或同名 username）已占用？终端用户 username = email
     let exists: Option<(i64,)> =
@@ -226,9 +227,14 @@ async fn register(
     if exists.is_some() {
         return Err(AppError::conflict("该邮箱已注册"));
     }
+    // 昵称已被占用？（大小写不敏感）
+    if nickname_taken(&state.pools.core, nickname, None).await? {
+        return Err(AppError::conflict("该昵称已被占用，请换一个"));
+    }
 
     let hash = hash_password(&req.password)?;
     // 为降低门槛、规避验证邮件被误判为垃圾邮件：注册即视为已验证，不再发验证邮件。
+    // 唯一索引兜并发竞态：预检通过后仍可能撞 email/nickname 唯一约束，按命中的索引给友好提示。
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO users (username, password_hash, display_name, nickname, email, \
          is_super_admin, status, email_verified) \
@@ -236,11 +242,12 @@ async fn register(
     )
     .bind(&email)
     .bind(&hash)
-    .bind(&nickname)
-    .bind(&nickname)
+    .bind(nickname)
+    .bind(nickname)
     .bind(&email)
     .fetch_one(&state.pools.core)
-    .await?;
+    .await
+    .map_err(map_register_conflict)?;
 
     audit(&state, Some(id), "auth", "register", &email).await;
     login_response(&state, &headers, id, false).await
@@ -510,11 +517,16 @@ async fn update_profile(
         if nick.is_empty() || nick.chars().count() > 32 {
             return Err(AppError::bad_request("昵称需为 1–32 字"));
         }
+        // 昵称唯一、不可重名（大小写不敏感，排除自己）
+        if nickname_taken(&state.pools.core, nick, Some(user.id)).await? {
+            return Err(AppError::conflict("该昵称已被占用，请换一个"));
+        }
         sqlx::query("UPDATE users SET nickname = ? WHERE id = ?")
             .bind(nick)
             .bind(user.id)
             .execute(&state.pools.core)
-            .await?;
+            .await
+            .map_err(map_nickname_conflict)?;
         // 昵称是全站对外署名的权威来源：改名后同步各模块已存的署名快照，
         // 让画廊作者名 / 文章署名 / 评论名跟随昵称变化。best-effort：单模块失败不影响保存。
         propagate_nickname(&state, user.id, nick).await;
@@ -559,6 +571,48 @@ async fn propagate_nickname(state: &AppState, user_id: i64, nickname: &str) {
         {
             tracing::warn!("同步昵称到署名快照失败(user {user_id}): {e}");
         }
+    }
+}
+
+/// 昵称查重：大小写不敏感（lower(nickname)，与唯一索引一致）。
+/// 更新时传 Some(自己的 id) 以排除自己；注册时传 None。
+async fn nickname_taken(
+    pool: &sqlx::SqlitePool,
+    nickname: &str,
+    exclude_user_id: Option<i64>,
+) -> Result<bool, sqlx::Error> {
+    let hit: Option<(i64,)> = sqlx::query_as(
+        "SELECT id FROM users WHERE lower(nickname) = lower(?) AND id != COALESCE(?, -1) LIMIT 1",
+    )
+    .bind(nickname)
+    .bind(exclude_user_id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(hit.is_some())
+}
+
+/// 注册写库失败时，把命中唯一索引的 UNIQUE 约束错误转成友好冲突（兜并发竞态）。
+fn map_register_conflict(e: sqlx::Error) -> AppError {
+    match e {
+        sqlx::Error::Database(ref db) if db.message().contains("idx_users_nickname_unique") => {
+            AppError::conflict("该昵称已被占用，请换一个")
+        }
+        sqlx::Error::Database(ref db)
+            if db.message().contains("users.email") || db.message().contains("users.username") =>
+        {
+            AppError::conflict("该邮箱已注册")
+        }
+        other => AppError::Database(other),
+    }
+}
+
+/// 改资料写库失败时，把昵称唯一约束错误转成友好冲突。
+fn map_nickname_conflict(e: sqlx::Error) -> AppError {
+    match e {
+        sqlx::Error::Database(ref db) if db.message().contains("idx_users_nickname_unique") => {
+            AppError::conflict("该昵称已被占用，请换一个")
+        }
+        other => AppError::Database(other),
     }
 }
 
