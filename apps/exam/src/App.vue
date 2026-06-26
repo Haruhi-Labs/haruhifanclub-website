@@ -26,7 +26,7 @@ const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`;
           </span>
           <span class="sos-brand-lockup__text">
             <strong>春日试卷中心</strong>
-            <small>凉宫春日应援团 · 考场</small>
+            <small>凉宫春日应援团 · 开放试卷系统</small>
           </span>
         </RouterLink>
         <div class="exam-appbar__right">
