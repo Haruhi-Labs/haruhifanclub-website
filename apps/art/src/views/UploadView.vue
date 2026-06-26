@@ -12,156 +12,136 @@
       </header>
 
       <!-- 表单主体 -->
-      <form class="main-form" @submit.prevent="submit">
-        
+      <form class="upload-form" @submit.prevent="submit">
+
         <!-- 区块 1: 基础信息 -->
-        <section class="form-section">
-          <div class="section-head">
-            <h2 class="section-title">基础信息</h2>
-            <span class="section-desc">填写作品的基本资料</span>
-          </div>
-
-          <div class="form-grid">
-            <div class="form-group" style="grid-column: span 2;">
-              <label class="form-label">作品名称 <span class="req">*</span></label>
-              <input class="form-input" v-model="title" placeholder="请输入作品名称" required />
+        <section class="sos-card">
+          <header class="sos-card__header upload-card-head">
+            <h2 class="upload-card-title">基础信息</h2>
+            <span class="upload-card-sub">填写作品的基本资料</span>
+          </header>
+          <div class="sos-card__body upload-fields">
+            <div class="sos-field">
+              <label class="sos-field__label">作品名称 <span class="sos-field__required">*</span></label>
+              <input class="sos-input" v-model="title" placeholder="请输入作品名称" required />
             </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">作品描述 <span class="opt">（选填）</span></label>
-            <textarea class="form-textarea" v-model="description" placeholder="请描述作品内容、创作思路或来源说明…"></textarea>
+            <div class="sos-field">
+              <label class="sos-field__label">作品描述 <span class="sos-field__optional">（选填）</span></label>
+              <textarea class="sos-textarea" v-model="description" placeholder="请描述作品内容、创作思路或来源说明…"></textarea>
+            </div>
           </div>
         </section>
 
         <!-- 区块 2: 分类与署名 -->
-        <section class="form-section">
-          <div class="section-head">
-            <h2 class="section-title">分类与署名</h2>
-            <span class="section-desc">确认作品来源与版权归属</span>
-          </div>
-
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">图片来源 <span class="req">*</span></label>
-              <div class="segment-control">
-                <button type="button" :class="['segment-btn', sourceType==='personal' && 'active']" @click="sourceType='personal'" data-sfx="click">
-                  <span class="icon">🎨</span> 个人作品
-                </button>
-                <button type="button" :class="['segment-btn', sourceType==='network' && 'active']" @click="sourceType='network'" data-sfx="click">
-                  <span class="icon">🌐</span> 网络转载&其它
-                </button>
+        <section class="sos-card">
+          <header class="sos-card__header upload-card-head">
+            <h2 class="upload-card-title">分类与署名</h2>
+            <span class="upload-card-sub">确认作品来源与版权归属</span>
+          </header>
+          <div class="sos-card__body upload-fields">
+            <div class="upload-row">
+              <div class="sos-field">
+                <label class="sos-field__label">图片来源 <span class="sos-field__required">*</span></label>
+                <div class="sos-segmented" role="group" aria-label="图片来源">
+                  <button type="button" class="sos-segmented__item" :aria-pressed="sourceType==='personal'" @click="sourceType='personal'" data-sfx="click">🎨 个人作品</button>
+                  <button type="button" class="sos-segmented__item" :aria-pressed="sourceType==='network'" @click="sourceType='network'" data-sfx="click">🌐 网络转载&其它</button>
+                </div>
+              </div>
+              <div class="sos-field">
+                <label class="sos-field__label">内容划分 <span class="sos-field__required">*</span></label>
+                <div class="sos-segmented" role="group" aria-label="内容划分">
+                  <button type="button" class="sos-segmented__item" :aria-pressed="contentType==='haruhi'" @click="contentType='haruhi'" data-sfx="click">凉宫内容</button>
+                  <button type="button" class="sos-segmented__item" :aria-pressed="contentType==='other'" @click="contentType='other'" data-sfx="click">非凉宫内容</button>
+                </div>
               </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">内容划分 <span class="req">*</span></label>
-              <div class="segment-control">
-                <button type="button" :class="['segment-btn', contentType==='haruhi' && 'active']" @click="contentType='haruhi'" data-sfx="click">
-                  凉宫内容
-                </button>
-                <button type="button" :class="['segment-btn', contentType==='other' && 'active']" @click="contentType='other'" data-sfx="click">
-                  非凉宫内容
-                </button>
-              </div>
+            <!-- 作者署名：统一登录后以账号昵称为权威署名，不再需要填创作者ID/显示名 -->
+            <div class="sos-field">
+              <label class="sos-field__label">作者署名</label>
+              <div class="sos-input upload-readonly">{{ authorName || '（请先登录后投稿）' }}</div>
+              <p class="sos-field__help">将以你的账号昵称署名；在「个人中心 → 个人资料」修改昵称后，画廊作品署名会同步更新。</p>
             </div>
-          </div>
 
-          <!-- 作者署名：统一登录后以账号昵称为权威署名，不再需要填创作者ID/显示名 -->
-          <div class="form-group">
-            <label class="form-label">作者署名</label>
-            <div class="form-input" style="display:flex;align-items:center;opacity:.9;">
-              <strong>{{ authorLabel }}</strong>
-            </div>
-            <p class="form-hint">将以你的账号昵称署名；在「个人中心 → 个人资料」修改昵称后，画廊作品署名会同步更新。</p>
-          </div>
-
-          <!-- 网络图片专属逻辑 -->
-          <transition name="fade-slide">
-            <div v-if="sourceType==='network'" class="conditional-block">
-              <div class="form-group">
-                <label class="form-label">网络图片来源链接 <span class="opt">（可选）</span></label>
-                <input class="form-input" v-model="originUrl" placeholder="https://..." />
-                <p class="form-hint warning">⚠️ 上传他人作品必须取得原作者授权并标注来源！</p>
+            <!-- 网络图片专属逻辑 -->
+            <transition name="fade-slide">
+              <div class="sos-field" v-if="sourceType==='network'">
+                <label class="sos-field__label">网络图片来源链接 <span class="sos-field__optional">（可选）</span></label>
+                <input class="sos-input" v-model="originUrl" placeholder="https://..." />
+                <p class="sos-field__help upload-warn">⚠️ 上传他人作品必须取得原作者授权并标注来源！</p>
               </div>
-            </div>
-          </transition>
+            </transition>
+          </div>
         </section>
 
         <!-- 区块 3: 标签与授权 -->
-        <section class="form-section">
-          <div class="section-head">
-            <h2 class="section-title">标签与授权</h2>
-          </div>
-
-          <div class="form-grid">
-            <div class="form-group" style="grid-column: span 2;">
-              <label class="form-label">标签 <span class="opt">（可选）</span></label>
-              <div class="input-with-action">
+        <section class="sos-card">
+          <header class="sos-card__header upload-card-head">
+            <h2 class="upload-card-title">标签与授权</h2>
+          </header>
+          <div class="sos-card__body upload-fields">
+            <div class="sos-field">
+              <label class="sos-field__label">标签 <span class="sos-field__optional">（可选）</span></label>
+              <div class="upload-inline">
                 <input
-                  class="form-input"
+                  class="sos-input"
                   v-model="tagDraft"
                   placeholder="输入标签后按回车或点击添加"
                   @keydown.enter.prevent="addTag"
                 />
-                <button class="action-btn secondary" type="button" @click="addTag" :disabled="!tagDraft.trim()" data-sfx="click">添加</button>
+                <button class="sos-button sos-button--secondary" type="button" @click="addTag" :disabled="!tagDraft.trim()" data-sfx="click">添加</button>
               </div>
-              
-              <div class="tags-container" v-if="tags.length">
+
+              <div class="upload-tags" v-if="tags.length">
                 <transition-group name="list">
-                  <span class="tag-pill" v-for="t in tags" :key="t">
-                    <span class="tag-text">#{{ t }}</span>
-                    <button class="tag-remove" type="button" title="删除" @click="removeTag(t)" data-sfx="click">×</button>
+                  <span class="upload-tag" v-for="t in tags" :key="t">
+                    <span>#{{ t }}</span>
+                    <button class="upload-tag__x" type="button" title="删除" @click="removeTag(t)" data-sfx="click">×</button>
                   </span>
                 </transition-group>
               </div>
-              <div class="tags-actions" v-if="tags.length">
-                 <button class="text-btn" type="button" @click="clearTags" data-sfx="click">清空所有标签</button>
+              <div v-if="tags.length">
+                <button class="sos-button sos-button--link sos-button--sm" type="button" @click="clearTags" data-sfx="click">清空所有标签</button>
               </div>
             </div>
 
             <transition name="fade-slide">
-              <div class="form-group" v-if="sourceType==='personal'" style="grid-column: span 2;">
-                <label class="form-label">授权许可设置</label>
-                
-                <div class="license-split-layout">
-                  <div class="license-col">
-                    <div class="license-header">对大众/网络的授权</div>
-                    <p class="form-hint" style="margin-bottom: 12px;">这些授权信息将公开显示在图片详情页。</p>
-                    <div class="checkbox-list">
-                      <label class="checkbox-card" v-for="opt in NET_LICENSE_OPTIONS" :key="opt">
-                        <input type="checkbox" :value="opt" v-model="netLicenses" class="chk-input" />
-                        <span class="chk-custom"></span>
-                        <span class="chk-label">{{ opt }}</span>
+              <div class="sos-field" v-if="sourceType==='personal'">
+                <label class="sos-field__label">授权许可设置</label>
+                <div class="upload-license">
+                  <div class="upload-license__col">
+                    <div class="upload-license__head">对大众/网络的授权</div>
+                    <p class="sos-field__help">这些授权信息将公开显示在图片详情页。</p>
+                    <div class="upload-chk-list">
+                      <label class="upload-chk" v-for="opt in NET_LICENSE_OPTIONS" :key="opt">
+                        <input type="checkbox" :value="opt" v-model="netLicenses" />
+                        <span>{{ opt }}</span>
                       </label>
                     </div>
                   </div>
-
-                  <div class="license-col">
-                    <div class="license-header">对应援团的特别授权 <span class="badge-private">后台可见</span></div>
-                    <p class="form-hint" style="margin-bottom: 12px;">这些信息仅在后台可见，用于社团内部企划或周边制作参考。</p>
-                    <div class="checkbox-list">
-                      <label class="checkbox-card" v-for="opt in GROUP_LICENSE_OPTIONS" :key="opt">
-                        <input type="checkbox" :value="opt" v-model="groupLicenses" class="chk-input" />
-                        <span class="chk-custom"></span>
-                        <span class="chk-label">{{ opt }}</span>
+                  <div class="upload-license__col">
+                    <div class="upload-license__head">对应援团的特别授权 <span class="upload-private">后台可见</span></div>
+                    <p class="sos-field__help">这些信息仅在后台可见，用于社团内部企划或周边制作参考。</p>
+                    <div class="upload-chk-list">
+                      <label class="upload-chk" v-for="opt in GROUP_LICENSE_OPTIONS" :key="opt">
+                        <input type="checkbox" :value="opt" v-model="groupLicenses" />
+                        <span>{{ opt }}</span>
                       </label>
                     </div>
                   </div>
                 </div>
-
               </div>
             </transition>
           </div>
         </section>
 
         <!-- 区块 4: 图片上传 (更新为多图模式) -->
-        <section class="form-section upload-section">
-          <div class="section-head">
-            <h2 class="section-title">图片文件</h2>
-            <span class="section-desc">支持 JPG, PNG, WebP 格式。支持拖拽排序，第一张将作为封面。</span>
-          </div>
-
+        <section class="sos-card">
+          <header class="sos-card__header upload-card-head">
+            <h2 class="upload-card-title">图片文件</h2>
+            <span class="upload-card-sub">支持 JPG, PNG, WebP。可拖拽排序，第一张作为封面。</span>
+          </header>
+          <div class="sos-card__body upload-fields">
           <!-- 已选图片列表 -->
           <div class="files-manager" v-if="filesList.length > 0">
             <transition-group name="list" tag="div" class="files-grid">
@@ -205,17 +185,18 @@
                    </div>
                 </label>
              </div>
-             <p class="form-hint center">系统将自动压缩生成预览图，并保留原图用于下载。</p>
+             <p class="sos-field__help" style="text-align:center">系统将自动压缩生成预览图，并保留原图用于下载。</p>
           </div>
 
-          <div class="form-actions">
-            <div v-if="msg" class="message-box" :class="{ error: isError, success: !isError }">
+          <div class="upload-actions">
+            <div v-if="msg" class="upload-msg" :class="{ error: isError, success: !isError }">
               {{ msg }}
             </div>
-            <button class="submit-btn" :disabled="submitting || filesList.length === 0" data-sfx="click">
+            <button class="sos-button sos-button--primary sos-button--lg sos-button--block" :disabled="submitting || filesList.length === 0" data-sfx="click">
               <span v-if="submitting" class="spinner"></span>
               {{ submitting ? statusMsg : '🚀 确认并提交' }}
             </button>
+          </div>
           </div>
         </section>
       </form>
@@ -457,19 +438,11 @@ async function submit(){
 </script>
 
 <style scoped>
-/* 变量映射：适配现代风格 CSS 变量 */
+/* 仅保留页头/拖拽区等遗留样式仍引用的少量局部变量，表单已统一走 SOS token */
 .upload-page {
   --primary: hsl(172, 78%, 42%);
-  --primary-soft: hsl(172, 65%, 92%);
-  --primary-hover: hsl(172, 80%, 38%);
   --text-main: hsl(210, 20%, 14%);
   --text-sub: hsl(210, 10%, 45%);
-  --bg-input: rgba(255, 255, 255, 0.6);
-  --border: rgba(0, 0, 0, 0.08);
-  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
-  --radius-lg: 18px;
-  --radius-md: 12px;
 }
 
 /* 容器布局 */
@@ -502,13 +475,6 @@ async function submit(){
   -webkit-text-fill-color: transparent;
 }
 
-.sub-title {
-  margin: 8px 0 0;
-  font-size: 16px;
-  color: var(--text-sub);
-  font-weight: 500;
-}
-
 .header-decoration .deco-img {
   height: 160px;
   object-fit: contain;
@@ -520,340 +486,6 @@ async function submit(){
   transform: translateY(0) rotate(2deg);
 }
 
-/* 表单主体 */
-.main-form {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 
-    0 20px 40px rgba(0,0,0,0.05),
-    inset 0 1px 0 rgba(255,255,255,0.8);
-  padding: 8px; /* Inner padding for sections */
-}
-
-/* 表单区块 Section */
-.form-section {
-  padding: 32px;
-  border-bottom: 1px solid rgba(0,0,0,0.04);
-}
-.form-section:last-child {
-  border-bottom: none;
-}
-
-.section-head {
-  margin-bottom: 24px;
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.section-title {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--text-main);
-  margin: 0;
-  position: relative;
-  padding-left: 14px;
-}
-.section-title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 16px;
-  background: var(--primary);
-  border-radius: 2px;
-}
-
-.section-desc {
-  font-size: 13px;
-  color: var(--text-sub);
-  font-weight: 500;
-}
-
-/* 表单栅格与控件 */
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-bottom: 24px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-label {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-main);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.form-label .req { color: var(--sos-danger); }
-.form-label .opt { color: var(--text-sub); font-weight: 400; font-size: 12px; }
-
-/* 输入框样式 */
-.form-input, .form-textarea {
-  width: 100%;
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
-  background: var(--bg-input);
-  color: var(--text-main);
-  font-size: 15px;
-  font-weight: 600;
-  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
-}
-
-.form-input:hover, .form-textarea:hover {
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.form-input:focus, .form-textarea:focus {
-  background: var(--sos-bg-surface);
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-soft);
-  outline: none;
-}
-
-.form-textarea {
-  min-height: 120px;
-  resize: vertical;
-  line-height: 1.6;
-}
-
-.form-hint {
-  font-size: 13px;
-  color: var(--text-sub);
-  margin-top: 4px;
-}
-.form-hint.warning { color: var(--sos-warning); }
-.form-hint.center { text-align: center; }
-
-/* Segment Control */
-.segment-control {
-  display: flex;
-  background: rgba(0,0,0,0.04);
-  padding: 4px;
-  border-radius: 14px;
-  gap: 4px;
-}
-
-.segment-btn {
-  flex: 1;
-  border: none;
-  background: transparent;
-  padding: 10px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-sub);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-.segment-btn:hover { color: var(--text-main); }
-.segment-btn.active {
-  background: var(--sos-bg-surface);
-  color: var(--primary);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-.segment-btn .icon { font-size: 16px; }
-
-/* 复合输入框 (Action Button) */
-.input-with-action {
-  display: flex;
-  gap: 10px;
-}
-.action-btn {
-  padding: 0 20px;
-  border-radius: var(--radius-md);
-  border: none;
-  background: var(--text-main);
-  color: var(--sos-bg-surface);
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-.action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.action-btn:hover:not(:disabled) { transform: translateY(-1px); background: #000; }
-
-.action-btn.secondary {
-  background: rgba(0,0,0,0.05);
-  color: var(--text-main);
-}
-.action-btn.secondary:hover:not(:disabled) { background: rgba(0,0,0,0.1); }
-
-/* UID 验证反馈 */
-.uid-feedback {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-  padding: 10px 14px;
-  background: rgba(255,255,255,0.5);
-  border-radius: 12px;
-}
-.status-badge { font-size: 14px; font-weight: 700; }
-.status-badge.ok { color: var(--sos-success); }
-.status-badge.bad { color: var(--sos-danger); }
-.creator-avatar {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  border: 2px solid var(--sos-bg-surface);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.info-card {
-  margin-top: 12px;
-  padding: 16px;
-  background: var(--sos-accent-soft);
-  border-radius: 12px;
-  font-size: 13px;
-  color: #1e40af;
-  line-height: 1.5;
-}
-.info-card p { margin: 0; }
-.info-card .sub-info { margin-top: 6px; opacity: 0.8; font-size: 12px; }
-
-/* Tags */
-.tags-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-.tag-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: var(--sos-bg-surface);
-  border: 1px solid rgba(0,0,0,0.06);
-  border-radius: 20px;
-  font-size: 13px;
-  color: var(--primary);
-  font-weight: 700;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-}
-.tag-remove {
-  border: none;
-  background: transparent;
-  color: var(--sos-text-tertiary);
-  cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-  padding: 0 2px;
-  border-radius: 4px;
-}
-.tag-remove:hover { color: var(--sos-danger); background: rgba(239,68,68,0.1); }
-.text-btn {
-  margin-top: 8px;
-  background: none;
-  border: none;
-  color: var(--text-sub);
-  font-size: 12px;
-  cursor: pointer;
-  text-decoration: underline;
-}
-.text-btn:hover { color: var(--text-main); }
-
-/* License Cards & Layout */
-.license-split-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-top: 10px;
-}
-
-.license-col {
-  display: flex;
-  flex-direction: column;
-}
-
-.license-header {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-sub);
-  margin-bottom: 6px;
-  display: flex;
-  justify-content: space-between;
-}
-.badge-private {
-  font-size: 10px;
-  background: var(--sos-bg-muted);
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: var(--sos-text-tertiary);
-}
-
-.checkbox-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.checkbox-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  background: var(--bg-input);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid transparent;
-}
-.checkbox-card:hover { background: var(--sos-bg-surface); box-shadow: var(--shadow-sm); }
-.checkbox-card:has(.chk-input:checked) {
-  background: #f0fdfa; /* Teal-50 */
-  border-color: var(--primary);
-}
-
-.chk-input { display: none; }
-.chk-custom {
-  width: 18px; height: 18px;
-  border: 2px solid var(--sos-border-strong);
-  border-radius: 5px;
-  position: relative;
-  transition: all 0.2s;
-  flex-shrink: 0;
-  background: var(--sos-bg-surface);
-}
-.chk-input:checked + .chk-custom {
-  background: var(--primary);
-  border-color: var(--primary);
-}
-.chk-input:checked + .chk-custom::after {
-  content: '';
-  position: absolute;
-  left: 5px; top: 1px;
-  width: 5px; height: 10px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-.chk-label {
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-/* File Upload */
-.upload-section { background: rgba(255,255,255,0.4); }
 
 .file-drop-area {
   position: relative;
@@ -1032,10 +664,138 @@ async function submit(){
 @media (max-width: 768px) {
   .page-header { flex-direction: column; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
   .header-decoration { display: none; } /* 移动端隐藏装饰图 */
-  
-  .form-grid { grid-template-columns: 1fr; gap: 20px; }
-  .form-section { padding: 20px 16px; }
-  
-  .license-split-layout { grid-template-columns: 1fr; gap: 24px; }
+}
+
+/* ===================================================================
+   设计系统对齐：投稿页表单骨架与子部件（基于 SOS .sos-card/.sos-field/
+   .sos-input/.sos-segmented/.sos-button，这里只补排版与 art 子部件）
+   =================================================================== */
+.upload-form {
+  display: grid;
+  gap: var(--sos-space-6);
+}
+.upload-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sos-space-3);
+  flex-wrap: wrap;
+}
+.upload-card-title {
+  margin: 0;
+  font-size: var(--sos-text-lg);
+  font-weight: var(--sos-weight-bold);
+  color: var(--sos-text-primary);
+}
+.upload-card-sub {
+  color: var(--sos-text-tertiary);
+  font-size: var(--sos-text-sm);
+}
+.upload-fields {
+  display: grid;
+  gap: var(--sos-space-5);
+}
+.upload-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sos-space-5);
+}
+@media (max-width: 640px) {
+  .upload-row { grid-template-columns: 1fr; }
+}
+/* 分段控件占满宽度、选项等分 */
+.upload-fields .sos-segmented { display: flex; width: 100%; }
+.upload-fields .sos-segmented__item { flex: 1; justify-content: center; }
+/* 只读署名框（用 .sos-input 外观 + 弱底表示不可编辑） */
+.upload-readonly {
+  display: flex;
+  align-items: center;
+  background: var(--sos-bg-subtle);
+  color: var(--sos-text-secondary);
+  font-weight: var(--sos-weight-semibold);
+}
+.upload-warn { color: var(--sos-warning, var(--sos-danger)); font-weight: var(--sos-weight-semibold); }
+/* 标签输入 + 添加按钮 */
+.upload-inline { display: flex; gap: var(--sos-space-2); align-items: stretch; }
+.upload-inline .sos-input { flex: 1; }
+.upload-tags { display: flex; flex-wrap: wrap; gap: var(--sos-space-2); margin-top: var(--sos-space-1); }
+.upload-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px 3px 10px;
+  border-radius: var(--sos-radius-full);
+  background: color-mix(in srgb, var(--sos-accent) 12%, var(--sos-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--sos-accent) 28%, transparent);
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-sm);
+}
+.upload-tag__x {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--sos-text-tertiary);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.upload-tag__x:hover { color: var(--sos-danger); }
+/* 授权许可双列 */
+.upload-license {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sos-space-4);
+}
+@media (max-width: 640px) {
+  .upload-license { grid-template-columns: 1fr; }
+}
+.upload-license__col {
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-radius-md);
+  padding: var(--sos-space-4);
+  background: var(--sos-bg-subtle);
+  display: grid;
+  gap: var(--sos-space-2);
+}
+.upload-license__head {
+  font-weight: var(--sos-weight-semibold);
+  color: var(--sos-text-primary);
+  font-size: var(--sos-text-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+}
+.upload-private {
+  font-size: var(--sos-text-xs);
+  font-weight: var(--sos-weight-regular);
+  padding: 1px 7px;
+  border-radius: var(--sos-radius-full);
+  background: color-mix(in srgb, var(--sos-text-tertiary) 18%, transparent);
+  color: var(--sos-text-secondary);
+}
+.upload-chk-list { display: grid; gap: var(--sos-space-2); }
+.upload-chk {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  font-size: var(--sos-text-sm);
+  color: var(--sos-text-secondary);
+  cursor: pointer;
+}
+.upload-chk input { accent-color: var(--sos-accent); width: 16px; height: 16px; }
+/* 提交区 */
+.upload-actions { display: grid; gap: var(--sos-space-3); margin-top: var(--sos-space-2); }
+.upload-msg {
+  padding: var(--sos-space-3) var(--sos-space-4);
+  border-radius: var(--sos-radius-md);
+  font-size: var(--sos-text-sm);
+  font-weight: var(--sos-weight-semibold);
+}
+.upload-msg.error {
+  background: color-mix(in srgb, var(--sos-danger) 12%, transparent);
+  color: var(--sos-danger);
+}
+.upload-msg.success {
+  background: color-mix(in srgb, var(--sos-accent) 14%, transparent);
+  color: color-mix(in srgb, var(--sos-accent) 72%, black);
 }
 </style>
