@@ -62,7 +62,7 @@ const groups = [
             </span>
           </span>
           <p class="sos-footer__tagline">
-            非营利的凉宫春日粉丝团体，让世界变得更热闹。
+            让世界变得更加热闹！《凉宫春日系列》的非营利粉丝团体。
           </p>
           <div class="sos-footer__social">
             <a class="sos-footer__social-link" style="--brand: #fb7299" href="https://space.bilibili.com/201296348" target="_blank" rel="noopener">哔哩哔哩</a>
@@ -92,7 +92,7 @@ const groups = [
       </div>
 
       <div class="sos-footer__bottom">
-        <span>© 2025 HARUHIFANCLUB · Non-profit fan project</span>
+        <span>© 2026 Haruhifanclub 凉宫春日应援团开发组</span>
         <div class="sos-footer__bottom-meta">
           <span>非营利项目</span>
           <span class="sos-footer__bottom-sep" aria-hidden="true"></span>

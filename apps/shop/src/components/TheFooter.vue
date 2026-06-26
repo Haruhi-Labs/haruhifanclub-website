@@ -88,7 +88,7 @@ const groups = [
       </div>
 
       <div class="sos-footer__bottom">
-        <span>© 2026 HARUHIFANCLUB · 凉宫春日应援团开发组</span>
+        <span>© 2026 Haruhifanclub 凉宫春日应援团开发组</span>
         <div class="sos-footer__bottom-meta">
           <span>本商城为非营利项目</span>
           <span class="sos-footer__bottom-sep" aria-hidden="true"></span>
