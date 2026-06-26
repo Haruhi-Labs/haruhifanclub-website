@@ -66,7 +66,7 @@ const redemptions = computed(() => summary.value?.redemptions ?? 0)
     <header class="sos-stack sos-stack--tight">
       <SosEyebrow>个人中心</SosEyebrow>
       <SosTitle as="h1" size="xl">你好，{{ user?.nickname || '同好' }}</SosTitle>
-      <p class="sos-copy">在这里统一管理你在应援团各处发布的内容、积分与账号。</p>
+      <p class="sos-copy">在这里统一管理你在应援团发布的内容与积分。</p>
     </header>
 
     <SosNotice v-if="error" tone="danger">{{ error }}</SosNotice>
@@ -103,7 +103,7 @@ const redemptions = computed(() => summary.value?.redemptions ?? 0)
           </div>
           <div class="huc__point">
             <span class="huc__point-value">{{ points.news }}</span>
-            <span class="huc__point-label">团报应援分</span>
+            <span class="huc__point-label">应援团积分</span>
           </div>
           <div class="huc__point">
             <span class="huc__point-value">{{ redemptions }}</span>

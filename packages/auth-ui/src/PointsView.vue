@@ -63,7 +63,7 @@ async function confirmRedeem() {
   busy.value = true
   try {
     const r = await hub.news.redeem(redeeming.value.id)
-    okMsg.value = `兑换成功：${redeeming.value.name}，剩余 ${r.data?.total ?? '?'} 团报应援分`
+    okMsg.value = `兑换成功：${redeeming.value.name}，剩余 ${r.data?.total ?? '?'} 应援团积分`
     redeeming.value = null
     await loadAll()
   } catch (e) {
@@ -89,7 +89,7 @@ function redemptionStatus(s) {
     <header class="sos-stack sos-stack--tight">
       <SosEyebrow>积分中心</SosEyebrow>
       <SosTitle as="h1" size="xl">积分与兑换</SosTitle>
-      <p class="sos-copy">查看你的两类积分，并用团报应援分兑换应援团周边。</p>
+      <p class="sos-copy">查看你的两类积分，并用应援团积分兑换应援团周边。</p>
     </header>
 
     <SosNotice v-if="error" tone="danger">{{ error }}</SosNotice>
@@ -103,7 +103,7 @@ function redemptionStatus(s) {
       </div>
       <div class="huc__point">
         <span class="huc__point-value">{{ newsPts.total }}</span>
-        <span class="huc__point-label">团报应援分（可兑换）</span>
+        <span class="huc__point-label">应援团积分（可兑换）</span>
       </div>
     </div>
 
@@ -190,7 +190,7 @@ function redemptionStatus(s) {
       @update:open="(v) => { if (!v) redeeming = null }"
     >
       <p class="sos-copy">
-        用 <strong>{{ redeeming?.points }}</strong> 团报应援分兑换「{{ redeeming?.name }}」？
+        用 <strong>{{ redeeming?.points }}</strong> 应援团积分兑换「{{ redeeming?.name }}」？
         <br />当前余额 {{ newsPts.total }} 分，兑换后剩余
         {{ newsPts.total - (redeeming?.points || 0) }} 分。
       </p>
