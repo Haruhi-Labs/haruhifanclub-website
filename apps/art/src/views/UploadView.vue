@@ -59,8 +59,12 @@
             <!-- 作者署名：统一登录后以账号昵称为权威署名，不再需要填创作者ID/显示名 -->
             <div class="sos-field">
               <label class="sos-field__label">作者署名</label>
-              <div class="sos-input upload-readonly">{{ authorName || '（请先登录后投稿）' }}</div>
-              <p class="sos-field__help">将以你的账号昵称署名；在「个人中心 → 个人资料」修改昵称后，画廊作品署名会同步更新。</p>
+              <div v-if="isLoggedIn" class="sos-input upload-readonly">{{ authorName || '请先在「个人中心 → 个人资料」填写昵称' }}</div>
+              <div v-else class="upload-login-hint">
+                <span>登录后将以你的账号昵称署名</span>
+                <button type="button" class="sos-button sos-button--primary sos-button--sm" @click="goLogin" data-sfx="click">登录 / 注册</button>
+              </div>
+              <p class="sos-field__help">将以你的账号昵称署名；在「个人中心 → 个人资料」修改昵称后，画廊作品署名会同步更新。登录后会回到本页，已填写的内容会保留。</p>
             </div>
 
             <!-- 网络图片专属逻辑 -->
@@ -192,9 +196,9 @@
             <div v-if="msg" class="upload-msg" :class="{ error: isError, success: !isError }">
               {{ msg }}
             </div>
-            <button class="sos-button sos-button--primary sos-button--lg sos-button--block" :disabled="submitting || filesList.length === 0" data-sfx="click">
+            <button class="sos-button sos-button--primary sos-button--lg sos-button--block" :disabled="submitting || (isLoggedIn && filesList.length === 0)" data-sfx="click">
               <span v-if="submitting" class="spinner"></span>
-              {{ submitting ? statusMsg : '🚀 确认并提交' }}
+              {{ submitButtonLabel }}
             </button>
           </div>
           </div>
@@ -205,22 +209,70 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { api } from '../services/api'
 import { useSession } from '@haruhi/auth-ui'
 import { compressToWebP } from '../utils/imageCompressor.js'
+import { saveUploadDraft, takeUploadDraft, clearUploadDraft } from '../composables/uploadDraft.js'
+
+const router = useRouter()
+const route = useRoute()
 
 // 统一登录态：作者署名取账号昵称（权威对外显示名），不再让用户手填
 const session = useSession('/api')
 const authorName = computed(() => session.state.user?.nickname || '')
 const isLoggedIn = computed(() => !!session.state.user)
-// 署名预览：未登录提示登录；已登录但未设昵称提示去填，避免对已登录用户误显示「请先登录」（也不拿邮箱当署名）
-const authorLabel = computed(() => {
-  if (!isLoggedIn.value) return '（请先登录后投稿）'
-  return authorName.value || '（请先在「个人中心 → 个人资料」填写昵称）'
+
+// 提交按钮文案：未登录时点击会先去登录，文案上明确提示
+const submitButtonLabel = computed(() => {
+  if (submitting.value) return statusMsg.value
+  if (!isLoggedIn.value) return '登录后提交作品'
+  return '🚀 确认并提交'
 })
+
+// 未登录时跳去登录页，并带上 redirect 让登录成功后回到投稿页（art 登录为同一 SPA 内路由）
+function goLogin() {
+  router.push({ path: '/login', query: { redirect: route.fullPath } })
+}
 onMounted(() => {
   if (!session.state.ready) session.refresh()
+  // 从登录页回跳时，恢复离开前暂存的草稿（含已选图片）
+  const draft = takeUploadDraft()
+  if (draft) {
+    title.value = draft.title || ''
+    description.value = draft.description || ''
+    tags.value = Array.isArray(draft.tags) ? [...draft.tags] : []
+    sourceType.value = draft.sourceType || 'personal'
+    contentType.value = draft.contentType || 'haruhi'
+    originUrl.value = draft.originUrl || ''
+    netLicenses.value = Array.isArray(draft.netLicenses) ? [...draft.netLicenses] : []
+    groupLicenses.value = Array.isArray(draft.groupLicenses) ? [...draft.groupLicenses] : []
+    filesList.value = Array.isArray(draft.filesList) ? draft.filesList : []
+  }
+})
+
+// 离开投稿页（如点登录）时，若有已填内容就暂存，回跳后恢复；空表单则清掉暂存
+onBeforeUnmount(() => {
+  const hasContent =
+    title.value.trim() || description.value.trim() || tags.value.length ||
+    filesList.value.length || originUrl.value.trim() ||
+    netLicenses.value.length || groupLicenses.value.length
+  if (hasContent) {
+    saveUploadDraft({
+      title: title.value,
+      description: description.value,
+      tags: [...tags.value],
+      sourceType: sourceType.value,
+      contentType: contentType.value,
+      originUrl: originUrl.value,
+      netLicenses: [...netLicenses.value],
+      groupLicenses: [...groupLicenses.value],
+      filesList: filesList.value, // 保留 File 与预览 objectURL（同一 SPA 内存中有效）
+    })
+  } else {
+    clearUploadDraft()
+  }
 })
 
 // --- 常量定义 ---
@@ -348,16 +400,18 @@ watch(sourceType, (v) => {
 async function submit(){
   msg.value = ''
   isError.value = false
-  
+
+  // 未登录：直接去登录页（离开时草稿自动暂存，登录回跳后原样恢复），登录后再回来提交。
+  // 身份/署名由后端按账号确定，前端不自报 uid/显示名。
+  if(!isLoggedIn.value){
+    goLogin()
+    return
+  }
+
   if(filesList.value.length === 0){ msg.value = '请至少选择一张图片'; isError.value = true; return }
   if(!title.value.trim()){
     msg.value = '作品名称为必填'; isError.value = true;
     return
-  }
-
-  // 统一登录后投稿必须登录；身份/署名由后端按账号确定，前端不再自报 uid/显示名
-  if(!isLoggedIn.value){
-    msg.value = '请先登录后再投稿（右上角登录）'; isError.value = true; return
   }
 
   submitting.value = true
@@ -427,6 +481,9 @@ async function submit(){
     clearTags()
     netLicenses.value = []
     groupLicenses.value = []
+
+    // 投稿成功，清掉可能残留的草稿暂存
+    clearUploadDraft()
   }catch(e){
     msg.value = `提交失败：${e.message}`
     isError.value = true
@@ -713,6 +770,20 @@ async function submit(){
   color: var(--sos-text-secondary);
   font-weight: var(--sos-weight-semibold);
 }
+/* 未登录时的署名提示 + 登录按钮 */
+.upload-login-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-3);
+  flex-wrap: wrap;
+  padding: var(--sos-space-3) var(--sos-space-4);
+  border: 1px dashed var(--sos-border-default);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-subtle);
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+}
+.upload-login-hint > span { flex: 1; min-width: 8em; }
 .upload-warn { color: var(--sos-warning, var(--sos-danger)); font-weight: var(--sos-weight-semibold); }
 /* 标签输入 + 添加按钮 */
 .upload-inline { display: flex; gap: var(--sos-space-2); align-items: stretch; }
