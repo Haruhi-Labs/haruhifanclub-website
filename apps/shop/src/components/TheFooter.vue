@@ -13,17 +13,21 @@ const groups = [
   {
     title: '主要站点',
     links: [
-      { label: '应援团主站', href: 'https://haruyuki.cn', brand: '#3b82f6' },
-      { label: 'AI 语音合成', href: 'https://tts.haruyuki.cn', brand: '#3b82f6' },
-      { label: 'AI 声线转换', href: 'https://rvc.haruyuki.cn', brand: '#06b6d4' },
+      { label: '春日团报', href: 'https://haruyuki.cn/news/', brand: '#3b82f6' },
+      { label: '春日画廊', href: 'https://haruyuki.cn/art/', brand: '#14b8a6' },
+      { label: '春日商城', href: 'https://haruyuki.cn/shop/', brand: '#0ea5e9' },
+      { label: '长门有希的书架', href: 'https://haruyuki.cn/library/', brand: '#10b981' },
+      { label: '凉宫春日语音合成', href: 'https://tts.haruyuki.cn/', brand: '#3b82f6' },
     ],
   },
   {
     title: '探索',
     links: [
-      { label: '圣地巡礼照片墙', href: 'https://haruhifanclub.notion.site/anitabi', brand: '#eab308' },
-      { label: '长门有希的书架', href: 'https://haruyuki.cn/library', brand: '#10b981' },
+      { label: '凉宫春日资源站', href: 'https://haruhifanclub.yuque.com/staff-sqlmik/phgf5z', brand: '#eab308' },
+      { label: '凉宫春日声线转换', href: 'https://rvc.haruyuki.cn/', brand: '#06b6d4' },
       { label: '京阿尼台词检索', href: 'https://anitool.haruyuki.cn/', brand: '#10b981' },
+      { label: '春日试卷中心', href: 'https://haruyuki.cn/exam/', brand: '#ef4444' },
+      { label: '求学路', href: 'https://study.haruyuki.cn/', brand: '#f59e0b' },
     ],
   },
   {
