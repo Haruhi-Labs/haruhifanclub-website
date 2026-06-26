@@ -644,6 +644,7 @@ struct ArticleRow {
     status: Option<String>,
     created_at: Option<String>,
     summary: Option<String>,
+    author_user_id: Option<i64>,
 }
 
 /// parseArticleRows：解析 tags/participants/content JSON，isPinned → bool，含 content（完整对象）。
@@ -655,6 +656,7 @@ fn parse_article_full(r: &ArticleRow) -> Value {
         "date": r.date,
         "type": r.type_,
         "author": r.author,
+        "authorUserId": r.author_user_id,
         "tags": parse_json_arr(r.tags.as_deref()),
         "image": r.image,
         "originalImage": r.original_image,
@@ -714,6 +716,7 @@ fn build_article_list_item(r: &ArticleRow) -> Value {
         "date": r.date,
         "type": r.type_,
         "author": r.author,
+        "authorUserId": r.author_user_id,
         "tags": tags,
         "image": r.image,
         "originalImage": r.original_image,
@@ -737,7 +740,7 @@ const ARTICLE_COLS: &str = "SELECT id, title, subtitle, date, type, author, tags
     content, \
     CAST(COALESCE(NULLIF(TRIM(isPinned), ''), '0') AS INTEGER) AS isPinned, \
     CAST(COALESCE(NULLIF(TRIM(pinOrder), ''), '0') AS INTEGER) AS pinOrder, \
-    participants, status, created_at, summary \
+    participants, status, created_at, summary, author_user_id \
     FROM articles";
 
 // GET /articles（公开，已发布列表）

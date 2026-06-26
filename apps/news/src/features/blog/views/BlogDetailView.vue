@@ -107,7 +107,7 @@
 
               <span
                 class="hero-author-name"
-                @click="$router.push(`/author/${article.author || '凉宫春日应援团'}`)"
+                @click="$router.push(article.authorUserId && article.type !== 'news' ? `/author/u${article.authorUserId}` : `/author/${article.author || '凉宫春日应援团'}`)"
               >
                 {{ article.author || '凉宫春日应援团' }}
               </span>
@@ -159,7 +159,7 @@
 
             <span
                 class="hero-mobile-author-name"
-                @click="$router.push(`/author/${article.author || '凉宫春日应援团'}`)"
+                @click="$router.push(article.authorUserId && article.type !== 'news' ? `/author/u${article.authorUserId}` : `/author/${article.author || '凉宫春日应援团'}`)"
             >{{ article.author || '凉宫春日应援团' }}</span>
             <span class="hero-mobile-date">· 发表于 {{ article.date }}</span>
           </div>

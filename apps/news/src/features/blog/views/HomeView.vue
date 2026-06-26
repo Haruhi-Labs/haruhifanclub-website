@@ -5,13 +5,13 @@
       class="news-context-header news-context-header--author"
     >
       <img
-        :src="getAvatarUrl(route.params.author)"
-        :alt="`${route.params.author} 头像`"
+        :src="getAvatarUrl(authorDisplayName)"
+        :alt="`${authorDisplayName} 头像`"
         class="author-avatar"
       />
       <div>
         <p class="sos-eyebrow">作者</p>
-        <h1>{{ route.params.author }}</h1>
+        <h1>{{ authorDisplayName }}</h1>
         <p>{{ filteredArticles.length }} 篇文章</p>
       </div>
     </section>
@@ -173,16 +173,17 @@ const filteredArticles = computed(() => {
       (a) => a.type === 'news' && a.participants?.some((p) => p.name === route.params.name)
     )
   } else if (viewType.value === 'author') {
-    // --- 新增作者筛选逻辑 (已修改) ---
-    // 目标作者
     const targetAuthor = route.params.author
     const defaultName = '凉宫春日应援团'
-
-    list = list.filter((a) => {
-      // 后端旧数据可能没有显式作者字段。
-      const articleAuthor = a.author || defaultName
-      return articleAuthor === targetAuthor
-    })
+    // 身份关联：param 形如 u{id} → 按发布者账号(authorUserId)归属（仅投稿，新闻除外）；
+    // 无 author_user_id 的旧文章 / 新闻 → 回退按作者字符串匹配（保持原逻辑）。
+    const idMatch = /^u(\d+)$/.exec(targetAuthor || '')
+    if (idMatch) {
+      const uid = Number(idMatch[1])
+      list = list.filter((a) => a.authorUserId === uid && a.type !== 'news')
+    } else {
+      list = list.filter((a) => (a.author || defaultName) === targetAuthor)
+    }
   } else if (viewType.value === 'search') {
     const q = store.searchQuery.toLowerCase()
     if (q) {
@@ -197,6 +198,13 @@ const filteredArticles = computed(() => {
   }
 
   return sortArticles(list)
+})
+
+// 作者页标题/头像显示名：身份模式(param=u{id})取匹配文章的作者(随昵称同步)，否则取字符串本身
+const authorDisplayName = computed(() => {
+  const p = route.params.author || ''
+  if (/^u\d+$/.test(p)) return filteredArticles.value[0]?.author || p
+  return p
 })
 
 // 不等高双列瀑布流（CSS Grid Lanes 式）：按高度把文章分配到左右两列，保留这一宝贵气质；
