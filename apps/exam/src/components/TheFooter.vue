@@ -105,7 +105,7 @@ const groups = [
       </div>
 
       <div class="sos-footer__bottom">
-        <span>© 2026 Haruhifanclub 凉宫春日应援团开发组</span>
+        <span>© 2026 <a class="sos-footer__link" href="https://github.com/Haruhi-Labs" target="_blank" rel="noopener">Haruhi-Labs</a> · 凉宫春日应援团开发组</span>
         <div class="sos-footer__bottom-meta">
           <span>试卷由用户上传</span>
           <span class="sos-footer__bottom-sep" aria-hidden="true"></span>
