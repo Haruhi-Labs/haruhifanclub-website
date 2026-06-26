@@ -55,7 +55,7 @@
             作者：<button
               class="author-name"
               type="button"
-              @click.stop="$router.push(`/author/${article.author || '凉宫春日应援团'}`)"
+              @click.stop="$router.push(article.authorUserId ? `/author/u${article.authorUserId}` : `/author/${article.author || '凉宫春日应援团'}`)"
               v-html="highlight(article.author || '凉宫春日应援团')"
             ></button>
             <span class="meta-separator">·</span>

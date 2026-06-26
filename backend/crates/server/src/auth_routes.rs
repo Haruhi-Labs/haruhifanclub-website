@@ -515,6 +515,9 @@ async fn update_profile(
             .bind(user.id)
             .execute(&state.pools.core)
             .await?;
+        // 昵称是全站对外署名的权威来源：改名后同步各模块已存的署名快照，
+        // 让画廊作者名 / 文章署名 / 评论名跟随昵称变化。best-effort：单模块失败不影响保存。
+        propagate_nickname(&state, user.id, nick).await;
     }
     if let Some(bio) = req.bio.as_deref() {
         if bio.chars().count() > 280 {
@@ -528,6 +531,35 @@ async fn update_profile(
     }
     let profile = load_profile(&state, user.id).await?;
     Ok(Json(profile))
+}
+
+/// 把新昵称同步到各模块按 `author_user_id` 归属的署名快照（画廊作品/评论、团报文章）。
+/// 跨库无 FK，逐库 UPDATE；best-effort，失败仅记日志，不阻断资料保存。
+async fn propagate_nickname(state: &AppState, user_id: i64, nickname: &str) {
+    let targets: [(&sqlx::SqlitePool, &str); 3] = [
+        (
+            &state.pools.art,
+            "UPDATE artworks SET uploader_name = ? WHERE author_user_id = ?",
+        ),
+        (
+            &state.pools.art,
+            "UPDATE comments SET user_name = ? WHERE author_user_id = ?",
+        ),
+        (
+            &state.pools.news,
+            "UPDATE articles SET author = ? WHERE author_user_id = ?",
+        ),
+    ];
+    for (pool, sql) in targets {
+        if let Err(e) = sqlx::query(sql)
+            .bind(nickname)
+            .bind(user_id)
+            .execute(pool)
+            .await
+        {
+            tracing::warn!("同步昵称到署名快照失败(user {user_id}): {e}");
+        }
+    }
 }
 
 // ---------- 头像（上传 / 移除） ----------

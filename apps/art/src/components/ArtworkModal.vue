@@ -90,7 +90,7 @@
 
         <div class="kv">
           <b>上传者</b>
-          <div>{{ art?.uploader_uid || art?.uploader_name || '匿名' }}</div>
+          <div>{{ art?.uploader_name || art?.uploader_uid || '匿名' }}</div>
 
           <b>上传时间</b>
           <div>{{ art?.created_at ? new Date(art.created_at).toLocaleString() : '-' }}</div>

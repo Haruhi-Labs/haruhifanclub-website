@@ -122,10 +122,13 @@
                     <input v-model="editorForm.date" type="text" :disabled="editorForm.type === 'article'" :class="{'input-field--disabled': editorForm.type === 'article'}" class="input-field input-field--mono">
                 </div>
 
-                <!-- 作者 -->
+                <!-- 作者署名：统一登录后取账号昵称（编辑历史文章时保留原署名），不再手填 -->
                 <div v-if="editorForm.type === 'article'">
-                    <label class="field-label">作者 <span class="required-mark">*</span></label>
-                    <input v-model="editorForm.author" type="text" class="input-field" placeholder="作者署名">
+                    <label class="field-label">作者署名</label>
+                    <div class="input-field" style="opacity:.85;display:flex;align-items:center;">
+                        {{ editorForm.author || authorName || '（请先登录）' }}
+                    </div>
+                    <p class="field-hint" style="margin-top:6px;font-size:12px;opacity:.6;">将以你的账号昵称署名；在「个人中心 → 个人资料」改昵称后会同步更新。</p>
                 </div>
 
                 <!-- 参与者 (News 类型特有) -->
@@ -415,12 +418,16 @@
 import { reactive, ref, watch, nextTick, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
 import { useMainStore } from '@/stores/main';
+import { useSession } from '@haruhi/auth-ui';
 import { renderBlockMarkdown } from '@/features/blog/inlineMarkdown.js';
 import NewsCard from '@/features/blog/components/NewsCard.vue';
 
 const store = useMainStore();
 const router = useRouter();
 const route = useRoute();
+// 统一登录后昵称即权威署名：投稿作者取账号昵称，不再手填
+const session = useSession('/api');
+const authorName = computed(() => session.state.user?.nickname || '');
 const blockRefs = ref({});
 
 const isEditMode = ref(false);
@@ -541,6 +548,10 @@ onMounted(async () => {
     if (store.isAdmin) {
         localAdminState.value = true;
     }
+
+    // 1.5 取登录昵称作为投稿默认署名（编辑模式下后续会用原文章作者覆盖）
+    if (!session.state.ready) await session.refresh();
+    if (!route.query.id && authorName.value) editorForm.author = authorName.value;
 
     // 2. 处理编辑模式数据加载
     if (route.query.id) {
@@ -893,7 +904,6 @@ const confirmCrop = () => {
 
 const publishArticle = async () => {
     if (!editorForm.title.trim()) return alert('请输入标题');
-    if (editorForm.type === 'article' && !editorForm.author.trim()) return alert('文章模式下，作者为必填项');
 
     // 使用 localAdminState 判断权限
     if (!localAdminState.value) {
