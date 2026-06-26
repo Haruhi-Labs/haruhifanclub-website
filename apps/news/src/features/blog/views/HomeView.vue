@@ -203,7 +203,8 @@ const filteredArticles = computed(() => {
 // 作者页标题/头像显示名：身份模式(param=u{id})取匹配文章的作者(随昵称同步)，否则取字符串本身
 const authorDisplayName = computed(() => {
   const p = route.params.author || ''
-  if (/^u\d+$/.test(p)) return filteredArticles.value[0]?.author || p
+  // 空态（该作者暂无可见的非 news 文章）回退到占位，避免再次暴露 u{id} 形态
+  if (/^u\d+$/.test(p)) return filteredArticles.value[0]?.author || '该作者'
   return p
 })
 

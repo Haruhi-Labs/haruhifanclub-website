@@ -71,7 +71,7 @@
           <div class="form-group">
             <label class="form-label">作者署名</label>
             <div class="form-input" style="display:flex;align-items:center;opacity:.9;">
-              <strong>{{ authorName || '（请先登录后投稿）' }}</strong>
+              <strong>{{ authorLabel }}</strong>
             </div>
             <p class="form-hint">将以你的账号昵称署名；在「个人中心 → 个人资料」修改昵称后，画廊作品署名会同步更新。</p>
           </div>
@@ -233,6 +233,11 @@ import { compressToWebP } from '../utils/imageCompressor.js'
 const session = useSession('/api')
 const authorName = computed(() => session.state.user?.nickname || '')
 const isLoggedIn = computed(() => !!session.state.user)
+// 署名预览：未登录提示登录；已登录但未设昵称提示去填，避免对已登录用户误显示「请先登录」（也不拿邮箱当署名）
+const authorLabel = computed(() => {
+  if (!isLoggedIn.value) return '（请先登录后投稿）'
+  return authorName.value || '（请先在「个人中心 → 个人资料」填写昵称）'
+})
 onMounted(() => {
   if (!session.state.ready) session.refresh()
 })
