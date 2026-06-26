@@ -67,43 +67,18 @@
             </div>
           </div>
 
-          <!-- 个人作品专属逻辑 -->
-          <transition name="fade-slide">
-            <div v-if="sourceType==='personal'" class="conditional-block">
-              <div class="form-group">
-                <label class="form-label">创作者唯一ID <span class="req">*</span></label>
-                <div class="input-with-action">
-                  <input class="form-input" v-model="uid" placeholder="请输入你的唯一ID" />
-                  <button class="action-btn" type="button" @click="checkUid" :disabled="checkingUid || !uid.trim()" data-sfx="click">
-                    {{ checkingUid ? '检测中…' : '检测' }}
-                  </button>
-                </div>
-                
-                <!-- UID 状态反馈 -->
-                <div class="uid-feedback" v-if="uidHint">
-                  <div class="status-badge" :class="uidHintClass">
-                    {{ uidHint }}
-                  </div>
-                  <img v-if="uidAvatar" class="creator-avatar" :src="uidAvatar" alt="Avatar" />
-                </div>
-
-                <div class="info-card">
-                  <p>进行创作者注册才能获取唯一ID，并允许上传个人作品哦！</p>
-                  <p class="sub-info">可加入绘画部联系 <strong>律纪</strong> 或 <strong>阿笑</strong> 成为创作者🥰～<br>绘画部群号：627992968，阿笑QQ：2452812504，律纪QQ：3105285630<br>进行创作者注册主要是为了避免冒领身份和过滤AI作品</p>
-                </div>
-              </div>
+          <!-- 作者署名：统一登录后以账号昵称为权威署名，不再需要填创作者ID/显示名 -->
+          <div class="form-group">
+            <label class="form-label">作者署名</label>
+            <div class="form-input" style="display:flex;align-items:center;opacity:.9;">
+              <strong>{{ authorName || '（请先登录后投稿）' }}</strong>
             </div>
-          </transition>
+            <p class="form-hint">将以你的账号昵称署名；在「个人中心 → 个人资料」修改昵称后，画廊作品署名会同步更新。</p>
+          </div>
 
           <!-- 网络图片专属逻辑 -->
           <transition name="fade-slide">
             <div v-if="sourceType==='network'" class="conditional-block">
-              <div class="form-group" style="margin-bottom: 24px;">
-                <label class="form-label">上传者显示名 <span class="opt">（可选）</span></label>
-                <input class="form-input" v-model="uploaderName" placeholder="例如：昵称 / 匿名" />
-                <p class="form-hint">仅用于展示，不填写则显示为默认名称。</p>
-              </div>
-
               <div class="form-group">
                 <label class="form-label">网络图片来源链接 <span class="opt">（可选）</span></label>
                 <input class="form-input" v-model="originUrl" placeholder="https://..." />
@@ -249,9 +224,18 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { api } from '../services/api' 
+import { computed, ref, watch, onMounted } from 'vue'
+import { api } from '../services/api'
+import { useSession } from '@haruhi/auth-ui'
 import { compressToWebP } from '../utils/imageCompressor.js'
+
+// 统一登录态：作者署名取账号昵称（权威对外显示名），不再让用户手填
+const session = useSession('/api')
+const authorName = computed(() => session.state.user?.nickname || '')
+const isLoggedIn = computed(() => !!session.state.user)
+onMounted(() => {
+  if (!session.state.ready) session.refresh()
+})
 
 // --- 常量定义 ---
 const NET_LICENSE_OPTIONS = [
@@ -268,7 +252,6 @@ const GROUP_LICENSE_OPTIONS = [
 ]
 
 // --- 状态定义 ---
-const uploaderName = ref('')
 const title = ref('')
 const description = ref('')
 
@@ -282,12 +265,6 @@ const originUrl = ref('')
 // 改为文件列表：{ id, file, preview }
 const filesList = ref([])
 
-const uid = ref('')
-const uidHint = ref('')
-const uidAvatar = ref('')
-const uidExists = ref(false)
-const checkingUid = ref(false)
-
 // 授权状态拆分
 const netLicenses = ref([])
 const groupLicenses = ref([])
@@ -296,8 +273,6 @@ const msg = ref('')
 const isError = ref(false)
 const submitting = ref(false)
 const statusMsg = ref('提交中…')
-
-const uidHintClass = computed(() => uidHint.value.includes('✅') ? 'ok' : (uidHint.value.includes('❌') ? 'bad' : ''))
 
 // --- 方法 ---
 
@@ -377,37 +352,8 @@ function addTag(){
 function removeTag(t){ tags.value = tags.value.filter(x => x !== t) }
 function clearTags(){ tags.value = []; tagDraft.value = '' }
 
-async function checkUid(){
-  const u = uid.value.trim()
-  if(!u) return
-  checkingUid.value = true
-  uidHint.value = ''
-  uidAvatar.value = ''
-  uidExists.value = false
-  try{
-    const r = await api.verifyCreator(u)
-    if(r.exists){
-      uidExists.value = true
-      uidAvatar.value = r.creator?.avatar_url || ''
-      uidHint.value = '✅ 唯一ID存在'
-    }else{
-      uidExists.value = false
-      uidHint.value = '❌ 唯一ID不存在（请检查输入或联系管理员登记）'
-    }
-  }catch(e){
-    uidExists.value = false
-    uidHint.value = `检测失败：${e.message}`
-  }finally{
-    checkingUid.value = false
-  }
-}
-
 watch(sourceType, (v) => {
   if(v !== 'personal'){
-    uid.value = ''
-    uidHint.value = ''
-    uidAvatar.value = ''
-    uidExists.value = false
     netLicenses.value = []
     groupLicenses.value = []
   }
@@ -423,16 +369,9 @@ async function submit(){
     return
   }
 
-  if(sourceType.value === 'personal'){
-    const u = uid.value.trim()
-    if(!u){ msg.value = '个人作品必须填写唯一ID'; isError.value = true; return }
-    if(!uidExists.value){
-      await checkUid()
-      if(!uidExists.value){
-        msg.value = '唯一ID不存在，无法提交个人作品'; isError.value = true;
-        return
-      }
-    }
+  // 统一登录后投稿必须登录；身份/署名由后端按账号确定，前端不再自报 uid/显示名
+  if(!isLoggedIn.value){
+    msg.value = '请先登录后再投稿（右上角登录）'; isError.value = true; return
   }
 
   submitting.value = true
@@ -457,7 +396,6 @@ async function submit(){
       fd.append('originals', item.file)
     }
 
-    fd.append('uploader_name', uploaderName.value.trim())
     fd.append('title', title.value.trim())
     fd.append('description', description.value.trim())
     fd.append('tags', tags.value.join(' '))
@@ -466,8 +404,6 @@ async function submit(){
     fd.append('origin_url', originUrl.value.trim())
 
     if(sourceType.value === 'personal'){
-      fd.append('uploader_uid', uid.value.trim())
-      
       const combinedLicenses = [
         ...netLicenses.value.map(x => `NET:${x}`),
         ...groupLicenses.value.map(x => `GROUP:${x}`)
