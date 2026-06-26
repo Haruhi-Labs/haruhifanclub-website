@@ -2056,6 +2056,11 @@
   height: 0.7rem;
   background: var(--sos-border-default);
 }
+/* 底部行内链接（版权里的 Haruhi-Labs、备案号等）随版权文字同字号，
+ * 否则 .sos-footer__link 的 text-sm 会比版权行的 text-xs 大，行内忽大忽小。 */
+.sos-footer__bottom .sos-footer__link {
+  font-size: inherit;
+}
 
 /* 回到顶部：悬浮于页脚上沿居中 */
 .sos-footer__totop {
@@ -2107,6 +2112,10 @@
   }
   .sos-footer__bottom {
     margin-top: var(--sos-space-8);
+    /* 竖向堆叠：版权一行、右侧备案/声明另起一行，各 app 统一（不再依赖
+     * 各自 meta 文案宽度去触发 flex-wrap，避免「有的换行有的不换」）。 */
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
