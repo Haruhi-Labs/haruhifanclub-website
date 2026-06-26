@@ -91,8 +91,9 @@ function likeCount(item){
 function displayUploader(item){
   const uid = (item?.uploader_uid || '').trim()
   const name = (item?.uploader_name || '').trim()
-  if(uid) return uid
+  // 优先显示昵称快照；uid（统一账号下形如 u{id}）只作回退，避免作者名显示成 uXX
   if(name) return name
+  if(uid) return uid
   return '匿名'
 }
 
