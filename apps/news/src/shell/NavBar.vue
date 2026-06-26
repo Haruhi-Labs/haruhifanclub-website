@@ -48,7 +48,7 @@ const navLinks = [
         <span class="sos-brand-lockup__mark"><img :src="logoUrl" alt="" /></span>
         <span class="sos-brand-lockup__text">
           <strong>春日团报</strong>
-          <small>凉宫春日应援团 · 编辑部</small>
+          <small>凉宫春日应援团 · 文章中心</small>
         </span>
       </button>
 
