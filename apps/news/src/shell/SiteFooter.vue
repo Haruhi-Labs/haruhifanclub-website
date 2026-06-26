@@ -35,6 +35,14 @@ const groups = [
     ],
   },
   {
+    title: '游戏',
+    links: [
+      { label: '漫无止境的五月', href: 'https://crt.haruyuki.cn/', brand: '#a855f7' },
+      { label: '无尽八月模拟器', href: 'https://loop.haruyuki.cn/', brand: '#0ea5e9' },
+      { label: '射手座之日', href: 'https://star.haruyuki.cn/', brand: '#eab308' },
+    ],
+  },
+  {
     title: '加入我们',
     links: [
       { label: '团员手册', href: 'https://haruyuki.cn/news/handbook', brand: '#3b82f6' },
