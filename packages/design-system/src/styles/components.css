@@ -924,6 +924,16 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--sos-danger) 16%, transparent);
 }
 
+/* 移动端防止 iOS Safari 聚焦自动放大：当表单控件 font-size < 16px 时，iOS 聚焦会把整页放大，
+ * 体验很差。此处统一把移动端所有文本类表单控件字号兜到至少 16px。用 !important 压过各组件/
+ * scoped 的小字号（如 14px 的 .sos-input、画廊评论框、搜索框等），一处生效、无需逐处改；
+ * 不改 viewport，保留用户手动缩放能力（优于 user-scalable=no 的做法）。 */
+@media (max-width: 768px) {
+  .sos-scope :where(input, textarea, select):not([type='checkbox']):not([type='radio']):not([type='range']) {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
 /* Input with affix — 前后缀图标 / 单位 */
 .sos-input-affix {
   display: flex;
