@@ -19,10 +19,13 @@ function close() {
   open.value = false
 }
 
-// 抽屉内点击导航链接后自动收起（导航即关）
-function onClusterClick(e: MouseEvent) {
+// 抽屉内/页头内点击导航后自动收起：覆盖导航链接（<a>）与品牌区（logo，可能是 <a> 或 <button>）。
+// 不依赖 vue-router（SosAppbar 也用于无路由的设计系统展示页），统一在 bar 层用事件委托处理。
+// 汉堡按钮本身不在品牌区、也非 <a>，不会被误关；其展开/收起由自身 toggle 负责。
+function onBarClick(e: MouseEvent) {
   const t = e.target as HTMLElement | null
-  if (t && t.closest('a')) close()
+  if (!t) return
+  if (t.closest('a') || t.closest('.sos-appbar__brand')) close()
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -46,17 +49,18 @@ onBeforeUnmount(() => {
 
 <template>
   <component :is="as || 'header'" class="sos-appbar" :class="{ 'is-open': open }">
-    <div class="sos-appbar__inner">
+    <!-- 事件委托：点击品牌区或任意导航链接后自动收起抽屉，避免 open/锁滚带到新页面 -->
+    <div class="sos-appbar__inner" @click="onBarClick">
       <div class="sos-appbar__brand">
-        <slot name="brand" />
+        <slot name="brand" :close="close" />
       </div>
       <!-- 桌面内联、移动端整体变为右侧抽屉 -->
-      <div class="sos-appbar__cluster" @click="onClusterClick">
+      <div class="sos-appbar__cluster">
         <nav class="sos-appbar__nav">
-          <slot />
+          <slot :close="close" />
         </nav>
         <div class="sos-appbar__actions">
-          <slot name="actions" />
+          <slot name="actions" :close="close" />
         </div>
       </div>
       <button
