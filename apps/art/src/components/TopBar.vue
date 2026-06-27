@@ -1,5 +1,6 @@
 <script setup>
 import { useRoute } from 'vue-router'
+import { SosAppbar } from '@haruhi/ui'
 import { AccountMenu } from '@haruhi/auth-ui'
 import logoUrl from '../assets/logo.webp'
 
@@ -11,8 +12,8 @@ const isActive = (path) => {
 </script>
 
 <template>
-  <header class="sos-appbar art-appbar">
-    <div class="sos-appbar__inner">
+  <SosAppbar class="art-appbar">
+    <template #brand>
       <RouterLink to="/" class="sos-brand-lockup">
         <span class="sos-brand-lockup__mark">
           <img :src="logoUrl" alt="" />
@@ -22,23 +23,16 @@ const isActive = (path) => {
           <small>凉宫春日应援团 · 绘画部</small>
         </span>
       </RouterLink>
+    </template>
 
-      <div class="art-appbar__right">
-        <nav class="sos-navlinks">
-          <RouterLink class="sos-navlink" :class="{ 'sos-navlink--active': isActive('/') }" to="/">画廊</RouterLink>
-          <RouterLink class="sos-navlink" :class="{ 'sos-navlink--active': isActive('/upload') }" to="/upload">投稿</RouterLink>
-          <RouterLink class="sos-navlink" :class="{ 'sos-navlink--active': isActive('/points') }" to="/points">积分</RouterLink>
-        </nav>
-        <AccountMenu />
-      </div>
-    </div>
-  </header>
+    <nav class="sos-navlinks">
+      <RouterLink class="sos-navlink" :class="{ 'sos-navlink--active': isActive('/') }" to="/">画廊</RouterLink>
+      <RouterLink class="sos-navlink" :class="{ 'sos-navlink--active': isActive('/upload') }" to="/upload">投稿</RouterLink>
+      <RouterLink class="sos-navlink" :class="{ 'sos-navlink--active': isActive('/points') }" to="/points">积分</RouterLink>
+    </nav>
+
+    <template #actions>
+      <AccountMenu />
+    </template>
+  </SosAppbar>
 </template>
-
-<style scoped>
-.art-appbar__right {
-  display: flex;
-  align-items: center;
-  gap: var(--sos-space-3);
-}
-</style>

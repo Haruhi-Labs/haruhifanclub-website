@@ -309,6 +309,30 @@
   white-space: nowrap;
 }
 
+/* 移动端：当账号菜单落在统一页头的右侧抽屉里时，触发器占满整行、
+ * 昵称不再硬截断在 9rem、下拉面板贴合抽屉宽度（避免被截/溢出）。
+ * 仅作用于 .sos-appbar 抽屉内，console/shop 等其它位置的账号菜单不受影响。 */
+@media (max-width: 768px) {
+  .sos-appbar__actions .hauth-menu {
+    display: flex;
+    width: 100%;
+  }
+  .sos-appbar__actions .hauth-trigger {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .sos-appbar__actions .hauth-trigger__name {
+    max-width: none;
+    flex: 1;
+    min-width: 0;
+  }
+  .sos-appbar__actions .hauth-menu__panel {
+    left: 0;
+    right: 0;
+    min-width: 0;
+  }
+}
+
 /* ============================================================
    个人控制台（UserConsoleLayout）：侧边导航 + 内容区
    ============================================================ */

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
+import { SosAppbar } from '@haruhi/ui';
 import TheFooter from '@/components/TheFooter.vue';
 
 const route = useRoute();
@@ -17,9 +18,9 @@ const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`;
 
 <template>
   <div class="app-wrapper sos-scope" data-sos-site="exam">
-    <!-- 全局统一页头：SosAppbar 规范 + exam 主题，账号收进右侧 actions -->
-    <header v-if="showChrome" class="sos-appbar">
-      <div class="sos-appbar__inner">
+    <!-- 全局统一页头：SosAppbar 规范（含移动端汉堡 + 右侧抽屉），exam 主题 -->
+    <SosAppbar v-if="showChrome">
+      <template #brand>
         <RouterLink to="/" class="sos-brand-lockup">
           <span class="sos-brand-lockup__mark">
             <img :src="logoSrc" alt="" />
@@ -29,13 +30,11 @@ const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`;
             <small>凉宫春日应援团 · 开放试卷系统</small>
           </span>
         </RouterLink>
-        <div class="exam-appbar__right">
-          <nav class="sos-navlinks">
-            <RouterLink to="/create" class="sos-navlink">出题</RouterLink>
-          </nav>
-        </div>
-      </div>
-    </header>
+      </template>
+      <nav class="sos-navlinks">
+        <RouterLink to="/create" class="sos-navlink">出题</RouterLink>
+      </nav>
+    </SosAppbar>
 
     <!-- 主内容区：自动伸展 -->
     <div class="app-main">
@@ -80,12 +79,6 @@ const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`;
     'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
   --sos-scope-leading: 1.5;
   background: transparent; /* 让 HomeView 固定背景层/试卷木纹透出 */
-}
-
-.exam-appbar__right {
-  display: flex;
-  align-items: center;
-  gap: var(--sos-space-3);
 }
 
 .app-main {
