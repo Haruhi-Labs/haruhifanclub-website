@@ -1655,8 +1655,18 @@
   gap: var(--sos-space-5);
   min-height: var(--sos-header-height);
   padding-inline: var(--sos-page-gutter);
-  background: color-mix(in srgb, var(--sos-bg-page) 82%, transparent);
   border-bottom: 1px solid var(--sos-border-subtle);
+}
+/* 磨砂背景下沉到伪元素：backdrop-filter/filter/transform 若挂在 .sos-appbar 本身，
+ * 会成为其内部 position:fixed 抽屉/遮罩的“包含块”，使它们被限制在 header 盒子内
+ * （表现为只有 header 变灰、遮罩盖不住下方也点不到、Safari 顶栏被染色）。
+ * 放到 ::before 后 header 自身不再创建包含块，遮罩/抽屉才能正确相对视口定位。 */
+.sos-appbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in srgb, var(--sos-bg-page) 82%, transparent);
   backdrop-filter: saturate(1.4) blur(12px);
   -webkit-backdrop-filter: saturate(1.4) blur(12px);
 }
@@ -1732,11 +1742,12 @@
 .sos-appbar.is-open .sos-appbar__burger-bars { background: transparent; }
 .sos-appbar.is-open .sos-appbar__burger-bars::before { top: 0; transform: rotate(45deg); }
 .sos-appbar.is-open .sos-appbar__burger-bars::after { top: 0; transform: rotate(-45deg); }
-/* 遮罩：移动端抽屉打开时铺满视口，点击关闭 */
+/* 遮罩：移动端抽屉打开时铺满 header 下方区域，点击关闭。
+ * 从 header 高度处起（top=header-height），让顶部 header 保持明亮、不被染灰。 */
 .sos-appbar__scrim {
   display: none;
   position: fixed;
-  inset: 0;
+  inset: var(--sos-header-height) 0 0 0;
   z-index: 1; /* 在 inner(z2) 之下、页面内容之上（受 header 层叠上下文约束） */
   background: rgba(0, 0, 0, 0.45);
   opacity: 0;

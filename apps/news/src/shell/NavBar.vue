@@ -89,9 +89,11 @@ const navLinks = [
   top: 0;
   left: 0;
   right: 0;
-  background: transparent;
   border-bottom-color: transparent;
-  backdrop-filter: none;
+}
+/* 磨砂背景在 ::before 上，叠加态需隐藏它以透出深色 hero */
+.news-appbar--overlay::before {
+  display: none;
 }
 .news-appbar--overlay .sos-brand-lockup__text > strong,
 .news-appbar--overlay .sos-brand-lockup__text > small,
