@@ -1,9 +1,9 @@
 <template>
-  <div class="quiz-page-container">
+  <div class="quiz-page-container" :style="bgStyle">
     <!-- 独立的页头 -->
     <header class="quiz-header">
       <!-- Logo：已经改为 webp -->
-      <img src="/haruhi-logo-192.webp" alt="Logo" class="header-logo-img">
+      <img :src="logoSrc" alt="Logo" class="header-logo-img">
 
       <span class="header-title">超~简单的凉宫入坑小测试</span>
     </header>
@@ -29,7 +29,7 @@
         <!-- 2. 答题页 -->
         <div v-else-if="currentStage === 'quiz'" key="quiz" class="card">
           <!-- 摇摆的贴纸（改为 webp） -->
-          <img src="/quiz/konata.webp" class="konata-sticker" alt="Konata">
+          <img :src="konataSrc" class="konata-sticker" alt="Konata">
 
           <div class="progress-container">
             <div class="progress-bar" :style="{ width: progressPercentage + '%' }"></div>
@@ -131,20 +131,31 @@ const isCurrentCorrect = ref(false);
 const showModal = ref(false);
 const modalImage = ref('');
 
-// --- 资源路径处理：自动把 png/jpg 转成 .webp ---
+// 应用部署在子路径（如 /news/），public 资源必须带上 base 才能正确解析，
+// 否则 /quiz/x.webp 会被当成站点根路径而 404。
+const base = import.meta.env.BASE_URL;
+
+// 页头 logo + konata 贴纸（public 根目录 / quiz 目录下）
+const logoSrc = `${base}haruhi-logo-192.webp`;
+const konataSrc = `${base}quiz/konata.webp`;
+
+// 背景图：桌面/移动各一张，经 JS 注入为内联 CSS 变量，避免在 scoped CSS 里写死缺 base 的绝对路径
+const bgStyle = {
+  '--bg-image-desktop': `url(${base}quiz/R-C.webp)`,
+  '--bg-image-mobile': `url(${base}quiz/20200805165343_kjmwd.webp)`,
+};
+
+// --- 资源路径处理：自动把 png/jpg 转成 .webp，并统一补上应用 base ---
 const formatImgPath = (filename) => {
   if (!filename) return '';
 
   // 外链直接返回
   if (filename.startsWith('http')) return filename;
 
-  // 以 / 开头：认为是 public 根路径
-  if (filename.startsWith('/')) {
-    return filename.replace(/\.(png|jpe?g)$/i, '.webp');
-  }
-
-  // 默认认为在 /quiz 下
-  return `/quiz/${filename}`.replace(/\.(png|jpe?g)$/i, '.webp');
+  const webp = filename.replace(/\.(png|jpe?g)$/i, '.webp');
+  // 以 / 开头视作 public 根路径；否则默认在 quiz 目录下。两种都补上 base（/news/）。
+  const rel = webp.startsWith('/') ? webp.slice(1) : `quiz/${webp}`;
+  return `${base}${rel}`;
 };
 
 // --- 题目数据（保持原来的 .png 命名不动） ---
@@ -341,8 +352,8 @@ const closeModal = () => {
 
 /* 定义变量 */
 .quiz-page-container {
-  /* 背景图改为 webp */
-  --bg-image: url('/quiz/R-C.webp');
+  /* 背景图由 JS 注入 --bg-image-desktop（含正确 base），避免在 CSS 写死缺 base 的绝对路径 */
+  --bg-image: var(--bg-image-desktop);
   --glass-bg: rgba(255, 255, 255, 0.85);
   --glass-border: rgba(255, 255, 255, 0.6);
   --header-bg: rgba(255, 255, 255, 0.6);
@@ -732,8 +743,8 @@ p {
   .option-item { padding: 15px; font-size: 0.95rem; }
   .question-img { max-height: 200px; }
   .quiz-page-container {
-    /* 移动端背景图：已经改为 webp */
-    --bg-image: url('/quiz/20200805165343_kjmwd.webp');
+    /* 移动端背景图由 JS 注入 --bg-image-mobile（含正确 base） */
+    --bg-image: var(--bg-image-mobile);
   }
 }
 </style>
