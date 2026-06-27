@@ -50,7 +50,7 @@
             </svg>
           </div>
           <div class="banner-logo-wrapper">
-            <img src="/春日团报白.png" alt="春日团报 Logo" class="banner-logo-img" />
+            <img :src="bannerLogo" alt="春日团报 Logo" class="banner-logo-img" />
           </div>
         </div>
 
@@ -120,6 +120,9 @@ import NewsCard from '@/features/blog/components/NewsCard.vue'
 
 const route = useRoute()
 const store = useMainStore()
+
+// public 资源需带应用 base（/news/），否则绝对路径 /春日团报白.png 会 404
+const bannerLogo = `${import.meta.env.BASE_URL}春日团报白.png`
 
 // 当前页码（从 1 开始）
 const pageNum = ref(1)

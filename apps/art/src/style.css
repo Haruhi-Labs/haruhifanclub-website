@@ -101,7 +101,9 @@ body {
      替代原来的运行时 CSS filter：观感一致，但省掉全屏实时滤镜与 4K 解码。
      换背景图时重新生成：
      ffmpeg -i bg.webp -vf "scale=1920:-1,gblur=sigma=8,eq=saturation=1.2,colorchannelmixer=rr=1.1:gg=1.1:bb=1.1" -c:v libwebp -q:v 82 bg-blur.webp */
-  background-image: url('/bg-blur.webp');
+  /* 纯 CSS 无法读 import.meta.env，须显式带上 art 的部署 base（/art/），
+     否则 /bg-blur.webp 会被当成站点根路径而 404（public 资源实际在 /art/ 下）。 */
+  background-image: url('/art/bg-blur.webp');
   /* ---------------------- */
   background-size: cover;
   background-position: center;
