@@ -103,7 +103,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, defineAsyncComponent } from 'vue';
+import { ref, computed, onMounted, watch, provide, defineAsyncComponent } from 'vue';
 import { useMainStore } from '@/stores/main';
 import { createAdminAuth, hasScope } from '@haruhi/api-client';
 
@@ -112,6 +112,8 @@ const store = useMainStore();
 // 后台壳自行持有一个 createAdminAuth('news')，用于在登录/会话恢复后拿当前用户对象（含 apps）算可见 tab。
 const admin = createAdminAuth('news');
 const currentUser = ref(null);
+// 下发当前用户给各 tab（如 RedemptionAdmin 据此判断是否有 Manage 权限），避免只读角色进入必失败的操作。
+provide('adminUser', currentUser);
 
 const username = ref('');
 const password = ref('');
@@ -122,6 +124,7 @@ const loginLoading = ref(false);
 // 每个 tab：key / label / 需要的 RBAC 子作用域 / 异步组件 / 额外按钮样式 class / 传给组件的 mode
 const ActivityAdmin = defineAsyncComponent(() => import('@/features/activity/admin/ActivityAdmin.vue'));
 const PrizeAdmin = defineAsyncComponent(() => import('@/features/store/admin/PrizeAdmin.vue'));
+const RedemptionAdmin = defineAsyncComponent(() => import('@/features/store/admin/RedemptionAdmin.vue'));
 const ArticleAdmin = defineAsyncComponent(() => import('@/features/blog/admin/ArticleAdmin.vue'));
 const GeneratorAdmin = defineAsyncComponent(() => import('@/features/blog/admin/GeneratorAdmin.vue'));
 const PointsAdmin = defineAsyncComponent(() => import('@/features/points/admin/PointsAdmin.vue'));
@@ -129,6 +132,7 @@ const PointsAdmin = defineAsyncComponent(() => import('@/features/points/admin/P
 const TABS = [
     { key: 'activities', label: '活动管理', scope: 'news.activity', comp: ActivityAdmin },
     { key: 'prizes', label: '奖品管理', scope: 'news.store', comp: PrizeAdmin },
+    { key: 'redemptions', label: '兑换发放', scope: 'news.store', comp: RedemptionAdmin },
     { key: 'pending', label: '待审核', scope: 'news.blog', comp: ArticleAdmin, mode: 'pending', btnClass: 'tab-btn-relative' },
     { key: 'published', label: '已发布内容', scope: 'news.blog', comp: ArticleAdmin, mode: 'published' },
     { key: 'points', label: '积分管理', scope: 'news.points', comp: PointsAdmin },

@@ -36,7 +36,6 @@ pub fn router() -> Router<AppState> {
         .route("/cleanup", post(cleanup))
         // ---- 试卷（公开 + edit_token）----
         .route("/exams", get(list_exams).post(create_exam))
-        .route("/claim", post(claim_exam))
         // import 必须在 /exams/{id} 之前注册（与旧注释一致；axum 静态段优先，仍保留次序）
         .route("/exams/import", post(import_exam))
         .route("/exams/{id}", get(get_exam).put(update_exam))
@@ -598,11 +597,9 @@ async fn list_exams(
 // POST /exams（公开，创建 → pending + 异步审核，返回 edit_token）
 async fn create_exam(
     State(state): State<AppState>,
-    user: AuthUser,
     Json(body): Json<Value>,
 ) -> AppResult<Response> {
-    // 创建试卷改为必须登录 + 邮箱已验证（取代半匿名）
-    crate::auth_routes::require_verified_member(&state.pools.core, &user).await?;
+    // 试卷站独立于用户系统：匿名创建，凭返回的 edit_token 编辑（author_user_id 留空）
     let config = body.get("config").cloned().unwrap_or(json!({}));
     let questions = body.get("questions").cloned().unwrap_or(json!([]));
     let levels = body.get("levels").cloned().unwrap_or(json!([]));
@@ -633,7 +630,7 @@ async fn create_exam(
     .bind(serde_json::to_string(&levels).unwrap_or_else(|_| "[]".into()))
     .bind("pending")
     .bind(&edit_token)
-    .bind(user.id)
+    .bind(None::<i64>)
     .execute(&state.pools.exam)
     .await?;
 
@@ -643,40 +640,11 @@ async fn create_exam(
     Ok(Json(json!({ "id": id, "editToken": edit_token, "message": "提交成功" })).into_response())
 }
 
-// POST /claim：持 edit_token 的用户把历史匿名试卷认领到本人名下
-async fn claim_exam(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Json(body): Json<Value>,
-) -> AppResult<Json<Value>> {
-    let token = body
-        .get("editToken")
-        .or_else(|| body.get("edit_token"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .trim()
-        .to_string();
-    if token.is_empty() {
-        return Err(haruhi_core::AppError::bad_request("缺少 editToken"));
-    }
-    let n = sqlx::query(
-        "UPDATE exams SET author_user_id = ? WHERE edit_token = ? AND author_user_id IS NULL",
-    )
-    .bind(user.id)
-    .bind(&token)
-    .execute(&state.pools.exam)
-    .await?
-    .rows_affected();
-    Ok(Json(json!({ "ok": true, "claimed": n })))
-}
-
-// POST /exams/import（导入：必须登录 + 邮箱已验证）
+// POST /exams/import（导入：试卷站匿名导入，凭返回的 edit_token 编辑）
 async fn import_exam(
     State(state): State<AppState>,
-    user: AuthUser,
     Json(body): Json<Value>,
 ) -> AppResult<Response> {
-    crate::auth_routes::require_verified_member(&state.pools.core, &user).await?;
     let errors = validate_exam_data(&body);
     if !errors.is_empty() {
         return Ok((
@@ -735,7 +703,7 @@ async fn import_exam(
     .bind(serde_json::to_string(&levels).unwrap_or_else(|_| "[]".into()))
     .bind("pending")
     .bind(&edit_token)
-    .bind(user.id)
+    .bind(None::<i64>)
     .execute(&state.pools.exam)
     .await?;
 

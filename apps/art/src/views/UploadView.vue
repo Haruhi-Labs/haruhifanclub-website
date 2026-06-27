@@ -67,43 +67,24 @@
             </div>
           </div>
 
-          <!-- 个人作品专属逻辑 -->
-          <transition name="fade-slide">
-            <div v-if="sourceType==='personal'" class="conditional-block">
-              <div class="form-group">
-                <label class="form-label">创作者唯一ID <span class="req">*</span></label>
-                <div class="input-with-action">
-                  <input class="form-input" v-model="uid" placeholder="请输入你的唯一ID" />
-                  <button class="action-btn" type="button" @click="checkUid" :disabled="checkingUid || !uid.trim()" data-sfx="click">
-                    {{ checkingUid ? '检测中…' : '检测' }}
-                  </button>
-                </div>
-                
-                <!-- UID 状态反馈 -->
-                <div class="uid-feedback" v-if="uidHint">
-                  <div class="status-badge" :class="uidHintClass">
-                    {{ uidHint }}
-                  </div>
-                  <img v-if="uidAvatar" class="creator-avatar" :src="uidAvatar" alt="Avatar" />
-                </div>
-
-                <div class="info-card">
-                  <p>进行创作者注册才能获取唯一ID，并允许上传个人作品哦！</p>
-                  <p class="sub-info">可加入绘画部联系 <strong>律纪</strong> 或 <strong>阿笑</strong> 成为创作者🥰～<br>绘画部群号：627992968，阿笑QQ：2452812504，律纪QQ：3105285630<br>进行创作者注册主要是为了避免冒领身份和过滤AI作品</p>
-                </div>
-              </div>
+          <div class="form-group">
+            <label class="form-label">作者署名</label>
+            <input
+              v-if="isLoggedIn"
+              class="form-input"
+              :value="authorName || '请先在「个人中心 → 资料」填写昵称'"
+              readonly
+            />
+            <div v-else class="upload-login-hint">
+              <span>登录后将以你的账号昵称署名，登录返回后会保留已填写内容。</span>
+              <button type="button" class="action-btn" @click="goLogin" data-sfx="click">登录 / 注册</button>
             </div>
-          </transition>
+            <p class="form-hint warning">作品作者身份由当前登录账号确定，前端不再手动填写或校验 UID。</p>
+          </div>
 
           <!-- 网络图片专属逻辑 -->
           <transition name="fade-slide">
             <div v-if="sourceType==='network'" class="conditional-block">
-              <div class="form-group" style="margin-bottom: 24px;">
-                <label class="form-label">上传账号昵称 <span class="req">*</span></label>
-                <input class="form-input" :value="sessionUploaderName" placeholder="当前账号昵称加载中" readonly />
-                <p class="form-hint warning">网络转载与其他来源将强制使用当前登录账号昵称，禁止手动伪造来源身份。</p>
-              </div>
-
               <div class="form-group">
                 <label class="form-label">网络图片来源链接 <span class="opt">（可选）</span></label>
                 <input class="form-input" v-model="originUrl" placeholder="https://..." />
@@ -258,9 +239,9 @@
             <div v-if="msg" class="message-box" :class="{ error: isError, success: !isError }">
               {{ msg }}
             </div>
-            <button class="submit-btn" :disabled="submitting || filesList.length === 0" data-sfx="click">
+            <button class="submit-btn" :disabled="submitting || (isLoggedIn && filesList.length === 0)" data-sfx="click">
               <span v-if="submitting" class="spinner"></span>
-              {{ submitting ? statusMsg : '🚀 确认并提交' }}
+              {{ submitButtonLabel }}
             </button>
           </div>
         </section>
@@ -270,13 +251,23 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { api } from '../services/api' 
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { api } from '../services/api'
 import { compressToWebP } from '../utils/imageCompressor.js'
 import { useSession } from '@haruhi/auth-ui'
+import { saveUploadDraft, takeUploadDraft, clearUploadDraft } from '../composables/uploadDraft.js'
 import { seedArtworks } from '../mock/seedData.js'
 
+const router = useRouter()
+const route = useRoute()
 const session = useSession('/api')
+const authorName = computed(() => session.state.user?.nickname || '')
+const isLoggedIn = computed(() => !!session.state.user)
+
+function goLogin() {
+  router.push({ path: '/login', query: { redirect: route.fullPath } })
+}
 
 // --- 常量定义 ---
 const NET_LICENSE_OPTIONS = [
@@ -293,7 +284,6 @@ const GROUP_LICENSE_OPTIONS = [
 ]
 
 // --- 状态定义 ---
-const uploaderName = ref('')
 const title = ref('')
 const description = ref('')
 
@@ -308,12 +298,6 @@ const originUrl = ref('')
 // 改为文件列表：{ id, file, preview }
 const filesList = ref([])
 
-const uid = ref('')
-const uidHint = ref('')
-const uidAvatar = ref('')
-const uidExists = ref(false)
-const checkingUid = ref(false)
-
 // 授权状态拆分
 const netLicenses = ref([])
 const groupLicenses = ref([])
@@ -323,7 +307,11 @@ const isError = ref(false)
 const submitting = ref(false)
 const statusMsg = ref('提交中…')
 
-const uidHintClass = computed(() => uidHint.value.includes('✅') ? 'ok' : (uidHint.value.includes('❌') ? 'bad' : ''))
+const submitButtonLabel = computed(() => {
+  if (submitting.value) return statusMsg.value
+  if (!isLoggedIn.value) return '登录后提交作品'
+  return '🚀 确认并提交'
+})
 
 const galleryTagStats = computed(() => {
   const counts = new Map()
@@ -349,29 +337,49 @@ const suggestedTags = computed(() => {
     .slice(0, 8)
 })
 
-const sessionUploaderName = computed(() => {
-  const currentUser = session.state.user
-  if (!currentUser) return ''
-  return currentUser.nickname || currentUser.displayName || currentUser.username || currentUser.email || (currentUser.id ? `用户${currentUser.id}` : '')
+onMounted(() => {
+  if (!session.state.ready) session.refresh()
+  const draft = takeUploadDraft()
+  if (!draft) return
+
+  title.value = draft.title || ''
+  description.value = draft.description || ''
+  tags.value = Array.isArray(draft.tags) ? [...draft.tags] : []
+  sourceType.value = draft.sourceType || 'personal'
+  contentType.value = draft.contentType || 'haruhi'
+  originUrl.value = draft.originUrl || ''
+  netLicenses.value = Array.isArray(draft.netLicenses) ? [...draft.netLicenses] : []
+  groupLicenses.value = Array.isArray(draft.groupLicenses) ? [...draft.groupLicenses] : []
+  filesList.value = Array.isArray(draft.filesList) ? draft.filesList : []
 })
 
-function sessionMemberUid(currentUser = session.state.user) {
-  return currentUser?.id ? `u${currentUser.id}` : ''
-}
+onBeforeUnmount(() => {
+  const hasContent =
+    title.value.trim() ||
+    description.value.trim() ||
+    tags.value.length ||
+    filesList.value.length ||
+    originUrl.value.trim() ||
+    netLicenses.value.length ||
+    groupLicenses.value.length
 
-watch(() => session.state.user, (currentUser) => {
-  if (!currentUser) return
-  if (!uploaderName.value.trim()) {
-    uploaderName.value = sessionUploaderName.value
+  if (!hasContent) {
+    clearUploadDraft()
+    return
   }
 
-  if (!uid.value.trim()) {
-    uid.value = sessionMemberUid(currentUser)
-    uidExists.value = Boolean(uid.value)
-    uidHint.value = uid.value ? '已使用当前登录账号身份' : ''
-    uidAvatar.value = currentUser.avatar || ''
-  }
-}, { immediate: true })
+  saveUploadDraft({
+    title: title.value,
+    description: description.value,
+    tags: [...tags.value],
+    sourceType: sourceType.value,
+    contentType: contentType.value,
+    originUrl: originUrl.value,
+    netLicenses: [...netLicenses.value],
+    groupLicenses: [...groupLicenses.value],
+    filesList: filesList.value
+  })
+})
 
 // --- 方法 ---
 
@@ -461,75 +469,26 @@ function hideTagSuggestions(){
   }, 120)
 }
 
-async function checkUid(){
-  const u = uid.value.trim()
-  if(!u) return
-  checkingUid.value = true
-  uidHint.value = ''
-  uidAvatar.value = ''
-  uidExists.value = false
-  try{
-    const r = await api.verifyCreator(u)
-    if(r.exists){
-      uidExists.value = true
-      uidAvatar.value = r.creator?.avatar_url || ''
-      uidHint.value = '✅ 唯一ID存在'
-    }else{
-      uidExists.value = false
-      uidHint.value = '❌ 唯一ID不存在（请检查输入或联系管理员登记）'
-    }
-  }catch(e){
-    uidExists.value = false
-    uidHint.value = `检测失败：${e.message}`
-  }finally{
-    checkingUid.value = false
-  }
-}
-
 watch(sourceType, (v) => {
   if(v !== 'personal'){
-    uid.value = ''
-    uidHint.value = ''
-    uidAvatar.value = ''
-    uidExists.value = false
     netLicenses.value = []
     groupLicenses.value = []
-  } else if (!uid.value.trim()) {
-    uid.value = sessionMemberUid()
-    uidExists.value = Boolean(uid.value)
-    uidHint.value = uid.value ? '已使用当前登录账号身份' : ''
-    uidAvatar.value = session.state.user?.avatar || ''
   }
 })
 
 async function submit(){
   msg.value = ''
   isError.value = false
-  
+
+  if(!isLoggedIn.value){
+    goLogin()
+    return
+  }
+
   if(filesList.value.length === 0){ msg.value = '请至少选择一张图片'; isError.value = true; return }
   if(!title.value.trim()){
     msg.value = '作品名称为必填'; isError.value = true;
     return
-  }
-
-  const accountUploaderName = sessionUploaderName.value.trim()
-  if(!accountUploaderName){
-    msg.value = '请先登录或完善当前账号昵称后再上传'
-    isError.value = true
-    return
-  }
-
-  if(sourceType.value === 'personal'){
-    const u = sessionMemberUid()
-    if(!u){ msg.value = '个人作品必须填写唯一ID'; isError.value = true; return }
-    if(!uidExists.value){
-      uid.value = u
-      uidExists.value = true
-      if(!uidExists.value){
-        msg.value = '唯一ID不存在，无法提交个人作品'; isError.value = true;
-        return
-      }
-    }
   }
 
   submitting.value = true
@@ -554,7 +513,6 @@ async function submit(){
       fd.append('originals', item.file)
     }
 
-    fd.append('uploader_name', accountUploaderName)
     fd.append('title', title.value.trim())
     fd.append('description', description.value.trim())
     fd.append('tags', tags.value.join(' '))
@@ -563,8 +521,6 @@ async function submit(){
     fd.append('origin_url', originUrl.value.trim())
 
     if(sourceType.value === 'personal'){
-      fd.append('uploader_uid', sessionMemberUid())
-      
       const combinedLicenses = [
         ...netLicenses.value.map(x => `NET:${x}`),
         ...groupLicenses.value.map(x => `GROUP:${x}`)
@@ -602,6 +558,7 @@ async function submit(){
     clearTags()
     netLicenses.value = []
     groupLicenses.value = []
+    clearUploadDraft()
   }catch(e){
     msg.value = `提交失败：${e.message}`
     isError.value = true
@@ -802,6 +759,25 @@ async function submit(){
 }
 .form-hint.warning { color: var(--sos-warning); }
 .form-hint.center { text-align: center; }
+
+.upload-login-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg-input);
+  border: 1px dashed var(--sos-border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-sub);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.upload-login-hint > span {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
 
 /* Segment Control */
 .segment-control {

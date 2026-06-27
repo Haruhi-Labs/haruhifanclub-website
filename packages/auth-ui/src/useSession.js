@@ -78,6 +78,18 @@ export function useSession(apiBase = '/api') {
     return state.user
   }
 
+  // 上传头像（File/Blob）：成功后写回登录态，各处头像即时刷新
+  async function uploadAvatar(file) {
+    state.user = await a.uploadAvatar(file)
+    return state.user
+  }
+
+  // 移除头像：成功后写回登录态
+  async function removeAvatar() {
+    state.user = await a.removeAvatar()
+    return state.user
+  }
+
   // 通行密钥登录：成功后写回登录态
   async function loginPasskey(opts) {
     state.user = await a.loginPasskey(opts)
@@ -96,6 +108,8 @@ export function useSession(apiBase = '/api') {
     register,
     logout,
     updateProfile,
+    uploadAvatar,
+    removeAvatar,
     loginPasskey,
     // 直通后端账号端点
     forgotPassword: (email) => a.forgotPassword(email),

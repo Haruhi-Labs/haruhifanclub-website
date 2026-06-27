@@ -42,9 +42,16 @@
   background: color-mix(in srgb, var(--sos-signal) 38%, transparent);
 }
 
-/* 统一焦点表达：仅键盘可见 */
+/* 统一焦点表达：仅键盘可见。
+ * 注意：故意不含 input/textarea/select —— 它们的焦点环已由各自组件负责：
+ *   · 独立输入框：.sos-input/.sos-textarea/.sos-select 的 :focus（描边 + 单层环）；
+ *   · 带边框的包装器（.sos-search/.sos-input-affix 及各 app 的搜索/评论包装器）：
+ *     由外层 :focus-within 统一出环。
+ * 若在此再给内部裸 input 套一层全局环，会与外层包装器叠成「双重边框 / 发光内边界」，
+ * 也迫使每个包装器都得手动 box-shadow:none 去抵消（设计系统内耗）。故此处只覆盖
+ * 按钮/链接等自身无焦点态的通用可聚焦元素；裸 input 回退浏览器原生轮廓兜底。 */
 .sos-focusable:focus-visible,
-.sos-scope :where(button, a, input, textarea, select, summary, [tabindex]):focus-visible {
+.sos-scope :where(button, a, summary, [tabindex]):focus-visible {
   outline: none;
   box-shadow: var(--sos-ring);
   border-radius: var(--sos-radius-sm);
@@ -917,6 +924,16 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--sos-danger) 16%, transparent);
 }
 
+/* 移动端防止 iOS Safari 聚焦自动放大：当表单控件 font-size < 16px 时，iOS 聚焦会把整页放大，
+ * 体验很差。此处统一把移动端所有文本类表单控件字号兜到至少 16px。用 !important 压过各组件/
+ * scoped 的小字号（如 14px 的 .sos-input、画廊评论框、搜索框等），一处生效、无需逐处改；
+ * 不改 viewport，保留用户手动缩放能力（优于 user-scalable=no 的做法）。 */
+@media (max-width: 768px) {
+  .sos-scope :where(input, textarea, select):not([type='checkbox']):not([type='radio']):not([type='range']) {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
 /* Input with affix — 前后缀图标 / 单位 */
 .sos-input-affix {
   display: flex;
@@ -1653,20 +1670,157 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sos-space-5);
-  min-height: 4rem;
+  min-height: var(--sos-header-height);
   padding-inline: var(--sos-page-gutter);
-  background: color-mix(in srgb, var(--sos-bg-page) 82%, transparent);
   border-bottom: 1px solid var(--sos-border-subtle);
+}
+/* 磨砂背景下沉到伪元素：backdrop-filter/filter/transform 若挂在 .sos-appbar 本身，
+ * 会成为其内部 position:fixed 抽屉/遮罩的“包含块”，使它们被限制在 header 盒子内
+ * （表现为只有 header 变灰、遮罩盖不住下方也点不到、Safari 顶栏被染色）。
+ * 放到 ::before 后 header 自身不再创建包含块，遮罩/抽屉才能正确相对视口定位。 */
+.sos-appbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in srgb, var(--sos-bg-page) 82%, transparent);
   backdrop-filter: saturate(1.4) blur(12px);
   -webkit-backdrop-filter: saturate(1.4) blur(12px);
 }
 .sos-appbar__inner {
+  position: relative; /* 建立层叠上下文，使 bar 内容压在抽屉遮罩之上 */
+  z-index: 2;
   width: min(var(--sos-container-wide), 100%);
   margin-inline: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sos-space-5);
+  gap: var(--sos-space-4);
+  min-width: 0; /* 允许内部收缩，避免长文本撑破/换行 */
+}
+/* 品牌锁头不收缩 */
+.sos-appbar__brand {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 0;
+}
+/* 导航 + 操作的聚合容器：桌面内联占据剩余空间；移动端整体变为右侧抽屉 */
+.sos-appbar__cluster {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sos-space-4);
+  min-width: 0;
+}
+.sos-appbar__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-1);
+  min-width: 0;
+}
+.sos-appbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  flex-shrink: 0;
+}
+/* 汉堡按钮：桌面隐藏，移动端显示；用三道横线画，开启时变 ✕ */
+.sos-appbar__burger {
+  display: none;
+  position: relative;
+  z-index: 4; /* 高于抽屉，开启后 ✕ 仍可点 */
+  flex-shrink: 0;
+  width: var(--sos-control-md);
+  height: var(--sos-control-md);
+  border: 1px solid var(--sos-border-default);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-primary);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+.sos-appbar__burger-bars,
+.sos-appbar__burger-bars::before,
+.sos-appbar__burger-bars::after {
+  content: '';
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentcolor;
+  transition: transform var(--sos-duration-base), opacity var(--sos-duration-base);
+}
+.sos-appbar__burger-bars { position: relative; }
+.sos-appbar__burger-bars::before { position: absolute; top: -6px; }
+.sos-appbar__burger-bars::after { position: absolute; top: 6px; }
+.sos-appbar.is-open .sos-appbar__burger-bars { background: transparent; }
+.sos-appbar.is-open .sos-appbar__burger-bars::before { top: 0; transform: rotate(45deg); }
+.sos-appbar.is-open .sos-appbar__burger-bars::after { top: 0; transform: rotate(-45deg); }
+/* 遮罩：移动端抽屉打开时铺满 header 下方区域，点击关闭。
+ * 从 header 高度处起（top=header-height），让顶部 header 保持明亮、不被染灰。 */
+.sos-appbar__scrim {
+  display: none;
+  position: fixed;
+  inset: var(--sos-header-height) 0 0 0;
+  z-index: 1; /* 在 inner(z2) 之下、页面内容之上（受 header 层叠上下文约束） */
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--sos-duration-base);
+}
+
+/* ---- 移动端（≤768px）：导航聚合容器化为右侧滑入抽屉 ---- */
+@media (max-width: 768px) {
+  .sos-appbar__burger { display: inline-flex; }
+  .sos-appbar__cluster {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 3; /* 高于遮罩(1)，低于汉堡(4)；均在 header 上下文内 */
+    height: 100dvh;
+    width: var(--sos-drawer-width);
+    flex: none;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: var(--sos-space-2);
+    padding: calc(var(--sos-header-height) + var(--sos-space-3)) var(--sos-space-4)
+      var(--sos-space-6);
+    background: var(--sos-bg-page);
+    border-left: 1px solid var(--sos-border-subtle);
+    box-shadow: -16px 0 40px rgba(0, 0, 0, 0.18);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    transform: translateX(100%);
+    transition: transform var(--sos-duration-slow, 0.28s) ease;
+  }
+  .sos-appbar.is-open .sos-appbar__cluster { transform: translateX(0); }
+  .sos-appbar__nav,
+  .sos-appbar__nav .sos-navlinks {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: var(--sos-space-1);
+  }
+  /* 抽屉内导航项铺满、加大点击区 */
+  .sos-appbar__nav .sos-navlink {
+    width: 100%;
+    padding: var(--sos-space-3);
+    font-size: var(--sos-text-base);
+  }
+  .sos-appbar__actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sos-space-2);
+    margin-top: auto;
+    padding-top: var(--sos-space-4);
+    border-top: 1px solid var(--sos-border-subtle);
+  }
+  .sos-appbar__scrim { display: block; }
+  .sos-appbar.is-open .sos-appbar__scrim { opacity: 1; pointer-events: auto; }
 }
 .sos-navlinks {
   display: flex;
@@ -2056,6 +2210,11 @@
   height: 0.7rem;
   background: var(--sos-border-default);
 }
+/* 底部行内链接（版权里的 Haruhi-Labs、备案号等）随版权文字同字号，
+ * 否则 .sos-footer__link 的 text-sm 会比版权行的 text-xs 大，行内忽大忽小。 */
+.sos-footer__bottom .sos-footer__link {
+  font-size: inherit;
+}
 
 /* 回到顶部：悬浮于页脚上沿居中 */
 .sos-footer__totop {
@@ -2107,6 +2266,10 @@
   }
   .sos-footer__bottom {
     margin-top: var(--sos-space-8);
+    /* 竖向堆叠：版权一行、右侧备案/声明另起一行，各 app 统一（不再依赖
+     * 各自 meta 文案宽度去触发 flex-wrap，避免「有的换行有的不换」）。 */
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

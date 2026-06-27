@@ -1,7 +1,6 @@
 <script setup>
 import { computed } from 'vue'
 import { thumbUrl } from '../services/api.js'
-import { useSession } from '@haruhi/auth-ui'
 // import { useRouter } from 'vue-router' // No longer needed for author navigation
 
 const props = defineProps({
@@ -31,8 +30,6 @@ const emit = defineEmits([
 ])
 
 // const router = useRouter() 
-const session = useSession('/api')
-
 const list = computed(() => {
   return props.items ?? props.artworks ?? props.list ?? props.data ?? []
 })
@@ -93,9 +90,10 @@ function likeCount(item){
 function displayUploader(item){
   const uid = (item?.uploader_uid || '').trim()
   const name = (item?.uploader_name || '').trim()
+  // 优先显示作品自身的昵称快照；uid 只作回退，避免把当前登录人误显示为作者。
   if(name) return name
   if(uid) return uid
-  return session.state.user?.nickname || session.state.user?.email || '匿名'
+  return '匿名'
 }
 
 function isAuthorClickable(item){
@@ -347,23 +345,19 @@ onBeforeUnmount(() => {
 ========================= */
 .gallery {
   --bg-deep: #525289; 
-  --glass-bg: rgba(30, 21, 21, 0.694);
-  --glass-border: rgba(151, 68, 68, 0.1);
-  
-  /* 弃用电光 neon，改取 art 表达的青绿 / 粉柔光（在暗底上提亮以保证可读） */
-  --neon-cyan: color-mix(in srgb, var(--sos-accent) 48%, white);
-  --neon-purple: color-mix(in srgb, var(--sos-accent-2) 52%, white);
-  --neon-glow: color-mix(in srgb, var(--sos-accent) 38%, transparent);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: var(--sos-border-subtle);
 
-  /* 青调夜色玻璃画框底（对齐 .sos-artwork-card 的 night-900 + accent） */
-  --card-bg: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--sos-night-900) 86%, var(--sos-accent)),
-    var(--sos-night-900)
-  );
+  /* art 双 accent 点缀：青绿/粉，白玻璃卡上取较深值以保证对比可读 */
+  --neon-cyan: color-mix(in srgb, var(--sos-accent) 84%, #06323a);
+  --neon-purple: color-mix(in srgb, var(--sos-accent-2) 84%, #4a1330);
+  --neon-glow: transparent;
 
-  --text-main: rgba(255, 255, 255, 0.96);
-  --text-muted: rgba(255, 255, 255, 0.64);
+  /* 白玻璃画框底：半透明 + 背景模糊，透出页面梦幻渐变，恢复旧版优雅气质 */
+  --card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.7));
+
+  --text-main: var(--sos-text-primary);
+  --text-muted: var(--sos-text-secondary);
 
   --shadow-media: 0 14px 32px -10px rgba(18, 50, 60, 0.5);
 
@@ -433,16 +427,16 @@ body.modal-open .art-card-wrap {
 .art-card {
   position: relative;
   background: var(--card-bg);
-  border: 1px solid rgba(255,255,255,0.14);
+  /* 白玻璃：背景模糊透出页面梦幻渐变（恢复旧版优雅气质，取代此前的不透明黑底） */
+  backdrop-filter: blur(16px) saturate(1.18);
+  -webkit-backdrop-filter: blur(16px) saturate(1.18);
+  border: 1px solid var(--sos-border-subtle);
   border-radius: var(--sos-card-radius, 24px);
 
-  transform-style: preserve-3d;
-  /* Flattens preserve-3d (same as the removed backdrop-filter did),
-     prevents hover on one card from shifting siblings in the perspective scene */
   isolation: isolate;
 
   transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
-  box-shadow: 0 16px 38px -16px rgba(18, 50, 60, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 40px -18px rgba(40, 60, 70, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 
   cursor: pointer;
   outline: none;
@@ -562,9 +556,8 @@ body.modal-open .art-card-wrap {
   font-family: sans-serif;
   font-weight: 700;
   color: var(--text-main);
-  font-size: 22px; 
+  font-size: 22px;
   line-height: 1.1;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -589,20 +582,18 @@ body.modal-open .art-card-wrap {
   
   transform: translateZ(30px);
 }
-.byline__k { opacity: 0.6; }
-.byline__v { color: rgb(255, 255, 255); }
+.byline__k { opacity: 0.72; }
+.byline__v { color: var(--sos-text-primary); }
 .byline__a {
   color: var(--neon-cyan);
   text-decoration: none;
-  border-bottom: 1px dashed rgba(110, 203, 208, 0.3);
-  text-shadow: 0 0 8px var(--neon-glow);
+  border-bottom: 1px dashed color-mix(in srgb, var(--sos-accent) 45%, transparent);
   transition: all 0.2s;
   cursor: pointer;
 }
 .byline__a:hover {
-  color: var(--sos-bg-surface);
-  border-bottom-color: var(--sos-bg-surface);
-  text-shadow: 0 0 12px var(--neon-cyan);
+  color: color-mix(in srgb, var(--neon-cyan) 80%, black);
+  border-bottom-color: currentColor;
 }
 
 .guild-badge,
@@ -647,26 +638,26 @@ body.modal-open .art-card-wrap {
 .badge {
   display: inline-flex;
   align-items: center;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--sos-radius-sm, 6px);
+  font-size: 12.5px;
+  font-weight: 600;
+  /* 中文署名标签：不做 uppercase/letter-spacing（仅适配英文，对中文反而别扭/挤） */
   border: 1px solid transparent;
 }
 
+/* 白玻璃徽章 + 青绿/粉深色文字（对齐旧版优雅、清晰可读） */
 .badge--network {
-  background: color-mix(in srgb, var(--sos-night-900) 70%, var(--sos-accent));
-  color: var(--neon-cyan);
-  border-color: color-mix(in srgb, var(--sos-accent) 40%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sos-accent) 16%, white), rgba(255, 255, 255, 0.82));
+  color: color-mix(in srgb, var(--sos-accent) 72%, #06323a);
+  border-color: color-mix(in srgb, var(--sos-accent) 32%, var(--sos-border-subtle));
 }
 
 .badge--personal {
-  background: color-mix(in srgb, var(--sos-night-900) 72%, var(--sos-accent-2));
-  color: var(--neon-purple);
-  border-color: color-mix(in srgb, var(--sos-accent-2) 40%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sos-accent-2) 16%, white), rgba(255, 255, 255, 0.82));
+  color: color-mix(in srgb, var(--sos-accent-2) 70%, #4a1330);
+  border-color: color-mix(in srgb, var(--sos-accent-2) 32%, var(--sos-border-subtle));
 }
 
 /* =========================
@@ -679,9 +670,9 @@ body.modal-open .art-card-wrap {
   height: 28px;
   padding: 0 12px;
   border-radius: var(--sos-radius-full, 16px);
-  /* 暗底上的玻璃片：白计数清晰可读（此前白底白字看不见） */
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  /* 白玻璃片 + 深色计数 */
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid var(--sos-border-subtle);
   color: var(--text-main);
   cursor: pointer;
   transition: all 0.3s ease;
@@ -715,20 +706,20 @@ body.modal-open .art-card-wrap {
 }
 
 .tag-chip {
-  /* 暗底上的半透明白片 + 浅色字（此前 color:solid(...) 非法 + 近白底，白字白底看不见） */
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  /* 白玻璃标签 + 深色字 + 浅边框（旧版优雅气质，清晰不发虚） */
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--sos-border-default);
   border-radius: var(--sos-radius-full, 99px);
-  padding: 4px 10px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.9);
+  padding: 3px 10px;
+  font-size: 12.5px;
+  color: var(--sos-text-secondary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .tag-chip:hover {
-  background: rgba(255, 255, 255, 0.24);
-  color: #fff;
+  background: #fff;
+  color: var(--sos-text-primary);
   border-color: color-mix(in srgb, var(--sos-accent) 55%, transparent);
 }
 

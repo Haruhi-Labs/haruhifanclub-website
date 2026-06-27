@@ -2,7 +2,7 @@
 //! 全部在 `/api/auth/*`。会话走服务端 sessions 表 + httpOnly cookie（可吊销），
 //! 同时仍返回一枚兼容 JWT，使尚未切到 cookie 的旧前端不中断。
 
-use axum::extract::{Path, State};
+use axum::extract::{Multipart, Path, State};
 use axum::http::header::SET_COOKIE;
 use axum::http::HeaderMap;
 use axum::routing::{delete, get, patch, post};
@@ -31,6 +31,7 @@ pub fn router() -> Router<AppState> {
         .route("/auth/reset-password", post(reset_password))
         .route("/auth/change-password", post(change_password))
         .route("/auth/profile", patch(update_profile))
+        .route("/auth/avatar", post(upload_avatar).delete(remove_avatar))
         .route("/auth/sessions", get(list_sessions))
         .route("/auth/sessions/{id}", delete(revoke_one_session))
 }
@@ -207,13 +208,14 @@ async fn register(
     if req.password.len() < PASSWORD_MIN {
         return Err(AppError::bad_request(format!("密码至少 {PASSWORD_MIN} 位")));
     }
-    let nickname = req
-        .nickname
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string)
-        .unwrap_or_else(|| email.split('@').next().unwrap_or("用户").to_string());
+    // 昵称地位等同用户名：必填、唯一、不可留空，不再用邮箱前缀兜底。
+    let nickname = req.nickname.as_deref().map(str::trim).unwrap_or("");
+    if nickname.is_empty() {
+        return Err(AppError::bad_request("请填写昵称"));
+    }
+    if nickname.chars().count() > 32 {
+        return Err(AppError::bad_request("昵称需为 1–32 字"));
+    }
 
     // 邮箱（或同名 username）已占用？终端用户 username = email
     let exists: Option<(i64,)> =
@@ -225,9 +227,14 @@ async fn register(
     if exists.is_some() {
         return Err(AppError::conflict("该邮箱已注册"));
     }
+    // 昵称已被占用？（大小写不敏感）
+    if nickname_taken(&state.pools.core, nickname, None).await? {
+        return Err(AppError::conflict("该昵称已被占用，请换一个"));
+    }
 
     let hash = hash_password(&req.password)?;
     // 为降低门槛、规避验证邮件被误判为垃圾邮件：注册即视为已验证，不再发验证邮件。
+    // 唯一索引兜并发竞态：预检通过后仍可能撞 email/nickname 唯一约束，按命中的索引给友好提示。
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO users (username, password_hash, display_name, nickname, email, \
          is_super_admin, status, email_verified) \
@@ -235,11 +242,12 @@ async fn register(
     )
     .bind(&email)
     .bind(&hash)
-    .bind(&nickname)
-    .bind(&nickname)
+    .bind(nickname)
+    .bind(nickname)
     .bind(&email)
     .fetch_one(&state.pools.core)
-    .await?;
+    .await
+    .map_err(map_register_conflict)?;
 
     audit(&state, Some(id), "auth", "register", &email).await;
     login_response(&state, &headers, id, false).await
@@ -491,12 +499,11 @@ async fn change_password(
 
 // ---------- 资料 ----------
 
+// 资料中的昵称/简介走 JSON PATCH；头像改为文件上传，见 upload_avatar / remove_avatar。
 #[derive(Deserialize)]
 struct ProfileReq {
     #[serde(default)]
     nickname: Option<String>,
-    #[serde(default)]
-    avatar: Option<String>,
     #[serde(default)]
     bio: Option<String>,
 }
@@ -510,18 +517,19 @@ async fn update_profile(
         if nick.is_empty() || nick.chars().count() > 32 {
             return Err(AppError::bad_request("昵称需为 1–32 字"));
         }
+        // 昵称唯一、不可重名（大小写不敏感，排除自己）
+        if nickname_taken(&state.pools.core, nick, Some(user.id)).await? {
+            return Err(AppError::conflict("该昵称已被占用，请换一个"));
+        }
         sqlx::query("UPDATE users SET nickname = ? WHERE id = ?")
             .bind(nick)
             .bind(user.id)
             .execute(&state.pools.core)
-            .await?;
-    }
-    if let Some(avatar) = req.avatar.as_deref() {
-        sqlx::query("UPDATE users SET avatar = ? WHERE id = ?")
-            .bind(avatar.trim())
-            .bind(user.id)
-            .execute(&state.pools.core)
-            .await?;
+            .await
+            .map_err(map_nickname_conflict)?;
+        // 昵称是全站对外署名的权威来源：改名后同步各模块已存的署名快照，
+        // 让画廊作者名 / 文章署名 / 评论名跟随昵称变化。best-effort：单模块失败不影响保存。
+        propagate_nickname(&state, user.id, nick).await;
     }
     if let Some(bio) = req.bio.as_deref() {
         if bio.chars().count() > 280 {
@@ -535,6 +543,210 @@ async fn update_profile(
     }
     let profile = load_profile(&state, user.id).await?;
     Ok(Json(profile))
+}
+
+/// 把新昵称同步到各模块按 `author_user_id` 归属的署名快照（画廊作品/评论、团报文章）。
+/// 跨库无 FK，逐库 UPDATE；best-effort，失败仅记日志，不阻断资料保存。
+async fn propagate_nickname(state: &AppState, user_id: i64, nickname: &str) {
+    let targets: [(&sqlx::SqlitePool, &str); 3] = [
+        (
+            &state.pools.art,
+            "UPDATE artworks SET uploader_name = ? WHERE author_user_id = ?",
+        ),
+        (
+            &state.pools.art,
+            "UPDATE comments SET user_name = ? WHERE author_user_id = ?",
+        ),
+        (
+            &state.pools.news,
+            "UPDATE articles SET author = ? WHERE author_user_id = ?",
+        ),
+    ];
+    for (pool, sql) in targets {
+        if let Err(e) = sqlx::query(sql)
+            .bind(nickname)
+            .bind(user_id)
+            .execute(pool)
+            .await
+        {
+            tracing::warn!("同步昵称到署名快照失败(user {user_id}): {e}");
+        }
+    }
+}
+
+/// 昵称查重：大小写不敏感（lower(nickname)，与唯一索引一致）。
+/// 更新时传 Some(自己的 id) 以排除自己；注册时传 None。
+async fn nickname_taken(
+    pool: &sqlx::SqlitePool,
+    nickname: &str,
+    exclude_user_id: Option<i64>,
+) -> Result<bool, sqlx::Error> {
+    let hit: Option<(i64,)> = sqlx::query_as(
+        "SELECT id FROM users WHERE lower(nickname) = lower(?) AND id != COALESCE(?, -1) LIMIT 1",
+    )
+    .bind(nickname)
+    .bind(exclude_user_id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(hit.is_some())
+}
+
+/// 注册写库失败时，把命中唯一索引的 UNIQUE 约束错误转成友好冲突（兜并发竞态）。
+fn map_register_conflict(e: sqlx::Error) -> AppError {
+    match e {
+        sqlx::Error::Database(ref db) if db.message().contains("idx_users_nickname_unique") => {
+            AppError::conflict("该昵称已被占用，请换一个")
+        }
+        sqlx::Error::Database(ref db)
+            if db.message().contains("users.email") || db.message().contains("users.username") =>
+        {
+            AppError::conflict("该邮箱已注册")
+        }
+        other => AppError::Database(other),
+    }
+}
+
+/// 改资料写库失败时，把昵称唯一约束错误转成友好冲突。
+fn map_nickname_conflict(e: sqlx::Error) -> AppError {
+    match e {
+        sqlx::Error::Database(ref db) if db.message().contains("idx_users_nickname_unique") => {
+            AppError::conflict("该昵称已被占用，请换一个")
+        }
+        other => AppError::Database(other),
+    }
+}
+
+// ---------- 头像（上传 / 移除） ----------
+
+/// 头像上传体积上限：前端已交互式裁切，落库前的图片不会大，8MB 足够留余量。
+const AVATAR_MAX_BYTES: usize = 8 * 1024 * 1024;
+/// 头像统一边长（正方形），512px 在各处（菜单/控制台/资料页）放大都足够清晰。
+const AVATAR_SIZE: u32 = 512;
+
+/// 上传并设置头像（multipart 字段 `avatar`）。服务端统一裁正方形 + 转 WebP，
+/// 存为站内绝对路径 `/uploads/avatars/<file>.webp`（各处 `:src` 可直接用，无需再解析）。
+async fn upload_avatar(
+    State(state): State<AppState>,
+    user: AuthUser,
+    mut mp: Multipart,
+) -> AppResult<Json<Value>> {
+    let mut bytes: Option<Vec<u8>> = None;
+    let mut fname = String::from("avatar");
+    while let Some(field) = mp
+        .next_field()
+        .await
+        .map_err(|e| AppError::bad_request(format!("解析上传失败: {e}")))?
+    {
+        if field.name() == Some("avatar") {
+            if let Some(n) = field.file_name() {
+                fname = n.to_string();
+            }
+            let b = field
+                .bytes()
+                .await
+                .map_err(|e| AppError::bad_request(format!("读取头像失败: {e}")))?;
+            bytes = Some(b.to_vec());
+        } else {
+            let _ = field.bytes().await;
+        }
+    }
+    let bytes = bytes.ok_or_else(|| AppError::bad_request("未收到头像文件"))?;
+    if bytes.is_empty() {
+        return Err(AppError::bad_request("头像文件为空"));
+    }
+    if bytes.len() > AVATAR_MAX_BYTES {
+        return Err(AppError::bad_request(format!(
+            "头像文件过大（上限 {} MB）",
+            AVATAR_MAX_BYTES / 1024 / 1024
+        )));
+    }
+    let ext = haruhi_media::ext_of(&fname, "").to_lowercase();
+    if !ext.is_empty() && !haruhi_media::is_image_ext(&ext) {
+        return Err(AppError::bad_request("仅支持图片文件"));
+    }
+
+    // CPU 密集的解码/缩放/编码放到阻塞线程池，别占住 async 执行器。
+    let data = bytes;
+    let webp = tokio::task::spawn_blocking(move || {
+        haruhi_media::square_avatar_webp(&data, AVATAR_SIZE, 82.0)
+    })
+    .await
+    .map_err(|e| AppError::internal(format!("头像处理失败: {e}")))?
+    .map_err(|e| AppError::bad_request(format!("头像处理失败: {e}")))?;
+
+    let dir = state.cfg.uploads_subdir("avatars");
+    let file = format!(
+        "u{}-{}.webp",
+        user.id,
+        chrono::Utc::now().timestamp_millis()
+    );
+    haruhi_media::save_file(&dir, &file, &webp)
+        .await
+        .map_err(|e| AppError::internal(format!("头像保存失败: {e}")))?;
+    let url = format!("/uploads/avatars/{file}");
+
+    // 取旧头像以便清理本机旧文件（仅清理我们生成的 avatars 文件，外链/空值不动）。
+    let old: Option<String> = sqlx::query_scalar("SELECT avatar FROM users WHERE id = ?")
+        .bind(user.id)
+        .fetch_optional(&state.pools.core)
+        .await?
+        .flatten();
+
+    sqlx::query("UPDATE users SET avatar = ? WHERE id = ?")
+        .bind(&url)
+        .bind(user.id)
+        .execute(&state.pools.core)
+        .await?;
+
+    if old.as_deref() != Some(url.as_str()) {
+        remove_local_avatar(&state, user.id, old.as_deref()).await;
+    }
+
+    let profile = load_profile(&state, user.id).await?;
+    Ok(Json(profile))
+}
+
+/// 移除头像：清空 `avatar` 字段并删除本机旧文件，恢复为昵称首字默认展示。
+async fn remove_avatar(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+    let old: Option<String> = sqlx::query_scalar("SELECT avatar FROM users WHERE id = ?")
+        .bind(user.id)
+        .fetch_optional(&state.pools.core)
+        .await?
+        .flatten();
+    sqlx::query("UPDATE users SET avatar = NULL WHERE id = ?")
+        .bind(user.id)
+        .execute(&state.pools.core)
+        .await?;
+    remove_local_avatar(&state, user.id, old.as_deref()).await;
+    let profile = load_profile(&state, user.id).await?;
+    Ok(Json(profile))
+}
+
+/// 校验头像路径是否为「当前用户自己的」单层 `avatars/*.webp` 文件，是则返回安全文件名。
+///
+/// 只放行 `/uploads/avatars/u{user_id}-….webp`：既挡外链/空值/路径穿越，又确保
+/// **只能删自己的文件**——存量 `users.avatar` 若被设成他人头像路径（历史 URL 填写遗留），
+/// 这里会判为不归属而返回 None，避免误删别人的文件。
+fn own_avatar_filename(user_id: i64, avatar: &str) -> Option<&str> {
+    let name = avatar.strip_prefix("/uploads/avatars/")?;
+    // 必须是单层文件名（无子目录 / 无 ..）、属于本用户、且为 .webp
+    if name.contains('/') || name.contains("..") || !name.ends_with(".webp") {
+        return None;
+    }
+    if !name.starts_with(&format!("u{user_id}-")) {
+        return None;
+    }
+    Some(name)
+}
+
+/// 删除当前用户自己的头像文件（路径形如 `/uploads/avatars/u{id}-<ts>.webp`）。
+/// 归属与安全校验全在 [`own_avatar_filename`]；不归属/外链/空值一律跳过（宁可漏删不可错删）。
+async fn remove_local_avatar(state: &AppState, user_id: i64, avatar: Option<&str>) {
+    let Some(name) = avatar.and_then(|a| own_avatar_filename(user_id, a)) else {
+        return;
+    };
+    let abs = state.cfg.uploads_dir.join("avatars").join(name);
+    let _ = tokio::fs::remove_file(abs).await;
 }
 
 // ---------- 会话（设备）管理 ----------
@@ -670,4 +882,52 @@ async fn audit(state: &AppState, user_id: Option<i64>, app: &str, action: &str, 
         .bind(target)
         .execute(&state.pools.core)
         .await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::own_avatar_filename;
+
+    #[test]
+    fn own_avatar_accepts_own_webp_file() {
+        assert_eq!(
+            own_avatar_filename(14, "/uploads/avatars/u14-1782414268500.webp"),
+            Some("u14-1782414268500.webp")
+        );
+    }
+
+    #[test]
+    fn own_avatar_rejects_other_users_file() {
+        // 别人的头像文件：不归属当前用户 → 不可删
+        assert_eq!(
+            own_avatar_filename(14, "/uploads/avatars/u99-1782414268500.webp"),
+            None
+        );
+        // 前缀仅相似（u140- 不等于 u14-）也必须拒绝
+        assert_eq!(
+            own_avatar_filename(14, "/uploads/avatars/u140-x.webp"),
+            None
+        );
+    }
+
+    #[test]
+    fn own_avatar_rejects_external_traversal_and_nonwebp() {
+        // 外链
+        assert_eq!(
+            own_avatar_filename(14, "https://evil.example/u14-x.webp"),
+            None
+        );
+        // 非 avatars 目录
+        assert_eq!(own_avatar_filename(14, "/uploads/news/u14-x.webp"), None);
+        // 路径穿越 / 子目录
+        assert_eq!(own_avatar_filename(14, "/uploads/avatars/../core.db"), None);
+        assert_eq!(
+            own_avatar_filename(14, "/uploads/avatars/sub/u14-x.webp"),
+            None
+        );
+        // 非 .webp
+        assert_eq!(own_avatar_filename(14, "/uploads/avatars/u14-x.png"), None);
+        // 空值占位
+        assert_eq!(own_avatar_filename(14, ""), None);
+    }
 }

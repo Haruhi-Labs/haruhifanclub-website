@@ -7,6 +7,7 @@
 
 pub mod admin_routes;
 pub mod auth_routes;
+pub mod me_routes;
 pub mod middleware;
 pub mod modules;
 pub mod notify;

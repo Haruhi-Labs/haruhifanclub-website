@@ -62,7 +62,7 @@
                 <span
                   v-if="article.type !== 'news'"
                   class="author-link"
-                  @click="goToAuthor(article.author || '凉宫春日应援团')"
+                  @click="goToAuthor(article)"
                   >By {{ article.author || '凉宫春日应援团' }}</span
                 >
               </div>
@@ -277,8 +277,12 @@ const goToParticipant = (name) => {
   store.closeModal();
 };
 
-const goToAuthor = (author) => {
-  router.push(`/author/${author}`);
+const goToAuthor = (article) => {
+  // 有 author_user_id（且此处已限定非新闻）→ 按发布者身份；否则回退作者字符串
+  const path = article.authorUserId
+    ? `/author/u${article.authorUserId}`
+    : `/author/${article.author || '凉宫春日应援团'}`;
+  router.push(path);
   store.closeModal();
 };
 </script>

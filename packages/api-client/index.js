@@ -1,9 +1,15 @@
 // @haruhi/api-client —— 统一 fetch 封装。
 // 鉴权已升级为「服务端会话 + httpOnly cookie」：请求一律带 credentials，写操作自动注入 CSRF 头。
-// 仍保留 localStorage Bearer 注入作为迁移期兼容（后端提取器同时认 cookie 与 Bearer）。
+// 端用户登录态只认 cookie，不再把兼容 JWT 存 localStorage（避免 XSS 暴露面）。
+// localStorage Bearer（setToken/getToken）现仅供尚未切 cookie 的旧管理员路径（createAdminAuth）使用。
 // 各 app 用 createApiClient('/api/<module>') 创建模块客户端；账号相关用 createAuth() 走 /api/auth。
 
-import { createCredential, getCredential, isPasskeySupported, isConditionalUiAvailable } from './webauthn.js'
+import {
+  createCredential,
+  getCredential,
+  isPasskeySupported,
+  isConditionalUiAvailable,
+} from './webauthn.js'
 
 const TOKEN_KEY = 'haruhi_admin_token'
 const CSRF_COOKIE = 'haruhi_csrf'
@@ -117,25 +123,30 @@ export function createApiClient(base = '/api') {
     put: (path, body, opts) => request('PUT', path, { ...opts, body }),
     patch: (path, body, opts) => request('PATCH', path, { ...opts, body }),
     del: (path, opts) => request('DELETE', path, opts),
-    postForm: (path, formData, opts) => request('POST', path, { ...opts, body: formData, isForm: true }),
+    postForm: (path, formData, opts) =>
+      request('POST', path, { ...opts, body: formData, isForm: true }),
   }
 }
 
 /**
  * 统一账号助手（注册/登录/登出/邮箱验证/找回密码/资料/会话管理）。
- * 登录态以服务端会话 + cookie 为准；仍存一枚兼容 token 供同步守卫快速判断。
+ * 登录态完全以服务端会话 + httpOnly cookie 为准；端用户不再把兼容 JWT 存进
+ * localStorage——那份 JS 可读、有 XSS 暴露面，且 cookie 路径已是各 app 主路径。
+ * 路由守卫的「是否已登录」判断走可读的 csrf cookie（hasSessionCookie），不依赖 token。
  * @param {string} apiBase 默认 '/api'
  */
 export function createAuth(apiBase = '/api') {
   const api = createApiClient(apiBase)
-  const storeToken = (r) => {
-    if (r && r.token) setToken(r.token)
+  // 取出用户档案，同时清掉历史版本可能遗留在 localStorage 的兼容 token，
+  // 关闭已登录用户残留 JWT 的暴露窗口；后续端用户登录态只认 cookie。
+  const takeUser = (r) => {
+    clearToken()
     return r && r.user
   }
   return {
     // 终端用户注册：{ email, password, nickname? }
     async register(payload) {
-      return storeToken(await api.post('/auth/register', payload))
+      return takeUser(await api.post('/auth/register', payload))
     },
     // 登录：account 可为邮箱或用户名（兼容旧 login(username, password) 调用）。
     // 若账号启用了两步验证，后端返回 { twoFactorRequired, pendingToken }，此时原样返回，
@@ -145,11 +156,11 @@ export function createAuth(apiBase = '/api') {
       if (r && r.twoFactorRequired) {
         return { twoFactorRequired: true, pendingToken: r.pendingToken }
       }
-      return storeToken(r)
+      return takeUser(r)
     },
     // 两步验证二次校验（凭 pendingToken）：成功返回 CurrentUser
     async login2fa(pendingToken, code, backup = false) {
-      return storeToken(await api.post('/auth/2fa/login', { pendingToken, code, backup }))
+      return takeUser(await api.post('/auth/2fa/login', { pendingToken, code, backup }))
     },
     // 2FA 管理（需登录）
     setup2fa() {
@@ -188,6 +199,16 @@ export function createAuth(apiBase = '/api') {
     updateProfile(patch) {
       return api.patch('/auth/profile', patch)
     },
+    // 上传头像（File/Blob）：服务端裁正方形 + 转 WebP，返回更新后的用户档案。
+    uploadAvatar(file) {
+      const fd = new FormData()
+      fd.append('avatar', file, (file && file.name) || 'avatar.webp')
+      return api.postForm('/auth/avatar', fd)
+    },
+    // 移除头像：恢复为昵称首字默认展示，返回更新后的用户档案。
+    removeAvatar() {
+      return api.del('/auth/avatar')
+    },
     changePassword(oldPassword, newPassword) {
       return api.post('/auth/change-password', { oldPassword, newPassword })
     },
@@ -224,7 +245,7 @@ export function createAuth(apiBase = '/api') {
     async loginPasskey({ conditional = false, signal } = {}) {
       const { flowId, options } = await api.post('/auth/passkey/login/start')
       const credential = await getCredential(options.publicKey, { conditional, signal })
-      return storeToken(await api.post('/auth/passkey/login/finish', { flowId, credential }))
+      return takeUser(await api.post('/auth/passkey/login/finish', { flowId, credential }))
     },
 
     getToken,
@@ -245,6 +266,28 @@ export function hasScope(user, scope) {
   let cur = scope
   while (cur) {
     if (user.apps[cur]) return true
+    const i = cur.lastIndexOf('.')
+    if (i < 0) break
+    cur = cur.slice(0, i)
+  }
+  return false
+}
+
+/**
+ * 前端权限级别判定（镜像后端 authorize 的层级比较）：scope 或其任一祖先的 level ≥ minLevel，
+ * 或超管，即视为有权。级别：Read=1 / Write=2 / Moderate=3 / Manage=4。
+ * @param {{isSuperAdmin?:boolean, apps?:Record<string,{level?:number}>}|null} user
+ * @param {string} scope 如 'news.store'
+ * @param {number} minLevel 所需最低级别
+ */
+export function hasLevel(user, scope, minLevel) {
+  if (!user) return false
+  if (user.isSuperAdmin) return true
+  if (!user.apps) return false
+  let cur = scope
+  while (cur) {
+    const r = user.apps[cur]
+    if (r && typeof r.level === 'number' && r.level >= minLevel) return true
     const i = cur.lastIndexOf('.')
     if (i < 0) break
     cur = cur.slice(0, i)
@@ -321,7 +364,10 @@ export function createAdminAuth(app, apiBase = '/api') {
       return { ok: true, user }
     } catch (e) {
       clearToken()
-      return { ok: false, error: e && e.status === 401 ? '用户名或密码错误' : (e && e.message) || '登录失败' }
+      return {
+        ok: false,
+        error: e && e.status === 401 ? '用户名或密码错误' : (e && e.message) || '登录失败',
+      }
     }
   }
 

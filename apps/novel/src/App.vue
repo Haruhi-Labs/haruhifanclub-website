@@ -2,6 +2,7 @@
 <script setup>
 import { computed } from 'vue'
 import { RouterView, RouterLink, useRoute } from 'vue-router'
+import { SosAppbar } from '@haruhi/ui'
 import FooterBar from '@/components/FooterBar.vue'
 import { AccountMenu } from '@haruhi/auth-ui'
 
@@ -13,9 +14,9 @@ const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`
 
 <template>
   <div class="library-app sos-scope min-h-screen flex flex-col" data-sos-site="library">
-    <!-- 全局统一页头：SosAppbar 规范 + library 主题，账号菜单收进右侧 actions -->
-    <header v-if="showHeader" class="sos-appbar">
-      <div class="sos-appbar__inner">
+    <!-- 全局统一页头：SosAppbar 规范（含移动端汉堡 + 右侧抽屉），library 主题 -->
+    <SosAppbar v-if="showHeader">
+      <template #brand>
         <RouterLink to="/" class="sos-brand-lockup">
           <span class="sos-brand-lockup__mark">
             <img :src="logoSrc" alt="" />
@@ -25,14 +26,14 @@ const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`
             <small>凉宫春日应援团 · 书库</small>
           </span>
         </RouterLink>
-        <div class="library-appbar__right">
-          <nav class="sos-navlinks">
-            <RouterLink to="/feedback" class="sos-navlink">同人投稿 &amp; 问题反馈</RouterLink>
-          </nav>
-          <AccountMenu />
-        </div>
-      </div>
-    </header>
+      </template>
+      <nav class="sos-navlinks">
+        <RouterLink to="/feedback" class="sos-navlink">同人投稿 &amp; 问题反馈</RouterLink>
+      </nav>
+      <template #actions>
+        <AccountMenu />
+      </template>
+    </SosAppbar>
 
     <!-- 中间是当前路由对应的页面 -->
     <div class="flex-1">
@@ -56,10 +57,5 @@ html, body, #app {
 .library-app.sos-scope {
   --sos-scope-font: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --sos-scope-leading: 1.6;
-}
-.library-appbar__right {
-  display: flex;
-  align-items: center;
-  gap: var(--sos-space-3);
 }
 </style>

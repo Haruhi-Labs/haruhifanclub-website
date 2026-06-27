@@ -44,6 +44,9 @@ export interface Passkey {
 export interface Auth {
   login(username: string, password: string): Promise<CurrentUser>
   me(): Promise<CurrentUser>
+  updateProfile(patch: { nickname?: string; bio?: string }): Promise<CurrentUser>
+  uploadAvatar(file: Blob | File): Promise<CurrentUser>
+  removeAvatar(): Promise<CurrentUser>
   logout(): void
   getToken(): string
   isLoggedIn(): boolean
@@ -89,3 +92,8 @@ export function resolveUploadUrl(path: string, base?: string): string
 export function createAuth(apiBase?: string): Auth
 export function createAdminAuth(app: string, apiBase?: string): AdminAuth
 export function hasScope(user: CurrentUser | null | undefined, scope: string): boolean
+export function hasLevel(
+  user: CurrentUser | null | undefined,
+  scope: string,
+  minLevel: number
+): boolean
