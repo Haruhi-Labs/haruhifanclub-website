@@ -134,11 +134,21 @@ async fn create_user(
         return Err(AppError::conflict("用户名已存在"));
     }
     let hash = hash_password(&req.password)?;
+    // 与注册一致：邮箱统一转小写；空串视为不填
     let email = req
         .email
         .as_deref()
-        .map(str::trim)
+        .map(|s| s.trim().to_lowercase())
         .filter(|s| !s.is_empty());
+    if let Some(ref e) = email {
+        let taken: Option<i64> = sqlx::query_scalar("SELECT id FROM users WHERE email = ?")
+            .bind(e)
+            .fetch_optional(&state.pools.core)
+            .await?;
+        if taken.is_some() {
+            return Err(AppError::conflict("该邮箱已被其他账号使用"));
+        }
+    }
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO users (username, password_hash, display_name, email, is_super_admin, status) \
          VALUES (?, ?, ?, ?, ?, 'active') RETURNING id",
@@ -146,10 +156,11 @@ async fn create_user(
     .bind(username)
     .bind(&hash)
     .bind(&req.display_name)
-    .bind(email)
+    .bind(&email)
     .bind(req.is_super_admin)
     .fetch_one(&state.pools.core)
-    .await?;
+    .await
+    .map_err(map_email_conflict)?;
     audit(&state, user.id, "console", "create_user", &id.to_string()).await;
     Ok(Json(json!({ "id": id })))
 }
@@ -181,13 +192,31 @@ async fn update_user(
             .await?;
     }
     if let Some(email) = req.email {
-        let email = email.trim();
-        let email_val = if email.is_empty() { None } else { Some(email) };
-        sqlx::query("UPDATE users SET email = ? WHERE id = ?")
-            .bind(email_val)
-            .bind(id)
-            .execute(&state.pools.core)
-            .await?;
+        // 与注册一致：邮箱统一转小写；空串视为清空（置 NULL）
+        let email = email.trim().to_lowercase();
+        if email.is_empty() {
+            sqlx::query("UPDATE users SET email = NULL WHERE id = ?")
+                .bind(id)
+                .execute(&state.pools.core)
+                .await?;
+        } else {
+            // 唯一性预检（排除自己），命中给友好 409 而非 500
+            let taken: Option<(i64,)> =
+                sqlx::query_as("SELECT id FROM users WHERE email = ? AND id != ?")
+                    .bind(&email)
+                    .bind(id)
+                    .fetch_optional(&state.pools.core)
+                    .await?;
+            if taken.is_some() {
+                return Err(AppError::conflict("该邮箱已被其他账号使用"));
+            }
+            sqlx::query("UPDATE users SET email = ? WHERE id = ?")
+                .bind(&email)
+                .bind(id)
+                .execute(&state.pools.core)
+                .await
+                .map_err(map_email_conflict)?;
+        }
     }
     if let Some(status) = req.status {
         if status != "active" && status != "disabled" {
@@ -552,4 +581,18 @@ async fn migration_bind(
     .await;
 
     Ok(Json(json!({ "ok": true, "bound": bound })))
+}
+
+/// 把 email 唯一约束（idx_users_email_unique / users.email）触发的 UNIQUE 错误
+/// 转成友好的「邮箱已被占用」冲突，避免回笼统的 500。兜并发竞态（预检后仍可能撞约束）。
+fn map_email_conflict(e: sqlx::Error) -> AppError {
+    match e {
+        sqlx::Error::Database(ref db)
+            if db.message().contains("users.email")
+                || db.message().contains("idx_users_email_unique") =>
+        {
+            AppError::conflict("该邮箱已被其他账号使用")
+        }
+        other => AppError::Database(other),
+    }
 }
