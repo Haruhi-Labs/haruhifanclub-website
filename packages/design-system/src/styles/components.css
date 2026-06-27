@@ -42,9 +42,16 @@
   background: color-mix(in srgb, var(--sos-signal) 38%, transparent);
 }
 
-/* 统一焦点表达：仅键盘可见 */
+/* 统一焦点表达：仅键盘可见。
+ * 注意：故意不含 input/textarea/select —— 它们的焦点环已由各自组件负责：
+ *   · 独立输入框：.sos-input/.sos-textarea/.sos-select 的 :focus（描边 + 单层环）；
+ *   · 带边框的包装器（.sos-search/.sos-input-affix 及各 app 的搜索/评论包装器）：
+ *     由外层 :focus-within 统一出环。
+ * 若在此再给内部裸 input 套一层全局环，会与外层包装器叠成「双重边框 / 发光内边界」，
+ * 也迫使每个包装器都得手动 box-shadow:none 去抵消（设计系统内耗）。故此处只覆盖
+ * 按钮/链接等自身无焦点态的通用可聚焦元素；裸 input 回退浏览器原生轮廓兜底。 */
 .sos-focusable:focus-visible,
-.sos-scope :where(button, a, input, textarea, select, summary, [tabindex]):focus-visible {
+.sos-scope :where(button, a, summary, [tabindex]):focus-visible {
   outline: none;
   box-shadow: var(--sos-ring);
   border-radius: var(--sos-radius-sm);
