@@ -12,6 +12,7 @@
     "@haruhi/api-client": "workspace:*",
     "@haruhi/auth-ui": "workspace:*",
     "@haruhi/design-system": "workspace:*",
+    "@haruhi/ui": "workspace:*",
     "axios": "^1.13.2",
     "dompurify": "^3.4.8",
     "epubjs": "^0.3.93",

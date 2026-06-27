@@ -1653,7 +1653,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sos-space-5);
-  min-height: 4rem;
+  min-height: var(--sos-header-height);
   padding-inline: var(--sos-page-gutter);
   background: color-mix(in srgb, var(--sos-bg-page) 82%, transparent);
   border-bottom: 1px solid var(--sos-border-subtle);
@@ -1661,12 +1661,138 @@
   -webkit-backdrop-filter: saturate(1.4) blur(12px);
 }
 .sos-appbar__inner {
+  position: relative; /* 建立层叠上下文，使 bar 内容压在抽屉遮罩之上 */
+  z-index: 2;
   width: min(var(--sos-container-wide), 100%);
   margin-inline: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sos-space-5);
+  gap: var(--sos-space-4);
+  min-width: 0; /* 允许内部收缩，避免长文本撑破/换行 */
+}
+/* 品牌锁头不收缩 */
+.sos-appbar__brand {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 0;
+}
+/* 导航 + 操作的聚合容器：桌面内联占据剩余空间；移动端整体变为右侧抽屉 */
+.sos-appbar__cluster {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sos-space-4);
+  min-width: 0;
+}
+.sos-appbar__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-1);
+  min-width: 0;
+}
+.sos-appbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  flex-shrink: 0;
+}
+/* 汉堡按钮：桌面隐藏，移动端显示；用三道横线画，开启时变 ✕ */
+.sos-appbar__burger {
+  display: none;
+  position: relative;
+  z-index: 4; /* 高于抽屉，开启后 ✕ 仍可点 */
+  flex-shrink: 0;
+  width: var(--sos-control-md);
+  height: var(--sos-control-md);
+  border: 1px solid var(--sos-border-default);
+  border-radius: var(--sos-radius-md);
+  background: var(--sos-bg-surface);
+  color: var(--sos-text-primary);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+.sos-appbar__burger-bars,
+.sos-appbar__burger-bars::before,
+.sos-appbar__burger-bars::after {
+  content: '';
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transition: transform var(--sos-duration-base), opacity var(--sos-duration-base);
+}
+.sos-appbar__burger-bars { position: relative; }
+.sos-appbar__burger-bars::before { position: absolute; top: -6px; }
+.sos-appbar__burger-bars::after { position: absolute; top: 6px; }
+.sos-appbar.is-open .sos-appbar__burger-bars { background: transparent; }
+.sos-appbar.is-open .sos-appbar__burger-bars::before { top: 0; transform: rotate(45deg); }
+.sos-appbar.is-open .sos-appbar__burger-bars::after { top: 0; transform: rotate(-45deg); }
+/* 遮罩：移动端抽屉打开时铺满视口，点击关闭 */
+.sos-appbar__scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1; /* 在 inner(z2) 之下、页面内容之上（受 header 层叠上下文约束） */
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--sos-duration-base);
+}
+
+/* ---- 移动端（≤768px）：导航聚合容器化为右侧滑入抽屉 ---- */
+@media (max-width: 768px) {
+  .sos-appbar__burger { display: inline-flex; }
+  .sos-appbar__cluster {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 3; /* 高于遮罩(1)，低于汉堡(4)；均在 header 上下文内 */
+    height: 100dvh;
+    width: var(--sos-drawer-width);
+    flex: none;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: var(--sos-space-2);
+    padding: calc(var(--sos-header-height) + var(--sos-space-3)) var(--sos-space-4)
+      var(--sos-space-6);
+    background: var(--sos-bg-page);
+    border-left: 1px solid var(--sos-border-subtle);
+    box-shadow: -16px 0 40px rgba(0, 0, 0, 0.18);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    transform: translateX(100%);
+    transition: transform var(--sos-duration-slow, 0.28s) ease;
+  }
+  .sos-appbar.is-open .sos-appbar__cluster { transform: translateX(0); }
+  .sos-appbar__nav,
+  .sos-appbar__nav .sos-navlinks {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: var(--sos-space-1);
+  }
+  /* 抽屉内导航项铺满、加大点击区 */
+  .sos-appbar__nav .sos-navlink {
+    width: 100%;
+    padding: var(--sos-space-3);
+    font-size: var(--sos-text-base);
+  }
+  .sos-appbar__actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sos-space-2);
+    margin-top: auto;
+    padding-top: var(--sos-space-4);
+    border-top: 1px solid var(--sos-border-subtle);
+  }
+  .sos-appbar__scrim { display: block; }
+  .sos-appbar.is-open .sos-appbar__scrim { opacity: 1; pointer-events: auto; }
 }
 .sos-navlinks {
   display: flex;

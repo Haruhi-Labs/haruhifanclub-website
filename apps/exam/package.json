@@ -12,6 +12,7 @@
     "@haruhi/api-client": "workspace:*",
     "@haruhi/auth-ui": "workspace:*",
     "@haruhi/design-system": "workspace:*",
+    "@haruhi/ui": "workspace:*",
     "pinia": "^3.0.4",
     "qrcode": "^1.5.4",
     "vue": "^3.5.22",

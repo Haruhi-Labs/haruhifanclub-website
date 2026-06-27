@@ -237,6 +237,12 @@
   --sos-container-wide: 92rem;
   --sos-page-gutter: clamp(1rem, 0.4rem + 2vw, 2rem);
 
+  /* 顶部导航 / 移动端抽屉统一规范
+   * 注：CSS 变量不能用于 @media 条件，移动端断点统一约定为 768px（各处 @media 一律写 768px）。
+   * header 高度与抽屉宽度走 token，保证各站一致、抽屉内容能正确避开吸顶 header。 */
+  --sos-header-height: 4rem;
+  --sos-drawer-width: min(82vw, 20rem);
+
   --sos-control-sm: 2.25rem;
   --sos-control-md: 2.625rem;
   --sos-control-lg: 3rem;
