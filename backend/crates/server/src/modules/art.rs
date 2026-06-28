@@ -409,7 +409,9 @@ async fn member_display_names(
     }
     if let Ok(rows) = q.fetch_all(core).await {
         for (id, nickname, username) in rows {
-            let name = nickname.filter(|s| !s.trim().is_empty()).unwrap_or(username);
+            let name = nickname
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or(username);
             map.insert(format!("u{id}"), name);
         }
     }
@@ -577,9 +579,9 @@ async fn creators_verify(
             .await?;
     let names = member_display_names(&state.pools.core, &[uid.clone()]).await;
     let name = names.get(&uid).cloned();
-    let creator = row
-        .as_ref()
-        .map(|(uid, avatar_url)| json!({ "uid": uid, "name": name.clone(), "avatar_url": avatar_url }));
+    let creator = row.as_ref().map(
+        |(uid, avatar_url)| json!({ "uid": uid, "name": name.clone(), "avatar_url": avatar_url }),
+    );
     Ok(Json(
         json!({ "ok": true, "exists": row.is_some(), "creator": creator }),
     ))
