@@ -1,252 +1,215 @@
 <template>
   <div class="upload-page">
-    <section class="container-card">
-      <!-- 头部区域 -->
-      <header class="page-header">
-        <div class="header-text">
-          <h1 class="main-title">投稿上传</h1>
+    <div class="upload-shell">
+      <!-- 页头 -->
+      <header class="upload-hero">
+        <div class="upload-hero__copy">
+          <span class="upload-hero__eyebrow">绘画部 · 作品投稿</span>
+          <h1 class="upload-hero__title">投稿上传</h1>
+          <p class="upload-hero__lede">分享你的画作。作品将以账号昵称署名，登录后会自动保留草稿。</p>
         </div>
-        <div class="header-decoration">
-          <img src="../assets/kon.webp" alt="Decoration" class="deco-img" />
-        </div>
+        <img src="../assets/kon.webp" alt="" class="upload-hero__deco" />
       </header>
 
-      <!-- 表单主体 -->
-      <form class="main-form" @submit.prevent="submit">
-        
-        <!-- 区块 1: 基础信息 -->
-        <section class="form-section">
-          <div class="section-head">
-            <h2 class="section-title">基础信息</h2>
-            <span class="section-desc">填写作品的基本资料</span>
-          </div>
-
-          <div class="form-grid">
-            <div class="sos-field" style="grid-column: span 2;">
-              <label class="sos-field__label">作品名称 <span class="sos-field__required">*</span></label>
-              <input class="sos-input" v-model="title" placeholder="请输入作品名称" required />
-            </div>
-          </div>
-
-          <div class="sos-field">
-            <label class="sos-field__label">作品描述 <span class="sos-field__optional">（选填）</span></label>
-            <textarea class="sos-textarea" v-model="description" placeholder="请描述作品内容、创作思路或来源说明…"></textarea>
-          </div>
-        </section>
-
-        <!-- 区块 2: 分类与署名 -->
-        <section class="form-section">
-          <div class="section-head">
-            <h2 class="section-title">分类与署名</h2>
-            <span class="section-desc">确认作品来源与版权归属</span>
-          </div>
-
-          <div class="form-grid">
-            <div class="sos-field">
-              <label class="sos-field__label">图片来源 <span class="sos-field__required">*</span></label>
-              <div class="sos-segmented">
-                <button type="button" class="sos-segmented__item" :aria-pressed="sourceType==='personal'" @click="sourceType='personal'" data-sfx="click">
-                  <span class="icon">🎨</span> 个人作品
-                </button>
-                <button type="button" class="sos-segmented__item" :aria-pressed="sourceType==='network'" @click="sourceType='network'" data-sfx="click">
-                  <span class="icon">🌐</span> 网络转载&其它
-                </button>
-              </div>
-            </div>
-
-            <div class="sos-field">
-              <label class="sos-field__label">内容划分 <span class="sos-field__required">*</span></label>
-              <div class="sos-segmented">
-                <button type="button" class="sos-segmented__item" :aria-pressed="contentType==='haruhi'" @click="contentType='haruhi'" data-sfx="click">
-                  凉宫内容
-                </button>
-                <button type="button" class="sos-segmented__item" :aria-pressed="contentType==='other'" @click="contentType='other'" data-sfx="click">
-                  非凉宫内容
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="sos-field">
-            <label class="sos-field__label">作者署名</label>
-            <input
-              v-if="isLoggedIn"
-              class="sos-input"
-              :value="authorName || '请先在「个人中心 → 资料」填写昵称'"
-              readonly
-            />
-            <div v-else class="upload-login-hint">
-              <span>登录后将以你的账号昵称署名，登录返回后会保留已填写内容。</span>
-              <button type="button" class="sos-button sos-button--primary sos-button--sm" @click="goLogin" data-sfx="click">登录 / 注册</button>
-            </div>
-            <p class="sos-field__help upload-warn">作品作者身份由当前登录账号确定，前端不再手动填写或校验 UID。</p>
-          </div>
-
-          <!-- 网络图片专属逻辑 -->
-          <transition name="fade-slide">
-            <div v-if="sourceType==='network'" class="conditional-block">
+      <form class="upload-layout" @submit.prevent="submit">
+        <!-- 主列：信息表单（纵向流动，内容多也不溢出） -->
+        <div class="upload-main">
+          <!-- 基础信息 -->
+          <section class="upload-block">
+            <header class="upload-block__head">
+              <h2 class="upload-block__title">基础信息</h2>
+              <span class="upload-block__hint">作品的标题与简介</span>
+            </header>
+            <div class="upload-block__body">
               <div class="sos-field">
-                <label class="sos-field__label">网络图片来源链接 <span class="sos-field__optional">（可选）</span></label>
-                <input class="sos-input" v-model="originUrl" placeholder="https://..." />
-                <p class="sos-field__help upload-warn">⚠️ 上传他人作品必须取得原作者授权并标注来源！</p>
+                <label class="sos-field__label">作品名称 <span class="sos-field__required">*</span></label>
+                <input class="sos-input" v-model="title" placeholder="请输入作品名称" required />
+              </div>
+              <div class="sos-field">
+                <label class="sos-field__label">作品描述 <span class="sos-field__optional">（选填）</span></label>
+                <textarea class="sos-textarea" v-model="description" placeholder="描述作品内容、创作思路或来源说明…"></textarea>
               </div>
             </div>
-          </transition>
-        </section>
+          </section>
 
-        <!-- 区块 3: 标签与授权 -->
-        <section class="form-section">
-          <div class="section-head">
-            <h2 class="section-title">标签与授权</h2>
-          </div>
-
-          <div class="form-grid">
-            <div class="sos-field" style="grid-column: span 2;">
-              <label class="sos-field__label">标签 <span class="sos-field__optional">（可选）</span></label>
-              <div class="input-with-action tag-input-row">
-                <div class="tag-input-shell">
-                  <input
-                    class="sos-input"
-                    v-model="tagDraft"
-                    placeholder="输入标签后按回车或点击添加"
-                    @focus="showTagSuggestions = true"
-                    @blur="hideTagSuggestions"
-                    @keydown.enter.prevent="addTag"
-                  />
-                  <div v-if="showTagSuggestions && suggestedTags.length" class="tag-suggestion-popover">
-                    <div class="tag-suggestion-head">
-                      <span>{{ tagDraft.trim() ? '匹配标签' : '推荐标签' }}</span>
-                      <small>来自画廊</small>
-                    </div>
-                    <button
-                      v-for="item in suggestedTags"
-                      :key="item.name"
-                      type="button"
-                      class="tag-suggestion-item"
-                      @mousedown.prevent="pickSuggestedTag(item.name)"
-                      data-sfx="click"
-                    >
-                      <span>#{{ item.name }}</span>
-                      <em>{{ item.count }} 件作品</em>
-                    </button>
+          <!-- 分类与署名 -->
+          <section class="upload-block">
+            <header class="upload-block__head">
+              <h2 class="upload-block__title">分类与署名</h2>
+              <span class="upload-block__hint">作品来源与版权归属</span>
+            </header>
+            <div class="upload-block__body">
+              <div class="upload-pair">
+                <div class="sos-field">
+                  <label class="sos-field__label">图片来源 <span class="sos-field__required">*</span></label>
+                  <div class="sos-segmented" role="group" aria-label="图片来源">
+                    <button type="button" class="sos-segmented__item" :aria-pressed="sourceType==='personal'" @click="sourceType='personal'" data-sfx="click">🎨 个人作品</button>
+                    <button type="button" class="sos-segmented__item" :aria-pressed="sourceType==='network'" @click="sourceType='network'" data-sfx="click">🌐 网络转载</button>
                   </div>
                 </div>
-                <button class="sos-button sos-button--secondary" type="button" @click="addTag" :disabled="!tagDraft.trim()" data-sfx="click">添加</button>
+                <div class="sos-field">
+                  <label class="sos-field__label">内容划分 <span class="sos-field__required">*</span></label>
+                  <div class="sos-segmented" role="group" aria-label="内容划分">
+                    <button type="button" class="sos-segmented__item" :aria-pressed="contentType==='haruhi'" @click="contentType='haruhi'" data-sfx="click">凉宫内容</button>
+                    <button type="button" class="sos-segmented__item" :aria-pressed="contentType==='other'" @click="contentType='other'" data-sfx="click">非凉宫</button>
+                  </div>
+                </div>
               </div>
-              
-              <div class="tags-container" v-if="tags.length">
-                <transition-group name="list">
-                  <span class="tag-pill" v-for="t in tags" :key="t">
-                    <span class="tag-text">#{{ t }}</span>
-                    <button class="tag-remove" type="button" title="删除" @click="removeTag(t)" data-sfx="click">×</button>
-                  </span>
+
+              <div class="sos-field">
+                <label class="sos-field__label">作者署名</label>
+                <input v-if="isLoggedIn" class="sos-input" :value="authorName || '请先在「个人中心 → 资料」填写昵称'" readonly />
+                <div v-else class="upload-loginhint">
+                  <span>登录后以账号昵称署名，返回时会保留已填写内容。</span>
+                  <button type="button" class="sos-button sos-button--primary sos-button--sm" @click="goLogin" data-sfx="click">登录 / 注册</button>
+                </div>
+                <p class="sos-field__help">作者身份由当前登录账号确定，前端不再手动填写或校验 UID。</p>
+              </div>
+
+              <transition name="upl-collapse">
+                <div class="sos-field" v-if="sourceType==='network'">
+                  <label class="sos-field__label">网络来源链接 <span class="sos-field__optional">（可选）</span></label>
+                  <input class="sos-input" v-model="originUrl" placeholder="https://..." />
+                  <p class="sos-field__help upload-warn">⚠️ 上传他人作品必须取得原作者授权并标注来源。</p>
+                </div>
+              </transition>
+            </div>
+          </section>
+
+          <!-- 标签与授权 -->
+          <section class="upload-block">
+            <header class="upload-block__head">
+              <h2 class="upload-block__title">标签与授权</h2>
+              <span class="upload-block__hint">便于检索与二次创作授权</span>
+            </header>
+            <div class="upload-block__body">
+              <div class="sos-field">
+                <label class="sos-field__label">标签 <span class="sos-field__optional">（可选）</span></label>
+                <div class="upload-taginput">
+                  <div class="upload-taginput__shell">
+                    <input
+                      class="sos-input"
+                      v-model="tagDraft"
+                      placeholder="输入标签后回车或点添加"
+                      @focus="showTagSuggestions = true"
+                      @blur="hideTagSuggestions"
+                      @keydown.enter.prevent="addTag"
+                    />
+                    <div v-if="showTagSuggestions && suggestedTags.length" class="upload-suggest">
+                      <div class="upload-suggest__head">
+                        <span>{{ tagDraft.trim() ? '匹配标签' : '推荐标签' }}</span>
+                        <small>来自画廊</small>
+                      </div>
+                      <button
+                        v-for="item in suggestedTags"
+                        :key="item.name"
+                        type="button"
+                        class="upload-suggest__item"
+                        @mousedown.prevent="pickSuggestedTag(item.name)"
+                        data-sfx="click"
+                      >
+                        <span>#{{ item.name }}</span>
+                        <em>{{ item.count }} 件</em>
+                      </button>
+                    </div>
+                  </div>
+                  <button class="sos-button sos-button--secondary" type="button" @click="addTag" :disabled="!tagDraft.trim()" data-sfx="click">添加</button>
+                </div>
+
+                <div class="upload-tags" v-if="tags.length">
+                  <transition-group name="upl-tag">
+                    <span class="upload-tag" v-for="t in tags" :key="t">
+                      <span>#{{ t }}</span>
+                      <button class="upload-tag__x" type="button" title="删除" @click="removeTag(t)" data-sfx="click">×</button>
+                    </span>
+                  </transition-group>
+                </div>
+                <div v-if="tags.length">
+                  <button class="sos-button sos-button--link sos-button--sm" type="button" @click="clearTags" data-sfx="click">清空所有标签</button>
+                </div>
+              </div>
+
+              <transition name="upl-collapse">
+                <div class="sos-field" v-if="sourceType==='personal'">
+                  <label class="sos-field__label">授权许可设置</label>
+                  <div class="upload-license">
+                    <div class="upload-license__col">
+                      <div class="upload-license__head">对大众 / 网络</div>
+                      <p class="sos-field__help">将公开显示在作品详情页。</p>
+                      <label class="upload-chk" v-for="opt in NET_LICENSE_OPTIONS" :key="opt">
+                        <input type="checkbox" :value="opt" v-model="netLicenses" />
+                        <span>{{ opt }}</span>
+                      </label>
+                    </div>
+                    <div class="upload-license__col">
+                      <div class="upload-license__head">对应援团 <span class="upload-tag-mini">后台可见</span></div>
+                      <p class="sos-field__help">仅后台可见，用于社团企划参考。</p>
+                      <label class="upload-chk" v-for="opt in GROUP_LICENSE_OPTIONS" :key="opt">
+                        <input type="checkbox" :value="opt" v-model="groupLicenses" />
+                        <span>{{ opt }}</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </transition>
+            </div>
+          </section>
+        </div>
+
+        <!-- 副列：图片上传 + 提交（桌面 sticky 跟随） -->
+        <aside class="upload-aside">
+          <section class="upload-block upload-block--media">
+            <header class="upload-block__head">
+              <h2 class="upload-block__title">作品图片 <span class="sos-field__required">*</span></h2>
+              <span class="upload-block__hint">第一张作为封面，可拖拽排序</span>
+            </header>
+            <div class="upload-block__body">
+              <div class="upload-files" v-if="filesList.length">
+                <transition-group name="upl-tag" tag="div" class="upload-files__grid">
+                  <div
+                    v-for="(item, index) in filesList"
+                    :key="item.id"
+                    class="upload-file"
+                    :class="{ 'is-cover': index === 0 }"
+                    draggable="true"
+                    @dragstart="onDragStart($event, index)"
+                    @dragover.prevent
+                    @dragenter.prevent
+                    @drop="onDrop($event, index)"
+                  >
+                    <img :src="item.preview" alt="" />
+                    <span class="upload-file__cover" v-if="index === 0">封面</span>
+                    <button type="button" class="upload-file__x" @click="removeFile(index)" title="移除">✕</button>
+                  </div>
                 </transition-group>
               </div>
-              <div class="tags-actions" v-if="tags.length">
-                 <button class="sos-button sos-button--link sos-button--sm" type="button" @click="clearTags" data-sfx="click">清空所有标签</button>
-              </div>
+
+              <label class="upload-drop" :class="{ 'is-filled': filesList.length }" for="fileUpload">
+                <input class="upload-drop__input" type="file" accept="image/*" multiple @change="onFilesAdded" id="fileUpload" />
+                <span class="upload-drop__icon" aria-hidden="true">{{ filesList.length ? '＋' : '📁' }}</span>
+                <strong>{{ filesList.length ? '继续添加图片' : '点击或拖拽上传图片' }}</strong>
+                <small v-if="filesList.length">已选 {{ filesList.length }} 张</small>
+                <small v-else>JPG / PNG / WebP · 自动压缩生成预览、保留原图</small>
+              </label>
             </div>
+          </section>
 
-            <transition name="fade-slide">
-              <div class="sos-field" v-if="sourceType==='personal'" style="grid-column: span 2;">
-                <label class="sos-field__label">授权许可设置</label>
-                
-                <div class="license-split-layout">
-                  <div class="license-col">
-                    <div class="license-header">对大众/网络的授权</div>
-                    <p class="sos-field__help" style="margin-bottom: 12px;">这些授权信息将公开显示在图片详情页。</p>
-                    <div class="checkbox-list">
-                      <label class="checkbox-card" v-for="opt in NET_LICENSE_OPTIONS" :key="opt">
-                        <input type="checkbox" :value="opt" v-model="netLicenses" class="chk-input" />
-                        <span class="chk-custom"></span>
-                        <span class="chk-label">{{ opt }}</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div class="license-col">
-                    <div class="license-header">对应援团的特别授权 <span class="badge-private">后台可见</span></div>
-                    <p class="sos-field__help" style="margin-bottom: 12px;">这些信息仅在后台可见，用于社团内部企划或周边制作参考。</p>
-                    <div class="checkbox-list">
-                      <label class="checkbox-card" v-for="opt in GROUP_LICENSE_OPTIONS" :key="opt">
-                        <input type="checkbox" :value="opt" v-model="groupLicenses" class="chk-input" />
-                        <span class="chk-custom"></span>
-                        <span class="chk-label">{{ opt }}</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
+          <div class="upload-cta">
+            <transition name="upl-collapse">
+              <p v-if="msg" class="upload-msg" :class="{ 'is-error': isError, 'is-ok': !isError }">{{ msg }}</p>
             </transition>
-          </div>
-        </section>
-
-        <!-- 区块 4: 图片上传 (更新为多图模式) -->
-        <section class="form-section upload-section">
-          <div class="section-head">
-            <h2 class="section-title">图片文件</h2>
-            <span class="section-desc">支持 JPG, PNG, WebP 格式。支持拖拽排序，第一张将作为封面。</span>
-          </div>
-
-          <!-- 已选图片列表 -->
-          <div class="files-manager" v-if="filesList.length > 0">
-            <transition-group name="list" tag="div" class="files-grid">
-              <div 
-                v-for="(item, index) in filesList" 
-                :key="item.id" 
-                class="file-card"
-                :class="{ 'is-cover': index === 0 }"
-                draggable="true"
-                @dragstart="onDragStart($event, index)"
-                @dragover.prevent
-                @dragenter.prevent
-                @drop="onDrop($event, index)"
-              >
-                <div class="file-thumb">
-                  <img :src="item.preview" />
-                  <div class="cover-badge" v-if="index === 0">封面</div>
-                  <button type="button" class="remove-btn" @click="removeFile(index)">✕</button>
-                </div>
-                <div class="file-meta">
-                  <div class="file-name" :title="item.file.name">{{ item.file.name }}</div>
-                  <div class="file-size">{{ (item.file.size / 1024 / 1024).toFixed(2) }} MB</div>
-                </div>
-              </div>
-            </transition-group>
-          </div>
-
-          <!-- 上传区域 -->
-          <div class="file-upload-wrapper">
-             <div class="file-drop-area" :class="{ 'has-file': filesList.length > 0 }">
-                <!-- 注意：开启了 multiple -->
-                <input class="file-input-hidden" type="file" accept="image/*" multiple @change="onFilesAdded" id="fileUpload" />
-                <label for="fileUpload" class="file-drop-label">
-                   <div class="upload-icon">📂</div>
-                   <div class="upload-text">
-                     <strong v-if="filesList.length === 0">点击或拖拽上传图片</strong>
-                     <strong v-else>继续添加图片</strong>
-                   </div>
-                   <div class="file-info" v-if="filesList.length > 0">
-                     <div class="file-meta">已选择 {{ filesList.length }} 张图片</div>
-                   </div>
-                </label>
-             </div>
-             <p class="sos-field__help upload-hint-center">系统将自动压缩生成预览图，并保留原图用于下载。</p>
-          </div>
-
-          <div class="form-actions">
-            <div v-if="msg" class="message-box" :class="{ error: isError, success: !isError }">
-              {{ msg }}
-            </div>
-            <button class="sos-button sos-button--primary sos-button--lg sos-button--block" :disabled="submitting || (isLoggedIn && filesList.length === 0)" data-sfx="click">
-              <span v-if="submitting" class="spinner"></span>
+            <button
+              class="sos-button sos-button--primary sos-button--lg sos-button--block"
+              :disabled="submitting || (isLoggedIn && filesList.length === 0)"
+              data-sfx="click"
+            >
+              <span v-if="submitting" class="upload-spinner" aria-hidden="true"></span>
               {{ submitButtonLabel }}
             </button>
           </div>
-        </section>
+        </aside>
       </form>
-    </section>
+    </div>
   </div>
 </template>
 
@@ -507,7 +470,7 @@ async function submit(){
         console.warn('图片压缩失败，将使用原图作为展示图:', err)
         compressedBlob = item.file
       }
-      
+
       // 使用 images (复数) 字段上传
       fd.append('images', compressedBlob, 'display.webp')
       fd.append('originals', item.file)
@@ -530,10 +493,10 @@ async function submit(){
 
     statusMsg.value = '上传中…'
     const r = await api.uploadArtwork(fd)
-    
+
     // 根据返回的状态显示不同的提示
     if (r.status === 'approved') {
-      msg.value = r.pointsAdded 
+      msg.value = r.pointsAdded
         ? '发布成功！✅（AI审核通过，积分已发放）'
         : '发布成功！✅（AI审核通过）'
     } else if (r.status === 'flagged') {
@@ -546,15 +509,15 @@ async function submit(){
     title.value = ''
     description.value = ''
     originUrl.value = ''
-    
+
     // 清空文件列表
     filesList.value.forEach(i => URL.revokeObjectURL(i.preview))
     filesList.value = []
-    
+
     // Reset file input value manually
     const fileInput = document.getElementById('fileUpload')
     if(fileInput) fileInput.value = ''
-    
+
     clearTags()
     netLicenses.value = []
     groupLicenses.value = []
@@ -570,118 +533,118 @@ async function submit(){
 </script>
 
 <style scoped>
-/* 变量映射：适配现代风格 CSS 变量 */
 .upload-page {
-  /* 青绿 accent 对齐全站 art 表达模式；文本/描边吃设计系统色板，保证与 #18 同档质感 */
-  --primary: hsl(172, 78%, 42%);
-  --primary-soft: hsl(172, 65%, 92%);
-  --primary-hover: hsl(172, 80%, 38%);
-  --text-main: var(--sos-text-primary, hsl(210, 20%, 14%));
-  --text-sub: var(--sos-text-secondary, hsl(210, 10%, 45%));
-  --bg-input: rgba(255, 255, 255, 0.6);
-  --border: var(--sos-border-default, rgba(0, 0, 0, 0.08));
-  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
-  --radius-lg: 18px;
-  --radius-md: 12px;
+  --upl-accent: var(--sos-accent, hsl(172, 70%, 42%));
+  --upl-accent-strong: color-mix(in srgb, var(--upl-accent) 78%, #0b3a36);
+  --upl-accent-soft: color-mix(in srgb, var(--upl-accent) 13%, transparent);
+  --upl-glass: color-mix(in srgb, #ffffff 70%, transparent);
+  --upl-glass-line: color-mix(in srgb, #ffffff 85%, transparent);
+  --upl-text: var(--sos-text-primary, #16242b);
+  --upl-muted: var(--sos-text-secondary, #5b6b72);
+  padding-bottom: var(--sos-space-8, 48px);
 }
 
-/* 单页布局下让设计系统控件适配：分段控件撑满列宽、标签输入行撑满、提示色/居中、只读署名底色 */
-.form-section .sos-segmented { display: flex; width: 100%; }
-.form-section .sos-segmented__item { flex: 1; justify-content: center; gap: 6px; }
-.tag-input-shell { position: relative; flex: 1; min-width: 0; }
-.upload-warn { color: var(--sos-warning, var(--sos-danger)); font-weight: 600; }
-.upload-hint-center { text-align: center; }
-.sos-field .sos-input[readonly] { background: rgba(241, 245, 249, 0.82); cursor: default; }
-
-/* 容器布局 */
-.container-card {
-  position: relative;
-  box-sizing: border-box;
-  max-width: 900px;
+.upload-shell {
+  max-width: 1160px;
   margin: 0 auto;
-  padding-bottom: 60px;
+  padding: 0 var(--sos-space-4, 16px);
 }
 
-/* 头部 Header */
-.page-header {
+/* ---------- 页头 ---------- */
+.upload-hero {
   display: flex;
-  justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: 32px;
-  padding: 0 12px;
+  justify-content: space-between;
+  gap: var(--sos-space-4);
+  padding: var(--sos-space-3) var(--sos-space-1) var(--sos-space-5);
 }
-
-.header-text {
-  z-index: 2;
+.upload-hero__eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--upl-accent-strong);
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--upl-accent-soft);
 }
-
-.main-title {
-  font-size: 36px;
-  font-weight: 950;
-  letter-spacing: -0.5px;
+.upload-hero__title {
+  margin: 12px 0 6px;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 850;
+  letter-spacing: -0.02em;
+  color: var(--upl-text);
+}
+.upload-hero__lede {
   margin: 0;
-  background: linear-gradient(135deg, var(--text-main) 0%, var(--sos-text-secondary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--upl-muted);
+  font-size: 15px;
+  max-width: 46ch;
 }
-
-.sub-title {
-  margin: 8px 0 0;
-  font-size: 16px;
-  color: var(--text-sub);
-  font-weight: 500;
-}
-
-.header-decoration .deco-img {
-  height: 160px;
+.upload-hero__deco {
+  height: clamp(96px, 12vw, 152px);
   object-fit: contain;
-  filter: drop-shadow(0 8px 16px rgba(0,0,0,0.1));
-  transform: translateY(10px);
-  transition: transform 0.3s ease;
-}
-.header-decoration:hover .deco-img {
-  transform: translateY(0) rotate(2deg);
+  filter: drop-shadow(0 14px 24px rgba(18, 80, 70, 0.2));
+  transform: translateY(6px);
 }
 
-/* 表单主体 */
-.main-form {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 
-    0 20px 40px rgba(0,0,0,0.05),
-    inset 0 1px 0 rgba(255,255,255,0.8);
-  padding: 8px; /* Inner padding for sections */
+/* ---------- 两列布局 ---------- */
+.upload-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sos-space-4);
+  align-items: start;
+}
+@media (min-width: 960px) {
+  .upload-layout {
+    grid-template-columns: minmax(0, 1.55fr) minmax(322px, 1fr);
+    gap: var(--sos-space-5);
+  }
 }
 
-/* 表单区块 Section */
-.form-section {
-  padding: 32px;
-  border-bottom: 1px solid rgba(0,0,0,0.04);
+.upload-main,
+.upload-aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sos-space-4);
+  min-width: 0;
 }
-.form-section:last-child {
-  border-bottom: none;
+@media (min-width: 960px) {
+  .upload-aside {
+    position: sticky;
+    top: var(--sos-space-4);
+  }
 }
 
-.section-head {
-  margin-bottom: 24px;
+/* ---------- 玻璃区块 ---------- */
+.upload-block {
+  position: relative;
+  background: var(--upl-glass);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  backdrop-filter: blur(18px) saturate(1.3);
+  border: 1px solid var(--upl-glass-line);
+  border-radius: 20px;
+  box-shadow:
+    0 20px 44px -26px rgba(20, 60, 60, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  padding: clamp(18px, 2.4vw, 26px);
+}
+.upload-block__head {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: var(--sos-space-4);
 }
-
-.section-title {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--text-main);
-  margin: 0;
+.upload-block__title {
   position: relative;
+  margin: 0;
   padding-left: 14px;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--upl-text);
 }
-.section-title::before {
+.upload-block__title::before {
   content: '';
   position: absolute;
   left: 0;
@@ -689,1066 +652,300 @@ async function submit(){
   transform: translateY(-50%);
   width: 4px;
   height: 16px;
-  background: var(--primary);
   border-radius: 2px;
+  background: linear-gradient(var(--upl-accent), color-mix(in srgb, var(--upl-accent) 55%, #ec4faf));
 }
-
-.section-desc {
-  font-size: 13px;
-  color: var(--text-sub);
-  font-weight: 500;
+.upload-block__hint {
+  font-size: 12.5px;
+  color: var(--upl-muted);
 }
-
-/* 表单栅格与控件 */
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-bottom: 24px;
-}
-
-.form-group {
+.upload-block__body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--sos-space-4);
 }
 
-.form-label {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-main);
-  display: flex;
-  align-items: center;
-  gap: 4px;
+/* 字段双列 */
+.upload-pair {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sos-space-4);
 }
-.form-label .req { color: var(--sos-danger); }
-.form-label .opt { color: var(--text-sub); font-weight: 400; font-size: 12px; }
-
-/* 输入框样式 */
-.form-input, .form-textarea {
-  width: 100%;
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
-  background: var(--bg-input);
-  color: var(--text-main);
-  font-size: 16px; /* 16px 起步：iOS 聚焦不自动放大（对齐 #24 设计系统修复） */
-  font-weight: 600;
-  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+@media (min-width: 540px) {
+  .upload-pair { grid-template-columns: 1fr 1fr; }
 }
 
-.form-input:hover, .form-textarea:hover {
-  background: rgba(255, 255, 255, 0.9);
-}
+/* 分段控件撑满 */
+.sos-segmented { display: flex; width: 100%; }
+.sos-segmented__item { flex: 1; justify-content: center; gap: 6px; }
 
-.form-input[readonly] {
+.sos-field .sos-input[readonly] {
+  background: color-mix(in srgb, var(--upl-accent) 5%, #f4f7f8);
   cursor: default;
-  background: rgba(241, 245, 249, 0.82);
-  color: var(--text-main);
+}
+.upload-warn {
+  color: var(--sos-warning, #b4690e);
+  font-weight: 600;
 }
 
-.form-input:focus, .form-textarea:focus {
-  background: var(--sos-bg-surface);
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-soft);
-  outline: none;
-}
-
-.form-textarea {
-  min-height: 120px;
-  resize: vertical;
-  line-height: 1.6;
-}
-
-.form-hint {
-  font-size: 13px;
-  color: var(--text-sub);
-  margin-top: 4px;
-}
-.form-hint.warning { color: var(--sos-warning); }
-.form-hint.center { text-align: center; }
-
-.upload-login-hint {
+/* 未登录提示 */
+.upload-loginhint {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  background: var(--bg-input);
-  border: 1px dashed var(--sos-border-default);
-  border-radius: var(--radius-md);
-  color: var(--text-sub);
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: 12px;
+  background: var(--upl-accent-soft);
+  border: 1px dashed color-mix(in srgb, var(--upl-accent) 40%, transparent);
 }
-
-.upload-login-hint > span {
-  flex: 1 1 14rem;
-  min-width: 0;
-}
-
-/* Segment Control */
-.segment-control {
-  display: flex;
-  background: rgba(0,0,0,0.04);
-  padding: 4px;
-  border-radius: 14px;
-  gap: 4px;
-}
-
-.segment-btn {
+.upload-loginhint > span {
   flex: 1;
-  border: none;
-  background: transparent;
-  padding: 10px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-sub);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  white-space: nowrap;
+  min-width: 12em;
+  font-size: 13px;
+  color: var(--upl-text);
 }
-.segment-btn:hover { color: var(--text-main); }
-.segment-btn.active {
-  background: var(--sos-bg-surface);
-  color: var(--primary);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-.segment-btn .icon { font-size: 16px; }
 
-/* 复合输入框 (Action Button) */
-.input-with-action {
+/* 标签输入 */
+.upload-taginput {
   display: flex;
   gap: 10px;
-}
-.action-btn {
-  padding: 0 20px;
-  border-radius: var(--radius-md);
-  border: none;
-  background: var(--primary);
-  color: #fff;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-.action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.action-btn:hover:not(:disabled) { transform: translateY(-1px); background: var(--primary-hover); }
-
-.action-btn.secondary {
-  background: rgba(0,0,0,0.05);
-  color: var(--text-main);
-}
-.action-btn.secondary:hover:not(:disabled) { background: rgba(0,0,0,0.1); }
-
-/* UID 验证反馈 */
-.uid-feedback {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-  padding: 10px 14px;
-  background: rgba(255,255,255,0.5);
-  border-radius: 12px;
-}
-.status-badge { font-size: 14px; font-weight: 700; }
-.status-badge.ok { color: var(--sos-success); }
-.status-badge.bad { color: var(--sos-danger); }
-.creator-avatar {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  border: 2px solid var(--sos-bg-surface);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.info-card {
-  margin-top: 12px;
-  padding: 16px;
-  background: var(--sos-accent-soft);
-  border-radius: 12px;
-  font-size: 13px;
-  color: #1e40af;
-  line-height: 1.5;
-}
-.info-card p { margin: 0; }
-.info-card .sub-info { margin-top: 6px; opacity: 0.8; font-size: 12px; }
-
-/* Tags */
-.tag-input-row {
   align-items: stretch;
 }
-
-.tag-input-shell {
+.upload-taginput__shell {
   position: relative;
-  flex: 1 1 auto;
+  flex: 1;
   min-width: 0;
 }
-
-.tag-suggestion-popover {
+.upload-suggest {
   position: absolute;
-  left: 0;
-  top: calc(100% + 8px);
   z-index: 30;
-  width: min(360px, 100%);
-  max-height: 252px;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--sos-border-default, rgba(0, 0, 0, 0.1));
+  border-radius: 14px;
+  box-shadow: 0 18px 42px -16px rgba(20, 40, 50, 0.34);
+  padding: 8px;
+  max-height: 290px;
   overflow: auto;
-  padding: 10px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.14);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
 }
-
-.tag-suggestion-head {
+.upload-suggest__head {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-  color: var(--text-main);
+  padding: 4px 8px 8px;
   font-size: 12px;
-  font-weight: 800;
-}
-
-.tag-suggestion-head small {
-  color: var(--text-sub);
-  font-size: 11px;
   font-weight: 700;
+  color: var(--upl-muted);
 }
-
-.tag-suggestion-item {
+.upload-suggest__item {
   display: flex;
-  width: 100%;
-  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 9px 10px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
   border: none;
-  border-radius: 11px;
   background: transparent;
-  color: var(--text-main);
+  border-radius: 9px;
   cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.tag-suggestion-item:hover {
-  background: var(--primary-soft);
-}
-
-.tag-suggestion-item span {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--primary);
   font-size: 13px;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--upl-text);
 }
+.upload-suggest__item:hover { background: var(--upl-accent-soft); }
+.upload-suggest__item em { font-style: normal; color: var(--upl-muted); font-size: 11.5px; }
 
-.tag-suggestion-item em {
-  flex: 0 0 auto;
-  color: var(--text-sub);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 700;
-}
-
-:global(html.art-lights-out) .tag-suggestion-popover {
-  border-color: rgba(125, 211, 252, 0.2);
-  background: rgba(8, 13, 28, 0.94);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36);
-}
-
-:global(html.art-lights-out) .tag-suggestion-head,
-:global(html.art-lights-out) .tag-suggestion-item {
-  color: rgba(226, 232, 240, 0.94);
-}
-
-:global(html.art-lights-out) .tag-suggestion-head small,
-:global(html.art-lights-out) .tag-suggestion-item em {
-  color: rgba(186, 230, 253, 0.68);
-}
-
-:global(html.art-lights-out) .tag-suggestion-item span {
-  color: #7dd3fc;
-}
-
-:global(html.art-lights-out) .tag-suggestion-item:hover {
-  background: rgba(14, 165, 233, 0.16);
-}
-
-.tags-container {
+.upload-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
 }
-.tag-pill {
+.upload-tag {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: var(--sos-bg-surface);
-  border: 1px solid rgba(0,0,0,0.06);
-  border-radius: 20px;
-  font-size: 13px;
-  color: var(--primary);
-  font-weight: 700;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-}
-.tag-remove {
-  border: none;
-  background: transparent;
-  color: var(--sos-text-tertiary);
-  cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-  padding: 0 2px;
-  border-radius: 4px;
-}
-.tag-remove:hover { color: var(--sos-danger); background: rgba(239,68,68,0.1); }
-.text-btn {
-  margin-top: 8px;
-  background: none;
-  border: none;
-  color: var(--text-sub);
-  font-size: 12px;
-  cursor: pointer;
-  text-decoration: underline;
-}
-.text-btn:hover { color: var(--text-main); }
-
-/* License Cards & Layout */
-.license-split-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-top: 10px;
-}
-
-.license-col {
-  display: flex;
-  flex-direction: column;
-}
-
-.license-header {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-sub);
-  margin-bottom: 6px;
-  display: flex;
-  justify-content: space-between;
-}
-.badge-private {
-  font-size: 10px;
-  background: var(--sos-bg-muted);
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: var(--sos-text-tertiary);
-}
-
-.checkbox-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.checkbox-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  background: var(--bg-input);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid transparent;
-}
-.checkbox-card:hover { background: var(--sos-bg-surface); box-shadow: var(--shadow-sm); }
-.checkbox-card:has(.chk-input:checked) {
-  background: #f0fdfa; /* Teal-50 */
-  border-color: var(--primary);
-}
-
-.chk-input { display: none; }
-.chk-custom {
-  width: 18px; height: 18px;
-  border: 2px solid var(--sos-border-strong);
-  border-radius: 5px;
-  position: relative;
-  transition: all 0.2s;
-  flex-shrink: 0;
-  background: var(--sos-bg-surface);
-}
-.chk-input:checked + .chk-custom {
-  background: var(--primary);
-  border-color: var(--primary);
-}
-.chk-input:checked + .chk-custom::after {
-  content: '';
-  position: absolute;
-  left: 5px; top: 1px;
-  width: 5px; height: 10px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-.chk-label {
+  gap: 5px;
+  padding: 5px 6px 5px 11px;
+  border-radius: 999px;
+  background: var(--upl-accent-soft);
+  color: var(--upl-accent-strong);
   font-size: 13px;
   font-weight: 600;
-  line-height: 1.3;
 }
-
-/* File Upload */
-.upload-section { background: rgba(255,255,255,0.4); }
-
-.file-drop-area {
-  position: relative;
-  border: 2px dashed #cbd5e1;
-  border-radius: 20px;
-  background: rgba(255,255,255,0.5);
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-.file-drop-area:hover {
-  border-color: var(--primary);
-  background: rgba(255,255,255,0.8);
-}
-.file-drop-area.has-file {
-  border-style: solid;
-  border-color: var(--primary);
-  background: #f0fdfa;
-}
-
-.file-input-hidden {
-  position: absolute;
-  width: 100%; height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  z-index: 10;
-}
-
-.file-drop-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  text-align: center;
-  cursor: pointer;
-}
-
-.upload-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.8; }
-.upload-text { font-size: 16px; color: var(--text-main); }
-
-.file-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  animation: slideUp 0.3s ease;
-}
-.file-icon { font-size: 32px; margin-bottom: 8px; }
-.file-name { font-weight: 700; color: var(--text-main); margin-bottom: 4px; word-break: break-all; max-width: 300px; }
-.file-meta { font-size: 12px; color: var(--text-sub); }
-.file-change-hint {
-  margin-top: 12px;
-  font-size: 12px;
-  color: var(--primary);
-  font-weight: 700;
-  background: rgba(255,255,255,0.8);
-  padding: 4px 12px;
-  border-radius: 99px;
-}
-
-/* Form Actions */
-.form-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  margin-top: 32px;
-}
-
-.message-box {
-  padding: 12px 20px;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 14px;
-  text-align: center;
-  width: 100%;
-  animation: fadeIn 0.3s;
-}
-.message-box.error { background: var(--sos-danger-soft); color: #b91c1c; }
-.message-box.success { background: var(--sos-success-soft); color: var(--sos-success); }
-
-.submit-btn {
-  position: relative;
-  width: 100%;
-  max-width: 320px;
-  padding: 16px;
+.upload-tag__x {
   border: none;
-  border-radius: 16px;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-  color: #fff;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
+  background: rgba(0, 0, 0, 0.07);
+  color: inherit;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 12px 26px -8px hsla(172, 78%, 38%, 0.5);
-  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  line-height: 1;
+  font-size: 13px;
+}
+.upload-tag__x:hover { background: var(--sos-danger, #e5484d); color: #fff; }
+
+/* 授权双栏 */
+.upload-license {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sos-space-3);
+}
+@media (min-width: 620px) {
+  .upload-license { grid-template-columns: 1fr 1fr; }
+}
+.upload-license__col {
+  background: color-mix(in srgb, #fff 48%, transparent);
+  border: 1px solid var(--upl-glass-line);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.upload-license__head {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--upl-text);
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.upload-tag-mini {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--upl-accent-soft);
+  color: var(--upl-accent-strong);
+}
+.upload-chk {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--upl-text);
+  cursor: pointer;
+  padding: 5px 0;
+}
+.upload-chk input {
+  accent-color: var(--upl-accent);
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ---------- 图片副栏 ---------- */
+.upload-block--media .upload-block__body { gap: var(--sos-space-3); }
+.upload-files__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
   gap: 10px;
 }
-.submit-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 32px -8px hsla(172, 78%, 38%, 0.62);
-  background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary) 100%);
-}
-.submit-btn:active:not(:disabled) { transform: translateY(0); }
-.submit-btn:disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(1); }
-
-.spinner {
-  width: 20px; height: 20px;
-  border: 3px solid rgba(255,255,255,0.3);
-  border-radius: 50%;
-  border-top-color: var(--sos-bg-surface);
-  animation: spin 0.8s linear infinite;
-}
-
-/* 动画 */
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-.fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.3s ease; max-height: 200px; opacity: 1; overflow: hidden; }
-.fade-slide-enter-from, .fade-slide-leave-to { max-height: 0; opacity: 0; transform: translateY(-10px); margin-top: 0; padding-top: 0; padding-bottom: 0; }
-
-.list-enter-active, .list-leave-active { transition: all 0.3s ease; }
-.list-enter-from, .list-leave-to { opacity: 0; transform: translateX(-10px); }
-
-/* --- 新增：文件列表样式 (在原有样式之后追加) --- */
-.files-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-.file-card {
-  background: var(--sos-bg-surface);
+.upload-file {
+  position: relative;
+  aspect-ratio: 1;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  border: 1px solid var(--upl-glass-line);
   cursor: grab;
-  position: relative;
-  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 8px 18px -12px rgba(20, 40, 50, 0.55);
 }
-.file-card:active { cursor: grabbing; transform: scale(1.02); }
-.file-card.is-cover {
-  outline: 3px solid var(--primary);
-  outline-offset: 2px;
+.upload-file:active { cursor: grabbing; }
+.upload-file img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.upload-file.is-cover { outline: 2px solid var(--upl-accent); outline-offset: -2px; }
+.upload-file__cover {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--upl-accent);
+  padding: 2px 7px;
+  border-radius: 999px;
 }
-
-.file-thumb { height: 120px; position: relative; background: var(--sos-border-default); }
-.file-thumb img { width: 100%; height: 100%; object-fit: cover; }
-
-.remove-btn {
-  position: absolute; top: 4px; right: 4px;
-  width: 24px; height: 24px;
-  border-radius: 50%;
-  background: rgba(0,0,0,0.5);
-  color: var(--sos-bg-surface);
+.upload-file__x {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 20px;
+  height: 20px;
   border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px;
-  transition: background 0.2s;
+  font-size: 11px;
+  line-height: 1;
 }
-.remove-btn:hover { background: rgba(239, 68, 68, 0.9); }
+.upload-file__x:hover { background: var(--sos-danger, #e5484d); }
 
-.cover-badge {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  background: rgba(16, 185, 129, 0.9); /* primary color variant */
-  color: var(--sos-bg-surface);
-  font-size: 10px; text-align: center;
-  padding: 2px 0; font-weight: 700;
+.upload-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 30px 16px;
+  border-radius: 16px;
+  cursor: pointer;
+  border: 1.5px dashed color-mix(in srgb, var(--upl-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--upl-accent) 6%, #fff);
+  color: var(--upl-text);
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
 }
-
-/* 响应式调整 */
-@media (max-width: 768px) {
-  .page-header { flex-direction: column; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
-  .header-decoration { display: none; } /* 移动端隐藏装饰图 */
-  
-  .form-grid { grid-template-columns: 1fr; gap: 20px; }
-  .form-section { padding: 20px 16px; }
-  
-  .license-split-layout { grid-template-columns: 1fr; gap: 24px; }
+.upload-drop:hover {
+  border-color: var(--upl-accent);
+  background: color-mix(in srgb, var(--upl-accent) 11%, #fff);
+  transform: translateY(-1px);
 }
-/* 桌面端工作台布局：把填写区和上传区分栏，减少纵向滚动。 */
-@media (min-width: 1120px) {
-  .container-card {
-    --upload-decor-slot: clamp(84px, 6.4vw, 118px);
-    --upload-decor-size: clamp(66px, 5.2vw, 94px);
-    width: min(1640px, calc(100vw - 20px));
-    max-width: none;
-    padding-left: var(--upload-decor-slot);
-    padding-bottom: 28px;
-  }
+.upload-drop.is-filled { padding: 18px 16px; }
+.upload-drop__input { display: none; }
+.upload-drop__icon { font-size: 30px; line-height: 1; }
+.upload-drop strong { font-size: 14px; font-weight: 700; }
+.upload-drop small { font-size: 12px; color: var(--upl-muted); }
 
-  .page-header {
-    align-items: center;
-    margin-bottom: 14px;
-    padding: 0 8px 0 0;
-  }
-
-  .header-decoration {
-    position: absolute;
-    left: clamp(8px, calc((var(--upload-decor-slot) - var(--upload-decor-size)) / 2), 24px);
-    top: clamp(74px, 9dvh, 112px);
-    z-index: 3;
-    display: flex;
-    width: var(--upload-decor-size);
-    align-items: flex-start;
-    justify-content: center;
-    pointer-events: none;
-    opacity: 0.94;
-  }
-
-  .header-text,
-  .main-form {
-    position: relative;
-    z-index: 2;
-  }
-
-  .main-title {
-    font-size: 30px;
-  }
-
-  .header-decoration .deco-img {
-    width: 100%;
-    height: auto;
-    max-height: clamp(108px, 18dvh, 176px);
-    object-fit: contain;
-    filter:
-      drop-shadow(0 12px 18px rgba(15, 23, 42, 0.16))
-      drop-shadow(0 0 12px rgba(20, 184, 166, 0.14));
-    transform: rotate(-1.5deg);
-  }
-
-  .header-decoration:hover .deco-img {
-    transform: translateY(-2px) rotate(-0.5deg) scale(1.02);
-  }
-
-  .main-form {
-    display: grid;
-    grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
-    gap: 10px;
-    align-items: stretch;
-    padding: 10px;
-  }
-
-  .main-form > .form-section {
-    padding: 20px 22px;
-    border: 1px solid rgba(255, 255, 255, 0.62);
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.42);
-  }
-
-  .main-form > .form-section:not(.upload-section) {
-    grid-column: 1;
-  }
-
-  .main-form > .form-section:nth-child(1) {
-    grid-row: 1;
-  }
-
-  .main-form > .form-section:nth-child(2) {
-    grid-row: 2;
-  }
-
-  .main-form > .form-section:nth-child(3) {
-    grid-row: 3;
-  }
-
-  .upload-section {
-    grid-column: 2;
-    grid-row: 1 / span 3;
-    display: flex;
-    min-height: 0;
-    flex-direction: column;
-    background: rgba(255, 255, 255, 0.46);
-  }
-
-  .section-head {
-    margin-bottom: 14px;
-  }
-
-  .section-title {
-    font-size: 18px;
-  }
-
-  .section-desc {
-    font-size: 12px;
-  }
-
-  .form-grid {
-    gap: 16px;
-    margin-bottom: 16px;
-  }
-
-  .main-form > .form-section:nth-child(2) > .form-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .form-group {
-    gap: 7px;
-  }
-
-  .form-input,
-  .form-textarea {
-    padding: 10px 13px;
-    font-size: 14px;
-  }
-
-  .form-textarea {
-    min-height: 78px;
-  }
-
-  .segment-btn {
-    min-height: 38px;
-    padding: 8px 9px;
-    font-size: 13px;
-  }
-
-  .conditional-block .info-card {
-    margin-top: 10px;
-    padding: 12px 14px;
-    font-size: 12px;
-    line-height: 1.45;
-  }
-
-  .conditional-block .sub-info {
-    font-size: 11px;
-  }
-
-  .license-split-layout {
-    gap: 14px;
-    margin-top: 6px;
-  }
-
-  .checkbox-list {
-    gap: 8px;
-  }
-
-  .checkbox-card {
-    padding: 9px 10px;
-  }
-
-  .chk-label {
-    font-size: 12px;
-  }
-
-  .files-manager {
-    max-height: 294px;
-    overflow: auto;
-    padding-right: 4px;
-  }
-
-  .files-grid {
-    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .file-thumb {
-    height: 96px;
-  }
-
-  .file-meta {
-    font-size: 11px;
-  }
-
-  .file-name {
-    max-width: 100%;
-    font-size: 12px;
-  }
-
-  .file-drop-label {
-    min-height: 150px;
-    padding: 22px;
-  }
-
-  .upload-icon {
-    margin-bottom: 8px;
-    font-size: 38px;
-  }
-
-  .upload-text {
-    font-size: 15px;
-  }
-
-  .form-actions {
-    margin-top: auto;
-    padding-top: 18px;
-  }
-
-  .submit-btn {
-    max-width: none;
-    padding: 14px;
-    font-size: 16px;
-  }
+/* ---------- 提交区 ---------- */
+.upload-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-
-@media (min-width: 1120px) and (max-height: 820px) {
-  .page-header {
-    margin-bottom: 8px;
-  }
-
-  .header-decoration .deco-img {
-    height: 82px;
-  }
-
-  .main-form > .form-section {
-    padding: 16px 18px;
-  }
-
-  .section-head {
-    margin-bottom: 10px;
-  }
-
-  .form-grid {
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-
-  .form-textarea {
-    min-height: 62px;
-  }
-
-  .conditional-block .info-card {
-    padding: 10px 12px;
-  }
-
-  .files-manager {
-    max-height: 236px;
-  }
-
-  .file-drop-label {
-    min-height: 118px;
-    padding: 16px;
-  }
-
-  .form-actions {
-    gap: 10px;
-    padding-top: 12px;
-  }
+.upload-msg {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
 }
-
-/* 大屏一屏适配：三栏展开核心信息，避免整页纵向滚动。 */
-@media (min-width: 1120px) {
-  .upload-page {
-    min-height: calc(100dvh - 72px);
-    display: flex;
-    align-items: stretch;
-  }
-
-  .container-card {
-    height: clamp(560px, calc(100dvh - 94px), 780px);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .page-header {
-    flex: 0 0 auto;
-  }
-
-  .main-form {
-    flex: 1 1 auto;
-    min-height: 0;
-    grid-template-columns: minmax(270px, 0.9fr) minmax(340px, 1.04fr) minmax(350px, 0.98fr);
-    grid-template-rows: minmax(0, 0.9fr) minmax(0, 1.1fr);
-    overflow: hidden;
-  }
-
-  .main-form > .form-section {
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .main-form > .form-section:nth-child(1) {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .main-form > .form-section:nth-child(2) {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  .main-form > .form-section:nth-child(3) {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-  }
-
-  .upload-section {
-    grid-column: 3;
-    grid-row: 1 / span 2;
-  }
-
-  .main-form > .form-section:nth-child(3),
-  .upload-section {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .main-form > .form-section:nth-child(3) > .form-grid,
-  .upload-section .file-upload-wrapper {
-    min-height: 0;
-  }
-
-  .main-form > .form-section:nth-child(3) > .form-grid {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-    gap: 14px;
-    margin-bottom: 0;
-  }
-
-  .license-split-layout {
-    flex: 1 1 auto;
-    min-height: 0;
-  }
-
-  .license-col {
-    min-height: 0;
-  }
-
-  .checkbox-list {
-    min-height: 0;
-  }
-
-  .info-card {
-    display: none;
-  }
-
-  .tags-container {
-    max-height: 68px;
-    overflow: hidden;
-  }
-
-  .files-manager {
-    flex: 0 1 auto;
-    max-height: min(260px, 34dvh);
-  }
-
-  .file-upload-wrapper {
-    display: flex;
-    flex: 1 1 auto;
-    min-height: 0;
-    flex-direction: column;
-  }
-
-  .file-drop-area {
-    flex: 1 1 auto;
-    min-height: 132px;
-  }
-
-  .file-drop-label {
-    height: 100%;
-    min-height: 0;
-  }
-
-  .form-actions {
-    flex: 0 0 auto;
-  }
+.upload-msg.is-error { background: var(--sos-danger-soft, #fdecec); color: var(--sos-danger, #c0392b); }
+.upload-msg.is-ok { background: var(--sos-success-soft, #e7f7ee); color: var(--sos-success, #1f9254); }
+.upload-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  vertical-align: -3px;
+  animation: upl-spin 0.7s linear infinite;
 }
+@keyframes upl-spin { to { transform: rotate(360deg); } }
 
-@media (min-width: 1120px) and (max-height: 760px) {
-  .container-card {
-    --upload-decor-slot: clamp(72px, 5.6vw, 94px);
-    --upload-decor-size: clamp(58px, 4.6vw, 78px);
-    height: calc(100dvh - 82px);
-  }
+/* ---------- 过渡 ---------- */
+.upl-collapse-enter-active,
+.upl-collapse-leave-active { transition: all 0.28s ease; max-height: 360px; overflow: hidden; }
+.upl-collapse-enter-from,
+.upl-collapse-leave-to { max-height: 0; opacity: 0; transform: translateY(-6px); }
+.upl-tag-enter-active,
+.upl-tag-leave-active { transition: all 0.25s ease; }
+.upl-tag-enter-from,
+.upl-tag-leave-to { opacity: 0; transform: scale(0.85); }
 
-  .page-header {
-    margin-bottom: 6px;
-  }
-
-  .main-title {
-    font-size: 25px;
-  }
-
-  .header-decoration .deco-img {
-    max-height: clamp(82px, 15dvh, 116px);
-  }
-
-  .main-form {
-    gap: 8px;
-    padding: 8px;
-  }
-
-  .main-form > .form-section {
-    padding: 12px 14px;
-    border-radius: 16px;
-  }
-
-  .section-head {
-    margin-bottom: 8px;
-  }
-
-  .section-title {
-    font-size: 16px;
-  }
-
-  .section-desc,
-  .form-hint.center,
-  .license-col .form-hint {
-    display: none;
-  }
-
-  .form-input,
-  .form-textarea {
-    padding: 8px 11px;
-    font-size: 13px;
-  }
-
-  .form-textarea {
-    min-height: 48px;
-    line-height: 1.35;
-  }
-
-  .segment-btn {
-    min-height: 34px;
-    padding: 7px 8px;
-  }
-
-  .checkbox-card {
-    padding: 7px 8px;
-  }
-
-  .file-drop-area {
-    min-height: 102px;
-  }
-
-  .upload-icon {
-    font-size: 30px;
-  }
-
-  .submit-btn {
-    padding: 11px;
-    font-size: 15px;
-  }
+@media (max-width: 600px) {
+  .upload-hero__deco { display: none; }
 }
 </style>
