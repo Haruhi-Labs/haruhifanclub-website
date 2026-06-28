@@ -664,10 +664,11 @@ async fn redeem_in_tx(
         }
     }
     // 可用积分 = 总积分(points_ledger) - 已冻结(pending 兑换)
-    let total: Option<i64> = sqlx::query_scalar("SELECT SUM(points) FROM points_ledger WHERE uid=?")
-        .bind(uid)
-        .fetch_one(&mut *conn)
-        .await?;
+    let total: Option<i64> =
+        sqlx::query_scalar("SELECT SUM(points) FROM points_ledger WHERE uid=?")
+            .bind(uid)
+            .fetch_one(&mut *conn)
+            .await?;
     let frozen: Option<i64> = sqlx::query_scalar(
         "SELECT SUM(frozen_coins) FROM guild_reward_redemptions WHERE uid=? AND status='pending'",
     )
@@ -1312,10 +1313,11 @@ async fn user_profile_value(state: &AppState, user_id: i64) -> AppResult<Value> 
 
 async fn coin_summary(state: &AppState, uid: &str) -> AppResult<Value> {
     // 金币即画廊积分：余额从 points_ledger 计；冻结为 pending 兑换占用。
-    let total: Option<i64> = sqlx::query_scalar("SELECT SUM(points) FROM points_ledger WHERE uid=?")
-        .bind(uid)
-        .fetch_one(&state.pools.art)
-        .await?;
+    let total: Option<i64> =
+        sqlx::query_scalar("SELECT SUM(points) FROM points_ledger WHERE uid=?")
+            .bind(uid)
+            .fetch_one(&state.pools.art)
+            .await?;
     let frozen: Option<i64> = sqlx::query_scalar(
         "SELECT SUM(frozen_coins) FROM guild_reward_redemptions WHERE uid=? AND status='pending'",
     )
