@@ -612,7 +612,8 @@ async function submit(){
 @media (min-width: 960px) {
   .upload-aside {
     position: sticky;
-    top: var(--sos-space-4);
+    /* 顶部 SosAppbar 是 sticky header（高 --sos-header-height），副列须停在它下方，避免被遮挡 */
+    top: calc(var(--sos-header-height, 4rem) + var(--sos-space-4));
   }
 }
 
