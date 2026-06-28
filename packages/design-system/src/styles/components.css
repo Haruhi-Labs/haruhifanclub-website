@@ -1710,13 +1710,16 @@
   flex: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--sos-space-4);
   min-width: 0;
 }
 .sos-appbar__nav {
+  /* 桌面：占据 logo 与 actions 之间的空间并把导航项居中（三段平衡：logo 左·导航中·账号右）。
+     移动端抽屉里下面的 media query 会重置 flex，避免纵向撑满。 */
+  flex: 1;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--sos-space-1);
   min-width: 0;
 }
@@ -1800,6 +1803,7 @@
   .sos-appbar.is-open .sos-appbar__cluster { transform: translateX(0); }
   .sos-appbar__nav,
   .sos-appbar__nav .sos-navlinks {
+    flex: 0 1 auto; /* 抽屉里恢复自然高度，不被桌面的 flex:1 撑满 */
     flex-direction: column;
     align-items: stretch;
     width: 100%;
