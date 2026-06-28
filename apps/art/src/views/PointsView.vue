@@ -38,7 +38,7 @@
                   class="s-avatar" 
                   alt=""
                 />
-                <span class="s-uid">{{ s.uid }}</span>
+                <span class="s-uid">{{ s.name || s.uid }}</span>
               </div>
             </div>
           </div>
@@ -55,7 +55,7 @@
                 alt=""
               />
               <div class="u-text">
-                <div class="u-name">{{ searchResult.creator?.uid || query }}</div>
+                <div class="u-name">{{ searchResult.creator?.name || searchResult.creator?.uid || query }}</div>
                 <div class="u-badge">创作者</div>
               </div>
             </div>
@@ -122,7 +122,7 @@
               class="lb-avatar" 
               alt=""
             />
-            <span class="lb-uid">{{ item.uid }}</span>
+            <span class="lb-uid">{{ item.name || item.uid }}</span>
           </div>
           <div class="cell score">{{ item.total }}</div>
         </div>
