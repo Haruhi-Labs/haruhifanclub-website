@@ -1,67 +1,81 @@
 <template>
-  <section class="container-card art-board announcement-board">
-    <header class="board-header announcement-header">
-      <p class="eyebrow">Club Board</p>
-      <h1>公告</h1>
-      <p>活动安排与维护通知都在这里汇总，当前使用本地 mock 公告数据。</p>
+  <div class="ann-scope">
+    <!-- 页头 -->
+    <header class="ann-hero">
+      <div class="ann-hero__copy">
+        <span class="ann-hero__eyebrow">Club Board · 社团公告栏</span>
+        <h1 class="ann-hero__title">公告栏</h1>
+        <p class="ann-hero__lede">活动安排与维护通知都汇总在此，按分类查看。</p>
+      </div>
+      <div class="ann-hero__stamp" aria-hidden="true">
+        <span class="ann-hero__stamp-ring"></span>
+        <span class="ann-hero__stamp-text">SOS</span>
+      </div>
     </header>
 
-    <div class="announcement-layout">
-      <section class="notice-browser panel" aria-label="公告分类与列表">
-        <nav class="notice-category-rail" aria-label="公告分类">
+    <div class="ann-layout">
+      <!-- 列表列 -->
+      <section class="ann-browse" aria-label="公告分类与列表">
+        <div class="ann-tabs" role="tablist" aria-label="公告分类">
           <button
             v-for="category in noticeCategories"
             :key="category.id"
-            class="notice-category-tab"
-            :class="{ active: activeCategory === category.id }"
+            class="ann-tab"
+            :class="[category.id, { 'is-active': activeCategory === category.id }]"
             type="button"
+            role="tab"
+            :aria-selected="activeCategory === category.id"
             @click="setCategory(category.id)"
           >
-            <span>{{ category.label }}</span>
-            <b>{{ category.count }}</b>
+            <span class="ann-tab__dot" aria-hidden="true"></span>
+            <span class="ann-tab__label">{{ category.label }}</span>
+            <b class="ann-tab__count">{{ category.count }}</b>
           </button>
-        </nav>
+        </div>
 
-        <div class="notice-list-panel">
-          <div class="notice-list-heading">
+        <div class="ann-list">
+          <div class="ann-list__head">
             <span>{{ currentCategory?.label }}</span>
-            <small>新到旧</small>
+            <small>新 → 旧</small>
           </div>
-
           <button
             v-for="notice in filteredNotices"
             :key="notice.id"
-            class="notice-list-item"
-            :class="{ active: selectedNotice?.id === notice.id }"
+            class="ann-item"
+            :class="{ 'is-active': selectedNotice?.id === notice.id }"
             type="button"
             @click="selectNotice(notice.id)"
           >
-            <time :datetime="notice.date">
-              <span>{{ notice.month }}</span>
+            <time class="ann-item__date" :datetime="notice.date">
+              <span>{{ notice.month }}月</span>
               <b>{{ notice.day }}</b>
             </time>
-            <span class="notice-list-copy">
+            <span class="ann-item__copy">
+              <span class="ann-item__type" :class="notice.category">{{ notice.type }}</span>
               <strong>{{ notice.title }}</strong>
               <small>{{ notice.summary }}</small>
             </span>
+            <span class="ann-item__chevron" aria-hidden="true">›</span>
           </button>
         </div>
       </section>
 
-      <article v-if="selectedNotice" class="notice-detail panel">
-        <div class="notice-detail-meta">
-          <span>{{ selectedNotice.type }}</span>
+      <!-- 详情列 -->
+      <article v-if="selectedNotice" class="ann-detail" :class="selectedNotice.category">
+        <div class="ann-detail__meta">
+          <span class="ann-detail__type" :class="selectedNotice.category">{{ selectedNotice.type }}</span>
           <time :datetime="selectedNotice.date">{{ selectedNotice.displayDate }}</time>
         </div>
-        <h2>{{ selectedNotice.title }}</h2>
-        <p>{{ selectedNotice.body }}</p>
-
-        <div class="notice-detail-tags" aria-label="公告标签">
+        <h2 class="ann-detail__title">{{ selectedNotice.title }}</h2>
+        <p class="ann-detail__lede">{{ selectedNotice.summary }}</p>
+        <div class="ann-detail__rule" aria-hidden="true"></div>
+        <p class="ann-detail__body">{{ selectedNotice.body }}</p>
+        <div class="ann-detail__tags" aria-label="公告标签">
           <span v-for="tag in selectedNotice.tags" :key="tag">#{{ tag }}</span>
         </div>
       </article>
     </div>
-  </section>
+  </div>
 </template>
 
 <script setup>
@@ -178,338 +192,303 @@ function selectNotice(noticeId) {
 </script>
 
 <style scoped>
-.announcement-board {
-  display: grid;
-  gap: 28px;
+.ann-scope {
+  /* art 青绿为主、维护类用琥珀作区分；玻璃面板 + 设计系统 token */
+  --ann-accent: var(--sos-accent, hsl(172, 70%, 42%));
+  --ann-accent-strong: color-mix(in srgb, var(--ann-accent) 76%, #0b3a36);
+  --ann-amber: hsl(35, 92%, 52%);
+  --ann-amber-strong: color-mix(in srgb, var(--ann-amber) 72%, #5a3a08);
+  --ann-text: var(--sos-text-primary, #16242b);
+  --ann-muted: var(--sos-text-secondary, #5c6b72);
+  --ann-glass: color-mix(in srgb, #ffffff 70%, transparent);
+  --ann-glass-line: color-mix(in srgb, #ffffff 84%, transparent);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 var(--sos-space-4, 16px) var(--sos-space-8, 48px);
+  color: var(--ann-text);
 }
 
-.announcement-header {
-  max-width: 760px;
-}
-
-.announcement-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
-  gap: 22px;
-  align-items: stretch;
-}
-
-.notice-browser {
-  display: grid;
-  grid-template-columns: minmax(108px, 0.36fr) minmax(0, 1fr);
-  gap: 16px;
-  min-height: 430px;
-  padding: 16px;
-}
-
-.notice-category-rail {
-  display: grid;
-  grid-auto-rows: minmax(118px, 1fr);
-  gap: 12px;
-}
-
-.notice-category-tab {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-width: 0;
-  padding: 16px 14px;
-  overflow: hidden;
-  color: var(--muted);
-  text-align: left;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(255, 244, 247, 0.68)),
-    radial-gradient(circle at 18% 15%, rgba(245, 51, 93, 0.16), transparent 36%);
-  border: 1px solid rgba(245, 51, 93, 0.16);
-  border-radius: 18px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
-  cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease,
-    box-shadow 0.2s ease,
-    background 0.2s ease;
-}
-
-.notice-category-tab::after {
-  position: absolute;
-  inset: auto -24px -30px auto;
-  width: 76px;
-  height: 76px;
-  content: '';
-  background: radial-gradient(circle, rgba(89, 168, 255, 0.2), transparent 68%);
-  border-radius: 999px;
-}
-
-.notice-category-tab:hover,
-.notice-category-tab.active {
-  color: var(--text);
-  border-color: rgba(245, 51, 93, 0.34);
-  box-shadow:
-    0 16px 34px rgba(245, 51, 93, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  transform: translateY(-2px);
-}
-
-.notice-category-tab.active {
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(255, 236, 241, 0.88)),
-    radial-gradient(circle at 20% 16%, rgba(245, 51, 93, 0.28), transparent 42%);
-}
-
-.notice-category-tab span {
-  position: relative;
-  z-index: 1;
-  font-size: 1rem;
-  font-weight: 800;
-}
-
-.notice-category-tab b {
-  position: relative;
-  z-index: 1;
-  font-size: 2.2rem;
-  line-height: 1;
-  color: var(--accent);
-}
-
-.notice-list-panel {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 4px;
-}
-
-.notice-list-heading {
+/* ---------- 页头 ---------- */
+.ann-hero {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 6px 6px 14px;
-  color: var(--text);
+  gap: var(--sos-space-4);
+  padding: var(--sos-space-4) var(--sos-space-1) var(--sos-space-6);
+}
+.ann-hero__eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--ann-accent-strong);
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ann-accent) 13%, transparent);
+}
+.ann-hero__title {
+  margin: 12px 0 6px;
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 850;
+  letter-spacing: -0.02em;
+}
+.ann-hero__lede {
+  margin: 0;
+  color: var(--ann-muted);
+  font-size: 15px;
+}
+.ann-hero__stamp {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  flex-shrink: 0;
+  color: var(--ann-accent-strong);
+}
+.ann-hero__stamp-ring {
+  position: absolute;
+  inset: 0;
+  border: 2px dashed color-mix(in srgb, var(--ann-accent) 45%, transparent);
+  border-radius: 50%;
+  animation: ann-spin 26s linear infinite;
+}
+.ann-hero__stamp-text {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+@keyframes ann-spin { to { transform: rotate(360deg); } }
+
+/* ---------- 两列布局 ---------- */
+.ann-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sos-space-4);
+  align-items: start;
+}
+@media (min-width: 920px) {
+  .ann-layout { grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr); gap: var(--sos-space-5); }
+}
+
+/* ---------- 列表列 ---------- */
+.ann-browse {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sos-space-3);
+}
+.ann-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sos-space-3);
+}
+.ann-tab {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--ann-glass-line);
+  background: var(--ann-glass);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  text-align: left;
+}
+.ann-tab__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--ann-accent);
+}
+.ann-tab.maintenance .ann-tab__dot { background: var(--ann-amber); }
+.ann-tab__label { font-size: 14px; font-weight: 700; flex: 1; }
+.ann-tab__count {
+  font-size: 20px;
+  font-weight: 850;
+  line-height: 1;
+  color: var(--ann-accent-strong);
+}
+.ann-tab.maintenance .ann-tab__count { color: var(--ann-amber-strong); }
+.ann-tab:hover { transform: translateY(-1px); box-shadow: 0 12px 26px -16px rgba(20, 60, 60, 0.4); }
+.ann-tab.is-active {
+  border-color: color-mix(in srgb, var(--ann-accent) 55%, transparent);
+  box-shadow: 0 14px 30px -18px color-mix(in srgb, var(--ann-accent) 60%, transparent);
+}
+.ann-tab.maintenance.is-active {
+  border-color: color-mix(in srgb, var(--ann-amber) 55%, transparent);
+  box-shadow: 0 14px 30px -18px color-mix(in srgb, var(--ann-amber) 55%, transparent);
+}
+
+.ann-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--sos-space-4);
+  border-radius: 20px;
+  border: 1px solid var(--ann-glass-line);
+  background: var(--ann-glass);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 20px 44px -28px rgba(20, 60, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.ann-list__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 2px 4px 8px;
+  font-size: 13px;
   font-weight: 800;
 }
+.ann-list__head small { color: var(--ann-muted); font-weight: 700; }
 
-.notice-list-heading small {
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.notice-list-item {
+.ann-item {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: 54px minmax(0, 1fr) auto;
   gap: 14px;
   align-items: center;
   width: 100%;
-  min-width: 0;
-  padding: 14px;
-  color: var(--text);
-  text-align: left;
-  background: rgba(255, 255, 255, 0.58);
+  padding: 12px;
+  border-radius: 14px;
   border: 1px solid transparent;
-  border-radius: 18px;
+  background: color-mix(in srgb, #ffffff 40%, transparent);
   cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    border-color 0.2s ease,
-    background 0.2s ease,
-    box-shadow 0.2s ease;
+  text-align: left;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s, box-shadow 0.2s;
 }
-
-.notice-list-item + .notice-list-item {
-  margin-top: 10px;
+.ann-item:hover {
+  background: color-mix(in srgb, #ffffff 72%, transparent);
+  transform: translateX(2px);
 }
-
-.notice-list-item:hover,
-.notice-list-item.active {
-  background: rgba(255, 255, 255, 0.86);
-  border-color: rgba(89, 168, 255, 0.28);
-  box-shadow: 0 16px 30px rgba(16, 24, 40, 0.1);
-  transform: translateX(3px);
+.ann-item.is-active {
+  border-color: color-mix(in srgb, var(--ann-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--ann-accent) 8%, #ffffff);
 }
-
-.notice-list-item time {
+.ann-item__date {
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  color: #f5335d;
-  background: linear-gradient(155deg, rgba(255, 235, 240, 0.95), rgba(234, 246, 255, 0.9));
-  border: 1px solid rgba(245, 51, 93, 0.18);
-  border-radius: 16px;
+  border-radius: 12px;
+  color: var(--ann-accent-strong);
+  background: color-mix(in srgb, var(--ann-accent) 12%, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--ann-accent) 22%, transparent);
 }
-
-.notice-list-item time span {
-  font-size: 0.76rem;
+.ann-item__date span { font-size: 11px; font-weight: 800; }
+.ann-item__date b { font-size: 18px; line-height: 1; margin-top: -2px; }
+.ann-item__copy { display: grid; gap: 4px; min-width: 0; }
+.ann-item__type {
+  justify-self: start;
+  font-size: 10.5px;
   font-weight: 800;
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: var(--ann-accent-strong);
+  background: color-mix(in srgb, var(--ann-accent) 14%, transparent);
 }
-
-.notice-list-item time b {
-  margin-top: -8px;
-  font-size: 1.35rem;
-  line-height: 1;
+.ann-item__type.maintenance {
+  color: var(--ann-amber-strong);
+  background: color-mix(in srgb, var(--ann-amber) 16%, transparent);
 }
+.ann-item__copy strong { font-size: 14.5px; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ann-item__copy small { font-size: 12.5px; color: var(--ann-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ann-item__chevron { color: var(--ann-muted); font-size: 20px; font-weight: 700; }
 
-.notice-list-copy {
-  display: grid;
-  min-width: 0;
-  gap: 5px;
-}
-
-.notice-list-copy strong,
-.notice-list-copy small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.notice-list-copy strong {
-  font-size: 1rem;
-}
-
-.notice-list-copy small {
-  color: var(--muted);
-  font-size: 0.84rem;
-  line-height: 1.5;
-}
-
-.notice-detail {
+/* ---------- 详情列 ---------- */
+.ann-detail {
+  position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  min-height: 430px;
-  padding: clamp(22px, 4vw, 38px);
+  padding: clamp(22px, 3vw, 34px);
+  border-radius: 22px;
+  border: 1px solid var(--ann-glass-line);
   overflow: hidden;
   background:
-    radial-gradient(circle at 88% 10%, rgba(89, 168, 255, 0.18), transparent 32%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(255, 246, 249, 0.78));
+    radial-gradient(120% 80% at 88% 0%, color-mix(in srgb, var(--ann-accent) 12%, transparent), transparent 60%),
+    var(--ann-glass);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 24px 50px -28px rgba(20, 60, 60, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
-
-.notice-detail-meta {
+.ann-detail.maintenance {
+  background:
+    radial-gradient(120% 80% at 88% 0%, color-mix(in srgb, var(--ann-amber) 14%, transparent), transparent 60%),
+    var(--ann-glass);
+}
+.ann-detail__meta {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
   align-items: center;
-  margin-bottom: 18px;
-  color: var(--muted);
-  font-size: 0.86rem;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ann-muted);
+  margin-bottom: 14px;
+}
+.ann-detail__type {
+  font-size: 11px;
   font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: var(--ann-accent-strong);
+  background: color-mix(in srgb, var(--ann-accent) 14%, transparent);
 }
-
-.notice-detail-meta span {
-  color: #f5335d;
-}
-
-.notice-detail h2 {
-  max-width: 720px;
+.ann-detail__type.maintenance { color: var(--ann-amber-strong); background: color-mix(in srgb, var(--ann-amber) 16%, transparent); }
+.ann-detail__title {
   margin: 0;
-  color: var(--text);
-  font-size: clamp(1.8rem, 4vw, 3rem);
-  line-height: 1.08;
+  font-size: clamp(22px, 3.4vw, 34px);
+  font-weight: 850;
+  line-height: 1.14;
+  letter-spacing: -0.01em;
 }
-
-.notice-detail p {
-  max-width: 680px;
-  margin: 20px 0 0;
-  color: var(--muted);
-  font-size: 1rem;
-  line-height: 1.9;
+.ann-detail__lede {
+  margin: 12px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ann-text);
 }
-
-.notice-detail-tags {
+.ann-detail__rule {
+  height: 1px;
+  margin: 20px 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ann-accent) 40%, transparent), transparent);
+}
+.ann-detail__body {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.85;
+  color: var(--ann-muted);
+}
+.ann-detail__tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 30px;
+  gap: 8px;
+  margin-top: 22px;
 }
-
-.notice-detail-tags span {
-  padding: 7px 12px;
-  color: #f5335d;
-  font-size: 0.84rem;
-  font-weight: 800;
-  background: rgba(245, 51, 93, 0.1);
-  border: 1px solid rgba(245, 51, 93, 0.18);
+.ann-detail__tags span {
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 5px 11px;
   border-radius: 999px;
+  color: var(--ann-accent-strong);
+  background: color-mix(in srgb, var(--ann-accent) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ann-accent) 20%, transparent);
 }
 
-:global(html.art-lights-out) .notice-category-tab {
-  color: rgba(220, 232, 255, 0.72);
-  background:
-    linear-gradient(145deg, rgba(13, 21, 45, 0.9), rgba(24, 20, 52, 0.82)),
-    radial-gradient(circle at 18% 15%, rgba(255, 92, 130, 0.18), transparent 40%);
-  border-color: rgba(132, 172, 255, 0.18);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+/* ---------- 关灯（暗色）适配 ---------- */
+:global(html.art-lights-out) .ann-scope {
+  --ann-text: #f5f8ff;
+  --ann-muted: rgba(220, 232, 255, 0.7);
+  --ann-glass: rgba(15, 24, 46, 0.62);
+  --ann-glass-line: rgba(120, 160, 220, 0.18);
+  --ann-accent-strong: color-mix(in srgb, var(--ann-accent) 70%, #d8fff4);
 }
+:global(html.art-lights-out) .ann-item { background: rgba(13, 21, 45, 0.5); }
+:global(html.art-lights-out) .ann-item:hover { background: rgba(22, 33, 66, 0.7); }
+:global(html.art-lights-out) .ann-item__date { background: rgba(13, 33, 40, 0.7); }
 
-:global(html.art-lights-out) .notice-category-tab:hover,
-:global(html.art-lights-out) .notice-category-tab.active {
-  color: #f5f8ff;
-  border-color: rgba(111, 206, 255, 0.38);
-  box-shadow:
-    0 18px 44px rgba(55, 160, 255, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-:global(html.art-lights-out) .notice-list-item {
-  color: #f5f8ff;
-  background: rgba(13, 21, 45, 0.54);
-}
-
-:global(html.art-lights-out) .notice-list-item:hover,
-:global(html.art-lights-out) .notice-list-item.active {
-  background: rgba(22, 33, 66, 0.78);
-  border-color: rgba(111, 206, 255, 0.28);
-}
-
-:global(html.art-lights-out) .notice-list-item time {
-  color: #ff8ca7;
-  background: linear-gradient(155deg, rgba(45, 26, 57, 0.86), rgba(15, 44, 73, 0.82));
-  border-color: rgba(255, 140, 167, 0.25);
-}
-
-:global(html.art-lights-out) .notice-detail {
-  background:
-    radial-gradient(circle at 88% 10%, rgba(111, 206, 255, 0.18), transparent 34%),
-    linear-gradient(145deg, rgba(12, 20, 44, 0.88), rgba(25, 20, 55, 0.8));
-}
-
-:global(html.art-lights-out) .notice-detail h2 {
-  color: #f7fbff;
-}
-
-:global(html.art-lights-out) .notice-detail p,
-:global(html.art-lights-out) .notice-list-copy small,
-:global(html.art-lights-out) .notice-list-heading small,
-:global(html.art-lights-out) .notice-detail-meta {
-  color: rgba(220, 232, 255, 0.72);
-}
-
-@media (max-width: 980px) {
-  .announcement-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .notice-detail {
-    min-height: 320px;
-  }
-}
-
-@media (max-width: 640px) {
-  .notice-browser {
-    grid-template-columns: 1fr;
-    min-height: auto;
-  }
-
-  .notice-category-rail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-auto-rows: minmax(96px, auto);
-  }
-
-  .notice-list-item {
-    grid-template-columns: 52px minmax(0, 1fr);
-    padding: 12px;
-  }
+@media (max-width: 560px) {
+  .ann-hero__stamp { display: none; }
+  .ann-item { grid-template-columns: 48px minmax(0, 1fr); }
+  .ann-item__chevron { display: none; }
 }
 </style>
