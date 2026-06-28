@@ -31,7 +31,7 @@ pub fn router() -> Router<AppState> {
         .route("/points/history", get(points_history))
         .route("/creators/search", get(creators_search))
         .route("/creators/verify", get(creators_verify))
-        .route("/visitors", get(record_visitor))
+        .route("/visitors", post(record_visitor))
         .route("/artworks", get(list_artworks).post(create_artwork))
         .route("/artworks/{id}", get(get_artwork))
         .route("/thumb", get(get_thumb))
@@ -383,20 +383,6 @@ fn map_artwork_row(r: &ArtRow) -> Value {
     })
 }
 
-async fn map_artwork_row_with_guild(state: &AppState, r: &ArtRow) -> Value {
-    let mut value = map_artwork_row(r);
-    let uid = r.uploader_uid.as_deref().unwrap_or("").trim();
-    if !uid.is_empty() {
-        if let Some(obj) = value.as_object_mut() {
-            obj.insert(
-                "guild".into(),
-                super::art_guild::guild_summary_for_uid(state, uid).await,
-            );
-        }
-    }
-    value
-}
-
 fn now_iso() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
@@ -410,23 +396,7 @@ async fn record_visitor(State(state): State<AppState>, headers: HeaderMap) -> Ap
     let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
     let now = now_iso();
 
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS art_visitors (
-            anon_id TEXT PRIMARY KEY,
-            first_seen_at TEXT NOT NULL,
-            last_seen_at TEXT NOT NULL,
-            visit_count INTEGER DEFAULT 1
-        )",
-    )
-    .execute(&state.pools.art)
-    .await?;
-
-    sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_art_visitors_last_seen ON art_visitors(last_seen_at)",
-    )
-    .execute(&state.pools.art)
-    .await?;
-
+    // art_visitors 表已随迁移 0003 建好，这里不再运行期建表。
     let insert = sqlx::query(
         "INSERT OR IGNORE INTO art_visitors(anon_id, first_seen_at, last_seen_at, visit_count)
          VALUES(?,?,?,1)",
@@ -682,10 +652,24 @@ async fn list_artworks(
     }
     list_q = list_q.bind(page_size).bind(offset);
     let rows: Vec<ArtRow> = list_q.fetch_all(&state.pools.art).await?;
-    let mut data: Vec<Value> = Vec::with_capacity(rows.len());
-    for row in &rows {
-        data.push(map_artwork_row_with_guild(&state, row).await);
-    }
+    // 批量取作者公会徽章，避免逐行 N+1（一次 IN 查询、不建档）。
+    let uids: Vec<String> = rows.iter().filter_map(|r| r.uploader_uid.clone()).collect();
+    let guild_map = super::art_guild::guild_summaries_for_uids(&state, &uids).await;
+    let data: Vec<Value> = rows
+        .iter()
+        .map(|row| {
+            let mut value = map_artwork_row(row);
+            let uid = row.uploader_uid.as_deref().unwrap_or("").trim();
+            if !uid.is_empty() {
+                if let Some(summary) = guild_map.get(uid) {
+                    if let Some(obj) = value.as_object_mut() {
+                        obj.insert("guild".into(), summary.clone());
+                    }
+                }
+            }
+            value
+        })
+        .collect();
 
     Ok(Json(json!({
         "ok": true,
@@ -738,10 +722,17 @@ async fn get_artwork(
 
     super::art_guild::record_user_event(&state, user, "browse_artwork", Some(id)).await;
 
-    Ok(json_with_cookie(
-        json!({ "ok": true, "data": map_artwork_row_with_guild(&state, &row).await }),
-        set,
-    ))
+    let mut value = map_artwork_row(&row);
+    let author_uid = row.uploader_uid.as_deref().unwrap_or("").trim();
+    if !author_uid.is_empty() {
+        if let Some(obj) = value.as_object_mut() {
+            obj.insert(
+                "guild".into(),
+                super::art_guild::guild_summary_for_uid(&state, author_uid).await,
+            );
+        }
+    }
+    Ok(json_with_cookie(json!({ "ok": true, "data": value }), set))
 }
 
 // 6.5 缩略图：GET /thumb?path=art/2026-02/x.webp&w=640

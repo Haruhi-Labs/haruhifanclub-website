@@ -154,27 +154,15 @@ pub async fn grant_upload_progress(
         return;
     }
 
-    let (coins, reputation, note) = if content_type == "haruhi" {
-        (
-            120,
-            120,
-            format!("投稿凉宫个人作品奖励{manual_note_suffix}"),
-        )
+    // 金币即画廊积分：投稿积分已由 art.rs 主流程写入 points_ledger，此处不再重复发放金币，
+    // 仅发放公会声望（评级体系的等级分，与积分相互独立）。
+    let reputation = if content_type == "haruhi" { 120 } else { 30 };
+    let note = if content_type == "haruhi" {
+        format!("投稿凉宫个人作品奖励{manual_note_suffix}")
     } else {
-        (30, 30, format!("投稿其他个人作品奖励{manual_note_suffix}"))
+        format!("投稿其他个人作品奖励{manual_note_suffix}")
     };
 
-    let _ = ensure_profile_for_uid(state, uid).await;
-    let _ = grant_coins(
-        state,
-        uid,
-        coins,
-        Some(artwork_id),
-        &note,
-        "upload_artwork",
-        created_at,
-    )
-    .await;
     let _ = grant_reputation(
         state,
         uid,
@@ -190,16 +178,71 @@ pub async fn grant_upload_progress(
 }
 
 pub async fn guild_summary_for_uid(state: &AppState, uid: &str) -> Value {
-    profile_value(state, uid, false).await.unwrap_or_else(|_| {
-        json!({
-            "uid": uid,
-            "rating": "F",
-            "level": 1,
-            "accessTier": "public_archive",
-            "accessLabel": access_label("public_archive"),
-            "badgeLabel": "F",
-            "reputation": 0
-        })
+    let row: Option<(i64, String, String)> =
+        sqlx::query_as("SELECT reputation, rating, access_tier FROM guild_profiles WHERE uid=?")
+            .bind(uid)
+            .fetch_optional(&state.pools.art)
+            .await
+            .ok()
+            .flatten();
+    match row {
+        Some((reputation, rating, access_tier)) => {
+            light_summary(uid, reputation, &rating, &access_tier)
+        }
+        None => light_summary(uid, 0, "F", "public_archive"),
+    }
+}
+
+/// 批量取多个 uid 的公会徽章概要（列表用）：一次 IN 查询，不建档、不查积分/统计，消除 N+1。
+pub async fn guild_summaries_for_uids(
+    state: &AppState,
+    uids: &[String],
+) -> std::collections::HashMap<String, Value> {
+    let mut map: std::collections::HashMap<String, Value> = std::collections::HashMap::new();
+    let mut uniq: Vec<String> = uids
+        .iter()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    uniq.sort();
+    uniq.dedup();
+    if uniq.is_empty() {
+        return map;
+    }
+    // 先以默认 F 档兜底（未建档作者也显示徽章，与逐行旧行为一致），再用实际档案覆盖。
+    for u in &uniq {
+        map.insert(u.clone(), light_summary(u, 0, "F", "public_archive"));
+    }
+    let placeholders = uniq.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!(
+        "SELECT uid, reputation, rating, access_tier FROM guild_profiles WHERE uid IN ({placeholders})"
+    );
+    let mut q = sqlx::query_as::<_, (String, i64, String, String)>(&sql);
+    for u in &uniq {
+        q = q.bind(u);
+    }
+    if let Ok(rows) = q.fetch_all(&state.pools.art).await {
+        for (uid, reputation, rating, access_tier) in rows {
+            map.insert(
+                uid.clone(),
+                light_summary(&uid, reputation, &rating, &access_tier),
+            );
+        }
+    }
+    map
+}
+
+fn light_summary(uid: &str, reputation: i64, rating: &str, access_tier: &str) -> Value {
+    json!({
+        "uid": uid,
+        "reputation": reputation,
+        "level": level_from_reputation(reputation),
+        "rating": rating,
+        "ratingLabel": rating_label(rating),
+        "accessTier": access_tier,
+        "accessLabel": access_label(access_tier),
+        "accessShortLabel": access_short_label(access_tier),
+        "badgeLabel": rating
     })
 }
 
@@ -241,8 +284,8 @@ async fn guild_profile(
     State(state): State<AppState>,
     Path(uid): Path<String>,
 ) -> AppResult<Json<Value>> {
+    // 公开资料：只读，不为任意被访问的 uid 建档（避免未登录 GET 污染 guild_profiles）。
     let uid = normalize_uid(&uid)?;
-    ensure_profile_for_uid(&state, &uid).await?;
     let profile = profile_value(&state, &uid, false).await?;
     let stats = artwork_stats(&state, &uid, false).await?;
     let artworks = artworks_for_uid(&state, &uid, false, 18).await?;
@@ -400,9 +443,9 @@ async fn guild_leaderboard(State(state): State<AppState>) -> AppResult<Json<Valu
         Option<String>,
     )> = sqlx::query_as(
         "SELECT gp.uid, gp.reputation, gp.rating, gp.access_tier,
-                COALESCE(SUM(cl.coins), 0) AS coins, c.avatar_url
+                COALESCE(SUM(pl.points), 0) AS coins, c.avatar_url
          FROM guild_profiles gp
-         LEFT JOIN coins_ledger cl ON cl.uid=gp.uid
+         LEFT JOIN points_ledger pl ON pl.uid=gp.uid
          LEFT JOIN creators c ON c.uid=gp.uid
          GROUP BY gp.uid
          ORDER BY
@@ -572,43 +615,81 @@ async fn guild_redeem_reward(
     {
         return Err(AppError::bad_request("评级或访问许可不足"));
     }
+    // 原子兑换临界区：BEGIN IMMEDIATE 串行化「复核库存 + 复核可用积分 + 写入冻结记录」，
+    // 防并发兑换超扣/超卖（与 main 的 news prizes 原子兑换思路一致）。
+    let note = body
+        .get("note")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let now = now_iso();
+    let mut conn = state.pools.art.acquire().await?;
+    sqlx::query("BEGIN IMMEDIATE").execute(&mut *conn).await?;
+    match redeem_in_tx(&mut conn, id, &uid, price, stock, &note, &now).await {
+        // conn 解引用到 &mut SqliteConnection（deref coercion）
+        Ok(()) => {
+            sqlx::query("COMMIT").execute(&mut *conn).await?;
+            Ok(Json(
+                json!({ "ok": true, "message": format!("已提交「{name}」兑换申请") }),
+            ))
+        }
+        Err(e) => {
+            let _ = sqlx::query("ROLLBACK").execute(&mut *conn).await;
+            Err(e)
+        }
+    }
+}
+
+/// 兑换事务体：在已开启的 BEGIN IMMEDIATE 写事务内复核库存与可用积分，并写入 pending 冻结记录。
+async fn redeem_in_tx(
+    conn: &mut sqlx::SqliteConnection,
+    reward_id: i64,
+    uid: &str,
+    price: i64,
+    stock: Option<i64>,
+    note: &str,
+    now: &str,
+) -> AppResult<()> {
     if let Some(stock) = stock {
         if stock >= 0 {
             let pending: i64 = sqlx::query_scalar(
                 "SELECT COUNT(*) FROM guild_reward_redemptions WHERE reward_id=? AND status='pending'",
             )
-            .bind(id)
-            .fetch_one(&state.pools.art)
+            .bind(reward_id)
+            .fetch_one(&mut *conn)
             .await?;
             if stock - pending <= 0 {
                 return Err(AppError::bad_request("库存不足"));
             }
         }
     }
-    let summary = coin_summary(&state, &uid).await?;
-    let available = summary
-        .get("available")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
-    if available < price {
+    // 可用积分 = 总积分(points_ledger) - 已冻结(pending 兑换)
+    let total: Option<i64> = sqlx::query_scalar("SELECT SUM(points) FROM points_ledger WHERE uid=?")
+        .bind(uid)
+        .fetch_one(&mut *conn)
+        .await?;
+    let frozen: Option<i64> = sqlx::query_scalar(
+        "SELECT SUM(frozen_coins) FROM guild_reward_redemptions WHERE uid=? AND status='pending'",
+    )
+    .bind(uid)
+    .fetch_one(&mut *conn)
+    .await?;
+    if total.unwrap_or(0) - frozen.unwrap_or(0) < price {
         return Err(AppError::bad_request("金币不足"));
     }
-    let now = now_iso();
     sqlx::query(
         "INSERT INTO guild_reward_redemptions(reward_id, uid, frozen_coins, status, user_note, created_at)
          VALUES(?,?,?,?,?,?)",
     )
-    .bind(id)
-    .bind(&uid)
+    .bind(reward_id)
+    .bind(uid)
     .bind(price)
     .bind("pending")
-    .bind(body.get("note").and_then(|v| v.as_str()).unwrap_or(""))
-    .bind(&now)
-    .execute(&state.pools.art)
+    .bind(note)
+    .bind(now)
+    .execute(&mut *conn)
     .await?;
-    Ok(Json(
-        json!({ "ok": true, "message": format!("已提交「{name}」兑换申请") }),
-    ))
+    Ok(())
 }
 
 async fn guild_my_redemptions(
@@ -870,6 +951,19 @@ async fn admin_approve_redemption(
         return Err(AppError::bad_request("兑换申请不存在或状态不可批准"));
     };
     let now = now_iso();
+    // 先原子置为 approved（条件更新），只有抢到的请求才扣积分、减库存，防并发双批准导致双扣。
+    let affected = sqlx::query(
+        "UPDATE guild_reward_redemptions SET status='approved', admin_note=?, reviewed_at=? WHERE id=? AND status='pending'",
+    )
+    .bind(body.get("note").and_then(|v| v.as_str()).unwrap_or(""))
+    .bind(&now)
+    .bind(id)
+    .execute(&state.pools.art)
+    .await?
+    .rows_affected();
+    if affected == 0 {
+        return Err(AppError::bad_request("兑换申请不存在或状态不可批准"));
+    }
     grant_coins(
         &state,
         &uid,
@@ -879,14 +973,6 @@ async fn admin_approve_redemption(
         "redemption",
         &now,
     )
-    .await?;
-    sqlx::query(
-        "UPDATE guild_reward_redemptions SET status='approved', admin_note=?, reviewed_at=? WHERE id=?",
-    )
-    .bind(body.get("note").and_then(|v| v.as_str()).unwrap_or(""))
-    .bind(&now)
-    .bind(id)
-    .execute(&state.pools.art)
     .await?;
     sqlx::query(
         "UPDATE guild_rewards SET stock=CASE WHEN stock IS NULL OR stock < 0 THEN stock ELSE MAX(stock-1, 0) END,
@@ -1051,9 +1137,9 @@ async fn admin_profiles(State(state): State<AppState>, user: AuthUser) -> AppRes
     authorize(&state.pools.core, &user, "art", Action::Read).await?;
     let rows: Vec<(String, Option<i64>, i64, String, String, Option<i64>)> = sqlx::query_as(
         "SELECT gp.uid, gp.user_id, gp.reputation, gp.rating, gp.access_tier,
-                COALESCE(SUM(cl.coins), 0) AS coins
+                COALESCE(SUM(pl.points), 0) AS coins
          FROM guild_profiles gp
-         LEFT JOIN coins_ledger cl ON cl.uid=gp.uid
+         LEFT JOIN points_ledger pl ON pl.uid=gp.uid
          GROUP BY gp.uid
          ORDER BY gp.updated_at DESC, gp.uid ASC",
     )
@@ -1145,16 +1231,34 @@ async fn ensure_profile_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
 }
 
 async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<Value> {
-    ensure_profile_for_uid(state, uid).await?;
-    let row: (Option<i64>, i64, String, String, Option<String>, Option<String>, Option<String>) =
-        sqlx::query_as(
-            "SELECT gp.user_id, gp.reputation, gp.rating, gp.access_tier, c.avatar_url, c.created_at, c.qq
+    // 只读：不为被查询的 uid 建档；查不到则回落默认档（避免公开 GET 污染 guild_profiles）。
+    let row: Option<(
+        Option<i64>,
+        i64,
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT gp.user_id, gp.reputation, gp.rating, gp.access_tier, c.avatar_url, c.created_at, c.qq
              FROM guild_profiles gp LEFT JOIN creators c ON c.uid=gp.uid WHERE gp.uid=?",
-        )
-        .bind(uid)
-        .fetch_one(&state.pools.art)
-        .await?;
-    let (user_id, reputation, rating, access_tier, avatar_url, creator_created_at, qq) = row;
+    )
+    .bind(uid)
+    .fetch_optional(&state.pools.art)
+    .await?;
+    let (user_id, reputation, rating, access_tier, avatar_url, creator_created_at, qq) = match row {
+        Some(r) => r,
+        None => (
+            user_id_from_uid(uid),
+            0,
+            "F".to_string(),
+            "public_archive".to_string(),
+            None,
+            None,
+            None,
+        ),
+    };
     let coins = coin_summary(state, uid).await?;
     let haruhi_count = approved_haruhi_personal_count(state, uid).await?;
     let next_rating = next_rating(&rating, reputation, haruhi_count);
@@ -1184,14 +1288,19 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
 }
 
 async fn user_profile_value(state: &AppState, user_id: i64) -> AppResult<Value> {
+    // 显示名以权威的 nickname 为准（#19 起昵称必填唯一；display_name 是注册时冻结的旧列，
+    // 改昵称不会同步，故不再用它）；老账号 nickname 为空时回落 username。
     let row: Option<(String, Option<String>, Option<String>, String)> =
-        sqlx::query_as("SELECT username, display_name, email, created_at FROM users WHERE id=?")
+        sqlx::query_as("SELECT username, nickname, email, created_at FROM users WHERE id=?")
             .bind(user_id)
             .fetch_optional(&state.pools.core)
             .await?;
-    let Some((username, display_name, email, created_at)) = row else {
+    let Some((username, nickname, email, created_at)) = row else {
         return Ok(json!({ "id": user_id }));
     };
+    let display_name = nickname
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| username.clone());
     Ok(json!({
         "id": user_id,
         "username": username,
@@ -1202,7 +1311,8 @@ async fn user_profile_value(state: &AppState, user_id: i64) -> AppResult<Value> 
 }
 
 async fn coin_summary(state: &AppState, uid: &str) -> AppResult<Value> {
-    let total: Option<i64> = sqlx::query_scalar("SELECT SUM(coins) FROM coins_ledger WHERE uid=?")
+    // 金币即画廊积分：余额从 points_ledger 计；冻结为 pending 兑换占用。
+    let total: Option<i64> = sqlx::query_scalar("SELECT SUM(points) FROM points_ledger WHERE uid=?")
         .bind(uid)
         .fetch_one(&state.pools.art)
         .await?;
@@ -1227,21 +1337,21 @@ async fn grant_coins(
     coins: i64,
     artwork_id: Option<i64>,
     note: &str,
-    source_type: &str,
+    _source_type: &str,
     created_at: &str,
 ) -> AppResult<()> {
     if coins == 0 {
         return Ok(());
     }
+    // 金币即画廊积分，统一写入 points_ledger（points_ledger 无 source_type 列，来源以 note 表达）。
     sqlx::query(
-        "INSERT INTO coins_ledger(uid, artwork_id, coins, note, source_type, created_at, granted_at)
-         VALUES(?,?,?,?,?,?,?)",
+        "INSERT INTO points_ledger(uid, artwork_id, points, note, created_at, granted_at)
+         VALUES(?,?,?,?,?,?)",
     )
     .bind(uid)
     .bind(artwork_id)
     .bind(coins)
     .bind(note)
-    .bind(source_type)
     .bind(created_at)
     .bind(now_iso())
     .execute(&state.pools.art)
@@ -1249,6 +1359,7 @@ async fn grant_coins(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn grant_reputation(
     state: &AppState,
     uid: &str,
@@ -1506,16 +1617,16 @@ async fn artworks_for_uid(
 }
 
 async fn coin_history_for_uid(state: &AppState, uid: &str, limit: i64) -> AppResult<Vec<Value>> {
+    // 金币流水即画廊积分流水（points_ledger）；该表无 source_type 列，来源以 note 表达。
     let rows: Vec<(
-        i64,
+        Option<i64>,
         Option<i64>,
         Option<String>,
         Option<String>,
         Option<String>,
-        Option<String>,
     )> = sqlx::query_as(
-        "SELECT coins, artwork_id, note, source_type, created_at, granted_at
-             FROM coins_ledger WHERE uid=? ORDER BY datetime(created_at) DESC, id DESC LIMIT ?",
+        "SELECT points, artwork_id, note, created_at, granted_at
+             FROM points_ledger WHERE uid=? ORDER BY datetime(created_at) DESC, id DESC LIMIT ?",
     )
     .bind(uid)
     .bind(limit)
@@ -1523,18 +1634,16 @@ async fn coin_history_for_uid(state: &AppState, uid: &str, limit: i64) -> AppRes
     .await?;
     Ok(rows
         .into_iter()
-        .map(
-            |(coins, artwork_id, note, source_type, created_at, granted_at)| {
-                json!({
-                    "coins": coins,
-                    "artworkId": artwork_id,
-                    "note": note,
-                    "sourceType": source_type,
-                    "createdAt": created_at,
-                    "grantedAt": granted_at
-                })
-            },
-        )
+        .map(|(points, artwork_id, note, created_at, granted_at)| {
+            json!({
+                "coins": points.unwrap_or(0),
+                "artworkId": artwork_id,
+                "note": note,
+                "sourceType": Value::Null,
+                "createdAt": created_at,
+                "grantedAt": granted_at
+            })
+        })
         .collect())
 }
 

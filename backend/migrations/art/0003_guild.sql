@@ -1,21 +1,15 @@
--- art guild: coins, reputation, quests, rewards, public profiles.
+-- art guild: reputation, quests, rewards, public profiles, visitor stats.
+-- 注意：公会「金币」即画廊积分本身，直接复用既有 points_ledger，不再单设 coins 账本，
+-- 因此无需任何数据迁移；声望(reputation)是评级体系的等级分、不是货币，独立记账。
 
-CREATE TABLE IF NOT EXISTS coins_ledger (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    uid         TEXT NOT NULL,
-    artwork_id  INTEGER,
-    coins       INTEGER NOT NULL,
-    note        TEXT,
-    source_type TEXT DEFAULT 'legacy',
-    created_at  TEXT,
-    granted_at  TEXT
+-- 真实唯一访客统计：原先在 handler 里运行期 CREATE TABLE，改为随迁移建好。
+CREATE TABLE IF NOT EXISTS art_visitors (
+    anon_id       TEXT PRIMARY KEY,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at  TEXT NOT NULL,
+    visit_count   INTEGER NOT NULL DEFAULT 1
 );
-CREATE INDEX IF NOT EXISTS idx_coins_ledger_uid ON coins_ledger(uid, datetime(created_at));
-
-INSERT INTO coins_ledger(uid, artwork_id, coins, note, source_type, created_at, granted_at)
-SELECT uid, artwork_id, points, note, 'legacy_points', created_at, granted_at
-FROM points_ledger
-WHERE NOT EXISTS (SELECT 1 FROM coins_ledger WHERE source_type = 'legacy_points');
+CREATE INDEX IF NOT EXISTS idx_art_visitors_last_seen ON art_visitors(last_seen_at);
 
 CREATE TABLE IF NOT EXISTS reputation_ledger (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
