@@ -179,7 +179,8 @@ onBeforeUnmount(() => {
 
 .app-shell > .main {
   flex: 1;
-  padding-top: 96px;
+  /* SosAppbar 为流内 sticky、自占布局高度，无需为 fixed 头预留，仅留呼吸间距 */
+  padding-top: var(--sos-space-6);
 }
 
 html.art-home-route .app-shell > .main {
@@ -292,7 +293,7 @@ html.art-home-route .app-shell > .main {
 
 @media (max-width: 768px) {
   .app-shell > .main {
-    padding-top: 90px;
+    padding-top: var(--sos-space-4);
   }
 
   html.art-home-route .app-shell > .main {

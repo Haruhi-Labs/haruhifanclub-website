@@ -22,15 +22,15 @@
           </div>
 
           <div class="form-grid">
-            <div class="form-group" style="grid-column: span 2;">
-              <label class="form-label">作品名称 <span class="req">*</span></label>
-              <input class="form-input" v-model="title" placeholder="请输入作品名称" required />
+            <div class="sos-field" style="grid-column: span 2;">
+              <label class="sos-field__label">作品名称 <span class="sos-field__required">*</span></label>
+              <input class="sos-input" v-model="title" placeholder="请输入作品名称" required />
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">作品描述 <span class="opt">（选填）</span></label>
-            <textarea class="form-textarea" v-model="description" placeholder="请描述作品内容、创作思路或来源说明…"></textarea>
+          <div class="sos-field">
+            <label class="sos-field__label">作品描述 <span class="sos-field__optional">（选填）</span></label>
+            <textarea class="sos-textarea" v-model="description" placeholder="请描述作品内容、创作思路或来源说明…"></textarea>
           </div>
         </section>
 
@@ -42,53 +42,53 @@
           </div>
 
           <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">图片来源 <span class="req">*</span></label>
-              <div class="segment-control">
-                <button type="button" :class="['segment-btn', sourceType==='personal' && 'active']" @click="sourceType='personal'" data-sfx="click">
+            <div class="sos-field">
+              <label class="sos-field__label">图片来源 <span class="sos-field__required">*</span></label>
+              <div class="sos-segmented">
+                <button type="button" class="sos-segmented__item" :aria-pressed="sourceType==='personal'" @click="sourceType='personal'" data-sfx="click">
                   <span class="icon">🎨</span> 个人作品
                 </button>
-                <button type="button" :class="['segment-btn', sourceType==='network' && 'active']" @click="sourceType='network'" data-sfx="click">
+                <button type="button" class="sos-segmented__item" :aria-pressed="sourceType==='network'" @click="sourceType='network'" data-sfx="click">
                   <span class="icon">🌐</span> 网络转载&其它
                 </button>
               </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">内容划分 <span class="req">*</span></label>
-              <div class="segment-control">
-                <button type="button" :class="['segment-btn', contentType==='haruhi' && 'active']" @click="contentType='haruhi'" data-sfx="click">
+            <div class="sos-field">
+              <label class="sos-field__label">内容划分 <span class="sos-field__required">*</span></label>
+              <div class="sos-segmented">
+                <button type="button" class="sos-segmented__item" :aria-pressed="contentType==='haruhi'" @click="contentType='haruhi'" data-sfx="click">
                   凉宫内容
                 </button>
-                <button type="button" :class="['segment-btn', contentType==='other' && 'active']" @click="contentType='other'" data-sfx="click">
+                <button type="button" class="sos-segmented__item" :aria-pressed="contentType==='other'" @click="contentType='other'" data-sfx="click">
                   非凉宫内容
                 </button>
               </div>
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">作者署名</label>
+          <div class="sos-field">
+            <label class="sos-field__label">作者署名</label>
             <input
               v-if="isLoggedIn"
-              class="form-input"
+              class="sos-input"
               :value="authorName || '请先在「个人中心 → 资料」填写昵称'"
               readonly
             />
             <div v-else class="upload-login-hint">
               <span>登录后将以你的账号昵称署名，登录返回后会保留已填写内容。</span>
-              <button type="button" class="action-btn" @click="goLogin" data-sfx="click">登录 / 注册</button>
+              <button type="button" class="sos-button sos-button--primary sos-button--sm" @click="goLogin" data-sfx="click">登录 / 注册</button>
             </div>
-            <p class="form-hint warning">作品作者身份由当前登录账号确定，前端不再手动填写或校验 UID。</p>
+            <p class="sos-field__help upload-warn">作品作者身份由当前登录账号确定，前端不再手动填写或校验 UID。</p>
           </div>
 
           <!-- 网络图片专属逻辑 -->
           <transition name="fade-slide">
             <div v-if="sourceType==='network'" class="conditional-block">
-              <div class="form-group">
-                <label class="form-label">网络图片来源链接 <span class="opt">（可选）</span></label>
-                <input class="form-input" v-model="originUrl" placeholder="https://..." />
-                <p class="form-hint warning">⚠️ 上传他人作品必须取得原作者授权并标注来源！</p>
+              <div class="sos-field">
+                <label class="sos-field__label">网络图片来源链接 <span class="sos-field__optional">（可选）</span></label>
+                <input class="sos-input" v-model="originUrl" placeholder="https://..." />
+                <p class="sos-field__help upload-warn">⚠️ 上传他人作品必须取得原作者授权并标注来源！</p>
               </div>
             </div>
           </transition>
@@ -101,12 +101,12 @@
           </div>
 
           <div class="form-grid">
-            <div class="form-group" style="grid-column: span 2;">
-              <label class="form-label">标签 <span class="opt">（可选）</span></label>
+            <div class="sos-field" style="grid-column: span 2;">
+              <label class="sos-field__label">标签 <span class="sos-field__optional">（可选）</span></label>
               <div class="input-with-action tag-input-row">
                 <div class="tag-input-shell">
                   <input
-                    class="form-input"
+                    class="sos-input"
                     v-model="tagDraft"
                     placeholder="输入标签后按回车或点击添加"
                     @focus="showTagSuggestions = true"
@@ -131,7 +131,7 @@
                     </button>
                   </div>
                 </div>
-                <button class="action-btn secondary" type="button" @click="addTag" :disabled="!tagDraft.trim()" data-sfx="click">添加</button>
+                <button class="sos-button sos-button--secondary" type="button" @click="addTag" :disabled="!tagDraft.trim()" data-sfx="click">添加</button>
               </div>
               
               <div class="tags-container" v-if="tags.length">
@@ -143,18 +143,18 @@
                 </transition-group>
               </div>
               <div class="tags-actions" v-if="tags.length">
-                 <button class="text-btn" type="button" @click="clearTags" data-sfx="click">清空所有标签</button>
+                 <button class="sos-button sos-button--link sos-button--sm" type="button" @click="clearTags" data-sfx="click">清空所有标签</button>
               </div>
             </div>
 
             <transition name="fade-slide">
-              <div class="form-group" v-if="sourceType==='personal'" style="grid-column: span 2;">
-                <label class="form-label">授权许可设置</label>
+              <div class="sos-field" v-if="sourceType==='personal'" style="grid-column: span 2;">
+                <label class="sos-field__label">授权许可设置</label>
                 
                 <div class="license-split-layout">
                   <div class="license-col">
                     <div class="license-header">对大众/网络的授权</div>
-                    <p class="form-hint" style="margin-bottom: 12px;">这些授权信息将公开显示在图片详情页。</p>
+                    <p class="sos-field__help" style="margin-bottom: 12px;">这些授权信息将公开显示在图片详情页。</p>
                     <div class="checkbox-list">
                       <label class="checkbox-card" v-for="opt in NET_LICENSE_OPTIONS" :key="opt">
                         <input type="checkbox" :value="opt" v-model="netLicenses" class="chk-input" />
@@ -166,7 +166,7 @@
 
                   <div class="license-col">
                     <div class="license-header">对应援团的特别授权 <span class="badge-private">后台可见</span></div>
-                    <p class="form-hint" style="margin-bottom: 12px;">这些信息仅在后台可见，用于社团内部企划或周边制作参考。</p>
+                    <p class="sos-field__help" style="margin-bottom: 12px;">这些信息仅在后台可见，用于社团内部企划或周边制作参考。</p>
                     <div class="checkbox-list">
                       <label class="checkbox-card" v-for="opt in GROUP_LICENSE_OPTIONS" :key="opt">
                         <input type="checkbox" :value="opt" v-model="groupLicenses" class="chk-input" />
@@ -232,14 +232,14 @@
                    </div>
                 </label>
              </div>
-             <p class="form-hint center">系统将自动压缩生成预览图，并保留原图用于下载。</p>
+             <p class="sos-field__help upload-hint-center">系统将自动压缩生成预览图，并保留原图用于下载。</p>
           </div>
 
           <div class="form-actions">
             <div v-if="msg" class="message-box" :class="{ error: isError, success: !isError }">
               {{ msg }}
             </div>
-            <button class="submit-btn" :disabled="submitting || (isLoggedIn && filesList.length === 0)" data-sfx="click">
+            <button class="sos-button sos-button--primary sos-button--lg sos-button--block" :disabled="submitting || (isLoggedIn && filesList.length === 0)" data-sfx="click">
               <span v-if="submitting" class="spinner"></span>
               {{ submitButtonLabel }}
             </button>
@@ -572,18 +572,27 @@ async function submit(){
 <style scoped>
 /* 变量映射：适配现代风格 CSS 变量 */
 .upload-page {
+  /* 青绿 accent 对齐全站 art 表达模式；文本/描边吃设计系统色板，保证与 #18 同档质感 */
   --primary: hsl(172, 78%, 42%);
   --primary-soft: hsl(172, 65%, 92%);
   --primary-hover: hsl(172, 80%, 38%);
-  --text-main: hsl(210, 20%, 14%);
-  --text-sub: hsl(210, 10%, 45%);
+  --text-main: var(--sos-text-primary, hsl(210, 20%, 14%));
+  --text-sub: var(--sos-text-secondary, hsl(210, 10%, 45%));
   --bg-input: rgba(255, 255, 255, 0.6);
-  --border: rgba(0, 0, 0, 0.08);
+  --border: var(--sos-border-default, rgba(0, 0, 0, 0.08));
   --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
   --radius-lg: 18px;
   --radius-md: 12px;
 }
+
+/* 单页布局下让设计系统控件适配：分段控件撑满列宽、标签输入行撑满、提示色/居中、只读署名底色 */
+.form-section .sos-segmented { display: flex; width: 100%; }
+.form-section .sos-segmented__item { flex: 1; justify-content: center; gap: 6px; }
+.tag-input-shell { position: relative; flex: 1; min-width: 0; }
+.upload-warn { color: var(--sos-warning, var(--sos-danger)); font-weight: 600; }
+.upload-hint-center { text-align: center; }
+.sos-field .sos-input[readonly] { background: rgba(241, 245, 249, 0.82); cursor: default; }
 
 /* 容器布局 */
 .container-card {
@@ -723,7 +732,7 @@ async function submit(){
   border: 1px solid transparent;
   background: var(--bg-input);
   color: var(--text-main);
-  font-size: 15px;
+  font-size: 16px; /* 16px 起步：iOS 聚焦不自动放大（对齐 #24 设计系统修复） */
   font-weight: 600;
   transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
@@ -822,15 +831,15 @@ async function submit(){
   padding: 0 20px;
   border-radius: var(--radius-md);
   border: none;
-  background: var(--text-main);
-  color: var(--sos-bg-surface);
+  background: var(--primary);
+  color: #fff;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
 }
 .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.action-btn:hover:not(:disabled) { transform: translateY(-1px); background: #000; }
+.action-btn:hover:not(:disabled) { transform: translateY(-1px); background: var(--primary-hover); }
 
 .action-btn.secondary {
   background: rgba(0,0,0,0.05);
@@ -1188,13 +1197,13 @@ async function submit(){
   padding: 16px;
   border: none;
   border-radius: 16px;
-  background: linear-gradient(135deg, var(--text-main) 0%, var(--sos-text-primary) 100%);
-  color: var(--sos-bg-surface);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  color: #fff;
   font-size: 18px;
   font-weight: 800;
   letter-spacing: 0.5px;
   cursor: pointer;
-  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2);
+  box-shadow: 0 12px 26px -8px hsla(172, 78%, 38%, 0.5);
   transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   display: flex;
   align-items: center;
@@ -1203,8 +1212,8 @@ async function submit(){
 }
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 15px 30px -5px rgba(0,0,0,0.3);
-  background: linear-gradient(135deg, #000 0%, var(--sos-text-primary) 100%);
+  box-shadow: 0 16px 32px -8px hsla(172, 78%, 38%, 0.62);
+  background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary) 100%);
 }
 .submit-btn:active:not(:disabled) { transform: translateY(0); }
 .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(1); }
