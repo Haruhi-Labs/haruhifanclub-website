@@ -385,6 +385,39 @@ fn now_iso() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
 
+/// 把形如 "u{id}" 的 uid 批量解析为账号显示名（昵称优先、为空回退 username）。
+/// 非 "u{id}" 或查不到的 uid 不进结果（调用方回退显示原 uid，即历史匿名创作者）。
+async fn member_display_names(
+    core: &sqlx::SqlitePool,
+    uids: &[String],
+) -> std::collections::HashMap<String, String> {
+    let mut map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let ids: Vec<i64> = uids
+        .iter()
+        .filter_map(|u| u.strip_prefix('u').and_then(|s| s.parse::<i64>().ok()))
+        .collect();
+    if ids.is_empty() {
+        return map;
+    }
+    let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!(
+        "SELECT id, nickname, username FROM users WHERE id IN ({placeholders}) AND deleted_at IS NULL"
+    );
+    let mut q = sqlx::query_as::<_, (i64, Option<String>, String)>(&sql);
+    for id in &ids {
+        q = q.bind(id);
+    }
+    if let Ok(rows) = q.fetch_all(core).await {
+        for (id, nickname, username) in rows {
+            let name = nickname
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or(username);
+            map.insert(format!("u{id}"), name);
+        }
+    }
+    map
+}
+
 // ============================================================
 // 公开接口
 // ============================================================
@@ -408,9 +441,14 @@ async fn points_leaderboard(
     .fetch_all(&state.pools.art)
     .await?;
 
+    let uids: Vec<String> = rows.iter().filter_map(|(u, _, _)| u.clone()).collect();
+    let names = member_display_names(&state.pools.core, &uids).await;
     let data: Vec<Value> = rows
         .into_iter()
-        .map(|(uid, total, avatar_url)| json!({ "uid": uid, "total": total, "avatar_url": avatar_url }))
+        .map(|(uid, total, avatar_url)| {
+            let name = uid.as_ref().and_then(|u| names.get(u).cloned());
+            json!({ "uid": uid, "name": name, "total": total, "avatar_url": avatar_url })
+        })
         .collect();
     Ok(Json(json!({ "ok": true, "data": data })))
 }
@@ -449,12 +487,20 @@ async fn points_history(
         })
         .collect();
 
-    let creator: Option<(String, Option<String>)> =
+    let creator_row: Option<(String, Option<String>)> =
         sqlx::query_as("SELECT uid, avatar_url FROM creators WHERE uid=?")
             .bind(&uid)
             .fetch_optional(&state.pools.art)
             .await?;
-    let creator = creator.map(|(uid, avatar_url)| json!({ "uid": uid, "avatar_url": avatar_url }));
+    // 即使 creators 表无此行，若 uid 形如 u{id} 也解析账号昵称展示
+    let names = member_display_names(&state.pools.core, &[uid.clone()]).await;
+    let name = names.get(&uid).cloned();
+    let avatar_url = creator_row.and_then(|(_, a)| a);
+    let creator = if name.is_some() || avatar_url.is_some() {
+        Some(json!({ "uid": uid.clone(), "name": name, "avatar_url": avatar_url }))
+    } else {
+        None
+    };
 
     Ok(Json(json!({
         "ok": true, "total": total, "history": history, "creator": creator
@@ -471,14 +517,48 @@ async fn creators_search(
         return Ok(Json(json!({ "ok": true, "data": [] })));
     }
     let like = format!("%{term}%");
-    let rows: Vec<(String, Option<String>)> =
+    // 账号昵称/用户名匹配 → u{id}（让用户能按昵称搜，而非只按 uid）
+    let account_rows: Vec<(i64,)> = sqlx::query_as(
+        "SELECT id FROM users WHERE (nickname LIKE ? OR username LIKE ?) AND deleted_at IS NULL LIMIT 8",
+    )
+    .bind(&like)
+    .bind(&like)
+    .fetch_all(&state.pools.core)
+    .await
+    .unwrap_or_default();
+    // creators 表 uid 匹配（含历史匿名 uid）
+    let creator_rows: Vec<(String, Option<String>)> =
         sqlx::query_as("SELECT uid, avatar_url FROM creators WHERE uid LIKE ? LIMIT 8")
             .bind(&like)
             .fetch_all(&state.pools.art)
             .await?;
-    let data: Vec<Value> = rows
+    let avatar_map: std::collections::HashMap<String, Option<String>> =
+        creator_rows.iter().cloned().collect();
+    // 合并去重：账号命中的 u{id} 在前，creators 命中的 uid 在后
+    let mut uids: Vec<String> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for (id,) in &account_rows {
+        let u = format!("u{id}");
+        if seen.insert(u.clone()) {
+            uids.push(u);
+        }
+    }
+    for (uid, _) in &creator_rows {
+        if seen.insert(uid.clone()) {
+            uids.push(uid.clone());
+        }
+    }
+    let names = member_display_names(&state.pools.core, &uids).await;
+    let data: Vec<Value> = uids
         .into_iter()
-        .map(|(uid, avatar_url)| json!({ "uid": uid, "avatar_url": avatar_url }))
+        .take(8)
+        .map(|uid| {
+            json!({
+                "uid": uid.clone(),
+                "name": names.get(&uid).cloned(),
+                "avatar_url": avatar_map.get(&uid).cloned().flatten()
+            })
+        })
         .collect();
     Ok(Json(json!({ "ok": true, "data": data })))
 }
@@ -497,9 +577,11 @@ async fn creators_verify(
             .bind(&uid)
             .fetch_optional(&state.pools.art)
             .await?;
-    let creator = row
-        .as_ref()
-        .map(|(uid, avatar_url)| json!({ "uid": uid, "avatar_url": avatar_url }));
+    let names = member_display_names(&state.pools.core, &[uid.clone()]).await;
+    let name = names.get(&uid).cloned();
+    let creator = row.as_ref().map(
+        |(uid, avatar_url)| json!({ "uid": uid, "name": name.clone(), "avatar_url": avatar_url }),
+    );
     Ok(Json(
         json!({ "ok": true, "exists": row.is_some(), "creator": creator }),
     ))
