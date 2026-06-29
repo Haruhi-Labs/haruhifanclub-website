@@ -90,7 +90,17 @@
 
         <div class="kv">
           <b>上传者</b>
-          <div>{{ art?.uploader_name || art?.uploader_uid || '匿名' }}</div>
+          <button
+            v-if="authorUid"
+            type="button"
+            class="author-link"
+            @click="openAuthor"
+          >
+            <span>{{ authorDisplay }}</span>
+            <em v-if="authorGuild.rating">{{ authorGuild.rating }}</em>
+            <i v-if="authorGuild.accessShortLabel">{{ authorGuild.accessShortLabel }}</i>
+          </button>
+          <div v-else>{{ authorDisplay }}</div>
 
           <b>上传时间</b>
           <div>{{ art?.created_at ? new Date(art.created_at).toLocaleString() : '-' }}</div>
@@ -203,7 +213,7 @@ const props = defineProps({
   artwork: { type: Object, default: null }
 })
 
-const emit = defineEmits(['update:modelValue', 'close', 'tag', 'like'])
+const emit = defineEmits(['update:modelValue', 'close', 'tag', 'like', 'author'])
 
 /* ----------------------------------
    基础显示逻辑
@@ -215,6 +225,14 @@ const visible = computed(() => {
 })
 
 const art = computed(() => props.item || props.artwork || null)
+const authorUid = computed(() => (art.value?.uploader_uid || '').trim())
+const authorGuild = computed(() => art.value?.guild || {})
+const authorDisplay = computed(() => {
+  const name = (art.value?.uploader_name || '').trim()
+  if (name) return name
+  if (authorUid.value) return authorUid.value
+  return '匿名'
+})
 
 // --- 画廊多图逻辑 ---
 const currentIndex = ref(0)
@@ -609,6 +627,16 @@ function clickTag(t){
   close()
 }
 
+function openAuthor() {
+  if (!authorUid.value) return
+  emit('author', {
+    uid: authorUid.value,
+    name: authorDisplay.value,
+    guild: authorGuild.value,
+    profile: true
+  })
+}
+
 function restoreGlobalModalState() {
   document.documentElement.style.overflow = ''
   document.body.classList.remove('modal-open')
@@ -972,6 +1000,42 @@ onMounted(() => {
   color: var(--vine-green); 
   text-align: right;
   opacity: 0.8;
+}
+.author-link {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  color: var(--vine-green);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.author-link:hover span {
+  text-decoration: underline;
+}
+.author-link em,
+.author-link i {
+  display: inline-flex;
+  height: 19px;
+  align-items: center;
+  padding: 0 7px;
+  color: #fff;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(135deg, #f43f5e, #7c3aed);
+  border-radius: 999px;
+}
+.author-link i {
+  color: #4a5568;
+  background: rgba(107, 140, 133, 0.12);
 }
 .small-muted {
   font-size: 13px;

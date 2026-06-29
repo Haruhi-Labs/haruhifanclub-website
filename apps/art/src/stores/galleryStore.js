@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { api } from '../services/api.js'
 import { seedArtworks } from '../mock/seedData.js'
 
+const USE_DEV_SEED_ONLY = import.meta.env.DEV && import.meta.env.VITE_ART_USE_BACKEND !== '1'
+
 function norm(s) { return String(s || '').toLowerCase() }
 function includesWord(hay, q) { return norm(hay).includes(norm(q)) }
 
@@ -160,13 +162,25 @@ export const useGalleryStore = defineStore('gallery', {
       }
 
       // 失败时静默重试一次，缓解移动端首屏偶发的瞬时网络失败（避免一抖动就掉到占位）
+      if (USE_DEV_SEED_ONLY) {
+        seedFallback()
+        this.loading = false
+        return
+      }
+
       let out = null
-      for (let attempt = 0; attempt < 2; attempt++) {
+      const maxAttempts = import.meta.env.DEV ? 1 : 2
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
           out = await api.artworksList(params)
           break
         } catch (e) {
           if (this.reqId !== currentReqId) return
+          if (import.meta.env.DEV) {
+            seedFallback()
+            this.loading = false
+            return
+          }
           if (attempt === 0) { await new Promise(r => setTimeout(r, 500)); continue }
           // 两次都失败
           console.warn('[Gallery] 作品加载失败（已重试）：', e)
@@ -218,6 +232,10 @@ export const useGalleryStore = defineStore('gallery', {
 
       // 1. Try to find in current list first
       let existing = this.list.find(i => String(i.id) === String(id))
+
+      if (USE_DEV_SEED_ONLY) {
+        return existing || seedArtworks.find(i => String(i.id) === String(id)) || null
+      }
 
       // If we found it, but it looks "incomplete" (missing images array for a multi-image post),
       // or we just want to be sure, we might want to fetch details.

@@ -1,5 +1,5 @@
-import { seedCreators, seedArtworks, seedComments } from '../mock/seedData.js'
-import { getToken, resolveUploadUrl } from '@haruhi/api-client'
+import { seedArtworks, seedComments } from '../mock/seedData.js'
+import { getCsrfToken, getToken, resolveUploadUrl } from '@haruhi/api-client'
 
 // 统一后端约定：
 // - 模块 API 统一前缀 /api/art（旧的 /api/xxx → /api/art/xxx）
@@ -9,6 +9,7 @@ import { getToken, resolveUploadUrl } from '@haruhi/api-client'
 const API_PREFIX = '/api/art'
 // 静态资源根：后端库里存的是相对 uploads 根的路径（如 art/2025-11/x.webp）
 const ASSET_BASE = '/uploads'
+const USE_DEV_SEED_ONLY = import.meta.env.DEV && import.meta.env.VITE_ART_USE_BACKEND !== '1'
 
 function buildUrl(path, params) {
   const url = new URL(path, window.location.origin)
@@ -26,6 +27,8 @@ async function request(method, path, { params, body, isForm, headers } = {}) {
   // 统一 JWT：若已登录则自动带上 Bearer token（替换旧的 x-admin-password 头）
   const token = getToken()
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
+  const csrf = method !== 'GET' && method !== 'HEAD' ? getCsrfToken() : ''
+  const csrfHeaders = csrf ? { 'X-CSRF-Token': csrf } : {}
 
   const init = {
     method,
@@ -34,6 +37,7 @@ async function request(method, path, { params, body, isForm, headers } = {}) {
     headers: {
       Accept: 'application/json',
       ...authHeaders,
+      ...csrfHeaders,
       ...(headers || {}),
     },
   }
@@ -103,12 +107,17 @@ export const api = {
   health: () => request('GET', `${API_PREFIX}/health`),
 
   // Public
+  recordVisitor: () => request('POST', `${API_PREFIX}/visitors`, { body: {} }),
   artworksList: async (params) => {
     const data = await request('GET', `${API_PREFIX}/artworks`, { params })
     if (data.data) data.data = data.data.map(transformArtwork)
     return data
   },
   getArtwork: async (id) => {
+    if (USE_DEV_SEED_ONLY) {
+      const data = seedArtworks.find((item) => String(item.id) === String(id))
+      return { ok: Boolean(data), data: data ? transformArtwork({ ...data }) : null }
+    }
     const data = await request('GET', `${API_PREFIX}/artworks/${id}`)
     if (data.data) data.data = transformArtwork(data.data)
     return data
@@ -136,7 +145,15 @@ export const api = {
   // Interaction
   likeArtwork: (id) => request('POST', `${API_PREFIX}/likes/artwork/${id}`, { body: {} }),
   likeComment: (id) => request('POST', `${API_PREFIX}/likes/comment/${id}`, { body: {} }),
-  listComments: (artworkId) => request('GET', `${API_PREFIX}/comments`, { params: { artwork_id: artworkId } }),
+  listComments: async (artworkId) => {
+    if (USE_DEV_SEED_ONLY) {
+      return {
+        ok: true,
+        data: seedComments.filter((item) => String(item.artwork_id) === String(artworkId)),
+      }
+    }
+    return request('GET', `${API_PREFIX}/comments`, { params: { artwork_id: artworkId } })
+  },
   postComment: (body) => request('POST', `${API_PREFIX}/comments`, { body }),
 
   // Admin - Artworks
@@ -195,6 +212,54 @@ export const api = {
     return data
   },
   pointsHistory: (uid) => request('GET', `${API_PREFIX}/points/history`, { params: { uid } }),
+  // Guild / Adventurer system
+  guildMe: () => request('GET', `${API_PREFIX}/guild/me`),
+  guildTerminal: async () => {
+    const data = await request('GET', `${API_PREFIX}/guild/terminal`)
+    if (Array.isArray(data.artworks)) data.artworks = data.artworks.map(transformArtwork)
+    return data
+  },
+  guildProfile: async (uid) => {
+    const data = await request('GET', `${API_PREFIX}/guild/profile/${encodeURIComponent(uid)}`)
+    if (Array.isArray(data.artworks)) data.artworks = data.artworks.map(transformArtwork)
+    return data
+  },
+  guildProfileArtworks: async (uid, params = {}) => {
+    const data = await request('GET', `${API_PREFIX}/guild/profile/${encodeURIComponent(uid)}/artworks`, { params })
+    if (Array.isArray(data.data)) data.data = data.data.map(transformArtwork)
+    return data
+  },
+  guildQuests: () => request('GET', `${API_PREFIX}/guild/quests`),
+  guildClaimQuest: (id) => request('POST', `${API_PREFIX}/guild/quests/${id}/claim`, { body: {} }),
+  guildLeaderboard: () => request('GET', `${API_PREFIX}/guild/leaderboard`),
+  guildCoinHistory: () => request('GET', `${API_PREFIX}/guild/coins/history`),
+  guildApplyRating: (body) => request('POST', `${API_PREFIX}/guild/rating/apply`, { body }),
+  guildRewards: () => request('GET', `${API_PREFIX}/guild/rewards`),
+  guildRedeemReward: (id, body = {}) => request('POST', `${API_PREFIX}/guild/rewards/${id}/redeem`, { body }),
+  guildMyRedemptions: () => request('GET', `${API_PREFIX}/guild/redemptions/me`),
+
+  // Admin - Guild
+  adminGuildQuests: () => request('GET', `${API_PREFIX}/admin/guild/quests`),
+  adminCreateGuildQuest: (body) => request('POST', `${API_PREFIX}/admin/guild/quests`, { body }),
+  adminUpdateGuildQuest: (id, body) => request('PUT', `${API_PREFIX}/admin/guild/quests/${id}`, { body }),
+  adminDeleteGuildQuest: (id) => request('DELETE', `${API_PREFIX}/admin/guild/quests/${id}`),
+  adminUpdateGuildQuestStatus: (id, status) => request('POST', `${API_PREFIX}/admin/guild/quests/${id}/status`, { body: { status } }),
+  adminGuildRewards: () => request('GET', `${API_PREFIX}/admin/guild/rewards`),
+  adminCreateGuildReward: (body) => request('POST', `${API_PREFIX}/admin/guild/rewards`, { body }),
+  adminUpdateGuildReward: (id, body) => request('PUT', `${API_PREFIX}/admin/guild/rewards/${id}`, { body }),
+  adminDeleteGuildReward: (id) => request('DELETE', `${API_PREFIX}/admin/guild/rewards/${id}`),
+  adminUpdateGuildRewardStatus: (id, status) => request('POST', `${API_PREFIX}/admin/guild/rewards/${id}/status`, { body: { status } }),
+  adminUpdateGuildRewardStock: (id, stock) => request('POST', `${API_PREFIX}/admin/guild/rewards/${id}/stock`, { body: { stock } }),
+  adminGuildRedemptions: () => request('GET', `${API_PREFIX}/admin/guild/redemptions`),
+  adminApproveGuildRedemption: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/redemptions/${id}/approve`, { body: { note } }),
+  adminRejectGuildRedemption: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/redemptions/${id}/reject`, { body: { note } }),
+  adminCancelGuildRedemption: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/redemptions/${id}/cancel`, { body: { note } }),
+  adminFulfillGuildRedemption: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/redemptions/${id}/fulfilled`, { body: { note } }),
+  adminGuildRatingApplications: () => request('GET', `${API_PREFIX}/admin/guild/rating-applications`),
+  adminApproveGuildRating: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/rating-applications/${id}/approve`, { body: { note } }),
+  adminRejectGuildRating: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/rating-applications/${id}/reject`, { body: { note } }),
+  adminGuildProfiles: () => request('GET', `${API_PREFIX}/admin/guild/profiles`),
+  adminUpdateGuildProfileAccess: (uid, accessTier) => request('POST', `${API_PREFIX}/admin/guild/profiles/${encodeURIComponent(uid)}/access`, { body: { accessTier } }),
   searchCreators: async (q) => {
     const data = await request('GET', `${API_PREFIX}/creators/search`, { params: { q } })
     if (data.data) {

@@ -62,6 +62,7 @@
       :item="activeItem"
       @update:model-value="val => !val && closeModal()"
       @tag="onTag"
+      @author="onAuthor"
       @close="closeModal"
     />
   </section>
@@ -74,10 +75,12 @@ import { useGalleryStore } from '../stores/galleryStore.js'
 import FilterPanel from '../components/FilterPanel.vue'
 import ArtworkGrid from '../components/ArtworkGrid.vue'
 import ArtworkModal from '../components/ArtworkModal.vue'
+import { useSession } from '@haruhi/auth-ui'
 
 const store = useGalleryStore()
 const route = useRoute()
 const router = useRouter()
+const session = useSession('/api')
 
 const modalOpen = ref(false)
 const activeItem = ref(null)
@@ -154,7 +157,8 @@ function onTag(t) {
 }
 
 function onAuthor(authorInfo) {
-  router.push({ query: { ...route.query, author: authorInfo.uid, tag: undefined, artwork: undefined } })
+  if (!authorInfo?.uid) return
+  router.push({ name: 'adventurer-profile', params: { uid: authorInfo.uid } })
 }
 
 function openItem(it) {
@@ -247,6 +251,8 @@ watch(() => store.list, (list) => {
     const first = list[0]
     if (first && first.uploader_name) {
       activeAuthor.value.name = first.uploader_name
+    } else if (activeAuthor.value.uid === `u${session.state.user?.id}` && session.state.user?.nickname) {
+      activeAuthor.value.name = session.state.user.nickname
     }
   }
 

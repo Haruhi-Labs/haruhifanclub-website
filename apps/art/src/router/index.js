@@ -1,55 +1,60 @@
 import { createRouter, createWebHistory } from 'vue-router'
-
-// 首屏画廊保持同步加载（落地即用）；其余路由懒加载按需分包，
-// 尤其 AdminView 较大，避免拖累首屏体积。
-import GalleryView from '../views/GalleryView.vue'
-// 统一账号 UI（登录/资料/设置/邮件链接落地）
 import {
   LoginView,
-  ProfileView,
-  SettingsView,
-  VerifyEmailView,
-  ResetPasswordView,
-  UserConsoleLayout,
-  OverviewView as AccountOverviewView,
-  MyArtworksView,
   MyArticlesView,
+  MyArtworksView,
   MyCommentsView,
+  OverviewView as AccountOverviewView,
   PointsView as AccountPointsView,
+  ProfileView,
+  ResetPasswordView,
+  SettingsView,
+  UserConsoleLayout,
+  VerifyEmailView,
+  useSession
 } from '@haruhi/auth-ui'
 
-// 个人控制台导航分区：全集（全站可用——从任一 app 进入都能管理全站内容）。
-const ACCOUNT_SECTIONS = [
+import HomeView from '../views/HomeView.vue'
+import GalleryView from '../views/GalleryView.vue'
+import UploadView from '../views/UploadView.vue'
+import AnnouncementView from '../views/AnnouncementView.vue'
+import ExchangeView from '../views/ExchangeView.vue'
+import AdventurerProfileView from '../views/AdventurerProfileView.vue'
+
+const AdminView = () => import('../views/AdminView.vue')
+const LicenseView = () => import('../views/LicenseView.vue')
+
+const authProps = { site: 'art', title: '应援团画廊', home: '/' }
+const accountSections = [
   'overview',
   'artworks',
   'articles',
   'comments',
   'points',
   'profile',
-  'settings',
+  'settings'
 ]
-
-const UploadView = () => import('../views/UploadView.vue')
-const AdminView = () => import('../views/AdminView.vue')
-const LicenseView = () => import('../views/LicenseView.vue')
-const PointsView = () => import('../views/PointsView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', name: 'gallery', component: GalleryView },
+    { path: '/', name: 'home', component: HomeView },
+    { path: '/gallery', name: 'gallery', component: GalleryView },
     { path: '/upload', name: 'upload', component: UploadView },
-    { path: '/admin', name: 'admin', component: AdminView },
-    { path: '/points', name: 'points', component: PointsView },
-    // 新增：授权查询页
+    { path: '/admin', name: 'admin', component: AdminView, meta: { requiresAuth: true } },
+    { path: '/points', redirect: '/exchange' },
+    { path: '/announcements', name: 'announcements', component: AnnouncementView },
+    { path: '/exchange', name: 'exchange', component: ExchangeView },
+    { path: '/terminal', name: 'terminal', component: AdventurerProfileView, meta: { requiresAuth: true } },
+    { path: '/profile/:uid', name: 'adventurer-profile', component: AdventurerProfileView, props: true },
     { path: '/license', name: 'license', component: LicenseView },
 
-    // 统一账号系统
-    { path: '/login', name: 'login', component: LoginView, props: { site: 'art' } },
+    { path: '/login', name: 'login', component: LoginView, props: authProps },
     {
       path: '/account',
       component: UserConsoleLayout,
-      props: { site: 'art', basePath: '/account', sections: ACCOUNT_SECTIONS },
+      props: { site: 'art', basePath: '/account', home: '/', sections: accountSections },
+      meta: { requiresAuth: true },
       children: [
         { path: '', name: 'account', component: AccountOverviewView },
         { path: 'artworks', name: 'account-artworks', component: MyArtworksView },
@@ -60,42 +65,45 @@ const router = createRouter({
           path: 'profile',
           name: 'account-profile',
           component: ProfileView,
-          props: { site: 'art', embedded: true },
+          props: { site: 'art', embedded: true }
         },
         {
           path: 'settings',
           name: 'account-settings',
           component: SettingsView,
-          props: { site: 'art', embedded: true },
-        },
-      ],
+          props: { site: 'art', embedded: true }
+        }
+      ]
     },
-    {
-      path: '/verify-email',
-      name: 'verify-email',
-      component: VerifyEmailView,
-      props: { site: 'art' },
-    },
-    {
-      path: '/reset-password',
-      name: 'reset-password',
-      component: ResetPasswordView,
-      props: { site: 'art' },
-    },
+    { path: '/verify-email', name: 'verify-email', component: VerifyEmailView, props: authProps },
+    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView, props: authProps },
 
-    // fallback
-    { path: '/:pathMatch(.*)*', redirect: '/' },
+    { path: '/:pathMatch(.*)*', redirect: '/' }
   ],
   scrollBehavior(to, from, savedPosition) {
-    if (savedPosition) {
-      return savedPosition
-    }
-    // 如果只是 query 变化 (例如打开/关闭详情弹窗)，不重置滚动条
-    if (to.path === from.path) {
-      return false
-    }
+    if (savedPosition) return savedPosition
+    if (to.path === from.path) return false
     return { top: 0 }
-  },
+  }
+})
+
+const session = useSession('/api')
+
+router.beforeEach(async (to) => {
+  if (!to.matched.some((record) => record.meta.requiresAuth)) return true
+
+  if (!session.state.ready) {
+    await session.refresh()
+  }
+
+  if (!session.state.user) {
+    return {
+      name: 'login',
+      query: { redirect: to.fullPath }
+    }
+  }
+
+  return true
 })
 
 export default router

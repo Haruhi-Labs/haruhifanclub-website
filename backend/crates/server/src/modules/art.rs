@@ -31,6 +31,7 @@ pub fn router() -> Router<AppState> {
         .route("/points/history", get(points_history))
         .route("/creators/search", get(creators_search))
         .route("/creators/verify", get(creators_verify))
+        .route("/visitors", post(record_visitor))
         .route("/artworks", get(list_artworks).post(create_artwork))
         .route("/artworks/{id}", get(get_artwork))
         .route("/thumb", get(get_thumb))
@@ -78,6 +79,7 @@ pub fn router() -> Router<AppState> {
         )
         .route("/admin/points-ledger", get(admin_points_ledger))
         .route("/admin/points/grant", post(admin_points_grant))
+        .merge(super::art_guild::router())
 }
 
 // ============================================================
@@ -422,6 +424,43 @@ async fn member_display_names(
 // 公开接口
 // ============================================================
 
+// 0. 真实唯一访客计数：复用 art 匿名 Cookie，同一浏览器刷新不重复计入访客总数。
+async fn record_visitor(State(state): State<AppState>, headers: HeaderMap) -> AppResult<Response> {
+    let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
+    let now = now_iso();
+
+    // art_visitors 表已随迁移 0003 建好，这里不再运行期建表。
+    let insert = sqlx::query(
+        "INSERT OR IGNORE INTO art_visitors(anon_id, first_seen_at, last_seen_at, visit_count)
+         VALUES(?,?,?,1)",
+    )
+    .bind(&anon_id)
+    .bind(&now)
+    .bind(&now)
+    .execute(&state.pools.art)
+    .await?;
+    let is_new = insert.rows_affected() > 0;
+
+    if !is_new {
+        sqlx::query(
+            "UPDATE art_visitors SET last_seen_at=?, visit_count=visit_count+1 WHERE anon_id=?",
+        )
+        .bind(&now)
+        .bind(&anon_id)
+        .execute(&state.pools.art)
+        .await?;
+    }
+
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM art_visitors")
+        .fetch_one(&state.pools.art)
+        .await?;
+
+    Ok(json_with_cookie(
+        json!({ "ok": true, "total": total, "isNew": is_new }),
+        set,
+    ))
+}
+
 // 1. 积分排行榜
 async fn points_leaderboard(
     State(state): State<AppState>,
@@ -695,7 +734,24 @@ async fn list_artworks(
     }
     list_q = list_q.bind(page_size).bind(offset);
     let rows: Vec<ArtRow> = list_q.fetch_all(&state.pools.art).await?;
-    let data: Vec<Value> = rows.iter().map(map_artwork_row).collect();
+    // 批量取作者公会徽章，避免逐行 N+1（一次 IN 查询、不建档）。
+    let uids: Vec<String> = rows.iter().filter_map(|r| r.uploader_uid.clone()).collect();
+    let guild_map = super::art_guild::guild_summaries_for_uids(&state, &uids).await;
+    let data: Vec<Value> = rows
+        .iter()
+        .map(|row| {
+            let mut value = map_artwork_row(row);
+            let uid = row.uploader_uid.as_deref().unwrap_or("").trim();
+            if !uid.is_empty() {
+                if let Some(summary) = guild_map.get(uid) {
+                    if let Some(obj) = value.as_object_mut() {
+                        obj.insert("guild".into(), summary.clone());
+                    }
+                }
+            }
+            value
+        })
+        .collect();
 
     Ok(Json(json!({
         "ok": true,
@@ -711,6 +767,7 @@ async fn list_artworks(
 async fn get_artwork(
     State(state): State<AppState>,
     Path(id): Path<i64>,
+    user: Option<AuthUser>,
     headers: HeaderMap,
 ) -> AppResult<Response> {
     let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
@@ -745,10 +802,19 @@ async fn get_artwork(
             .into_response());
     }
 
-    Ok(json_with_cookie(
-        json!({ "ok": true, "data": map_artwork_row(&row) }),
-        set,
-    ))
+    super::art_guild::record_user_event(&state, user, "browse_artwork", Some(id)).await;
+
+    let mut value = map_artwork_row(&row);
+    let author_uid = row.uploader_uid.as_deref().unwrap_or("").trim();
+    if !author_uid.is_empty() {
+        if let Some(obj) = value.as_object_mut() {
+            obj.insert(
+                "guild".into(),
+                super::art_guild::guild_summary_for_uid(&state, author_uid).await,
+            );
+        }
+    }
+    Ok(json_with_cookie(json!({ "ok": true, "data": value }), set))
 }
 
 // 6.5 缩略图：GET /thumb?path=art/2026-02/x.webp&w=640
@@ -1155,6 +1221,16 @@ async fn create_artwork(
                 Err(e) => tracing::error!("Auto grant points failed: {e}"),
             }
         }
+        super::art_guild::grant_upload_progress(
+            &state,
+            &uploader_uid,
+            last_id,
+            &content_type,
+            &source_type,
+            &created_at,
+            "",
+        )
+        .await;
     }
 
     let message = if final_status == "approved" {
@@ -1300,6 +1376,13 @@ async fn create_comment(
             set,
         ))
     } else {
+        super::art_guild::record_user_event(
+            &state,
+            Some(user),
+            "comment_artwork",
+            Some(artwork_id),
+        )
+        .await;
         Ok(json_with_cookie(
             json!({ "ok": true, "data": {
                 "id": last_id, "artwork_id": artwork_id, "user_name": user_name,
@@ -1434,6 +1517,9 @@ async fn like_artwork(
     // 点赞须登录：每日每目标限额按账号计（anon_id = "u{id}"）
     let anon_id = crate::auth_routes::member_uid(user.id);
     let (status, body) = like_target(&state, &anon_id, "artwork", id).await;
+    if status.is_success() {
+        super::art_guild::record_user_event(&state, Some(user), "like_artwork", Some(id)).await;
+    }
     Ok((status, Json(body)).into_response())
 }
 
@@ -1839,6 +1925,16 @@ async fn admin_approve_artwork(
                     {
                         tracing::error!("Manual approval grant points failed: {e}");
                     }
+                    super::art_guild::grant_upload_progress(
+                        &state,
+                        &uid,
+                        id,
+                        content_type.as_deref().unwrap_or("other"),
+                        source_type.as_deref().unwrap_or("personal"),
+                        &created,
+                        " (人工复核)",
+                    )
+                    .await;
                 }
             }
         }

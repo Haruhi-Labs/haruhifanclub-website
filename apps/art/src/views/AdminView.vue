@@ -34,6 +34,9 @@
         <button :class="['nav-item', mainTab==='creators' && 'active']" @click="mainTab='creators'">
           🎨 创作者
         </button>
+        <button :class="['nav-item', mainTab==='guild' && 'active']" @click="mainTab='guild'">
+          ⚔️ 公会系统
+        </button>
       </nav>
 
       <!-- 内容区域 -->
@@ -432,6 +435,220 @@
           </div>
         </div>
 
+        <!-- ================= 公会系统 ================= -->
+        <div v-if="mainTab==='guild'" class="tab-content guild-admin">
+          <div class="sub-tabs">
+            <button :class="['sub-tab', guildTab==='quests' && 'on']" @click="switchGuildTab('quests')">委托管理</button>
+            <button :class="['sub-tab', guildTab==='rewards' && 'on']" @click="switchGuildTab('rewards')">商品管理</button>
+            <button :class="['sub-tab', guildTab==='redemptions' && 'on']" @click="switchGuildTab('redemptions')">兑换审核</button>
+            <button :class="['sub-tab', guildTab==='ratings' && 'on']" @click="switchGuildTab('ratings')">评级审核</button>
+            <button :class="['sub-tab', guildTab==='profiles' && 'on']" @click="switchGuildTab('profiles')">访问许可</button>
+          </div>
+
+          <div v-if="guildMsg" class="guild-msg">{{ guildMsg }}</div>
+
+          <div v-if="guildTab==='quests'" class="guild-admin-layout">
+            <section class="guild-editor">
+              <div class="panel-header compact">
+                <div class="ph-title">{{ guildQuestEditingId ? '编辑委托' : '新增委托' }}</div>
+              </div>
+              <div class="edit-form compact-form">
+                <input v-model="guildQuestForm.title" class="input" placeholder="委托标题">
+                <textarea v-model="guildQuestForm.description" class="textarea" placeholder="委托说明"></textarea>
+                <div class="editor-row">
+                  <select v-model="guildQuestForm.questType" class="select">
+                    <option value="daily">日常委托</option>
+                    <option value="limited">限时委托</option>
+                    <option value="hard">困难委托</option>
+                    <option value="unknown">未知委托</option>
+                  </select>
+                  <select v-model="guildQuestForm.difficulty" class="select">
+                    <option value="easy">easy</option>
+                    <option value="normal">normal</option>
+                    <option value="hard">hard</option>
+                    <option value="chaos">chaos</option>
+                  </select>
+                </div>
+                <div class="editor-row">
+                  <select v-model="guildQuestForm.requiredRating" class="select">
+                    <option v-for="r in ratingOptions" :key="r" :value="r">{{ r }}</option>
+                  </select>
+                  <select v-model="guildQuestForm.requiredAccess" class="select">
+                    <option v-for="a in accessOptions" :key="a.value" :value="a.value">{{ a.label }}</option>
+                  </select>
+                </div>
+                <select v-model="guildQuestForm.conditionKind" class="select">
+                  <option v-for="c in conditionOptions" :key="c.value" :value="c.value">{{ c.label }}</option>
+                </select>
+                <div class="editor-row">
+                  <input type="number" v-model.number="guildQuestForm.targetCount" class="input" placeholder="目标次数">
+                  <input type="number" v-model.number="guildQuestForm.rewardReputation" class="input" placeholder="声望奖励">
+                  <input type="number" v-model.number="guildQuestForm.rewardCoins" class="input" placeholder="金币奖励">
+                </div>
+                <div class="editor-row">
+                  <input type="number" v-model.number="guildQuestForm.deadlineHours" class="input" placeholder="限时小时，可空">
+                  <input type="number" v-model.number="guildQuestForm.sortOrder" class="input" placeholder="排序">
+                  <select v-model="guildQuestForm.status" class="select">
+                    <option value="active">active</option>
+                    <option value="paused">paused</option>
+                    <option value="deleted">deleted</option>
+                  </select>
+                </div>
+                <div class="btns">
+                  <button class="btn" @click="saveGuildQuest" :disabled="guildSaving">保存委托</button>
+                  <button class="btn-ghost" @click="resetGuildQuestForm">清空</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="guild-list">
+              <article v-for="quest in guildQuests" :key="quest.id" class="guild-manage-row">
+                <div>
+                  <div class="m-title">{{ quest.title }}</div>
+                  <div class="m-info">
+                    <span class="tag">{{ quest.questType }}</span>
+                    <span class="tag">{{ quest.difficulty }}</span>
+                    <span class="tag">评级 {{ quest.requiredRating }}</span>
+                    <span class="tag">声望 +{{ quest.rewardReputation }}</span>
+                    <span class="tag">金币 +{{ quest.rewardCoins }}</span>
+                    <span class="tag">{{ quest.status }}</span>
+                  </div>
+                </div>
+                <div class="guild-row-actions">
+                  <button class="btn-ghost sm" @click="editGuildQuest(quest)">编辑</button>
+                  <button class="btn-ghost warn sm" @click="setGuildQuestStatus(quest, quest.status === 'active' ? 'paused' : 'active')">
+                    {{ quest.status === 'active' ? '暂停' : '启用' }}
+                  </button>
+                  <button class="btn-ghost danger sm" @click="deleteGuildQuest(quest)">删除</button>
+                </div>
+              </article>
+            </section>
+          </div>
+
+          <div v-if="guildTab==='rewards'" class="guild-admin-layout">
+            <section class="guild-editor">
+              <div class="panel-header compact">
+                <div class="ph-title">{{ guildRewardEditingId ? '编辑商品' : '新增商品' }}</div>
+              </div>
+              <div class="edit-form compact-form">
+                <input v-model="guildRewardForm.name" class="input" placeholder="商品名称">
+                <textarea v-model="guildRewardForm.description" class="textarea" placeholder="商品说明"></textarea>
+                <div class="editor-row">
+                  <select v-model="guildRewardForm.rewardType" class="select">
+                    <option value="virtual">虚拟物品</option>
+                    <option value="physical">实体物品</option>
+                  </select>
+                  <input type="number" v-model.number="guildRewardForm.priceCoins" class="input" placeholder="金币价格">
+                  <input type="number" v-model.number="guildRewardForm.stock" class="input" placeholder="库存，-1不限">
+                </div>
+                <div class="editor-row">
+                  <select v-model="guildRewardForm.requiredRating" class="select">
+                    <option v-for="r in ratingOptions" :key="r" :value="r">{{ r }}</option>
+                  </select>
+                  <select v-model="guildRewardForm.requiredAccess" class="select">
+                    <option v-for="a in accessOptions" :key="a.value" :value="a.value">{{ a.label }}</option>
+                  </select>
+                </div>
+                <input v-model="guildRewardForm.imageUrl" class="input" placeholder="展示图 URL，可空">
+                <div class="editor-row">
+                  <input type="number" v-model.number="guildRewardForm.sortOrder" class="input" placeholder="排序">
+                  <select v-model="guildRewardForm.status" class="select">
+                    <option value="active">active</option>
+                    <option value="paused">paused</option>
+                    <option value="deleted">deleted</option>
+                  </select>
+                </div>
+                <div class="btns">
+                  <button class="btn" @click="saveGuildReward" :disabled="guildSaving">保存商品</button>
+                  <button class="btn-ghost" @click="resetGuildRewardForm">清空</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="guild-list">
+              <article v-for="reward in guildRewards" :key="reward.id" class="guild-manage-row">
+                <div>
+                  <div class="m-title">{{ reward.name }}</div>
+                  <div class="m-info">
+                    <span class="tag">{{ reward.rewardType }}</span>
+                    <span class="tag">{{ reward.priceCoins }}G</span>
+                    <span class="tag">库存 {{ reward.stock ?? '不限' }}</span>
+                    <span class="tag">评级 {{ reward.requiredRating }}</span>
+                    <span class="tag">{{ reward.status }}</span>
+                  </div>
+                </div>
+                <div class="guild-row-actions">
+                  <button class="btn-ghost sm" @click="editGuildReward(reward)">编辑</button>
+                  <button class="btn-ghost warn sm" @click="setGuildRewardStatus(reward, reward.status === 'active' ? 'paused' : 'active')">
+                    {{ reward.status === 'active' ? '下架' : '上架' }}
+                  </button>
+                  <button class="btn-ghost danger sm" @click="deleteGuildReward(reward)">删除</button>
+                </div>
+              </article>
+            </section>
+          </div>
+
+          <div v-if="guildTab==='redemptions'" class="guild-list single">
+            <article v-for="item in guildRedemptions" :key="item.id" class="guild-manage-row">
+              <div>
+                <div class="m-title">{{ item.rewardName }} · {{ item.uid }}</div>
+                <div class="m-info">
+                  <span class="tag">{{ item.rewardType }}</span>
+                  <span class="tag">{{ item.frozenCoins }}G</span>
+                  <span class="tag">{{ item.status }}</span>
+                  <span v-if="item.userNote" class="tag">备注：{{ item.userNote }}</span>
+                </div>
+              </div>
+              <div class="guild-row-actions">
+                <button class="btn-ghost sm" @click="approveRedemption(item)">批准</button>
+                <button class="btn-ghost sm" @click="fulfillRedemption(item)">发放</button>
+                <button class="btn-ghost danger sm" @click="rejectRedemption(item)">拒绝</button>
+              </div>
+            </article>
+            <div v-if="!guildRedemptions.length" class="empty-ph">暂无兑换申请</div>
+          </div>
+
+          <div v-if="guildTab==='ratings'" class="guild-list single">
+            <article v-for="item in guildRatings" :key="item.id" class="guild-manage-row">
+              <div>
+                <div class="m-title">{{ item.uid }}：{{ item.fromRating }} → {{ item.targetRating }}</div>
+                <div class="m-info">
+                  <span class="tag">声望 {{ item.reputationSnapshot }}</span>
+                  <span class="tag">凉宫作品 {{ item.haruhiCountSnapshot }}</span>
+                  <span class="tag">{{ item.status }}</span>
+                  <span v-if="item.userNote" class="tag">说明：{{ item.userNote }}</span>
+                </div>
+              </div>
+              <div class="guild-row-actions">
+                <button class="btn-ghost sm" @click="approveRating(item)">批准</button>
+                <button class="btn-ghost danger sm" @click="rejectRating(item)">拒绝</button>
+              </div>
+            </article>
+            <div v-if="!guildRatings.length" class="empty-ph">暂无评级申请</div>
+          </div>
+
+          <div v-if="guildTab==='profiles'" class="guild-list single">
+            <article v-for="item in guildProfiles" :key="item.uid" class="guild-manage-row">
+              <div>
+                <div class="m-title">{{ item.uid }}</div>
+                <div class="m-info">
+                  <span class="tag">评级 {{ item.rating }}</span>
+                  <span class="tag">Lv{{ item.level }}</span>
+                  <span class="tag">声望 {{ item.reputation }}</span>
+                  <span class="tag">金币 {{ item.coins || 0 }}G</span>
+                </div>
+              </div>
+              <div class="guild-row-actions access-editor">
+                <select v-model="item.accessTier" class="select sm">
+                  <option v-for="a in accessOptions" :key="a.value" :value="a.value">{{ a.label }}</option>
+                </select>
+                <button class="btn-ghost sm" @click="saveProfileAccess(item)">保存许可</button>
+              </div>
+            </article>
+            <div v-if="!guildProfiles.length" class="empty-ph">暂无公会档案</div>
+          </div>
+        </div>
+
       </main>
     </div>
 
@@ -506,6 +723,65 @@ const previewAvatar = ref(null)
 const saveMsg = ref('')
 const creatorLogs = ref([])
 const pointsForm = ref({ amount: 10, reason: '' })
+
+// --- 公会系统管理数据 ---
+const guildTab = ref('quests')
+const guildMsg = ref('')
+const guildSaving = ref(false)
+const guildQuests = ref([])
+const guildRewards = ref([])
+const guildRedemptions = ref([])
+const guildRatings = ref([])
+const guildProfiles = ref([])
+const guildQuestEditingId = ref(null)
+const guildRewardEditingId = ref(null)
+
+const ratingOptions = ['F', 'E', 'D', 'C', 'B', 'A', 'S', 'X']
+const accessOptions = [
+  { value: 'public_archive', label: '档案0 · 公开档案许可' },
+  { value: 'observer_clearance', label: '观测1 · 观测员许可' },
+  { value: 'anomaly_research', label: '异常2 · 异常观测许可' },
+  { value: 'closed_space', label: '闭锁3 · 闭锁空间许可' }
+]
+const conditionOptions = [
+  { value: 'browse_artworks', label: '浏览画廊作品' },
+  { value: 'comment_artworks', label: '公开评论作品' },
+  { value: 'like_artworks', label: '点赞作品' },
+  { value: 'upload_personal_haruhi', label: '上传凉宫个人作品' },
+  { value: 'upload_personal_any', label: '上传任意个人作品' },
+  { value: 'upload_network', label: '提交转载作品' },
+  { value: 'manual_admin_verify', label: '管理员手动验收' }
+]
+
+const defaultQuestForm = () => ({
+  title: '',
+  description: '',
+  questType: 'daily',
+  difficulty: 'normal',
+  requiredRating: 'F',
+  requiredAccess: 'observer_clearance',
+  conditionKind: 'browse_artworks',
+  targetCount: 1,
+  rewardReputation: 0,
+  rewardCoins: 0,
+  deadlineHours: null,
+  status: 'active',
+  sortOrder: 100
+})
+const defaultRewardForm = () => ({
+  name: '',
+  description: '',
+  rewardType: 'virtual',
+  priceCoins: 0,
+  stock: -1,
+  requiredRating: 'F',
+  requiredAccess: 'observer_clearance',
+  imageUrl: '',
+  status: 'active',
+  sortOrder: 100
+})
+const guildQuestForm = ref(defaultQuestForm())
+const guildRewardForm = ref(defaultRewardForm())
 
 // 计算属性：过滤后的创作者
 const filteredCreators = computed(() => {
@@ -785,11 +1061,215 @@ async function grantPoints() {
   }
 }
 
+// ---------------- 公会系统管理 ----------------
+
+function clearGuildMsgSoon() {
+  if (!guildMsg.value) return
+  setTimeout(() => {
+    guildMsg.value = ''
+  }, 2600)
+}
+
+function cleanNullableNumber(value) {
+  if (value === '' || value === undefined || value === null) return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+async function loadGuildAdmin() {
+  if (guildTab.value === 'quests') {
+    const res = await api.adminGuildQuests()
+    guildQuests.value = res.data || []
+  } else if (guildTab.value === 'rewards') {
+    const res = await api.adminGuildRewards()
+    guildRewards.value = res.data || []
+  } else if (guildTab.value === 'redemptions') {
+    const res = await api.adminGuildRedemptions()
+    guildRedemptions.value = res.data || []
+  } else if (guildTab.value === 'ratings') {
+    const res = await api.adminGuildRatingApplications()
+    guildRatings.value = res.data || []
+  } else if (guildTab.value === 'profiles') {
+    const res = await api.adminGuildProfiles()
+    guildProfiles.value = res.data || []
+  }
+}
+
+async function switchGuildTab(tab) {
+  guildTab.value = tab
+  await loadGuildAdmin()
+}
+
+function resetGuildQuestForm() {
+  guildQuestEditingId.value = null
+  guildQuestForm.value = defaultQuestForm()
+}
+
+function editGuildQuest(quest) {
+  guildQuestEditingId.value = quest.id
+  guildQuestForm.value = {
+    title: quest.title || '',
+    description: quest.description || '',
+    questType: quest.questType || 'daily',
+    difficulty: quest.difficulty || 'normal',
+    requiredRating: quest.requiredRating || 'F',
+    requiredAccess: quest.requiredAccess || 'observer_clearance',
+    conditionKind: quest.conditionKind || 'browse_artworks',
+    targetCount: Number(quest.targetCount || 1),
+    rewardReputation: Number(quest.rewardReputation || 0),
+    rewardCoins: Number(quest.rewardCoins || 0),
+    deadlineHours: quest.deadlineHours ?? null,
+    status: quest.status || 'active',
+    sortOrder: Number(quest.sortOrder || 100)
+  }
+}
+
+async function saveGuildQuest() {
+  if (!guildQuestForm.value.title.trim()) return
+  guildSaving.value = true
+  try {
+    const payload = {
+      ...guildQuestForm.value,
+      deadlineHours: cleanNullableNumber(guildQuestForm.value.deadlineHours)
+    }
+    if (guildQuestEditingId.value) {
+      await api.adminUpdateGuildQuest(guildQuestEditingId.value, payload)
+      guildMsg.value = '委托已更新'
+    } else {
+      await api.adminCreateGuildQuest(payload)
+      guildMsg.value = '委托已新增'
+    }
+    resetGuildQuestForm()
+    await loadGuildAdmin()
+    clearGuildMsgSoon()
+  } finally {
+    guildSaving.value = false
+  }
+}
+
+async function setGuildQuestStatus(quest, status) {
+  await api.adminUpdateGuildQuestStatus(quest.id, status)
+  guildMsg.value = `委托状态已切换为 ${status}`
+  await loadGuildAdmin()
+  clearGuildMsgSoon()
+}
+
+async function deleteGuildQuest(quest) {
+  if (!confirm(`确认删除委托「${quest.title}」？`)) return
+  await api.adminDeleteGuildQuest(quest.id)
+  await loadGuildAdmin()
+}
+
+function resetGuildRewardForm() {
+  guildRewardEditingId.value = null
+  guildRewardForm.value = defaultRewardForm()
+}
+
+function editGuildReward(reward) {
+  guildRewardEditingId.value = reward.id
+  guildRewardForm.value = {
+    name: reward.name || '',
+    description: reward.description || '',
+    rewardType: reward.rewardType || 'virtual',
+    priceCoins: Number(reward.priceCoins || 0),
+    stock: reward.stock ?? -1,
+    requiredRating: reward.requiredRating || 'F',
+    requiredAccess: reward.requiredAccess || 'observer_clearance',
+    imageUrl: reward.imageUrl || '',
+    status: reward.status || 'active',
+    sortOrder: Number(reward.sortOrder || 100)
+  }
+}
+
+async function saveGuildReward() {
+  if (!guildRewardForm.value.name.trim()) return
+  guildSaving.value = true
+  try {
+    const payload = {
+      ...guildRewardForm.value,
+      stock: cleanNullableNumber(guildRewardForm.value.stock)
+    }
+    if (guildRewardEditingId.value) {
+      await api.adminUpdateGuildReward(guildRewardEditingId.value, payload)
+      guildMsg.value = '商品已更新'
+    } else {
+      await api.adminCreateGuildReward(payload)
+      guildMsg.value = '商品已新增'
+    }
+    resetGuildRewardForm()
+    await loadGuildAdmin()
+    clearGuildMsgSoon()
+  } finally {
+    guildSaving.value = false
+  }
+}
+
+async function setGuildRewardStatus(reward, status) {
+  await api.adminUpdateGuildRewardStatus(reward.id, status)
+  guildMsg.value = `商品状态已切换为 ${status}`
+  await loadGuildAdmin()
+  clearGuildMsgSoon()
+}
+
+async function deleteGuildReward(reward) {
+  if (!confirm(`确认删除商品「${reward.name}」？`)) return
+  await api.adminDeleteGuildReward(reward.id)
+  await loadGuildAdmin()
+}
+
+function adminNote(defaultText = '') {
+  const note = window.prompt('管理员备注：', defaultText)
+  return note === null ? null : note
+}
+
+async function approveRedemption(item) {
+  const note = adminNote('审核通过，等待发放')
+  if (note === null) return
+  await api.adminApproveGuildRedemption(item.id, note)
+  await loadGuildAdmin()
+}
+
+async function rejectRedemption(item) {
+  const note = adminNote('不满足兑换条件')
+  if (note === null) return
+  await api.adminRejectGuildRedemption(item.id, note)
+  await loadGuildAdmin()
+}
+
+async function fulfillRedemption(item) {
+  const note = adminNote('奖励已发放')
+  if (note === null) return
+  await api.adminFulfillGuildRedemption(item.id, note)
+  await loadGuildAdmin()
+}
+
+async function approveRating(item) {
+  const note = adminNote('评级申请通过')
+  if (note === null) return
+  await api.adminApproveGuildRating(item.id, note)
+  await loadGuildAdmin()
+}
+
+async function rejectRating(item) {
+  const note = adminNote('暂未满足评级要求')
+  if (note === null) return
+  await api.adminRejectGuildRating(item.id, note)
+  await loadGuildAdmin()
+}
+
+async function saveProfileAccess(item) {
+  await api.adminUpdateGuildProfileAccess(item.uid, item.accessTier)
+  guildMsg.value = `${item.uid} 的访问许可已更新`
+  await loadGuildAdmin()
+  clearGuildMsgSoon()
+}
+
 // 监听 Tab 切换加载数据
 watch(mainTab, (v) => {
   if (v === 'images' && imageTab.value === 'list') loadApprovedList()
   if (v === 'comments') switchCommentTab('pending')
   if (v === 'creators') loadCreators()
+  if (v === 'guild') loadGuildAdmin()
 })
 
 onMounted(async () => {
@@ -1073,11 +1553,83 @@ onMounted(async () => {
 .chk-item { font-size: 12px; display: flex; align-items: center; gap: 6px; color: var(--sos-text-secondary); cursor: pointer; }
 .chk-item:hover { color: var(--sos-text-primary); }
 
+/* 公会系统后台 */
+.guild-admin-layout {
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr);
+  gap: 18px;
+}
+
+.guild-editor,
+.guild-list.single {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.guild-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.panel-header.compact {
+  padding: 12px 16px;
+}
+
+.compact-form {
+  padding: 16px;
+  gap: 12px;
+}
+
+.guild-msg {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  color: #065f46;
+  font-size: 13px;
+  font-weight: 700;
+  background: #d1fae5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+}
+
+.guild-manage-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.guild-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.guild-row-actions.access-editor {
+  min-width: 260px;
+}
+
+.guild-row-actions.access-editor .select {
+  min-width: 190px;
+}
+
 @media (max-width: 1024px) {
   .content-area { padding: 16px; }
   .filters { flex-wrap: wrap; }
   .two-col-layout { gap: 12px; min-height: 0; height: auto; }
   .col-left { width: 240px; }
+  .guild-admin-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1302,6 +1854,18 @@ onMounted(async () => {
   .ph-val {
     width: 56px;
     flex-shrink: 0;
+  }
+  .guild-manage-row {
+    grid-template-columns: 1fr;
+  }
+  .guild-row-actions,
+  .guild-row-actions.access-editor {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+  .guild-row-actions .btn-ghost,
+  .guild-row-actions.access-editor .select {
+    width: 100%;
   }
 }
 
