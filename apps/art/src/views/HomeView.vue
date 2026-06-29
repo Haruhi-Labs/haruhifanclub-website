@@ -356,7 +356,11 @@ function loadVisitorNumber() {
   return visitorNumberPromise
 }
 
-const approvedArtworks = seedArtworks.filter((item) => item.status === 'approved')
+// 仅本地开发用 seed 占位画带；生产为空数组（seedArtworks 引用被 tree-shake 出生产包），
+// 挂载后由 loadGalleryPool() 拉真实已通过作品填充，生产首屏画带空一瞬即被替换，绝不展示 mock。
+const approvedArtworks = import.meta.env.DEV
+  ? seedArtworks.filter((item) => item.status === 'approved')
+  : []
 const artHomeRef = ref(null)
 const lightGearDragging = ref(false)
 const lightGearDragRow = ref('top')
@@ -916,8 +920,8 @@ onBeforeUnmount(deactivateHomeView)
 
 const router = useRouter()
 
-// 首页画作来自全局绘画池：初始用本地 seed 占位（保证首屏齿轮不空），
-// 挂载后异步拉取真实的已通过作品替换；无后端（本地开发）时保持 seed。
+// 首页画作来自全局绘画池：生产初始为空（approvedArtworks 仅 DEV 有值），挂载后由
+// loadGalleryPool() 拉真实已通过作品填充；本地开发无后端时回落到 seed 占位，保证齿轮不空。
 const seedGearPool = approvedArtworks
 const galleryGearPool = ref(seedGearPool)
 const lightGearSource = computed(() =>
