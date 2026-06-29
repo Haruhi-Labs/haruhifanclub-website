@@ -92,9 +92,7 @@ const session = useSession('/api')
 router.beforeEach(async (to) => {
   if (!to.matched.some((record) => record.meta.requiresAuth)) return true
 
-  if (!session.state.ready) {
-    await session.refresh()
-  }
+  await session.ensureReady()
 
   if (!session.state.user) {
     return {
