@@ -17,6 +17,9 @@ const state = reactive({
 })
 
 let auth = null
+let refreshPromise = null
+let sessionVersion = 0
+
 function ensureAuth(apiBase) {
   if (!auth) auth = createAuth(apiBase || '/api')
   return auth
@@ -29,47 +32,66 @@ export function useSession(apiBase = '/api') {
   const isVerified = computed(() => !!(state.user && state.user.emailVerified))
   const isSuperAdmin = computed(() => !!(state.user && state.user.isSuperAdmin))
 
+  function commitUser(user) {
+    sessionVersion += 1
+    refreshPromise = null
+    state.user = user
+    state.ready = true
+    state.loading = false
+    return user
+  }
+
   // 拉取当前用户（带 cookie）。失败即视为未登录。幂等，可多次调用。
   async function refresh() {
+    if (refreshPromise) return refreshPromise
+    const version = sessionVersion
     state.loading = true
-    try {
-      state.user = await a.me()
-    } catch {
-      state.user = null
-    } finally {
-      state.loading = false
-      state.ready = true
-    }
-    return state.user
+    const promise = (async () => {
+      let user = null
+      try {
+        user = await a.me()
+      } catch {
+        user = null
+      } finally {
+        if (version === sessionVersion) {
+          state.user = user
+          state.ready = true
+          state.loading = false
+        }
+        if (refreshPromise === promise) refreshPromise = null
+      }
+      return version === sessionVersion ? user : state.user
+    })()
+    refreshPromise = promise
+    return refreshPromise
+  }
+
+  async function ensureReady() {
+    if (state.ready) return state.user
+    return refresh()
   }
 
   async function login(account, password) {
     const r = await a.login(account, password)
     // 需要两步验证：不写登录态，原样返回供 UI 跳二次验证
     if (r && r.twoFactorRequired) return r
-    state.user = r
-    state.ready = true
-    return r
+    return commitUser(r)
   }
 
   // 两步验证二次校验：成功写回登录态
   async function login2fa(pendingToken, code, backup = false) {
-    state.user = await a.login2fa(pendingToken, code, backup)
-    state.ready = true
-    return state.user
+    return commitUser(await a.login2fa(pendingToken, code, backup))
   }
 
   async function register(payload) {
-    state.user = await a.register(payload)
-    state.ready = true
-    return state.user
+    return commitUser(await a.register(payload))
   }
 
   async function logout() {
     try {
       await a.logout()
     } finally {
-      state.user = null
+      commitUser(null)
     }
   }
 
@@ -92,9 +114,7 @@ export function useSession(apiBase = '/api') {
 
   // 通行密钥登录：成功后写回登录态
   async function loginPasskey(opts) {
-    state.user = await a.loginPasskey(opts)
-    state.ready = true
-    return state.user
+    return commitUser(await a.loginPasskey(opts))
   }
 
   return {
@@ -103,6 +123,7 @@ export function useSession(apiBase = '/api') {
     isVerified,
     isSuperAdmin,
     refresh,
+    ensureReady,
     login,
     login2fa,
     register,

@@ -25,7 +25,7 @@ const accountLabel = computed(
 const profileEditPath = computed(() => `${props.profilePath.replace(/\/$/, '')}/profile`)
 
 onMounted(() => {
-  if (!session.state.ready) session.refresh()
+  session.ensureReady()
 })
 
 // 悬浮展开 / 移出延迟收起（延迟避开 trigger→panel 的间隙抖动）
@@ -50,7 +50,12 @@ function onFocusOut(e) {
   if (!rootEl.value?.contains(e.relatedTarget)) open.value = false
 }
 
-function goLogin() {
+async function goLogin() {
+  await session.ensureReady()
+  if (session.state.user) {
+    router.push(props.profilePath)
+    return
+  }
   router.push(props.loginPath)
 }
 // 点击头像直接进个人中心（无需二次操作）

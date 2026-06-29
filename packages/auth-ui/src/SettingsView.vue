@@ -49,7 +49,7 @@ const pkError = ref('')
 const pkOk = ref('')
 
 onMounted(async () => {
-  if (!session.state.ready) await session.refresh()
+  await session.ensureReady()
   if (!session.state.user) {
     router.push(props.loginPath + '?redirect=' + encodeURIComponent('/account/settings'))
     return

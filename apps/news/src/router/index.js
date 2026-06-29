@@ -20,6 +20,7 @@ import {
   MyArticlesView,
   MyCommentsView,
   PointsView,
+  useSession,
 } from '@haruhi/auth-ui'
 
 // 个人控制台：/account 为带侧边导航的「个人空间」外壳，子页嵌套渲染。
@@ -29,6 +30,7 @@ const accountRoutes = [
   {
     path: '/account',
     component: UserConsoleLayout,
+    meta: { requiresAuth: true },
     props: {
       site: 'news',
       basePath: '/account',
@@ -97,6 +99,21 @@ const router = createRouter({
       return { top: 0, behavior: 'smooth' }
     }
   },
+})
+
+const session = useSession('/api')
+
+router.beforeEach(async (to) => {
+  if (!to.matched.some((record) => record.meta.requiresAuth)) return true
+
+  await session.ensureReady()
+
+  if (session.state.user) return true
+
+  return {
+    name: 'login',
+    query: { redirect: to.fullPath },
+  }
 })
 
 export default router

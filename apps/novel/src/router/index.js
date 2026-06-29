@@ -19,6 +19,7 @@ import {
   MyArticlesView,
   MyCommentsView,
   PointsView as AccountPointsView,
+  useSession,
 } from '@haruhi/auth-ui'
 
 // 个人控制台导航分区：全集（全站可用——从任一 app 进入都能管理全站内容）。
@@ -43,6 +44,7 @@ const router = createRouter({
     {
       path: '/account',
       component: UserConsoleLayout,
+      meta: { requiresAuth: true },
       props: { site: 'library', basePath: '/account', sections: ACCOUNT_SECTIONS },
       children: [
         { path: '', name: 'account', component: AccountOverviewView },
@@ -77,6 +79,21 @@ const router = createRouter({
       props: { site: 'library' },
     },
   ],
+})
+
+const session = useSession('/api')
+
+router.beforeEach(async (to) => {
+  if (!to.matched.some((record) => record.meta.requiresAuth)) return true
+
+  await session.ensureReady()
+
+  if (session.state.user) return true
+
+  return {
+    name: 'login',
+    query: { redirect: to.fullPath },
+  }
 })
 
 export default router
