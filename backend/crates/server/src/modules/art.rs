@@ -32,6 +32,7 @@ pub fn router() -> Router<AppState> {
         .route("/creators/search", get(creators_search))
         .route("/creators/verify", get(creators_verify))
         .route("/visitors", post(record_visitor))
+        .route("/announcements", get(list_announcements))
         .route("/artworks", get(list_artworks).post(create_artwork))
         .route("/artworks/{id}", get(get_artwork))
         .route("/thumb", get(get_thumb))
@@ -76,6 +77,18 @@ pub fn router() -> Router<AppState> {
         .route(
             "/admin/creators/{uid}",
             axum::routing::delete(admin_delete_creator),
+        )
+        .route(
+            "/admin/announcements",
+            get(admin_list_announcements).post(admin_create_announcement),
+        )
+        .route(
+            "/admin/announcements/{id}/update",
+            post(admin_update_announcement),
+        )
+        .route(
+            "/admin/announcements/{id}",
+            axum::routing::delete(admin_delete_announcement),
         )
         .route("/admin/points-ledger", get(admin_points_ledger))
         .route("/admin/points/grant", post(admin_points_grant))
@@ -2397,6 +2410,243 @@ async fn admin_delete_creator(
     authorize(&state.pools.core, &user, "art", Action::Manage).await?;
     sqlx::query("DELETE FROM creators WHERE uid=?")
         .bind(&uid)
+        .execute(&state.pools.art)
+        .await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+// ============================================================
+// 社团公告：公开只读 + 后台 CRUD（替代前端硬编码 mock）
+// ============================================================
+
+type AnnouncementRow = (
+    i64,
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+    i64,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
+
+fn announcement_value(r: AnnouncementRow) -> Value {
+    let (
+        id,
+        category,
+        title,
+        summary,
+        body,
+        tags_json,
+        pinned,
+        status,
+        published_at,
+        created_at,
+        updated_at,
+    ) = r;
+    json!({
+        "id": id,
+        "category": category,
+        "title": title,
+        "summary": summary,
+        "body": body,
+        "tags": safe_json_arr(tags_json.as_deref()),
+        "pinned": pinned != 0,
+        "status": status,
+        "publishedAt": published_at,
+        "createdAt": created_at,
+        "updatedAt": updated_at,
+    })
+}
+
+/// 解析公告写入字段（创建/更新共用）：校验标题非空，category/status 收敛到允许值，
+/// tags 收 JSON 数组、published_at 缺省取当前时间。
+fn parse_announcement_input(
+    body: &Value,
+) -> AppResult<(String, String, String, String, String, i64, String, String)> {
+    let title = body
+        .get("title")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if title.is_empty() {
+        return Err(AppError::bad_request("公告标题不能为空"));
+    }
+    let category = match body
+        .get("category")
+        .and_then(|v| v.as_str())
+        .unwrap_or("activity")
+        .trim()
+    {
+        "maintenance" => "maintenance",
+        _ => "activity",
+    }
+    .to_string();
+    let summary = body
+        .get("summary")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    let content = body
+        .get("body")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    let tags: Vec<String> = body
+        .get("tags")
+        .and_then(|v| v.as_array())
+        .map(|a| {
+            a.iter()
+                .filter_map(|t| t.as_str())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+    let tags_json = serde_json::to_string(&tags).unwrap_or_else(|_| "[]".into());
+    let pinned = i64::from(
+        body.get("pinned")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+    );
+    let status = match body
+        .get("status")
+        .and_then(|v| v.as_str())
+        .unwrap_or("published")
+    {
+        "draft" => "draft",
+        _ => "published",
+    }
+    .to_string();
+    let published_at = body
+        .get("publishedAt")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(now_iso);
+    Ok((
+        category,
+        title,
+        summary,
+        content,
+        tags_json,
+        pinned,
+        status,
+        published_at,
+    ))
+}
+
+// 公开：已发布公告列表（置顶优先、发布时间倒序）
+async fn list_announcements(State(state): State<AppState>) -> AppResult<Json<Value>> {
+    let rows: Vec<AnnouncementRow> = sqlx::query_as(
+        "SELECT id, category, title, summary, body, tags_json, pinned, status, published_at, created_at, updated_at \
+         FROM announcements WHERE status='published' \
+         ORDER BY pinned DESC, datetime(published_at) DESC, id DESC",
+    )
+    .fetch_all(&state.pools.art)
+    .await?;
+    let data: Vec<Value> = rows.into_iter().map(announcement_value).collect();
+    Ok(Json(json!({ "ok": true, "data": data })))
+}
+
+// 后台：全部公告（含草稿）
+async fn admin_list_announcements(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Read).await?;
+    let rows: Vec<AnnouncementRow> = sqlx::query_as(
+        "SELECT id, category, title, summary, body, tags_json, pinned, status, published_at, created_at, updated_at \
+         FROM announcements \
+         ORDER BY pinned DESC, datetime(published_at) DESC, id DESC",
+    )
+    .fetch_all(&state.pools.art)
+    .await?;
+    let data: Vec<Value> = rows.into_iter().map(announcement_value).collect();
+    Ok(Json(json!({ "ok": true, "data": data })))
+}
+
+// 后台：创建公告
+async fn admin_create_announcement(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+    let (category, title, summary, content, tags_json, pinned, status, published_at) =
+        parse_announcement_input(&body)?;
+    let now = now_iso();
+    let id: i64 = sqlx::query_scalar(
+        "INSERT INTO announcements(category, title, summary, body, tags_json, pinned, status, published_at, created_at, updated_at) \
+         VALUES(?,?,?,?,?,?,?,?,?,?) RETURNING id",
+    )
+    .bind(&category)
+    .bind(&title)
+    .bind(&summary)
+    .bind(&content)
+    .bind(&tags_json)
+    .bind(pinned)
+    .bind(&status)
+    .bind(&published_at)
+    .bind(&now)
+    .bind(&now)
+    .fetch_one(&state.pools.art)
+    .await?;
+    Ok(Json(json!({ "ok": true, "id": id })))
+}
+
+// 后台：更新公告
+async fn admin_update_announcement(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+    let exists: Option<i64> = sqlx::query_scalar("SELECT id FROM announcements WHERE id=?")
+        .bind(id)
+        .fetch_optional(&state.pools.art)
+        .await?;
+    if exists.is_none() {
+        return Err(AppError::not_found("公告不存在"));
+    }
+    let (category, title, summary, content, tags_json, pinned, status, published_at) =
+        parse_announcement_input(&body)?;
+    sqlx::query(
+        "UPDATE announcements SET category=?, title=?, summary=?, body=?, tags_json=?, pinned=?, status=?, published_at=?, updated_at=? \
+         WHERE id=?",
+    )
+    .bind(&category)
+    .bind(&title)
+    .bind(&summary)
+    .bind(&content)
+    .bind(&tags_json)
+    .bind(pinned)
+    .bind(&status)
+    .bind(&published_at)
+    .bind(now_iso())
+    .bind(id)
+    .execute(&state.pools.art)
+    .await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+// 后台：删除公告
+async fn admin_delete_announcement(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+    sqlx::query("DELETE FROM announcements WHERE id=?")
+        .bind(id)
         .execute(&state.pools.art)
         .await?;
     Ok(Json(json!({ "ok": true })))

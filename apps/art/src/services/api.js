@@ -156,6 +156,14 @@ export const api = {
   },
   postComment: (body) => request('POST', `${API_PREFIX}/comments`, { body }),
 
+  // Announcements（公告：公开只读 + 后台 CRUD）
+  announcements: () => request('GET', `${API_PREFIX}/announcements`),
+  adminAnnouncements: () => request('GET', `${API_PREFIX}/admin/announcements`),
+  adminCreateAnnouncement: (body) => request('POST', `${API_PREFIX}/admin/announcements`, { body }),
+  adminUpdateAnnouncement: (id, body) =>
+    request('POST', `${API_PREFIX}/admin/announcements/${id}/update`, { body }),
+  adminDeleteAnnouncement: (id) => request('DELETE', `${API_PREFIX}/admin/announcements/${id}`),
+
   // Admin - Artworks
   adminPendingArtworks: async () => {
     const data = await request('GET', `${API_PREFIX}/admin/pending-artworks`)

@@ -37,6 +37,9 @@
         <button :class="['nav-item', mainTab==='guild' && 'active']" @click="mainTab='guild'">
           ⚔️ 公会系统
         </button>
+        <button :class="['nav-item', mainTab==='announcements' && 'active']" @click="mainTab='announcements'">
+          📢 公告
+        </button>
       </nav>
 
       <!-- 内容区域 -->
@@ -630,6 +633,61 @@
               </div>
             </article>
             <div v-if="!guildProfiles.length" class="empty-ph">暂无公会档案</div>
+          </div>
+        </div>
+
+        <!-- ================= 公告管理 ================= -->
+        <div v-if="mainTab==='announcements'" class="tab-content guild-admin">
+          <div v-if="annMsg" class="guild-msg">{{ annMsg }}</div>
+          <div class="guild-admin-layout">
+            <section class="guild-editor">
+              <div class="panel-header compact">
+                <div class="ph-title">{{ annEditingId ? '编辑公告' : '新增公告' }}</div>
+              </div>
+              <div class="edit-form compact-form">
+                <input v-model="annForm.title" class="input" placeholder="公告标题">
+                <div class="editor-row">
+                  <select v-model="annForm.category" class="select">
+                    <option value="activity">活动公告</option>
+                    <option value="maintenance">维护公告</option>
+                  </select>
+                  <select v-model="annForm.status" class="select">
+                    <option value="published">已发布</option>
+                    <option value="draft">草稿</option>
+                  </select>
+                </div>
+                <input v-model="annForm.summary" class="input" placeholder="摘要（一句话概述）">
+                <textarea v-model="annForm.body" class="textarea" placeholder="公告正文"></textarea>
+                <input v-model="annForm.tags" class="input" placeholder="标签，逗号分隔（可空）">
+                <div class="editor-row">
+                  <input type="date" v-model="annForm.publishedAt" class="input">
+                  <label class="ann-pin"><input type="checkbox" v-model="annForm.pinned"> 置顶</label>
+                </div>
+                <div class="btns">
+                  <button class="btn" @click="saveAnnouncement" :disabled="annSaving">保存公告</button>
+                  <button class="btn-ghost" @click="resetAnnForm">清空</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="guild-list">
+              <article v-for="a in announcements" :key="a.id" class="guild-manage-row">
+                <div>
+                  <div class="m-title">{{ a.title }}</div>
+                  <div class="m-info">
+                    <span class="tag">{{ a.category === 'maintenance' ? '维护公告' : '活动公告' }}</span>
+                    <span class="tag">{{ a.status === 'draft' ? '草稿' : '已发布' }}</span>
+                    <span v-if="a.pinned" class="tag">置顶</span>
+                    <span class="tag">{{ (a.publishedAt || '').slice(0, 10) }}</span>
+                  </div>
+                </div>
+                <div class="guild-row-actions">
+                  <button class="btn-ghost sm" @click="editAnnouncement(a)">编辑</button>
+                  <button class="btn-ghost danger sm" @click="deleteAnnouncement(a)">删除</button>
+                </div>
+              </article>
+              <div v-if="!announcements.length" class="empty-ph">暂无公告，使用左侧表单发布第一条。</div>
+            </section>
           </div>
         </div>
 
@@ -1243,11 +1301,95 @@ async function saveProfileAccess(item) {
 }
 
 // 监听 Tab 切换加载数据
+// ---- 公告管理 ----
+const announcements = ref([])
+const annMsg = ref('')
+const annSaving = ref(false)
+const annEditingId = ref(null)
+function defaultAnnForm() {
+  return {
+    category: 'activity',
+    title: '',
+    summary: '',
+    body: '',
+    tags: '',
+    pinned: false,
+    status: 'published',
+    publishedAt: ''
+  }
+}
+const annForm = ref(defaultAnnForm())
+let annMsgTimer = null
+function clearAnnMsgSoon() {
+  if (annMsgTimer) clearTimeout(annMsgTimer)
+  annMsgTimer = setTimeout(() => { annMsg.value = '' }, 2500)
+}
+
+async function loadAnnouncementsAdmin() {
+  const res = await api.adminAnnouncements()
+  announcements.value = Array.isArray(res?.data) ? res.data : []
+}
+
+function resetAnnForm() {
+  annEditingId.value = null
+  annForm.value = defaultAnnForm()
+}
+
+function editAnnouncement(a) {
+  annEditingId.value = a.id
+  annForm.value = {
+    category: a.category || 'activity',
+    title: a.title || '',
+    summary: a.summary || '',
+    body: a.body || '',
+    tags: Array.isArray(a.tags) ? a.tags.join(', ') : '',
+    pinned: Boolean(a.pinned),
+    status: a.status || 'published',
+    publishedAt: (a.publishedAt || '').slice(0, 10)
+  }
+}
+
+async function saveAnnouncement() {
+  if (!annForm.value.title.trim()) { annMsg.value = '标题不能为空'; return }
+  annSaving.value = true
+  try {
+    const payload = {
+      category: annForm.value.category,
+      title: annForm.value.title.trim(),
+      summary: annForm.value.summary.trim(),
+      body: annForm.value.body.trim(),
+      tags: annForm.value.tags.split(/[,，]/).map(s => s.trim()).filter(Boolean),
+      pinned: annForm.value.pinned,
+      status: annForm.value.status,
+      publishedAt: annForm.value.publishedAt || undefined
+    }
+    if (annEditingId.value) {
+      await api.adminUpdateAnnouncement(annEditingId.value, payload)
+      annMsg.value = '公告已更新'
+    } else {
+      await api.adminCreateAnnouncement(payload)
+      annMsg.value = '公告已发布'
+    }
+    resetAnnForm()
+    await loadAnnouncementsAdmin()
+    clearAnnMsgSoon()
+  } finally {
+    annSaving.value = false
+  }
+}
+
+async function deleteAnnouncement(a) {
+  if (!confirm(`确认删除公告「${a.title}」？`)) return
+  await api.adminDeleteAnnouncement(a.id)
+  await loadAnnouncementsAdmin()
+}
+
 watch(mainTab, (v) => {
   if (v === 'images' && imageTab.value === 'list') loadApprovedList()
   if (v === 'comments') switchCommentTab('pending')
   if (v === 'creators') loadCreators()
   if (v === 'guild') loadGuildAdmin()
+  if (v === 'announcements') loadAnnouncementsAdmin()
 })
 
 onMounted(async () => {
