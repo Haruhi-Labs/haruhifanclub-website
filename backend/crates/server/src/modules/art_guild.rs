@@ -1,4 +1,7 @@
-use axum::extract::{Path, Query, State};
+use axum::body::Bytes;
+use axum::extract::{Multipart, Path, Query, State};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use haruhi_auth::{authorize, Action, AuthUser};
@@ -18,6 +21,15 @@ const RATINGS: &[(&str, i64, i64)] = &[
     ("X", 12000, 35),
 ];
 
+type GuildLeaderboardRow = (
+    String,
+    Option<i64>,
+    String,
+    String,
+    Option<i64>,
+    Option<String>,
+);
+
 #[derive(sqlx::FromRow)]
 struct GuildQuestListRow {
     id: i64,
@@ -32,6 +44,7 @@ struct GuildQuestListRow {
     reward_reputation: i64,
     reward_coins: i64,
     deadline_hours: Option<i64>,
+    auto_claim: i64,
     status: String,
     sort_order: i64,
     claim_status: Option<String>,
@@ -66,6 +79,10 @@ pub fn router() -> Router<AppState> {
         .route(
             "/admin/guild/rewards",
             get(admin_rewards).post(admin_create_reward),
+        )
+        .route(
+            "/admin/guild/rewards/image",
+            post(admin_upload_reward_image),
         )
         .route(
             "/admin/guild/rewards/{id}",
@@ -324,7 +341,8 @@ async fn guild_quests(
     let rows: Vec<GuildQuestListRow> = sqlx::query_as(
         "SELECT q.id, q.title, q.description, q.quest_type, q.difficulty,
                 q.required_rating, q.required_access, q.condition_kind, q.target_count,
-                q.reward_reputation, q.reward_coins, q.deadline_hours, q.status, q.sort_order,
+                q.reward_reputation, q.reward_coins, q.deadline_hours, COALESCE(q.auto_claim, 0) AS auto_claim,
+                q.status, q.sort_order,
                 c.status AS claim_status, c.progress AS claim_progress,
                 c.target_count AS claim_target_count, c.rewarded_at AS claim_rewarded_at
          FROM guild_quests q
@@ -368,6 +386,7 @@ async fn guild_quests(
                 "rewardReputation": row.reward_reputation,
                 "rewardCoins": row.reward_coins,
                 "deadlineHours": row.deadline_hours,
+                "autoClaim": row.auto_claim != 0,
                 "status": row.status,
                 "sortOrder": row.sort_order,
                 "unlocked": unlocked,
@@ -433,15 +452,16 @@ async fn guild_claim_quest(
     Ok(Json(json!({ "ok": true })))
 }
 
-async fn guild_leaderboard(State(state): State<AppState>) -> AppResult<Json<Value>> {
-    let rows: Vec<(
-        String,
-        Option<i64>,
-        String,
-        String,
-        Option<i64>,
-        Option<String>,
-    )> = sqlx::query_as(
+async fn guild_leaderboard(
+    State(state): State<AppState>,
+    user: Option<AuthUser>,
+) -> AppResult<Json<Value>> {
+    let current_uid = match user {
+        Some(user) => Some(ensure_profile_for_user(&state, &user).await?),
+        None => None,
+    };
+
+    let rows: Vec<GuildLeaderboardRow> = sqlx::query_as(
         "SELECT gp.uid, gp.reputation, gp.rating, gp.access_tier,
                 COALESCE(SUM(pl.points), 0) AS coins, c.avatar_url
          FROM guild_profiles gp
@@ -454,28 +474,50 @@ async fn guild_leaderboard(State(state): State<AppState>) -> AppResult<Json<Valu
              WHEN 'C' THEN 4 WHEN 'D' THEN 3 WHEN 'E' THEN 2 ELSE 1 END DESC,
            CAST((gp.reputation / 100) AS INTEGER) DESC,
            coins DESC,
-           gp.reputation DESC
-         LIMIT 50",
+           gp.reputation DESC,
+           gp.uid ASC",
     )
     .fetch_all(&state.pools.art)
     .await?;
-    let data: Vec<Value> = rows
-        .into_iter()
-        .map(|(uid, reputation, rating, access, coins, avatar)| {
-            let rep = reputation.unwrap_or(0);
-            json!({
-                "uid": uid,
-                "reputation": rep,
-                "level": level_from_reputation(rep),
-                "rating": rating,
-                "accessTier": access,
-                "accessLabel": access_label(&access),
-                "coins": coins.unwrap_or(0),
-                "avatar_url": avatar
-            })
-        })
+    let uids: Vec<String> = rows
+        .iter()
+        .map(|(uid, _, _, _, _, _)| uid.clone())
         .collect();
-    Ok(Json(json!({ "ok": true, "data": data })))
+    let names = public_display_names_for_uids(&state, &uids).await;
+    let data: Vec<Value> = rows
+        .iter()
+        .take(50)
+        .enumerate()
+        .map(|(idx, row)| leaderboard_value(row, idx + 1, &names))
+        .collect();
+    let me = current_uid.and_then(|uid| {
+        rows.iter()
+            .position(|row| row.0 == uid)
+            .map(|idx| leaderboard_value(&rows[idx], idx + 1, &names))
+    });
+    Ok(Json(json!({ "ok": true, "data": data, "me": me })))
+}
+
+fn leaderboard_value(
+    row: &GuildLeaderboardRow,
+    rank: usize,
+    names: &std::collections::HashMap<String, String>,
+) -> Value {
+    let (uid, reputation, rating, access, coins, avatar) = row;
+    let rep = reputation.unwrap_or(0);
+    let name = names.get(uid).cloned().unwrap_or_else(|| uid.clone());
+    json!({
+        "uid": uid,
+        "name": name,
+        "rank": rank,
+        "reputation": rep,
+        "level": level_from_reputation(rep),
+        "rating": rating,
+        "accessTier": access,
+        "accessLabel": access_label(access),
+        "coins": coins.unwrap_or(0),
+        "avatar_url": avatar
+    })
 }
 
 async fn guild_coin_history(
@@ -722,8 +764,8 @@ async fn admin_create_quest(
     sqlx::query(
         "INSERT INTO guild_quests(title, description, quest_type, difficulty, required_rating,
          required_access, condition_kind, target_count, reward_reputation, reward_coins,
-         deadline_hours, status, sort_order, created_at, updated_at)
-         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+         deadline_hours, auto_claim, status, sort_order, created_at, updated_at)
+         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
     )
     .bind(str_field(&body, "title", "未命名委托"))
     .bind(str_field(&body, "description", ""))
@@ -736,6 +778,11 @@ async fn admin_create_quest(
     .bind(int_field(&body, "rewardReputation", 0))
     .bind(int_field(&body, "rewardCoins", 0))
     .bind(body.get("deadlineHours").and_then(json_num_i64))
+    .bind(if bool_field(&body, "autoClaim", false) {
+        1_i64
+    } else {
+        0_i64
+    })
     .bind(str_field(&body, "status", "active"))
     .bind(int_field(&body, "sortOrder", 100))
     .bind(&now)
@@ -756,7 +803,7 @@ async fn admin_update_quest(
     sqlx::query(
         "UPDATE guild_quests SET title=?, description=?, quest_type=?, difficulty=?,
          required_rating=?, required_access=?, condition_kind=?, target_count=?,
-         reward_reputation=?, reward_coins=?, deadline_hours=?, status=?, sort_order=?, updated_at=?
+         reward_reputation=?, reward_coins=?, deadline_hours=?, auto_claim=?, status=?, sort_order=?, updated_at=?
          WHERE id=?",
     )
     .bind(str_field(&body, "title", "未命名委托"))
@@ -770,6 +817,11 @@ async fn admin_update_quest(
     .bind(int_field(&body, "rewardReputation", 0))
     .bind(int_field(&body, "rewardCoins", 0))
     .bind(body.get("deadlineHours").and_then(json_num_i64))
+    .bind(if bool_field(&body, "autoClaim", false) {
+        1_i64
+    } else {
+        0_i64
+    })
     .bind(str_field(&body, "status", "active"))
     .bind(int_field(&body, "sortOrder", 100))
     .bind(&now)
@@ -922,6 +974,73 @@ async fn admin_reward_stock(
         .execute(&state.pools.art)
         .await?;
     Ok(Json(json!({ "ok": true })))
+}
+
+async fn admin_upload_reward_image(
+    State(state): State<AppState>,
+    user: AuthUser,
+    mut mp: Multipart,
+) -> AppResult<Response> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+
+    let mut image: Option<(String, Bytes)> = None;
+    while let Some(field) = mp
+        .next_field()
+        .await
+        .map_err(|e| AppError::bad_request(format!("解析上传失败: {e}")))?
+    {
+        match field.name().unwrap_or("") {
+            "image" | "file" => {
+                let fname = field.file_name().unwrap_or("reward-image.bin").to_string();
+                let bytes = field
+                    .bytes()
+                    .await
+                    .map_err(|e| AppError::bad_request(format!("读取图片失败: {e}")))?;
+                image = Some((fname, bytes));
+            }
+            _ => {
+                let _ = field.bytes().await;
+            }
+        }
+    }
+
+    let Some((fname, bytes)) = image else {
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "ok": false, "message": "缺少图片文件" })),
+        )
+            .into_response());
+    };
+
+    let ext = haruhi_media::ext_of(&fname, "").to_lowercase();
+    haruhi_media::check_image(&ext, bytes.len())
+        .map_err(|r| AppError::bad_request(r.to_string()))?;
+    if !matches!(
+        ext.as_str(),
+        "jpg" | "jpeg" | "png" | "webp" | "gif" | "svg" | "bmp" | "avif"
+    ) {
+        return Err(AppError::bad_request(
+            "展示图仅支持 JPG、PNG、WebP、GIF、SVG、BMP、AVIF",
+        ));
+    }
+
+    let now = chrono::Utc::now();
+    let month = now.format("%Y-%m").to_string();
+    let file = format!(
+        "reward-{}-{}.{}",
+        now.timestamp_millis(),
+        uuid::Uuid::new_v4().simple(),
+        ext
+    );
+    let dir = state
+        .cfg
+        .uploads_subdir("art")
+        .join("guild-rewards")
+        .join(&month);
+    haruhi_media::save_file(&dir, &file, &bytes).await?;
+
+    let url = format!("uploads/art/guild-rewards/{month}/{file}");
+    Ok(Json(json!({ "ok": true, "url": url })).into_response())
 }
 
 async fn admin_redemptions(
@@ -1275,11 +1394,8 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
         (true, Some(id)) => Some(user_profile_value(state, id).await?),
         _ => None,
     };
-    // 公开身份显示名：以权威 nickname 为准（昵称必填唯一），不泄漏 email/username 之外的隐私字段。
-    // 公开档案（private=false）也需要它，否则前端只能回落到 uXX 这种已失效的内部 ID。
-    let display_name = super::art::member_display_names(&state.pools.core, &[uid.to_string()])
-        .await
-        .remove(uid);
+    // 公开身份显示名：创作者 ID 优先；内部 u{id} 身份再解析账号昵称。
+    let display_name = public_display_name_for_uid(state, uid).await;
     Ok(json!({
         "uid": uid,
         "userId": user_id,
@@ -1323,6 +1439,34 @@ async fn user_profile_value(state: &AppState, user_id: i64) -> AppResult<Value> 
         "email": email,
         "createdAt": created_at
     }))
+}
+
+async fn public_display_name_for_uid(state: &AppState, uid: &str) -> Option<String> {
+    if user_id_from_uid(uid).is_none() {
+        return Some(uid.to_string());
+    }
+    super::art::member_display_names(&state.pools.core, &[uid.to_string()])
+        .await
+        .remove(uid)
+}
+
+async fn public_display_names_for_uids(
+    state: &AppState,
+    uids: &[String],
+) -> std::collections::HashMap<String, String> {
+    let mut names = std::collections::HashMap::new();
+    let mut member_uids = Vec::new();
+
+    for uid in uids {
+        if user_id_from_uid(uid).is_some() {
+            member_uids.push(uid.clone());
+        } else {
+            names.insert(uid.clone(), uid.clone());
+        }
+    }
+
+    names.extend(super::art::member_display_names(&state.pools.core, &member_uids).await);
+    names
 }
 
 async fn coin_summary(state: &AppState, uid: &str) -> AppResult<Value> {
@@ -1413,6 +1557,7 @@ async fn grant_reputation(
 }
 
 async fn refresh_claims_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
+    ensure_auto_claims_for_uid(state, uid).await?;
     let rows: Vec<(i64, i64, String, i64, i64, i64, String, String)> = sqlx::query_as(
         "SELECT c.id, q.id, q.condition_kind, q.target_count, q.reward_reputation, q.reward_coins,
                 c.claimed_at, q.title
@@ -1471,6 +1616,48 @@ async fn refresh_claims_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
                 .await?;
         }
     }
+    Ok(())
+}
+
+async fn ensure_auto_claims_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
+    let profile: Option<(String, String)> =
+        sqlx::query_as("SELECT rating, access_tier FROM guild_profiles WHERE uid=?")
+            .bind(uid)
+            .fetch_optional(&state.pools.art)
+            .await?;
+    let Some((rating, access)) = profile else {
+        return Ok(());
+    };
+
+    let rows: Vec<(i64, String, String, i64, Option<String>)> = sqlx::query_as(
+        "SELECT id, required_rating, required_access, target_count, created_at
+         FROM guild_quests
+         WHERE status='active' AND COALESCE(auto_claim, 0)=1",
+    )
+    .fetch_all(&state.pools.art)
+    .await?;
+
+    for (quest_id, required_rating, required_access, target_count, created_at) in rows {
+        if rating_rank(&rating) < rating_rank(&required_rating)
+            || access_rank(&access) < access_rank(&required_access)
+        {
+            continue;
+        }
+        let claimed_at = created_at.unwrap_or_else(now_iso);
+        sqlx::query(
+            "INSERT OR IGNORE INTO guild_quest_claims(quest_id, uid, status, progress, target_count, claimed_at)
+             VALUES(?,?,?,?,?,?)",
+        )
+        .bind(quest_id)
+        .bind(uid)
+        .bind("active")
+        .bind(0_i64)
+        .bind(target_count)
+        .bind(&claimed_at)
+        .execute(&state.pools.art)
+        .await?;
+    }
+
     Ok(())
 }
 
@@ -1949,12 +2136,13 @@ async fn admin_quest_rows(state: &AppState) -> AppResult<Vec<Value>> {
         i64,
         i64,
         Option<i64>,
+        i64,
         String,
         i64,
     )> = sqlx::query_as(
         "SELECT id, title, description, quest_type, difficulty, required_rating,
                     required_access, condition_kind, target_count, reward_reputation,
-                    reward_coins, deadline_hours, status, sort_order
+                    reward_coins, deadline_hours, COALESCE(auto_claim, 0), status, sort_order
              FROM guild_quests ORDER BY sort_order ASC, id ASC",
     )
     .fetch_all(&state.pools.art)
@@ -1975,6 +2163,7 @@ async fn admin_quest_rows(state: &AppState) -> AppResult<Vec<Value>> {
                 reward_reputation,
                 reward_coins,
                 deadline_hours,
+                auto_claim,
                 status,
                 sort_order,
             )| {
@@ -1991,6 +2180,7 @@ async fn admin_quest_rows(state: &AppState) -> AppResult<Vec<Value>> {
                     "rewardReputation": reward_reputation,
                     "rewardCoins": reward_coins,
                     "deadlineHours": deadline_hours,
+                    "autoClaim": auto_claim != 0,
                     "status": status,
                     "sortOrder": sort_order
                 })
@@ -2157,6 +2347,19 @@ fn str_field(body: &Value, key: &str, fallback: &str) -> String {
         .filter(|s| !s.is_empty())
         .unwrap_or(fallback)
         .to_string()
+}
+
+fn bool_field(body: &Value, key: &str, fallback: bool) -> bool {
+    match body.get(key) {
+        Some(Value::Bool(v)) => *v,
+        Some(Value::Number(n)) => n.as_i64().map(|v| v != 0).unwrap_or(fallback),
+        Some(Value::String(s)) => match s.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => true,
+            "0" | "false" | "no" | "off" => false,
+            _ => fallback,
+        },
+        _ => fallback,
+    }
 }
 
 fn int_field(body: &Value, key: &str, fallback: i64) -> i64 {

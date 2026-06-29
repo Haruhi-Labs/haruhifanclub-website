@@ -103,6 +103,12 @@ function transformArtwork(a) {
   return a
 }
 
+function transformGuildReward(reward) {
+  if (!reward) return reward
+  reward.imageUrl = fixPath(reward.imageUrl)
+  return reward
+}
+
 export const api = {
   health: () => request('GET', `${API_PREFIX}/health`),
 
@@ -242,7 +248,11 @@ export const api = {
   guildLeaderboard: () => request('GET', `${API_PREFIX}/guild/leaderboard`),
   guildCoinHistory: () => request('GET', `${API_PREFIX}/guild/coins/history`),
   guildApplyRating: (body) => request('POST', `${API_PREFIX}/guild/rating/apply`, { body }),
-  guildRewards: () => request('GET', `${API_PREFIX}/guild/rewards`),
+  guildRewards: async () => {
+    const data = await request('GET', `${API_PREFIX}/guild/rewards`)
+    if (Array.isArray(data.data)) data.data = data.data.map(transformGuildReward)
+    return data
+  },
   guildRedeemReward: (id, body = {}) => request('POST', `${API_PREFIX}/guild/rewards/${id}/redeem`, { body }),
   guildMyRedemptions: () => request('GET', `${API_PREFIX}/guild/redemptions/me`),
 
@@ -252,12 +262,23 @@ export const api = {
   adminUpdateGuildQuest: (id, body) => request('PUT', `${API_PREFIX}/admin/guild/quests/${id}`, { body }),
   adminDeleteGuildQuest: (id) => request('DELETE', `${API_PREFIX}/admin/guild/quests/${id}`),
   adminUpdateGuildQuestStatus: (id, status) => request('POST', `${API_PREFIX}/admin/guild/quests/${id}/status`, { body: { status } }),
-  adminGuildRewards: () => request('GET', `${API_PREFIX}/admin/guild/rewards`),
+  adminGuildRewards: async () => {
+    const data = await request('GET', `${API_PREFIX}/admin/guild/rewards`)
+    if (Array.isArray(data.data)) data.data = data.data.map(transformGuildReward)
+    return data
+  },
   adminCreateGuildReward: (body) => request('POST', `${API_PREFIX}/admin/guild/rewards`, { body }),
   adminUpdateGuildReward: (id, body) => request('PUT', `${API_PREFIX}/admin/guild/rewards/${id}`, { body }),
   adminDeleteGuildReward: (id) => request('DELETE', `${API_PREFIX}/admin/guild/rewards/${id}`),
   adminUpdateGuildRewardStatus: (id, status) => request('POST', `${API_PREFIX}/admin/guild/rewards/${id}/status`, { body: { status } }),
   adminUpdateGuildRewardStock: (id, stock) => request('POST', `${API_PREFIX}/admin/guild/rewards/${id}/stock`, { body: { stock } }),
+  adminUploadGuildRewardImage: async (file) => {
+    const formData = new FormData()
+    formData.append('image', file)
+    const data = await request('POST', `${API_PREFIX}/admin/guild/rewards/image`, { body: formData, isForm: true })
+    data.url = fixPath(data.url || data.imageUrl)
+    return data
+  },
   adminGuildRedemptions: () => request('GET', `${API_PREFIX}/admin/guild/redemptions`),
   adminApproveGuildRedemption: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/redemptions/${id}/approve`, { body: { note } }),
   adminRejectGuildRedemption: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/redemptions/${id}/reject`, { body: { note } }),

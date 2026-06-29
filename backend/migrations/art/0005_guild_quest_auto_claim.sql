@@ -1,0 +1,1 @@
+ALTER TABLE guild_quests ADD COLUMN auto_claim INTEGER NOT NULL DEFAULT 0;
