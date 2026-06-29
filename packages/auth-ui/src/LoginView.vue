@@ -114,7 +114,7 @@ async function onPasskey() {
 
 // 条件式自动填充：页面加载即在后台等待用户从输入框自动填充里选择通行密钥
 onMounted(async () => {
-  await session.ensureReady()
+  await session.ensureReady({ force: true })
   if (session.state.user) {
     go()
     return
