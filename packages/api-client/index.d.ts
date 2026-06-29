@@ -87,6 +87,8 @@ export interface AdminAuth {
 export function getToken(): string
 export function setToken(token: string): void
 export function clearToken(): void
+export function getCsrfToken(): string
+export function hasSessionCookie(): boolean
 export function createApiClient(base?: string): ApiClient
 export function resolveUploadUrl(path: string, base?: string): string
 export function createAuth(apiBase?: string): Auth

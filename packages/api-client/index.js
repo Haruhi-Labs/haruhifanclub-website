@@ -40,7 +40,7 @@ export function clearToken() {
 /** 读取可读的 CSRF cookie（haruhi_csrf，非 httpOnly），用于回填 X-CSRF-Token。 */
 export function getCsrfToken() {
   try {
-    const m = document.cookie.match(/(?:^|;\s*)haruhi_csrf=([^;]+)/)
+    const m = document.cookie.match(new RegExp(`(?:^|;\\s*)${CSRF_COOKIE}=([^;]+)`))
     return m ? decodeURIComponent(m[1]) : ''
   } catch {
     return ''
@@ -358,7 +358,7 @@ export function createAdminAuth(app, apiBase = '/api') {
     try {
       const user = await auth.login(username, password)
       if (!hasPerm(user)) {
-        await auth.logout()
+        clearToken()
         return { ok: false, error: '该账号无本模块管理权限' }
       }
       return { ok: true, user }
@@ -371,12 +371,12 @@ export function createAdminAuth(app, apiBase = '/api') {
     }
   }
 
-  // 会话恢复：以服务端 me() 为权威（cookie 可能有效即便本地 token 已过期）；失败则登出并返回 null
+  // 会话恢复：以服务端 me() 为权威；无本模块权限只拒绝后台入口，不吊销全站会话
   const restore = async () => {
     try {
       const user = await auth.me()
       if (hasPerm(user)) return user
-      await auth.logout()
+      clearToken()
       return null
     } catch {
       clearToken()

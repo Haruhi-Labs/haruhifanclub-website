@@ -7,7 +7,10 @@
 //   await session.login(account, password) / session.register({email,password,nickname}) / session.logout()
 
 import { reactive, computed } from 'vue'
-import { createAuth } from '@haruhi/api-client'
+import { createAuth, hasSessionCookie } from '@haruhi/api-client'
+
+const SESSION_REFRESH_MAX_AGE_MS = 30 * 1000
+const RESUME_REFRESH_THROTTLE_MS = 1500
 
 // 单例状态：全 app 共享一份登录态，避免各组件各拉一次
 const state = reactive({
@@ -19,55 +22,95 @@ const state = reactive({
 let auth = null
 let refreshPromise = null
 let sessionVersion = 0
+let lastRefreshAt = 0
+let lastResumeRefreshAt = 0
+let resumeListenersBound = false
 
 function ensureAuth(apiBase) {
   if (!auth) auth = createAuth(apiBase || '/api')
   return auth
 }
 
+function commitUser(user) {
+  sessionVersion += 1
+  refreshPromise = null
+  lastRefreshAt = Date.now()
+  state.user = user
+  state.ready = true
+  state.loading = false
+  return user
+}
+
+// 拉取当前用户（带 cookie）。失败即视为未登录。幂等，可多次调用。
+async function refresh() {
+  if (refreshPromise) return refreshPromise
+  const a = ensureAuth()
+  const version = sessionVersion
+  state.loading = true
+  const promise = (async () => {
+    let user = null
+    try {
+      user = await a.me()
+    } catch {
+      user = null
+    } finally {
+      lastRefreshAt = Date.now()
+      if (version === sessionVersion) {
+        state.user = user
+        state.ready = true
+        state.loading = false
+      }
+      if (refreshPromise === promise) refreshPromise = null
+    }
+    return version === sessionVersion ? user : state.user
+  })()
+  refreshPromise = promise
+  return refreshPromise
+}
+
+function shouldRefreshReady(force, maxAgeMs) {
+  if (force || !state.ready) return true
+  const hasCookie = hasSessionCookie()
+  if (!state.user && hasCookie) return true
+  if (state.user && !hasCookie) return true
+  return Date.now() - lastRefreshAt > maxAgeMs
+}
+
+function refreshAfterResume() {
+  if (!state.ready) return
+  if (!state.user && !hasSessionCookie()) return
+  const now = Date.now()
+  if (now - lastResumeRefreshAt < RESUME_REFRESH_THROTTLE_MS) return
+  lastResumeRefreshAt = now
+  refresh().catch(() => {})
+}
+
+function bindResumeListeners() {
+  if (resumeListenersBound || typeof window === 'undefined' || typeof document === 'undefined') {
+    return
+  }
+  resumeListenersBound = true
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) refreshAfterResume()
+  })
+  window.addEventListener('focus', refreshAfterResume)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshAfterResume()
+  })
+}
+
 export function useSession(apiBase = '/api') {
   const a = ensureAuth(apiBase)
+  bindResumeListeners()
 
   const isLoggedIn = computed(() => !!state.user)
   const isVerified = computed(() => !!(state.user && state.user.emailVerified))
   const isSuperAdmin = computed(() => !!(state.user && state.user.isSuperAdmin))
 
-  function commitUser(user) {
-    sessionVersion += 1
-    refreshPromise = null
-    state.user = user
-    state.ready = true
-    state.loading = false
-    return user
-  }
-
-  // 拉取当前用户（带 cookie）。失败即视为未登录。幂等，可多次调用。
-  async function refresh() {
-    if (refreshPromise) return refreshPromise
-    const version = sessionVersion
-    state.loading = true
-    const promise = (async () => {
-      let user = null
-      try {
-        user = await a.me()
-      } catch {
-        user = null
-      } finally {
-        if (version === sessionVersion) {
-          state.user = user
-          state.ready = true
-          state.loading = false
-        }
-        if (refreshPromise === promise) refreshPromise = null
-      }
-      return version === sessionVersion ? user : state.user
-    })()
-    refreshPromise = promise
-    return refreshPromise
-  }
-
-  async function ensureReady() {
-    if (state.ready) return state.user
+  async function ensureReady(options = {}) {
+    const force = !!options.force
+    const maxAgeMs = options.maxAgeMs ?? SESSION_REFRESH_MAX_AGE_MS
+    if (!shouldRefreshReady(force, maxAgeMs)) return state.user
     return refresh()
   }
 

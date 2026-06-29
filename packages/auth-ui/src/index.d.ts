@@ -20,7 +20,7 @@ export interface SessionApi {
   isVerified: ComputedRef<boolean>
   isSuperAdmin: ComputedRef<boolean>
   refresh(): Promise<SessionUser | null>
-  ensureReady(): Promise<SessionUser | null>
+  ensureReady(_options?: { force?: boolean; maxAgeMs?: number }): Promise<SessionUser | null>
   login(_account: string, _password: string): Promise<SessionUser>
   register(_payload: { email: string; password: string; nickname?: string }): Promise<SessionUser>
   logout(): Promise<void>

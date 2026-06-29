@@ -51,7 +51,7 @@ function onFocusOut(e) {
 }
 
 async function goLogin() {
-  await session.ensureReady()
+  await session.ensureReady({ force: true })
   if (session.state.user) {
     router.push(props.profilePath)
     return
