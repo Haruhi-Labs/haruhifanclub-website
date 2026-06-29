@@ -639,40 +639,77 @@
         <!-- ================= 公告管理 ================= -->
         <div v-if="mainTab==='announcements'" class="tab-content guild-admin">
           <div v-if="annMsg" class="guild-msg">{{ annMsg }}</div>
-          <div class="guild-admin-layout">
-            <section class="guild-editor">
-              <div class="panel-header compact">
-                <div class="ph-title">{{ annEditingId ? '编辑公告' : '新增公告' }}</div>
+          <div class="ann-admin-layout">
+            <section class="guild-editor ann-editor-panel">
+              <div class="panel-header compact ann-editor-head">
+                <div>
+                  <div class="ph-title">{{ annEditingId ? '编辑公告' : '新增公告' }}</div>
+                  <div class="tip-text">{{ annEditingId ? '正在编辑 #' + annEditingId : '创建后会按发布时间显示在公告栏' }}</div>
+                </div>
+                <button v-if="annEditingId" class="btn-ghost sm" @click="resetAnnForm">退出编辑</button>
               </div>
-              <div class="edit-form compact-form">
-                <input v-model="annForm.title" class="input" placeholder="公告标题">
-                <div class="editor-row">
-                  <select v-model="annForm.category" class="select">
+              <div class="ann-editor-form">
+                <label class="ann-field ann-field--title">
+                  <span>标题</span>
+                  <input v-model="annForm.title" class="input" placeholder="公告标题">
+                </label>
+                <div class="ann-meta-grid">
+                  <label class="ann-field">
+                    <span>分类</span>
+                    <select v-model="annForm.category" class="select">
                     <option value="activity">活动公告</option>
                     <option value="maintenance">维护公告</option>
-                  </select>
-                  <select v-model="annForm.status" class="select">
+                    </select>
+                  </label>
+                  <label class="ann-field">
+                    <span>状态</span>
+                    <select v-model="annForm.status" class="select">
                     <option value="published">已发布</option>
                     <option value="draft">草稿</option>
-                  </select>
+                    </select>
+                  </label>
+                  <label class="ann-field">
+                    <span>发布时间</span>
+                    <input type="date" v-model="annForm.publishedAt" class="input">
+                  </label>
+                  <label class="ann-pin ann-pin--card"><input type="checkbox" v-model="annForm.pinned"> 置顶公告</label>
                 </div>
-                <input v-model="annForm.summary" class="input" placeholder="摘要（一句话概述）">
-                <textarea v-model="annForm.body" class="textarea ann-body-editor" placeholder="公告正文"></textarea>
-                <input v-model="annForm.tags" class="input" placeholder="标签，逗号分隔（可空）">
-                <div class="editor-row">
-                  <input type="date" v-model="annForm.publishedAt" class="input">
-                  <label class="ann-pin"><input type="checkbox" v-model="annForm.pinned"> 置顶</label>
-                </div>
-                <div class="btns">
-                  <button class="btn" @click="saveAnnouncement" :disabled="annSaving">保存公告</button>
-                  <button class="btn-ghost" @click="resetAnnForm">清空</button>
+                <label class="ann-field">
+                  <span>摘要</span>
+                  <input v-model="annForm.summary" class="input" placeholder="摘要（一句话概述）">
+                </label>
+                <label class="ann-field ann-field--body">
+                  <span>正文</span>
+                  <textarea v-model="annForm.body" class="textarea ann-body-editor" placeholder="公告正文"></textarea>
+                </label>
+                <div class="ann-form-footer">
+                  <label class="ann-field ann-field--tags">
+                    <span>标签</span>
+                    <input v-model="annForm.tags" class="input" placeholder="标签，逗号分隔（可空）">
+                  </label>
+                  <div class="btns ann-editor-actions">
+                    <button class="btn" @click="saveAnnouncement" :disabled="annSaving">{{ annEditingId ? '更新公告' : '发布公告' }}</button>
+                    <button class="btn-ghost" @click="resetAnnForm">{{ annEditingId ? '取消编辑' : '清空' }}</button>
+                  </div>
                 </div>
               </div>
             </section>
 
-            <section class="guild-list">
-              <article v-for="a in announcements" :key="a.id" class="guild-manage-row">
+            <section class="guild-list ann-list-panel">
+              <div class="panel-header compact ann-list-head">
                 <div>
+                  <div class="ph-title">公告列表</div>
+                  <div class="tip-text">共 {{ announcements.length }} 条，点击编辑会载入上方表单</div>
+                </div>
+                <button class="btn-ghost sm" @click="loadAnnouncementsAdmin">刷新</button>
+              </div>
+              <article
+                v-for="a in announcements"
+                :key="a.id"
+                class="guild-manage-row ann-manage-row"
+                :class="{ 'is-editing': annEditingId === a.id }"
+              >
+                <div class="ann-row-main">
                   <div class="m-title">{{ a.title }}</div>
                   <div class="m-info">
                     <span class="tag">{{ a.category === 'maintenance' ? '维护公告' : '活动公告' }}</span>
@@ -680,6 +717,8 @@
                     <span v-if="a.pinned" class="tag">置顶</span>
                     <span class="tag">{{ (a.publishedAt || '').slice(0, 10) }}</span>
                   </div>
+                  <p v-if="a.summary" class="ann-row-summary">{{ a.summary }}</p>
+                  <p v-if="a.body" class="ann-row-body">{{ a.body }}</p>
                 </div>
                 <div class="guild-row-actions">
                   <button class="btn-ghost sm" @click="editAnnouncement(a)">编辑</button>
@@ -1347,6 +1386,11 @@ function editAnnouncement(a) {
     status: a.status || 'published',
     publishedAt: (a.publishedAt || '').slice(0, 10)
   }
+  if (typeof window !== 'undefined') {
+    window.requestAnimationFrame(() => {
+      document.querySelector('.ann-editor-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
 }
 
 async function saveAnnouncement() {
@@ -1653,8 +1697,125 @@ onMounted(async () => {
 .input:focus, .textarea:focus { border-color: var(--sos-accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
 .textarea { resize: vertical; min-height: 80px; }
 .ann-body-editor {
-  min-height: 180px;
-  line-height: 1.65;
+  min-height: clamp(240px, 34vh, 460px);
+  line-height: 1.7;
+}
+
+.ann-admin-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.ann-editor-panel,
+.ann-list-panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.ann-editor-head,
+.ann-list-head {
+  gap: 12px;
+}
+
+.ann-editor-form {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.ann-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.ann-field > span {
+  color: var(--sos-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ann-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.ann-pin--card {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-strong);
+  border-radius: 8px;
+  color: var(--sos-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ann-pin--card input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.ann-form-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.ann-editor-actions {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+.ann-list-panel {
+  padding: 0;
+}
+
+.ann-list-panel .ann-list-head {
+  background: var(--sos-bg-subtle);
+  border-bottom: 1px solid var(--sos-border-default);
+}
+
+.ann-list-panel > .ann-manage-row {
+  margin: 10px;
+}
+
+.ann-row-main {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.ann-row-summary,
+.ann-row-body {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.ann-row-body {
+  max-height: 3.1em;
+  overflow: hidden;
+  color: var(--sos-text-tertiary);
+  white-space: pre-wrap;
+}
+
+.ann-manage-row.is-editing {
+  border-color: color-mix(in srgb, var(--sos-accent) 60%, #e5e7eb);
+  background: color-mix(in srgb, var(--sos-accent) 7%, #fff);
+  box-shadow: 0 8px 22px rgba(20, 184, 166, 0.12);
 }
 
 /* 积分记录 */
@@ -1753,6 +1914,13 @@ onMounted(async () => {
   .col-left { width: 240px; }
   .guild-admin-layout {
     grid-template-columns: 1fr;
+  }
+  .ann-meta-grid,
+  .ann-form-footer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ann-editor-actions {
+    justify-content: flex-start;
   }
 }
 
@@ -1981,6 +2149,20 @@ onMounted(async () => {
   }
   .guild-manage-row {
     grid-template-columns: 1fr;
+  }
+  .ann-editor-form {
+    padding: 12px;
+  }
+  .ann-meta-grid,
+  .ann-form-footer {
+    grid-template-columns: 1fr;
+  }
+  .ann-editor-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ann-list-panel > .ann-manage-row {
+    margin: 8px;
   }
   .guild-row-actions,
   .guild-row-actions.access-editor {
