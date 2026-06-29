@@ -57,6 +57,7 @@
             </span>
             <span class="ann-item__chevron" aria-hidden="true">›</span>
           </button>
+          <p v-if="!filteredNotices.length" class="ann-empty">暂无公告</p>
         </div>
       </section>
 
@@ -74,6 +75,9 @@
           <span v-for="tag in selectedNotice.tags" :key="tag">#{{ tag }}</span>
         </div>
       </article>
+      <article v-else class="ann-detail ann-detail--empty">
+        <p>公告整理中，敬请期待。</p>
+      </article>
     </div>
   </div>
 </template>
@@ -84,7 +88,9 @@ import { computed, ref } from 'vue'
 const activeCategory = ref('activity')
 const selectedNoticeId = ref(null)
 
-const notices = [
+// 公告暂未接入后端：生产显示空态。下方硬编码示例仅本地开发预览页面设计用，
+// 生产构建（import.meta.env.DEV=false）会被 tree-shake 掉，绝不进生产包，也绝不在线上展示。
+const notices = import.meta.env.DEV ? [
   {
     id: 'activity-20260624',
     category: 'activity',
@@ -150,7 +156,7 @@ const notices = [
     body: '当前开发优先保证 mock seed 数据可用，不依赖真实后端。画廊详情、首页统计和公告展示都应能在离线开发环境中正常打开。',
     tags: ['mock', '本地开发', '稳定性']
   }
-]
+] : []
 
 const categoryLabels = {
   activity: '活动公告',
@@ -491,5 +497,26 @@ function selectNotice(noticeId) {
   .ann-hero__stamp { display: none; }
   .ann-item { grid-template-columns: 48px minmax(0, 1fr); }
   .ann-item__chevron { display: none; }
+}
+
+/* 空态：公告暂未接入后端、线上无数据时展示 */
+.ann-empty {
+  margin: 0;
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--ann-muted);
+  font-weight: 700;
+  font-size: 13.5px;
+}
+.ann-detail--empty {
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  text-align: center;
+}
+.ann-detail--empty p {
+  margin: 0;
+  color: var(--ann-muted);
+  font-weight: 700;
 }
 </style>
