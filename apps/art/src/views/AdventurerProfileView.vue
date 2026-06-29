@@ -1,123 +1,140 @@
 <template>
-  <section class="terminal-page">
-    <div v-if="loading" class="terminal-loading panel">正在连接公会终端...</div>
-    <div v-else-if="error" class="terminal-loading panel">{{ error }}</div>
+  <div class="adv-scope" :class="`rating-${profile.rating || 'F'}`">
+    <div v-if="loading" class="adv-state">正在连接公会终端…</div>
+    <div v-else-if="error" class="adv-state adv-state--error">{{ error }}</div>
 
     <template v-else>
-      <header class="terminal-hero panel" :class="`rating-${profile.rating}`">
-        <div class="avatar-shell">
-          <img v-if="profile.avatar_url" :src="profile.avatar_url" alt="">
-          <span v-else>{{ profileInitial }}</span>
-        </div>
-        <div class="hero-copy">
-          <p class="eyebrow">{{ isTerminal ? 'Personal Terminal' : 'Adventurer Profile' }}</p>
-          <h1>{{ displayName }}</h1>
-          <div class="identity-line">
-            <span>{{ profile.uid }}</span>
-            <b>{{ profile.rating }} 级冒险者</b>
-            <b>Lv{{ profile.level }}</b>
-            <b>{{ profile.accessLabel }}</b>
+      <!-- ===== 左：冒险者证件终端 ===== -->
+      <aside class="adv-id">
+        <header class="adv-id__band">
+          <span class="adv-id__eyebrow">{{ isTerminal ? 'Personal Terminal' : 'Adventurer License' }}</span>
+          <span class="adv-id__org">SOS 绘画部公会</span>
+        </header>
+
+        <div class="adv-id__head">
+          <div class="adv-id__avatar">
+            <img v-if="profile.avatar_url" :src="profile.avatar_url" alt="">
+            <span v-else>{{ profileInitial }}</span>
+            <b class="adv-id__rank">{{ profile.rating || 'F' }}</b>
+          </div>
+          <div class="adv-id__ident">
+            <span class="adv-id__eyebrow adv-id__eyebrow--inline">{{ isTerminal ? '个人终端' : '冒险者档案' }}</span>
+            <h1>{{ displayName }}</h1>
+            <span class="adv-id__rating">◈ {{ profile.rating || 'F' }} 级冒险者</span>
+            <span v-if="isTerminal && userInfo.username" class="adv-id__handle">@{{ userInfo.username }}</span>
           </div>
         </div>
-        <RouterLink v-if="!isTerminal" class="ghost-btn" to="/exchange">返回公会</RouterLink>
-      </header>
 
-      <section class="terminal-stats">
-        <article class="stat-card panel">
-          <span>声望</span>
-          <strong>{{ profile.reputation || 0 }}</strong>
-          <em>等级 Lv{{ profile.level || 1 }}</em>
-        </article>
-        <article class="stat-card panel">
-          <span>金币</span>
-          <strong>{{ profile.coins?.available || 0 }}G</strong>
-          <em>冻结 {{ profile.coins?.frozen || 0 }}G</em>
-        </article>
-        <article class="stat-card panel">
-          <span>注册时间</span>
-          <strong>{{ formatDate(userInfo.createdAt || profile.creatorCreatedAt) }}</strong>
-          <em>画廊档案</em>
-        </article>
-        <article class="stat-card panel">
-          <span>投稿统计</span>
-          <strong>{{ stats.total || 0 }}</strong>
-          <em>个人 {{ stats.personal || 0 }} / 转载 {{ stats.network || 0 }}</em>
-        </article>
-      </section>
+        <dl class="adv-id__readout">
+          <div class="adv-id__row">
+            <dt>声望</dt><span class="adv-id__lead" aria-hidden="true"></span>
+            <dd>{{ profile.reputation || 0 }}<i>Lv{{ profile.level || 1 }}</i></dd>
+          </div>
+          <div class="adv-id__row adv-id__row--coin">
+            <dt>金币</dt><span class="adv-id__lead" aria-hidden="true"></span>
+            <dd>{{ profile.coins?.available || 0 }}G<i>冻结 {{ profile.coins?.frozen || 0 }}G</i></dd>
+          </div>
+          <div class="adv-id__row">
+            <dt>投稿</dt><span class="adv-id__lead" aria-hidden="true"></span>
+            <dd>{{ stats.total || 0 }}<i>个人 {{ stats.personal || 0 }} / 转载 {{ stats.network || 0 }}</i></dd>
+          </div>
+          <div class="adv-id__row">
+            <dt>注册</dt><span class="adv-id__lead" aria-hidden="true"></span>
+            <dd class="is-date">{{ formatDate(userInfo.createdAt || profile.creatorCreatedAt) }}</dd>
+          </div>
+        </dl>
 
-      <main class="terminal-layout">
-        <section class="panel artwork-panel">
-          <div class="section-head">
+        <div class="adv-id__clearance">
+          <span class="adv-id__clearance-k">访问许可</span>
+          <strong class="adv-id__clearance-v">{{ profile.accessShortLabel || '档案0' }}</strong>
+          <span class="adv-id__clearance-sub">{{ profile.accessLabel || '0级公开档案许可' }}</span>
+        </div>
+
+        <div class="adv-id__foot">
+          <span class="adv-id__barcode" aria-hidden="true"></span>
+          <span class="adv-id__issued">SOS BRIGADE · ART REGISTRY</span>
+        </div>
+
+        <RouterLink v-if="!isTerminal" class="sos-button sos-button--ghost sos-button--sm adv-id__back" to="/exchange">返回公会指挥台</RouterLink>
+      </aside>
+
+      <!-- ===== 右：档案正文 ===== -->
+      <main class="adv-dossier">
+        <section class="adv-panel adv-archive">
+          <header class="adv-panel__head">
             <div>
-              <p class="eyebrow">Archive</p>
-              <h2>{{ isTerminal ? '我的画廊档案' : '公开画作' }}</h2>
+              <span class="adv-panel__eyebrow">Archive</span>
+              <h2>{{ isTerminal ? '我的作品档案库' : '公开画作' }}</h2>
             </div>
-            <span>{{ stats.haruhi || 0 }} 张凉宫画作</span>
-          </div>
+            <span class="adv-panel__meta">{{ stats.haruhi || 0 }} 张凉宫画作</span>
+          </header>
 
-          <div v-if="artworks.length" class="profile-art-grid">
+          <div v-if="artworks.length" class="adv-art-grid">
             <button
               v-for="art in artworks"
               :key="art.id"
               type="button"
-              class="profile-art-card"
+              class="adv-art"
               @click="openArtwork(art)"
             >
-              <img :src="thumbUrl(art.image_url, 360)" :alt="art.title || 'artwork'" loading="lazy">
-              <span>{{ art.title || '未命名作品' }}</span>
-              <b>{{ art.status || 'approved' }}</b>
+              <span class="adv-art__media">
+                <img :src="thumbUrl(art.image_url, 320)" :alt="art.title || 'artwork'" loading="lazy">
+                <b class="adv-art__status" :class="`st-${art.status || 'approved'}`">{{ artStatusLabel(art.status) }}</b>
+              </span>
+              <span class="adv-art__title">{{ art.title || '未命名作品' }}</span>
             </button>
           </div>
-          <div v-else class="empty">这个冒险者还没有公开画作。</div>
+          <div v-else class="adv-empty">这个冒险者还没有公开画作。</div>
         </section>
 
-        <aside class="terminal-side">
-          <section class="panel license-card">
-            <p class="eyebrow">Clearance</p>
-            <h2>访问许可卡</h2>
-            <div class="license-code">{{ profile.accessShortLabel || '档案0' }}</div>
-            <p>{{ profile.accessLabel || '0级公开档案许可' }}</p>
-            <p class="muted-line">冒险者评级 {{ profile.rating }} · {{ profile.ratingLabel }}</p>
-          </section>
+        <section v-if="isTerminal" class="adv-panel">
+          <header class="adv-panel__head">
+            <div>
+              <span class="adv-panel__eyebrow">Quest Log</span>
+              <h2>委托记录</h2>
+            </div>
+            <span class="adv-panel__meta">{{ claims.length }} 条</span>
+          </header>
+          <div v-if="claims.length" class="adv-quests">
+            <div v-for="claim in claims.slice(0, 8)" :key="claim.id" class="adv-quest">
+              <span class="adv-quest__title">{{ claim.title }}</span>
+              <b class="adv-quest__prog">{{ claim.progress }}/{{ claim.targetCount }}</b>
+              <em class="adv-quest__st" :class="`st-${claim.status}`">{{ claimLabel(claim.status) }}</em>
+            </div>
+          </div>
+          <div v-else class="adv-empty adv-empty--sm">还没有接取委托。</div>
+        </section>
 
-          <section v-if="isTerminal" class="panel activity-card">
-            <p class="eyebrow">Quest Log</p>
-            <h2>委托记录</h2>
-            <div v-if="claims.length" class="activity-list">
-              <div v-for="claim in claims.slice(0, 6)" :key="claim.id" class="activity-row">
-                <span>{{ claim.title }}</span>
-                <b>{{ claim.progress }}/{{ claim.targetCount }}</b>
-                <em>{{ claimLabel(claim.status) }}</em>
+        <div v-if="isTerminal" class="adv-ledgers">
+          <article class="adv-panel">
+            <header class="adv-panel__head">
+              <div><span class="adv-panel__eyebrow">Coin Ledger</span><h2>金币流水</h2></div>
+            </header>
+            <div v-if="coinsHistory.length" class="adv-ledger">
+              <div v-for="item in coinsHistory.slice(0, 8)" :key="`${item.createdAt}-${item.note}`" class="adv-ledger__row">
+                <span>{{ item.note || item.sourceType }}</span>
+                <b :class="{ plus: item.coins > 0, minus: item.coins < 0 }">{{ item.coins > 0 ? '+' : '' }}{{ item.coins }}G</b>
               </div>
             </div>
-            <div v-else class="empty small">还没有接取委托。</div>
-          </section>
-        </aside>
+            <div v-else class="adv-empty adv-empty--sm">暂无金币记录。</div>
+          </article>
+
+          <article class="adv-panel">
+            <header class="adv-panel__head">
+              <div><span class="adv-panel__eyebrow">Redemption</span><h2>兑换申请</h2></div>
+            </header>
+            <div v-if="redemptions.length" class="adv-ledger">
+              <div v-for="item in redemptions.slice(0, 8)" :key="item.id" class="adv-ledger__row">
+                <span>{{ item.rewardName }}</span>
+                <b class="adv-ledger__st" :class="`st-${item.status}`">{{ redemptionLabel(item.status) }}</b>
+              </div>
+            </div>
+            <div v-else class="adv-empty adv-empty--sm">暂无兑换申请。</div>
+          </article>
+        </div>
       </main>
-
-      <section v-if="isTerminal" class="history-layout">
-        <article class="panel history-panel">
-          <p class="eyebrow">Coin Ledger</p>
-          <h2>金币流水</h2>
-          <div v-for="item in coinsHistory.slice(0, 8)" :key="`${item.createdAt}-${item.note}`" class="ledger-row">
-            <span>{{ item.note || item.sourceType }}</span>
-            <b :class="{ plus: item.coins > 0, minus: item.coins < 0 }">{{ item.coins > 0 ? '+' : '' }}{{ item.coins }}G</b>
-          </div>
-          <div v-if="!coinsHistory.length" class="empty small">暂无金币记录。</div>
-        </article>
-
-        <article class="panel history-panel">
-          <p class="eyebrow">Redemption</p>
-          <h2>兑换申请</h2>
-          <div v-for="item in redemptions.slice(0, 8)" :key="item.id" class="ledger-row">
-            <span>{{ item.rewardName }}</span>
-            <b>{{ redemptionLabel(item.status) }}</b>
-          </div>
-          <div v-if="!redemptions.length" class="empty small">暂无兑换申请。</div>
-        </article>
-      </section>
     </template>
-  </section>
+  </div>
 </template>
 
 <script setup>
@@ -141,6 +158,7 @@ const redemptions = ref([])
 const isTerminal = computed(() => route.name === 'terminal')
 const displayName = computed(() => (
   userInfo.value.displayName ||
+  profile.value.displayName ||
   userInfo.value.username ||
   profile.value.uid ||
   'Observer'
@@ -151,7 +169,7 @@ async function loadProfile() {
   loading.value = true
   error.value = ''
   try {
-    const res = isTerminal.value
+    const res = route.name === 'terminal'
       ? await api.guildTerminal()
       : await api.guildProfile(route.params.uid)
 
@@ -180,6 +198,11 @@ function formatDate(value) {
   return date.toLocaleDateString()
 }
 
+function artStatusLabel(status) {
+  const map = { approved: '已通过', pending: '审核中', rejected: '已退回', hidden: '已隐藏' }
+  return map[status] || status || '已通过'
+}
+
 function claimLabel(status) {
   const map = { active: '进行中', completed: '已完成', abandoned: '已放弃' }
   return map[status] || status
@@ -201,916 +224,244 @@ onMounted(loadProfile)
 </script>
 
 <style scoped>
-.terminal-page {
-  display: grid;
+.adv-scope {
+  --accent: var(--sos-accent, hsl(172, 70%, 42%));
+  --accent-strong: color-mix(in srgb, var(--accent) 78%, #06322d);
+  --gold: hsl(42, 92%, 52%);
+  --text: var(--sos-text-primary, #16242b);
+  --muted: var(--sos-text-secondary, #5b6b72);
+  --glass: color-mix(in srgb, #ffffff 66%, transparent);
+  --line: color-mix(in srgb, var(--accent) 16%, #d3e3df);
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+
   width: min(1180px, calc(100% - 32px));
-  max-width: 1180px;
   margin: 0 auto;
-  padding: 18px 0 36px;
-  gap: 18px;
-}
-
-.panel {
-  border: 0;
-  border-top: 1px solid rgba(148, 163, 184, 0.22);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(245, 250, 255, 0.22)),
-    radial-gradient(circle at 10% 0%, rgba(103, 232, 249, 0.16), transparent 38%);
-  box-shadow: none;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 0;
-}
-
-.terminal-loading {
-  padding: 28px;
-  color: var(--text);
-  font-weight: 950;
-}
-
-.terminal-hero {
+  padding: var(--sos-space-3, 12px) 0 var(--sos-space-8, 48px);
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) auto;
-  gap: 18px;
-  align-items: center;
-  padding: 22px;
-}
-
-.avatar-shell {
-  display: grid;
-  width: 88px;
-  height: 88px;
-  place-items: center;
-  overflow: hidden;
-  color: #fff;
-  font-size: 36px;
-  font-weight: 950;
-  background: linear-gradient(135deg, #f43f5e, #6366f1, #38bdf8);
-  border: 2px solid rgba(255, 255, 255, 0.7);
-  border-radius: 26px;
-  box-shadow: 0 14px 30px rgba(244, 63, 94, 0.2);
-}
-
-.avatar-shell img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.eyebrow {
-  margin: 0 0 6px;
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-h1,
-h2,
-p {
-  margin: 0;
-}
-
-.terminal-hero h1 {
-  color: var(--text);
-  font-size: clamp(32px, 5vw, 52px);
-  font-weight: 950;
-}
-
-.identity-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.identity-line span,
-.identity-line b,
-.section-head span,
-.muted-line {
-  padding: 5px 10px;
-  color: rgba(15, 23, 42, 0.72);
-  font-size: 12px;
-  font-weight: 900;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 999px;
-}
-
-.ghost-btn {
-  min-height: 38px;
-  padding: 9px 14px;
-  color: #0f4f63;
-  font-weight: 950;
-  text-decoration: none;
-  background: rgba(255, 255, 255, 0.64);
-  border: 1px solid rgba(103, 232, 249, 0.26);
-  border-radius: 999px;
-}
-
-.terminal-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.stat-card {
-  padding: 16px 18px;
-}
-
-.stat-card span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 950;
-}
-
-.stat-card strong {
-  display: block;
-  margin-top: 8px;
-  overflow: hidden;
-  color: var(--text);
-  font-size: 24px;
-  font-weight: 950;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.stat-card em {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.terminal-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 18px;
-}
-
-.artwork-panel,
-.license-card,
-.activity-card,
-.history-panel {
-  padding: 18px;
-}
-
-.terminal-side {
-  display: grid;
-  gap: 18px;
-}
-
-.section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-
-.section-head h2,
-.license-card h2,
-.activity-card h2,
-.history-panel h2 {
-  color: var(--text);
-  font-size: 22px;
-  font-weight: 950;
-}
-
-.profile-art-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.profile-art-card {
-  position: relative;
-  display: grid;
-  min-height: 170px;
-  overflow: hidden;
-  padding: 0;
-  color: #fff;
-  text-align: left;
-  background: #101827;
-  border: 0;
-  border-radius: 18px;
-  cursor: pointer;
-}
-
-.profile-art-card img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.24s ease;
-}
-
-.profile-art-card:hover img {
-  transform: scale(1.05);
-}
-
-.profile-art-card::after {
-  position: absolute;
-  inset: 0;
-  content: "";
-  background: linear-gradient(180deg, transparent 42%, rgba(15, 23, 42, 0.74));
-}
-
-.profile-art-card span,
-.profile-art-card b {
-  position: relative;
-  z-index: 1;
-  align-self: end;
-  padding: 0 12px 12px;
-  font-weight: 950;
-}
-
-.profile-art-card b {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  align-self: auto;
-  padding: 4px 8px;
-  color: #0f172a;
-  font-size: 11px;
-  background: rgba(255, 255, 255, 0.78);
-  border-radius: 999px;
-}
-
-.license-code {
-  margin: 18px 0 10px;
-  color: #fff;
-  font-size: 36px;
-  font-weight: 950;
-  text-align: center;
-  background: linear-gradient(135deg, #0ea5e9, #f43f5e);
-  border-radius: 20px;
-  padding: 22px;
-}
-
-.license-card p {
-  color: var(--muted);
-  font-weight: 800;
-  line-height: 1.6;
-}
-
-.activity-list {
-  display: grid;
-  gap: 8px;
-}
-
-.activity-row,
-.ledger-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 10px;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
-}
-
-.activity-row span,
-.ledger-row span {
-  overflow: hidden;
-  color: var(--text);
-  font-weight: 850;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.activity-row b,
-.activity-row em,
-.ledger-row b {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 950;
-}
-
-.history-layout {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.ledger-row {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.plus {
-  color: #059669 !important;
-}
-
-.minus {
-  color: #dc2626 !important;
-}
-
-.empty {
-  color: var(--muted);
-  font-weight: 800;
-}
-
-.empty.small {
-  font-size: 13px;
-}
-
-:global(html.art-lights-out) .panel {
-  border-top-color: rgba(125, 211, 252, 0.18);
-  border-bottom-color: rgba(125, 211, 252, 0.14);
-  background:
-    linear-gradient(135deg, rgba(8, 14, 33, 0.44), rgba(28, 22, 58, 0.26)),
-    radial-gradient(circle at 10% 0%, rgba(125, 211, 252, 0.12), transparent 34%);
-  box-shadow: none;
-}
-
-:global(html.art-lights-out) .terminal-hero h1,
-:global(html.art-lights-out) .stat-card strong,
-:global(html.art-lights-out) .section-head h2,
-:global(html.art-lights-out) .license-card h2,
-:global(html.art-lights-out) .activity-card h2,
-:global(html.art-lights-out) .history-panel h2,
-:global(html.art-lights-out) .activity-row span,
-:global(html.art-lights-out) .ledger-row span {
-  color: #f7fbff;
-}
-
-:global(html.art-lights-out) .identity-line span,
-:global(html.art-lights-out) .identity-line b,
-:global(html.art-lights-out) .section-head span,
-:global(html.art-lights-out) .ghost-btn,
-:global(html.art-lights-out) .muted-line {
-  color: #bae6fd;
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(125, 211, 252, 0.14);
-}
-
-@media (max-width: 980px) {
-  .terminal-hero,
-  .terminal-layout,
-  .history-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .terminal-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .profile-art-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 620px) {
-  .terminal-stats,
-  .profile-art-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.terminal-page {
-  position: relative;
-  width: min(1200px, calc(100% - 32px));
-  padding: 30px 0 56px;
-  gap: 26px;
-  isolation: isolate;
-}
-
-.terminal-page::before,
-.terminal-page::after {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  content: "";
-}
-
-.terminal-page::before {
-  background:
-    linear-gradient(125deg, transparent 0 18%, rgba(56, 189, 248, 0.09) 18% 19%, transparent 19% 100%),
-    linear-gradient(22deg, transparent 0 62%, rgba(244, 63, 94, 0.08) 62% 63%, transparent 63% 100%),
-    radial-gradient(circle at 12% 14%, rgba(99, 102, 241, 0.14), transparent 30%),
-    radial-gradient(circle at 92% 12%, rgba(56, 189, 248, 0.12), transparent 26%);
-}
-
-.terminal-page::after {
-  top: 116px;
-  bottom: auto;
-  height: 1px;
-  background: linear-gradient(90deg, #38bdf8, transparent 45%, #f43f5e);
-  opacity: 0.54;
-}
-
-.panel {
-  position: relative;
-  overflow: visible;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-.terminal-hero {
-  min-height: 220px;
-  grid-template-columns: 122px minmax(0, 1fr) auto;
-  padding: 38px 0 34px 34px;
-  border-left: 10px solid #38bdf8;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.14);
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.5), transparent 76%),
-    repeating-linear-gradient(90deg, rgba(15, 23, 42, 0.035) 0 1px, transparent 1px 36px);
-}
-
-.terminal-hero::before {
-  position: absolute;
-  right: 8%;
-  bottom: -24px;
-  width: 260px;
-  height: 110px;
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  transform: skewX(-18deg);
-  content: "";
-}
-
-.avatar-shell {
-  width: 104px;
-  height: 104px;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  clip-path: polygon(0 0, 86% 0, 100% 18%, 100% 100%, 14% 100%, 0 82%);
-}
-
-.terminal-hero h1 {
-  font-size: clamp(44px, 7vw, 82px);
-  line-height: 0.95;
-}
-
-.identity-line span,
-.identity-line b,
-.section-head span,
-.muted-line {
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.16);
-  border-radius: 0;
-}
-
-.terminal-stats {
-  gap: 0;
-  border-top: 1px solid rgba(15, 23, 42, 0.12);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
-}
-
-.stat-card {
-  padding: 20px 18px;
-  border-right: 1px solid rgba(15, 23, 42, 0.1);
-}
-
-.stat-card:last-child {
-  border-right: 0;
-}
-
-.stat-card strong {
-  font-size: 30px;
-}
-
-.terminal-layout {
-  grid-template-columns: minmax(0, 1.12fr) minmax(280px, 0.88fr);
-  gap: 44px;
+  grid-template-columns: minmax(300px, 332px) minmax(0, 1fr);
+  gap: var(--sos-space-4, 16px);
   align-items: start;
+  color: var(--text);
 }
 
-.artwork-panel,
-.license-card,
-.activity-card,
-.history-panel {
-  padding: 30px 0;
-  border-top: 1px solid rgba(15, 23, 42, 0.12);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
-}
+/* 高阶评级 S/X/A → 金色证件 */
+.adv-scope.rating-S, .adv-scope.rating-X, .adv-scope.rating-A { --accent: var(--gold); --accent-strong: color-mix(in srgb, var(--gold) 72%, #5a3a08); }
 
-.section-head {
-  padding-left: 22px;
-  border-left: 6px solid #38bdf8;
-}
-
-.section-head h2,
-.license-card h2,
-.activity-card h2,
-.history-panel h2 {
-  font-size: 30px;
-}
-
-.profile-art-grid {
-  gap: 2px;
-  background: rgba(15, 23, 42, 0.1);
-}
-
-.profile-art-card {
-  min-height: 196px;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.profile-art-card b {
-  top: 0;
-  right: 0;
-  color: #fff;
-  background: rgba(15, 23, 42, 0.76);
-  border-radius: 0;
-}
-
-.terminal-side {
-  gap: 26px;
-}
-
-.license-code {
-  margin: 22px 0 14px;
-  padding: 24px 0;
-  color: transparent;
-  font-size: clamp(42px, 7vw, 76px);
-  line-height: 0.95;
-  background: linear-gradient(135deg, #38bdf8, #6366f1 50%, #f43f5e);
-  background-clip: text;
-  -webkit-background-clip: text;
-  border-top: 1px solid rgba(56, 189, 248, 0.28);
-  border-bottom: 1px solid rgba(244, 63, 94, 0.22);
-  border-radius: 0;
-}
-
-.activity-row,
-.ledger-row {
-  padding: 14px 0;
-  border-bottom-color: rgba(15, 23, 42, 0.14);
-}
-
-.history-layout {
-  gap: 44px;
-}
-
-.ghost-btn {
-  border-radius: 0;
-  box-shadow: none;
-}
-
-:global(html.art-lights-out) .terminal-page::before {
-  background:
-    linear-gradient(125deg, transparent 0 18%, rgba(125, 211, 252, 0.1) 18% 19%, transparent 19% 100%),
-    linear-gradient(22deg, transparent 0 62%, rgba(244, 63, 94, 0.1) 62% 63%, transparent 63% 100%),
-    radial-gradient(circle at 12% 14%, rgba(99, 102, 241, 0.14), transparent 30%),
-    radial-gradient(circle at 92% 12%, rgba(125, 211, 252, 0.12), transparent 26%);
-}
-
-:global(html.art-lights-out) .panel,
-:global(html.art-lights-out) .terminal-stats,
-:global(html.art-lights-out) .artwork-panel,
-:global(html.art-lights-out) .license-card,
-:global(html.art-lights-out) .activity-card,
-:global(html.art-lights-out) .history-panel {
-  background: transparent;
-  border-top-color: rgba(125, 211, 252, 0.18);
-  border-bottom-color: rgba(125, 211, 252, 0.14);
-  box-shadow: none;
-}
-
-:global(html.art-lights-out) .terminal-hero {
-  background:
-    linear-gradient(90deg, rgba(12, 20, 44, 0.46), transparent 76%),
-    repeating-linear-gradient(90deg, rgba(125, 211, 252, 0.04) 0 1px, transparent 1px 36px);
-}
-
-:global(html.art-lights-out) .identity-line span,
-:global(html.art-lights-out) .identity-line b,
-:global(html.art-lights-out) .section-head span,
-:global(html.art-lights-out) .ghost-btn,
-:global(html.art-lights-out) .muted-line {
-  background: transparent;
-  border-color: rgba(125, 211, 252, 0.16);
-}
-
-@media (max-width: 980px) {
-  .terminal-hero,
-  .terminal-layout,
-  .history-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .terminal-hero {
-    padding-right: 18px;
-  }
-}
-
-@media (max-width: 620px) {
-  .terminal-page {
-    width: min(100% - 20px, 1200px);
-  }
-
-  .terminal-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .stat-card {
-    border-right: 0;
-    border-bottom: 1px solid rgba(15, 23, 42, 0.1);
-  }
-}
-
-/* Design-system aligned pass: personal archive terminal using art expression tokens. */
-.terminal-page {
-  width: min(var(--sos-container-wide), calc(100% - var(--sos-page-gutter) * 2));
-  padding-block: var(--sos-space-8) var(--sos-space-14);
-  gap: var(--sos-space-8);
-  isolation: isolate;
-}
-
-.terminal-page::before {
-  background:
-    radial-gradient(circle at 12% 5%, color-mix(in srgb, var(--sos-accent-soft) 70%, transparent), transparent 34%),
-    radial-gradient(circle at 88% 16%, color-mix(in srgb, var(--sos-accent-2) 12%, transparent), transparent 28%);
-}
-
-.terminal-page::after {
-  display: none;
-}
-
-.panel,
-:global(html.art-lights-out) .panel {
-  color: var(--sos-text-primary);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--sos-bg-surface) 86%, transparent), color-mix(in srgb, var(--sos-bg-subtle) 72%, transparent)),
-    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--sos-accent-soft) 54%, transparent), transparent 32%);
-  border: 1px solid var(--sos-border-subtle);
-  border-radius: var(--sos-radius-xl);
-  box-shadow: var(--sos-shadow-card);
-  backdrop-filter: blur(14px);
+.adv-state {
+  grid-column: 1 / -1;
+  padding: 60px 40px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--muted);
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--glass);
   -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
+.adv-state--error { color: color-mix(in srgb, #d2453a 80%, #000); }
 
-.terminal-loading {
-  padding: var(--sos-space-8);
-  color: var(--sos-text-primary);
-  font-weight: var(--sos-weight-heavy);
-}
-
-.terminal-hero,
-:global(html.art-lights-out) .terminal-hero {
-  min-height: auto;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: var(--sos-space-6);
-  padding: var(--sos-space-8);
-  border: 1px solid var(--sos-border-subtle);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--sos-bg-surface) 92%, transparent), color-mix(in srgb, var(--sos-accent-soft) 40%, var(--sos-bg-surface))),
-    radial-gradient(circle at 90% 18%, color-mix(in srgb, var(--sos-accent-2) 16%, transparent), transparent 32%);
-}
-
-.terminal-hero::before {
-  right: var(--sos-space-8);
-  bottom: var(--sos-space-6);
-  width: min(34vw, 22rem);
-  height: min(18vw, 11rem);
-  border: 1px solid color-mix(in srgb, var(--sos-accent) 18%, transparent);
-  border-radius: var(--sos-radius-full);
-  transform: none;
-}
-
-.avatar-shell {
-  width: clamp(5rem, 10vw, 7rem);
-  height: clamp(5rem, 10vw, 7rem);
-  background: linear-gradient(135deg, var(--sos-accent), var(--sos-accent-2));
-  border: 1px solid color-mix(in srgb, var(--sos-bg-surface) 80%, transparent);
-  border-radius: var(--sos-radius-xl);
-  box-shadow: var(--sos-shadow-card);
-  clip-path: none;
-}
-
-.eyebrow {
-  color: var(--sos-text-secondary);
-  font-size: var(--sos-text-xs);
-  font-weight: var(--sos-weight-heavy);
-  letter-spacing: var(--sos-tracking-wider);
-}
-
-.eyebrow::before {
-  display: inline-block;
-  width: 1.75rem;
-  height: 0.25rem;
-  margin-right: var(--sos-space-2);
-  vertical-align: middle;
-  background: var(--sos-signal);
-  border-radius: var(--sos-radius-full);
-  content: "";
-}
-
-.terminal-hero h1 {
-  color: var(--sos-text-primary);
-  font-family: var(--sos-display-family);
-  font-size: var(--sos-text-hero);
-  font-weight: var(--sos-weight-black);
-  line-height: var(--sos-leading-tight);
-  letter-spacing: var(--sos-tracking-tighter);
-}
-
-.identity-line span,
-.identity-line b,
-.section-head span,
-.muted-line,
-:global(html.art-lights-out) .identity-line span,
-:global(html.art-lights-out) .identity-line b,
-:global(html.art-lights-out) .section-head span,
-:global(html.art-lights-out) .muted-line {
-  color: var(--sos-text-secondary);
-  background: var(--sos-bg-subtle);
-  border: 1px solid var(--sos-border-subtle);
-  border-radius: var(--sos-radius-full);
-}
-
-.ghost-btn,
-:global(html.art-lights-out) .ghost-btn {
-  min-height: var(--sos-control-md);
-  padding-inline: var(--sos-space-5);
-  color: var(--sos-text-primary);
-  background: var(--sos-bg-surface);
-  border: 1px solid var(--sos-border-default);
-  border-radius: var(--sos-control-radius);
-  box-shadow: var(--sos-shadow-xs);
-}
-
-.terminal-stats {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--sos-space-4);
-  border: 0;
-}
-
-.stat-card {
-  padding: var(--sos-space-5);
-  border: 1px solid var(--sos-border-subtle);
-}
-
-.stat-card span,
-.stat-card em {
-  color: var(--sos-text-tertiary);
-  font-size: var(--sos-text-xs);
-  font-weight: var(--sos-weight-heavy);
-}
-
-.stat-card strong {
-  color: var(--sos-text-primary);
-  font-size: var(--sos-text-2xl);
-  font-weight: var(--sos-weight-black);
-  font-variant-numeric: var(--sos-numeric-tabular);
-}
-
-.terminal-layout {
-  grid-template-columns: minmax(0, 1.45fr) minmax(18rem, 0.75fr);
-  gap: var(--sos-space-6);
-}
-
-.artwork-panel,
-.license-card,
-.activity-card,
-.history-panel,
-:global(html.art-lights-out) .artwork-panel,
-:global(html.art-lights-out) .license-card,
-:global(html.art-lights-out) .activity-card,
-:global(html.art-lights-out) .history-panel {
-  padding: var(--sos-space-6);
-  border: 1px solid var(--sos-border-subtle);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--sos-bg-surface) 88%, transparent), color-mix(in srgb, var(--sos-bg-subtle) 72%, transparent));
-  border-radius: var(--sos-radius-xl);
-  box-shadow: var(--sos-shadow-card);
-}
-
-.section-head {
-  padding: 0 0 var(--sos-space-4);
-  border: 0;
-  border-bottom: 1px solid var(--sos-border-subtle);
-}
-
-.section-head h2,
-.license-card h2,
-.activity-card h2,
-.history-panel h2 {
-  color: var(--sos-text-primary);
-  font-family: var(--sos-display-family);
-  font-size: var(--sos-text-2xl);
-  font-weight: var(--sos-weight-heavy);
-  letter-spacing: var(--sos-tracking-tight);
-}
-
-.profile-art-grid {
-  gap: var(--sos-space-4);
-  background: transparent;
-}
-
-.profile-art-card {
-  min-height: 13rem;
+/* ============ 左：冒险者证件 ============ */
+.adv-id {
+  position: sticky;
+  top: var(--sos-space-3, 12px);
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 16px;
+  border-radius: 22px;
   overflow: hidden;
-  background: var(--sos-bg-strong);
-  border: 1px solid var(--sos-border-subtle);
-  border-radius: var(--sos-radius-lg);
-  box-shadow: var(--sos-shadow-xs);
-  transition:
-    transform var(--sos-duration-fast) var(--sos-ease-out),
-    box-shadow var(--sos-duration-base) var(--sos-ease-standard);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, #ffffff);
+  background:
+    radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 58%),
+    var(--glass);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 30px 60px -34px rgba(16, 60, 56, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
-.profile-art-card:hover {
-  box-shadow: var(--sos-shadow-card);
-  transform: translateY(-2px);
+/* 分类条 */
+.adv-id__band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 16px;
+  background: linear-gradient(100deg, var(--accent-strong), color-mix(in srgb, var(--accent) 60%, #ec4faf) 130%);
+  color: #fff;
+}
+.adv-id__eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; }
+.adv-id__org { font-size: 11px; font-weight: 800; opacity: 0.86; }
+
+/* 紧凑身份头：头像 + 姓名 + 评级角标 */
+.adv-id__head { display: flex; align-items: center; gap: 14px; padding: 17px 16px 6px; }
+.adv-id__avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  color: #fff;
+  font-size: 30px;
+  font-weight: 900;
+  background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 52%, #7bf0d8));
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.4), 0 12px 26px -16px color-mix(in srgb, var(--accent) 65%, transparent);
+}
+.adv-id__avatar img { width: 100%; height: 100%; border-radius: 18px; object-fit: cover; }
+.adv-id__rank {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+  font-style: normal;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  background: var(--accent);
+  border: 2px solid color-mix(in srgb, #ffffff 80%, transparent);
+  box-shadow: 0 5px 12px -5px rgba(0, 0, 0, 0.45);
+}
+.adv-id__ident { min-width: 0; }
+.adv-id__eyebrow--inline { display: block; color: var(--accent-strong); margin-bottom: 5px; }
+.adv-id__ident h1 { margin: 0; font-size: clamp(20px, 2.4vw, 25px); font-weight: 850; letter-spacing: -0.02em; line-height: 1.1; word-break: break-word; }
+.adv-id__rating { display: inline-block; margin-top: 9px; font-size: 12px; font-weight: 800; color: var(--accent-strong); padding: 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); }
+.adv-id__handle { display: block; margin-top: 7px; font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--muted); }
+
+/* 读数台账 */
+.adv-id__readout { margin: 10px 18px 0; padding: 0; }
+.adv-id__row { display: flex; align-items: baseline; gap: 8px; padding: 10px 0; }
+.adv-id__row + .adv-id__row { border-top: 1px dashed var(--line); }
+.adv-id__row dt { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; white-space: nowrap; }
+.adv-id__lead { flex: 1; align-self: center; height: 0; border-bottom: 1.5px dotted color-mix(in srgb, var(--accent) 32%, transparent); }
+.adv-id__row dd { margin: 0; font-size: 16px; font-weight: 850; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.adv-id__row dd.is-date { font-size: 14px; }
+.adv-id__row dd i { font-style: normal; font-size: 11px; font-weight: 700; color: var(--muted); margin-left: 7px; }
+.adv-id__row--coin dd { color: var(--accent-strong); }
+
+/* 访问许可 */
+.adv-id__clearance {
+  margin: 14px 16px 0;
+  padding: 13px 14px;
+  border-radius: 14px;
+  text-align: center;
+  background: linear-gradient(155deg, color-mix(in srgb, var(--accent) 16%, #ffffff), color-mix(in srgb, var(--accent) 5%, #ffffff));
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+}
+.adv-id__clearance-k { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.adv-id__clearance-v { display: block; margin: 3px 0 2px; font-family: var(--mono); font-size: 24px; font-weight: 900; letter-spacing: 0.03em; color: var(--accent-strong); }
+.adv-id__clearance-sub { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+
+/* 条码 + 签发 */
+.adv-id__foot { margin: 14px 16px 0; }
+.adv-id__barcode {
+  display: block;
+  height: 32px;
+  border-radius: 5px;
+  background-image: repeating-linear-gradient(90deg, var(--text) 0 1px, transparent 1px 3px, var(--text) 3px 5px, transparent 5px 6px, var(--text) 6px 9px, transparent 9px 11px);
+  opacity: 0.62;
+}
+.adv-id__issued { display: block; margin-top: 7px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--muted); text-align: center; }
+
+.adv-id__back { margin: 16px 16px 0; justify-content: center; }
+
+/* ============ 右：档案正文 ============ */
+.adv-dossier { display: flex; flex-direction: column; gap: var(--sos-space-4, 16px); min-width: 0; }
+
+.adv-panel {
+  padding: clamp(18px, 2.2vw, 24px);
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 22px 48px -32px rgba(16, 60, 56, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.66);
+}
+.adv-panel__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: var(--sos-space-3); padding-bottom: var(--sos-space-2); border-bottom: 1px solid var(--line); }
+.adv-panel__eyebrow { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-strong); }
+.adv-panel h2 { margin: 4px 0 0; font-size: clamp(17px, 2.2vw, 22px); font-weight: 850; }
+.adv-panel__meta { font-size: 12px; font-weight: 700; color: var(--muted); padding: 4px 11px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 10%, transparent); white-space: nowrap; }
+
+/* 作品 grid */
+.adv-art-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sos-space-3); }
+.adv-art { display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.adv-art__media {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--accent) 6%, #ffffff);
+  box-shadow: 0 12px 26px -20px rgba(16, 60, 56, 0.5);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.28s, border-color 0.28s;
+}
+.adv-art__media img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+.adv-art__status {
+  position: absolute; left: 8px; bottom: 8px;
+  font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 999px;
+  color: #fff; background: color-mix(in srgb, var(--accent-strong) 88%, transparent);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.adv-art__status.st-pending { background: color-mix(in srgb, hsl(35, 90%, 45%) 90%, #000); }
+.adv-art__status.st-rejected { background: color-mix(in srgb, #d2453a 88%, #000); }
+.adv-art__status.st-hidden { background: color-mix(in srgb, #6b7280 88%, #000); }
+.adv-art:hover .adv-art__media { transform: translateY(-3px); box-shadow: 0 20px 38px -20px rgba(16, 60, 56, 0.55); border-color: color-mix(in srgb, var(--accent) 36%, transparent); }
+.adv-art:hover .adv-art__media img { transform: scale(1.08); }
+.adv-art__title { font-size: 13.5px; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 委托记录 */
+.adv-quests { display: flex; flex-direction: column; gap: 8px; }
+.adv-quest { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 11px 13px; border-radius: 12px; background: color-mix(in srgb, #ffffff 50%, transparent); border: 1px solid var(--line); }
+.adv-quest__title { font-size: 13.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adv-quest__prog { font-size: 12px; font-weight: 800; font-family: var(--mono); color: var(--accent-strong); }
+.adv-quest__st { font-size: 10.5px; font-weight: 800; font-style: normal; padding: 2px 9px; border-radius: 999px; background: color-mix(in srgb, #000 6%, transparent); color: var(--muted); }
+.adv-quest__st.st-active { color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.adv-quest__st.st-completed { color: #fff; background: var(--accent); }
+
+/* 流水台账 */
+.adv-ledgers { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sos-space-4); }
+.adv-ledger { display: flex; flex-direction: column; }
+.adv-ledger__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 2px; font-size: 13px; }
+.adv-ledger__row + .adv-ledger__row { border-top: 1px dashed var(--line); }
+.adv-ledger__row span { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adv-ledger__row b { font-weight: 800; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.adv-ledger__row b.plus { color: var(--accent-strong); }
+.adv-ledger__row b.minus { color: color-mix(in srgb, #d2453a 80%, #000); }
+.adv-ledger__st { font-size: 11.5px; padding: 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent-strong); }
+.adv-ledger__st.st-rejected, .adv-ledger__st.st-cancelled { color: color-mix(in srgb, #d2453a 80%, #000); background: color-mix(in srgb, #ef5350 12%, transparent); }
+
+.adv-empty { padding: 40px; text-align: center; color: var(--muted); font-weight: 600; }
+.adv-empty--sm { padding: 18px; font-size: 13px; }
+
+/* ============ 响应式 ============ */
+@media (max-width: 900px) {
+  .adv-scope { grid-template-columns: 1fr; }
+  .adv-id { position: static; }
+  .adv-ledgers { grid-template-columns: 1fr; }
 }
 
-.profile-art-card b {
-  top: var(--sos-space-2);
-  right: var(--sos-space-2);
-  color: var(--sos-text-primary);
-  background: color-mix(in srgb, var(--sos-bg-surface) 84%, transparent);
-  border: 1px solid var(--sos-border-subtle);
-  border-radius: var(--sos-radius-full);
+/* ============ 关灯（暗色）适配 ============ */
+/* 整条选择器必须放进 :global(...)，否则 Vue scoped 会丢弃括号外的后代选择器，
+   只剩 html.art-lights-out，把变量错设到 <html> 上而被 .adv-scope 的本地定义遮蔽。 */
+:global(html.art-lights-out .adv-scope) {
+  --text: #f3f8ff;
+  --muted: rgba(214, 230, 255, 0.7);
+  --glass: rgba(14, 24, 46, 0.6);
+  --line: rgba(120, 165, 220, 0.2);
+  --accent-strong: color-mix(in srgb, var(--accent) 66%, #d6fff4);
 }
-
-.license-code {
-  padding: var(--sos-space-6);
-  color: var(--sos-accent);
-  font-size: clamp(2.5rem, 6vw, 4.75rem);
-  background: var(--sos-accent-soft);
-  background-clip: initial;
-  -webkit-background-clip: initial;
-  border: 1px solid color-mix(in srgb, var(--sos-accent) 30%, var(--sos-border-subtle));
-  border-radius: var(--sos-radius-lg);
-}
-
-.license-card p {
-  color: var(--sos-text-secondary);
-}
-
-.activity-row,
-.ledger-row {
-  padding: var(--sos-space-3) 0;
-  border-bottom: 1px solid var(--sos-border-subtle);
-}
-
-.activity-row span,
-.ledger-row span,
-:global(html.art-lights-out) .activity-row span,
-:global(html.art-lights-out) .ledger-row span {
-  color: var(--sos-text-primary);
-}
-
-.activity-row b,
-.activity-row em,
-.ledger-row b {
-  color: var(--sos-text-secondary);
-}
-
-.history-layout {
-  gap: var(--sos-space-6);
-}
-
-.plus {
-  color: var(--sos-success) !important;
-}
-
-.minus {
-  color: var(--sos-danger) !important;
-}
-
-.empty {
-  color: var(--sos-text-tertiary);
-}
-
-@media (max-width: 980px) {
-  .terminal-hero,
-  .terminal-layout,
-  .history-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .terminal-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 620px) {
-  .terminal-page {
-    width: min(var(--sos-container-wide), calc(100% - var(--sos-space-5)));
-  }
-
-  .terminal-hero,
-  .artwork-panel,
-  .license-card,
-  .activity-card,
-  .history-panel {
-    padding: var(--sos-space-5);
-  }
-
-  .terminal-stats,
-  .profile-art-grid {
-    grid-template-columns: 1fr;
-  }
-}
+:global(html.art-lights-out .adv-id),
+:global(html.art-lights-out .adv-state) { background: rgba(14, 24, 46, 0.62); }
+:global(html.art-lights-out .adv-panel),
+:global(html.art-lights-out .adv-quest),
+:global(html.art-lights-out .adv-art__media) { background: rgba(12, 22, 44, 0.5); }
+:global(html.art-lights-out .adv-id__clearance) { background: linear-gradient(155deg, rgba(20, 58, 52, 0.5), rgba(12, 22, 44, 0.55)); }
+:global(html.art-lights-out .adv-id__row--coin dd) { color: color-mix(in srgb, var(--accent) 78%, #d6fff4); }
 </style>

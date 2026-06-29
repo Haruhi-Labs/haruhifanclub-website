@@ -147,9 +147,12 @@ onBeforeUnmount(() => {
     <TopBar />
 
     <main class="main" :class="{ 'is-home-route': isHomeRoute }">
+      <!-- key 用 route.path（不含 query）：画廊靠 query(?artwork/?tag/?author) 驱动弹窗与筛选并通过
+           watch 响应，绝不能因 query 变化重挂整个视图——否则会重置 imgStyle，点开作品时缩略图会闪一下
+           （contain→cover→contain）。注释须放在 KeepAlive 外，否则 KeepAlive 会被判定有多个子节点。 -->
       <router-view v-slot="{ Component, route }">
         <KeepAlive include="HomeView">
-          <component :is="Component" :key="route.name === 'home' ? 'home' : route.fullPath" />
+          <component :is="Component" :key="route.name === 'home' ? 'home' : route.path" />
         </KeepAlive>
       </router-view>
     </main>

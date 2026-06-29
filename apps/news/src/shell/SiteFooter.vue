@@ -68,8 +68,8 @@ const groups = [
           <span class="sos-brand-lockup">
             <span class="sos-brand-lockup__mark"><img :src="logoUrl" alt="" /></span>
             <span class="sos-brand-lockup__text">
-              <strong>春日团报</strong>
-              <small>Haruhi Fan Club</small>
+              <strong>凉宫春日应援团</strong>
+              <small>Haruhifanclub</small>
             </span>
           </span>
           <p class="sos-footer__tagline">

@@ -57,6 +57,7 @@
             </span>
             <span class="ann-item__chevron" aria-hidden="true">›</span>
           </button>
+          <p v-if="!filteredNotices.length" class="ann-empty">暂无公告</p>
         </div>
       </section>
 
@@ -74,17 +75,23 @@
           <span v-for="tag in selectedNotice.tags" :key="tag">#{{ tag }}</span>
         </div>
       </article>
+      <article v-else class="ann-detail ann-detail--empty">
+        <p>公告整理中，敬请期待。</p>
+      </article>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { api } from '../services/api.js'
 
 const activeCategory = ref('activity')
 const selectedNoticeId = ref(null)
 
-const notices = [
+// 公告改为后端驱动。下方硬编码示例仅本地开发无后端时的离线预览兜底，
+// 生产构建（import.meta.env.DEV=false）会被 tree-shake 掉，绝不进生产包。
+const seedNotices = import.meta.env.DEV ? [
   {
     id: 'activity-20260624',
     category: 'activity',
@@ -150,18 +157,52 @@ const notices = [
     body: '当前开发优先保证 mock seed 数据可用，不依赖真实后端。画廊详情、首页统计和公告展示都应能在离线开发环境中正常打开。',
     tags: ['mock', '本地开发', '稳定性']
   }
-]
+] : []
 
 const categoryLabels = {
   activity: '活动公告',
   maintenance: '维护公告'
 }
 
+const notices = ref([])
+
+// 后端公告 → 视图形态：从 publishedAt（形如 2026-06-24...）解析展示日期，type 由 category 映射。
+function toViewNotice(a) {
+  const raw = String(a.publishedAt || a.createdAt || '')
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  const [yy, mm, dd] = m ? [m[1], m[2], m[3]] : ['', '', '']
+  return {
+    id: String(a.id),
+    category: a.category || 'activity',
+    date: raw,
+    month: mm,
+    day: dd,
+    displayDate: m ? `${yy}.${mm}.${dd}` : '',
+    type: categoryLabels[a.category] || '公告',
+    title: a.title || '',
+    summary: a.summary || '',
+    body: a.body || '',
+    tags: Array.isArray(a.tags) ? a.tags : []
+  }
+}
+
+async function loadAnnouncements() {
+  try {
+    const res = await api.announcements()
+    notices.value = Array.isArray(res?.data) ? res.data.map(toViewNotice) : []
+  } catch {
+    // 本地开发无后端：回落到示例便于预览设计；生产保持空态（不展示 mock）。
+    notices.value = seedNotices
+  }
+}
+
+onMounted(loadAnnouncements)
+
 const noticeCategories = computed(() =>
   Object.entries(categoryLabels).map(([id, label]) => ({
     id,
     label,
-    count: notices.filter((notice) => notice.category === id).length
+    count: notices.value.filter((notice) => notice.category === id).length
   }))
 )
 
@@ -170,7 +211,7 @@ const currentCategory = computed(() =>
 )
 
 const filteredNotices = computed(() =>
-  notices
+  notices.value
     .filter((notice) => notice.category === activeCategory.value)
     .slice()
     .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -475,20 +516,42 @@ function selectNotice(noticeId) {
 }
 
 /* ---------- 关灯（暗色）适配 ---------- */
-:global(html.art-lights-out) .ann-scope {
+/* 整条选择器必须放进 :global(...)，否则 Vue scoped 会丢弃括号外的后代选择器。 */
+:global(html.art-lights-out .ann-scope) {
   --ann-text: #f5f8ff;
   --ann-muted: rgba(220, 232, 255, 0.7);
   --ann-glass: rgba(15, 24, 46, 0.62);
   --ann-glass-line: rgba(120, 160, 220, 0.18);
   --ann-accent-strong: color-mix(in srgb, var(--ann-accent) 70%, #d8fff4);
 }
-:global(html.art-lights-out) .ann-item { background: rgba(13, 21, 45, 0.5); }
-:global(html.art-lights-out) .ann-item:hover { background: rgba(22, 33, 66, 0.7); }
-:global(html.art-lights-out) .ann-item__date { background: rgba(13, 33, 40, 0.7); }
+:global(html.art-lights-out .ann-item) { background: rgba(13, 21, 45, 0.5); }
+:global(html.art-lights-out .ann-item:hover) { background: rgba(22, 33, 66, 0.7); }
+:global(html.art-lights-out .ann-item__date) { background: rgba(13, 33, 40, 0.7); }
 
 @media (max-width: 560px) {
   .ann-hero__stamp { display: none; }
   .ann-item { grid-template-columns: 48px minmax(0, 1fr); }
   .ann-item__chevron { display: none; }
+}
+
+/* 空态：公告暂未接入后端、线上无数据时展示 */
+.ann-empty {
+  margin: 0;
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--ann-muted);
+  font-weight: 700;
+  font-size: 13.5px;
+}
+.ann-detail--empty {
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  text-align: center;
+}
+.ann-detail--empty p {
+  margin: 0;
+  color: var(--ann-muted);
+  font-weight: 700;
 }
 </style>

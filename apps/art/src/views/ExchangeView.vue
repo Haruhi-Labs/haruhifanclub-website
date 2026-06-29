@@ -949,17 +949,18 @@ onMounted(async () => {
 }
 
 /* ============ 关灯（暗色）适配 ============ */
-:global(html.art-lights-out) .guild-shell {
+/* 整条选择器必须放进 :global(...)，否则 Vue scoped 会丢弃括号外的后代选择器。 */
+:global(html.art-lights-out .guild-shell) {
   --g-text: #f3f8ff;
   --g-muted: rgba(214, 230, 255, 0.7);
   --g-line: rgba(120, 165, 220, 0.2);
   --g-accent-strong: color-mix(in srgb, var(--g-accent) 66%, #d6fff4);
 }
-:global(html.art-lights-out) .g-view { background: rgba(14, 24, 46, 0.6); }
-:global(html.art-lights-out) .g-quest,
-:global(html.art-lights-out) .g-reward,
-:global(html.art-lights-out) .g-leader,
-:global(html.art-lights-out) .g-rulecard { background: rgba(12, 22, 44, 0.5); }
-:global(html.art-lights-out) .g-feedback { background: rgba(12, 22, 44, 0.45); }
-:global(html.art-lights-out) .g-dialog { background: #0f1a30; }
+:global(html.art-lights-out .g-view) { background: rgba(14, 24, 46, 0.6); }
+:global(html.art-lights-out .g-quest),
+:global(html.art-lights-out .g-reward),
+:global(html.art-lights-out .g-leader),
+:global(html.art-lights-out .g-rulecard) { background: rgba(12, 22, 44, 0.5); }
+:global(html.art-lights-out .g-feedback) { background: rgba(12, 22, 44, 0.45); }
+:global(html.art-lights-out .g-dialog) { background: #0f1a30; }
 </style>

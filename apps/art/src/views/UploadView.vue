@@ -277,6 +277,9 @@ const submitButtonLabel = computed(() => {
 })
 
 const galleryTagStats = computed(() => {
+  // 标签热度建议仅本地开发用 seed 统计；生产返回空（不展示假数据，seedArtworks 引用被 tree-shake
+  // 出生产包）。后续如需真实建议，可另接后端标签统计接口。
+  if (!import.meta.env.DEV) return []
   const counts = new Map()
   for (const artwork of seedArtworks) {
     for (const tag of artwork.tags || []) {

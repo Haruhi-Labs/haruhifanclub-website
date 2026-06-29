@@ -97,8 +97,6 @@
             @click="openAuthor"
           >
             <span>{{ authorDisplay }}</span>
-            <em v-if="authorGuild.rating">{{ authorGuild.rating }}</em>
-            <i v-if="authorGuild.accessShortLabel">{{ authorGuild.accessShortLabel }}</i>
           </button>
           <div v-else>{{ authorDisplay }}</div>
 
@@ -226,7 +224,6 @@ const visible = computed(() => {
 
 const art = computed(() => props.item || props.artwork || null)
 const authorUid = computed(() => (art.value?.uploader_uid || '').trim())
-const authorGuild = computed(() => art.value?.guild || {})
 const authorDisplay = computed(() => {
   const name = (art.value?.uploader_name || '').trim()
   if (name) return name
@@ -632,7 +629,6 @@ function openAuthor() {
   emit('author', {
     uid: authorUid.value,
     name: authorDisplay.value,
-    guild: authorGuild.value,
     profile: true
   })
 }
@@ -1018,24 +1014,6 @@ onMounted(() => {
 }
 .author-link:hover span {
   text-decoration: underline;
-}
-.author-link em,
-.author-link i {
-  display: inline-flex;
-  height: 19px;
-  align-items: center;
-  padding: 0 7px;
-  color: #fff;
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 900;
-  line-height: 1;
-  background: linear-gradient(135deg, #f43f5e, #7c3aed);
-  border-radius: 999px;
-}
-.author-link i {
-  color: #4a5568;
-  background: rgba(107, 140, 133, 0.12);
 }
 .small-muted {
   font-size: 13px;
