@@ -70,7 +70,7 @@
         <h2 class="ann-detail__title">{{ selectedNotice.title }}</h2>
         <p class="ann-detail__lede">{{ selectedNotice.summary }}</p>
         <div class="ann-detail__rule" aria-hidden="true"></div>
-        <p class="ann-detail__body">{{ selectedNotice.body }}</p>
+        <div class="ann-detail__body">{{ selectedNotice.body }}</div>
         <div class="ann-detail__tags" aria-label="公告标签">
           <span v-for="tag in selectedNotice.tags" :key="tag">#{{ tag }}</span>
         </div>
@@ -495,9 +495,34 @@ function selectNotice(noticeId) {
 }
 .ann-detail__body {
   margin: 0;
+  max-height: clamp(260px, 48vh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 10px;
   font-size: 14.5px;
   line-height: 1.85;
   color: var(--ann-muted);
+  scrollbar-color: color-mix(in srgb, var(--ann-accent) 38%, transparent) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ann-detail__body::-webkit-scrollbar {
+  width: 8px;
+}
+.ann-detail__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ann-detail__body::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ann-accent) 30%, transparent);
+  border-radius: 999px;
+}
+.ann-detail.maintenance .ann-detail__body {
+  scrollbar-color: color-mix(in srgb, var(--ann-amber) 42%, transparent) transparent;
+}
+.ann-detail.maintenance .ann-detail__body::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ann-amber) 34%, transparent);
 }
 .ann-detail__tags {
   display: flex;

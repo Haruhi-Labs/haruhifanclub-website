@@ -657,7 +657,7 @@
                   </select>
                 </div>
                 <input v-model="annForm.summary" class="input" placeholder="摘要（一句话概述）">
-                <textarea v-model="annForm.body" class="textarea" placeholder="公告正文"></textarea>
+                <textarea v-model="annForm.body" class="textarea ann-body-editor" placeholder="公告正文"></textarea>
                 <input v-model="annForm.tags" class="input" placeholder="标签，逗号分隔（可空）">
                 <div class="editor-row">
                   <input type="date" v-model="annForm.publishedAt" class="input">
@@ -1652,6 +1652,10 @@ onMounted(async () => {
 .input.sm, .select.sm { padding: 6px 10px; font-size: 13px; }
 .input:focus, .textarea:focus { border-color: var(--sos-accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
 .textarea { resize: vertical; min-height: 80px; }
+.ann-body-editor {
+  min-height: 180px;
+  line-height: 1.65;
+}
 
 /* 积分记录 */
 .ph-row { display: flex; padding: 10px 16px; border-bottom: 1px solid var(--sos-bg-muted); font-size: 13px; }
