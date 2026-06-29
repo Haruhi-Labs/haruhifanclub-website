@@ -34,8 +34,8 @@ const isActive = (path) => {
           <img :src="logoUrl" alt="" />
         </span>
         <span class="sos-brand-lockup__text">
-          <strong>应援团绘画部 · 画廊</strong>
-          <small>一起来体验分享的快乐吧！</small>
+          <strong>春日画廊</strong>
+          <small>凉宫春日应援团 · 绘画部</small>
         </span>
       </RouterLink>
     </template>
