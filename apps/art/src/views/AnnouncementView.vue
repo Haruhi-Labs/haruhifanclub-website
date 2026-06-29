@@ -475,16 +475,17 @@ function selectNotice(noticeId) {
 }
 
 /* ---------- 关灯（暗色）适配 ---------- */
-:global(html.art-lights-out) .ann-scope {
+/* 整条选择器必须放进 :global(...)，否则 Vue scoped 会丢弃括号外的后代选择器。 */
+:global(html.art-lights-out .ann-scope) {
   --ann-text: #f5f8ff;
   --ann-muted: rgba(220, 232, 255, 0.7);
   --ann-glass: rgba(15, 24, 46, 0.62);
   --ann-glass-line: rgba(120, 160, 220, 0.18);
   --ann-accent-strong: color-mix(in srgb, var(--ann-accent) 70%, #d8fff4);
 }
-:global(html.art-lights-out) .ann-item { background: rgba(13, 21, 45, 0.5); }
-:global(html.art-lights-out) .ann-item:hover { background: rgba(22, 33, 66, 0.7); }
-:global(html.art-lights-out) .ann-item__date { background: rgba(13, 33, 40, 0.7); }
+:global(html.art-lights-out .ann-item) { background: rgba(13, 21, 45, 0.5); }
+:global(html.art-lights-out .ann-item:hover) { background: rgba(22, 33, 66, 0.7); }
+:global(html.art-lights-out .ann-item__date) { background: rgba(13, 33, 40, 0.7); }
 
 @media (max-width: 560px) {
   .ann-hero__stamp { display: none; }
