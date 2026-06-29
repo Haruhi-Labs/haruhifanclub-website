@@ -75,7 +75,7 @@
                   <div class="m-info">
                     <span class="tag">{{ it.content_type }}</span>
                     <span class="tag">{{ it.source_type }}</span>
-                    <span class="u-name">UP: {{ it.uploader_name || '匿名' }} ({{ it.uploader_uid || '无UID' }})</span>
+                    <span class="u-name">UP: {{ it.uploader_display_name || it.uploader_name || '匿名' }}</span>
                   </div>
                   <div class="m-desc">{{ it.description }}</div>
                   
@@ -98,10 +98,6 @@
                       </select>
                     </div>
 
-                    <div class="editor-row">
-                      <input v-model="editForm.uploader_name" class="input sm" placeholder="上传者名称">
-                      <input v-model="editForm.uploader_uid" class="input sm" placeholder="上传者 UID">
-                    </div>
                     
                     <div class="editor-row">
                       <input v-model="editForm.origin_url" class="input sm" placeholder="来源链接 (URL)" style="flex:1">
@@ -174,7 +170,7 @@
                   <div class="m-info">
                     <span class="tag">{{ it.content_type }}</span>
                     <span class="tag">{{ it.source_type }}</span>
-                    <span class="u-name">UID: {{ it.uploader_uid }}</span>
+                    <span class="u-name">UP: {{ it.uploader_display_name || it.uploader_name || '—' }}</span>
                   </div>
                   <div class="m-desc">{{ it.description }}</div>
                   
@@ -196,10 +192,6 @@
                       </select>
                     </div>
 
-                    <div class="editor-row">
-                      <input v-model="editForm.uploader_name" class="input sm" placeholder="上传者名称">
-                      <input v-model="editForm.uploader_uid" class="input sm" placeholder="上传者 UID">
-                    </div>
 
                     <div class="editor-row">
                       <input v-model="editForm.origin_url" class="input sm" placeholder="来源链接 (URL)" style="flex:1">
@@ -323,7 +315,7 @@
                 >
                   <img :src="c.avatar_url || '/api/art/placeholder/40/40'" class="c-avatar sm" />
                   <div class="c-info-mini">
-                    <div class="c-uid">{{ c.uid }}</div>
+                    <div class="c-uid">{{ c.name || c.uid }}</div>
                     <div class="c-sub">
                       <span>{{ new Date(c.created_at).toLocaleDateString() }}</span>
                       <span v-if="c.qq" class="qq-badge">QQ</span>
@@ -339,7 +331,7 @@
             <div class="col-right" :class="{ 'mobile-visible': selectedCreator }">
               <div v-if="selectedCreator" class="creator-detail-panel">
                 <div class="panel-header">
-                  <div class="ph-title">编辑创作者: {{ selectedCreator.uid }}</div>
+                  <div class="ph-title">编辑创作者: {{ selectedCreator.name || selectedCreator.uid }}</div>
                   <div class="panel-actions">
                     <button class="btn-ghost sm mobile-only" @click="selectedCreator=null">返回列表</button>
                     <button class="btn-ghost danger sm" @click="deleteCreator">删除账号</button>
@@ -360,14 +352,6 @@
                      </div>
                    </div>
 
-                   <!-- 名称/UID 修改 -->
-                   <div class="form-group">
-                     <label>UID (名称)</label>
-                     <div class="row">
-                       <input v-model="editCreatorForm.uid" class="input" placeholder="输入新的 UID" />
-                     </div>
-                     <div class="tip-text warn">⚠️ 修改 UID 会同步更新该作者所有的投稿记录和积分记录，请谨慎操作。</div>
-                   </div>
 
                    <!-- QQ号 修改 -->
                    <div class="form-group">
@@ -591,7 +575,7 @@
           <div v-if="guildTab==='redemptions'" class="guild-list single">
             <article v-for="item in guildRedemptions" :key="item.id" class="guild-manage-row">
               <div>
-                <div class="m-title">{{ item.rewardName }} · {{ item.uid }}</div>
+                <div class="m-title">{{ item.rewardName }} · {{ item.name || item.uid }}</div>
                 <div class="m-info">
                   <span class="tag">{{ item.rewardType }}</span>
                   <span class="tag">{{ item.frozenCoins }}G</span>
@@ -611,7 +595,7 @@
           <div v-if="guildTab==='ratings'" class="guild-list single">
             <article v-for="item in guildRatings" :key="item.id" class="guild-manage-row">
               <div>
-                <div class="m-title">{{ item.uid }}：{{ item.fromRating }} → {{ item.targetRating }}</div>
+                <div class="m-title">{{ item.name || item.uid }}：{{ item.fromRating }} → {{ item.targetRating }}</div>
                 <div class="m-info">
                   <span class="tag">声望 {{ item.reputationSnapshot }}</span>
                   <span class="tag">凉宫作品 {{ item.haruhiCountSnapshot }}</span>
@@ -630,7 +614,7 @@
           <div v-if="guildTab==='profiles'" class="guild-list single">
             <article v-for="item in guildProfiles" :key="item.uid" class="guild-manage-row">
               <div>
-                <div class="m-title">{{ item.uid }}</div>
+                <div class="m-title">{{ item.name || item.uid }}</div>
                 <div class="m-info">
                   <span class="tag">评级 {{ item.rating }}</span>
                   <span class="tag">Lv{{ item.level }}</span>
@@ -687,8 +671,7 @@ const artListPage = ref(1)
 const artListFilter = ref({ content: 'all', source: 'all', q: '' })
 const editingId = ref(null)
 const editForm = ref({ 
-  title: '', description: '', tags: '', 
-  uploader_name: '', uploader_uid: '', 
+  title: '', description: '', tags: '',
   source_type: 'personal', content_type: 'haruhi', origin_url: '',
   netLicenses: [], groupLicenses: []
 })
@@ -793,10 +776,9 @@ const filteredCreators = computed(() => {
 // 计算是否有修改
 const isCreatorModified = computed(() => {
   if (!selectedCreator.value) return false
-  const uidChanged = editCreatorForm.value.uid !== selectedCreator.value.uid
   const qqChanged = editCreatorForm.value.qq !== (selectedCreator.value.qq || '')
   const fileChanged = !!editCreatorForm.value.file
-  return uidChanged || qqChanged || fileChanged
+  return qqChanged || fileChanged
 })
 
 // 计算属性：过滤后的评论
@@ -895,8 +877,6 @@ function startEdit(it) {
     title: it.title,
     description: it.description,
     tags: Array.isArray(it.tags) ? it.tags.join(' ') : '',
-    uploader_name: it.uploader_name || '',
-    uploader_uid: it.uploader_uid || '',
     source_type: it.source_type || 'personal',
     content_type: it.content_type || 'haruhi',
     origin_url: it.origin_url || '',
@@ -924,8 +904,6 @@ async function saveEdit(it) {
   // 更新本地数据
   it.title = editForm.value.title
   it.description = editForm.value.description
-  it.uploader_name = editForm.value.uploader_name
-  it.uploader_uid = editForm.value.uploader_uid
   it.source_type = editForm.value.source_type
   it.content_type = editForm.value.content_type
   it.origin_url = editForm.value.origin_url
@@ -1003,7 +981,8 @@ async function updateCreator() {
   
   try {
     const formData = new FormData()
-    formData.append('new_uid', editCreatorForm.value.uid)
+    // 统一身份后不允许管理员改 UID：仍带原 uid，后端检测 new_uid == old_uid 即跳过改名
+    formData.append('new_uid', selectedCreator.value.uid)
     formData.append('qq', editCreatorForm.value.qq) // 添加 QQ
     if (editCreatorForm.value.file) {
       formData.append('avatar', editCreatorForm.value.file)
@@ -1017,9 +996,8 @@ async function updateCreator() {
     // 重新加载列表
     await loadCreators()
     
-    // 定位到新的UID (如果改名了)
-    const newUid = editCreatorForm.value.uid
-    const newObj = creators.value.find(c => c.uid === newUid)
+    // UID 不变，定位回当前创作者
+    const newObj = creators.value.find(c => c.uid === selectedCreator.value.uid)
     if (newObj) {
       selectCreator(newObj)
     }

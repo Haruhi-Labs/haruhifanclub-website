@@ -1047,6 +1047,8 @@ async fn admin_rating_applications(
     )
     .fetch_all(&state.pools.art)
     .await?;
+    let uids: Vec<String> = rows.iter().map(|r| r.1.clone()).collect();
+    let names = super::art::member_display_names(&state.pools.core, &uids).await;
     let data: Vec<Value> = rows
         .into_iter()
         .map(
@@ -1063,9 +1065,11 @@ async fn admin_rating_applications(
                 created_at,
                 reviewed_at,
             )| {
+                let name = names.get(&uid).cloned();
                 json!({
                     "id": id,
                     "uid": uid,
+                    "name": name,
                     "fromRating": from_rating,
                     "targetRating": target_rating,
                     "reputationSnapshot": rep,
@@ -1146,11 +1150,15 @@ async fn admin_profiles(State(state): State<AppState>, user: AuthUser) -> AppRes
     )
     .fetch_all(&state.pools.art)
     .await?;
+    let uids: Vec<String> = rows.iter().map(|r| r.0.clone()).collect();
+    let names = super::art::member_display_names(&state.pools.core, &uids).await;
     let data: Vec<Value> = rows
         .into_iter()
         .map(|(uid, user_id, reputation, rating, access, coins)| {
+            let name = names.get(&uid).cloned();
             json!({
                 "uid": uid,
+                "name": name,
                 "userId": user_id,
                 "reputation": reputation,
                 "level": level_from_reputation(reputation),
@@ -1267,9 +1275,15 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
         (true, Some(id)) => Some(user_profile_value(state, id).await?),
         _ => None,
     };
+    // 公开身份显示名：以权威 nickname 为准（昵称必填唯一），不泄漏 email/username 之外的隐私字段。
+    // 公开档案（private=false）也需要它，否则前端只能回落到 uXX 这种已失效的内部 ID。
+    let display_name = super::art::member_display_names(&state.pools.core, &[uid.to_string()])
+        .await
+        .remove(uid);
     Ok(json!({
         "uid": uid,
         "userId": user_id,
+        "displayName": display_name,
         "avatar_url": avatar_url,
         "creatorCreatedAt": creator_created_at,
         "qq": if private { qq } else { None::<String> },
@@ -1768,7 +1782,19 @@ async fn all_redemptions(state: &AppState) -> AppResult<Vec<Value>> {
     )
     .fetch_all(&state.pools.art)
     .await?;
-    Ok(rows.into_iter().map(redemption_value).collect())
+    let uids: Vec<String> = rows.iter().map(|r| r.2.clone()).collect();
+    let names = super::art::member_display_names(&state.pools.core, &uids).await;
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            let uid = row.2.clone();
+            let mut v = redemption_value(row);
+            if let (Some(n), Some(obj)) = (names.get(&uid), v.as_object_mut()) {
+                obj.insert("name".to_string(), json!(n));
+            }
+            v
+        })
+        .collect())
 }
 
 fn redemption_value(

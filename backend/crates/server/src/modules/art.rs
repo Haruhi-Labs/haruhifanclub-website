@@ -389,7 +389,7 @@ fn now_iso() -> String {
 
 /// 把形如 "u{id}" 的 uid 批量解析为账号显示名（昵称优先、为空回退 username）。
 /// 非 "u{id}" 或查不到的 uid 不进结果（调用方回退显示原 uid，即历史匿名创作者）。
-async fn member_display_names(
+pub(crate) async fn member_display_names(
     core: &sqlx::SqlitePool,
     uids: &[String],
 ) -> std::collections::HashMap<String, String> {
@@ -418,6 +418,24 @@ async fn member_display_names(
         }
     }
     map
+}
+
+/// 批量映射作品行，并按 uploader_uid 注入实时账号昵称 uploader_display_name（昵称优先）。
+/// 历史匿名作品（uploader_uid 非 u{id} 或查不到）不注入，前端回退显示 uploader_name 快照。
+async fn map_artworks_with_names(state: &AppState, rows: &[ArtRow]) -> Vec<Value> {
+    let uids: Vec<String> = rows.iter().filter_map(|r| r.uploader_uid.clone()).collect();
+    let names = member_display_names(&state.pools.core, &uids).await;
+    rows.iter()
+        .map(|r| {
+            let mut v = map_artwork_row(r);
+            if let (Some(uid), Some(obj)) = (r.uploader_uid.as_deref(), v.as_object_mut()) {
+                if let Some(n) = names.get(uid) {
+                    obj.insert("uploader_display_name".to_string(), json!(n));
+                }
+            }
+            v
+        })
+        .collect()
 }
 
 // ============================================================
@@ -737,15 +755,19 @@ async fn list_artworks(
     // 批量取作者公会徽章，避免逐行 N+1（一次 IN 查询、不建档）。
     let uids: Vec<String> = rows.iter().filter_map(|r| r.uploader_uid.clone()).collect();
     let guild_map = super::art_guild::guild_summaries_for_uids(&state, &uids).await;
+    let names = member_display_names(&state.pools.core, &uids).await;
     let data: Vec<Value> = rows
         .iter()
         .map(|row| {
             let mut value = map_artwork_row(row);
             let uid = row.uploader_uid.as_deref().unwrap_or("").trim();
             if !uid.is_empty() {
-                if let Some(summary) = guild_map.get(uid) {
-                    if let Some(obj) = value.as_object_mut() {
+                if let Some(obj) = value.as_object_mut() {
+                    if let Some(summary) = guild_map.get(uid) {
                         obj.insert("guild".into(), summary.clone());
+                    }
+                    if let Some(n) = names.get(uid) {
+                        obj.insert("uploader_display_name".into(), json!(n));
                     }
                 }
             }
@@ -1837,7 +1859,7 @@ async fn admin_pending_artworks(
     ))
     .fetch_all(&state.pools.art)
     .await?;
-    let data: Vec<Value> = rows.iter().map(map_artwork_row).collect();
+    let data = map_artworks_with_names(&state, &rows).await;
     Ok(Json(json!({ "ok": true, "data": data })))
 }
 
@@ -1852,7 +1874,7 @@ async fn admin_audit_history(
     ))
     .fetch_all(&state.pools.art)
     .await?;
-    let data: Vec<Value> = rows.iter().map(map_artwork_row).collect();
+    let data = map_artworks_with_names(&state, &rows).await;
     Ok(Json(json!({ "ok": true, "data": data })))
 }
 
@@ -1999,16 +2021,15 @@ async fn admin_artwork_update(
     let licenses_arr = parse_licenses(s("licenses"));
     let licenses_json = serde_json::to_string(&licenses_arr).unwrap_or_else(|_| "[]".into());
 
+    // 统一身份后：上传者名/UID 归用户所有，管理员不再可改，故不写 uploader_name/uploader_uid 两列
     sqlx::query(
         "UPDATE artworks SET title=?, description=?, tags_json=?, tags_norm=?, \
-         uploader_name=?, uploader_uid=?, source_type=?, content_type=?, origin_url=?, licenses_json=? WHERE id=?",
+         source_type=?, content_type=?, origin_url=?, licenses_json=? WHERE id=?",
     )
     .bind(s("title"))
     .bind(s("description"))
     .bind(&tags_json)
     .bind(&tags_norm)
-    .bind(s("uploader_name"))
-    .bind(s("uploader_uid"))
     .bind(s("source_type"))
     .bind(s("content_type"))
     .bind(s("origin_url"))
@@ -2183,10 +2204,13 @@ async fn admin_list_creators(
     )
     .fetch_all(&state.pools.art)
     .await?;
+    let uids: Vec<String> = rows.iter().map(|(uid, ..)| uid.clone()).collect();
+    let names = member_display_names(&state.pools.core, &uids).await;
     let data: Vec<Value> = rows
         .into_iter()
         .map(|(uid, avatar_url, created_at, qq)| {
-            json!({ "uid": uid, "avatar_url": avatar_url, "created_at": created_at, "qq": qq })
+            let name = names.get(&uid).cloned();
+            json!({ "uid": uid, "name": name, "avatar_url": avatar_url, "created_at": created_at, "qq": qq })
         })
         .collect();
     Ok(Json(json!({ "ok": true, "data": data })))
