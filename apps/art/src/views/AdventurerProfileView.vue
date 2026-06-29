@@ -55,7 +55,7 @@
           <span class="adv-id__issued">SOS BRIGADE · ART REGISTRY</span>
         </div>
 
-        <RouterLink v-if="!isTerminal" class="sos-button sos-button--ghost sos-button--sm adv-id__back" to="/exchange">返回公会指挥台</RouterLink>
+        <RouterLink v-if="!isTerminal" class="sos-button sos-button--ghost sos-button--sm adv-id__back" :to="backTarget">返回公会指挥台</RouterLink>
       </aside>
 
       <!-- ===== 右：档案正文 ===== -->
@@ -156,6 +156,11 @@ const coinsHistory = ref([])
 const redemptions = ref([])
 
 const isTerminal = computed(() => route.name === 'terminal')
+const backTarget = computed(() => (
+  route.query.from === 'ranking'
+    ? { name: 'exchange', query: { tab: 'ranking' } }
+    : { name: 'exchange' }
+))
 const displayName = computed(() => (
   userInfo.value.displayName ||
   profile.value.displayName ||

@@ -57,7 +57,7 @@
             :class="{ 'is-active': activeTab === tab.id }"
             role="tab"
             :aria-selected="activeTab === tab.id"
-            @click="activeTab = tab.id"
+            @click="selectGuildTab(tab.id)"
           >
             <span class="g-nav__bar" aria-hidden="true"></span>
             <span class="g-nav__label">{{ tab.label }}</span>
@@ -99,6 +99,7 @@
                 <span class="g-chip">评级 {{ quest.requiredRating }}</span>
                 <span class="g-chip">{{ quest.requiredAccessLabel }}</span>
                 <span v-if="quest.deadlineHours" class="g-chip g-chip--time">{{ quest.deadlineHours }}h 限时</span>
+                <span v-if="quest.autoClaim" class="g-chip">自动接取</span>
                 <span class="g-chip g-chip--rep">声望 +{{ quest.rewardReputation }}</span>
                 <span v-if="quest.rewardCoins > 0" class="g-chip g-chip--coin">金币 +{{ quest.rewardCoins }}</span>
               </div>
@@ -182,14 +183,30 @@
         </header>
 
         <div class="g-board">
+          <div v-if="currentLeader" class="g-board-current">
+            <span class="g-board-current__label">当前排名</span>
+            <RouterLink
+              class="g-leader g-leader--current"
+              :to="{ name: 'adventurer-profile', params: { uid: currentLeader.uid }, query: { from: 'ranking' } }"
+            >
+              <span class="g-leader__no" :data-rank="currentLeader.rank">#{{ currentLeader.rank }}</span>
+              <span class="g-leader__rating" :class="`rating-${currentLeader.rating}`">{{ currentLeader.rating }}</span>
+              <span class="g-leader__name">
+                {{ currentLeader.name || currentLeader.uid }}
+                <i v-if="currentLeader.level">Lv{{ currentLeader.level }}</i>
+              </span>
+              <b class="mono">{{ currentLeader.coins }}G</b>
+            </RouterLink>
+          </div>
+          <div v-if="currentLeader" class="g-board-separator"><span>排行榜</span></div>
           <RouterLink
             v-for="(item, index) in leaderboard"
             :key="item.uid"
             class="g-leader"
             :class="{ 'is-top': index < 3 }"
-            :to="{ name: 'adventurer-profile', params: { uid: item.uid } }"
+            :to="{ name: 'adventurer-profile', params: { uid: item.uid }, query: { from: 'ranking' } }"
           >
-            <span class="g-leader__no" :data-rank="index + 1">{{ index + 1 }}</span>
+            <span class="g-leader__no" :data-rank="item.rank || index + 1">{{ item.rank || index + 1 }}</span>
             <span class="g-leader__rating" :class="`rating-${item.rating}`">{{ item.rating }}</span>
             <span class="g-leader__name">
               {{ item.name || item.uid }}
@@ -285,17 +302,19 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useSession } from '@haruhi/auth-ui'
 import { api } from '../services/api.js'
 
 const router = useRouter()
+const route = useRoute()
 const session = useSession('/api')
 
 const quests = ref([])
 const rewards = ref([])
 const leaderboard = ref([])
+const currentLeader = ref(null)
 const redemptions = ref([])
 const profile = ref({
   uid: '',
@@ -308,7 +327,8 @@ const profile = ref({
 })
 const feedback = ref('公会柜台待机中。委托进度会由系统根据你的真实画廊行为自动查验。')
 const ratingNote = ref('')
-const activeTab = ref('quests')
+const GUILD_TAB_IDS = ['quests', 'rewards', 'ranking', 'rating', 'rules']
+const activeTab = ref(normalizeGuildTab(route.query.tab))
 const busyQuestId = ref(null)
 const busyRewardId = ref(null)
 const applyingRating = ref(false)
@@ -423,6 +443,21 @@ function requireLogin() {
   return false
 }
 
+function normalizeGuildTab(tab) {
+  return GUILD_TAB_IDS.includes(String(tab || '')) ? String(tab) : 'quests'
+}
+
+function selectGuildTab(tab) {
+  const next = normalizeGuildTab(tab)
+  activeTab.value = next
+  router.replace({
+    query: {
+      ...route.query,
+      tab: next === 'quests' ? undefined : next
+    }
+  })
+}
+
 async function loadGuild() {
   try {
     const [questRes, rewardRes, rankRes] = await Promise.all([
@@ -433,6 +468,7 @@ async function loadGuild() {
     quests.value = questRes.data || []
     rewards.value = rewardRes.data || []
     leaderboard.value = rankRes.data || []
+    currentLeader.value = rankRes.me || null
     profile.value = questRes.profile || rewardRes.profile || profile.value
 
     if (session.state.user) {
@@ -452,6 +488,10 @@ async function loadGuild() {
   }
 }
 
+watch(() => route.query.tab, (tab) => {
+  activeTab.value = normalizeGuildTab(tab)
+})
+
 function questStatus(quest) {
   return quest.claim?.status || (quest.unlocked ? 'ready' : 'locked')
 }
@@ -460,6 +500,7 @@ function questStatusLabel(quest) {
   if (status === 'completed') return '已完成'
   if (status === 'active') return '进行中'
   if (status === 'locked') return '未解锁'
+  if (quest.autoClaim) return '自动接取'
   return '可接取'
 }
 function questProgress(quest) {
@@ -474,13 +515,14 @@ function questProgressPercent(quest) {
   return Math.min(100, Math.round((questProgress(quest) / target) * 100))
 }
 function questButtonDisabled(quest) {
-  return !quest.unlocked || questStatus(quest) === 'completed'
+  return !quest.unlocked || questStatus(quest) === 'completed' || (quest.autoClaim && !!session.state.user)
 }
 function questButtonLabel(quest) {
   const status = questStatus(quest)
-  if (!session.state.user) return '登录接取'
+  if (!session.state.user) return quest.autoClaim ? '登录参与' : '登录接取'
   if (!quest.unlocked) return '权限不足'
   if (status === 'completed') return '已结算'
+  if (quest.autoClaim) return status === 'active' ? '自动进行' : '自动接取'
   if (status === 'active') return `${questProgress(quest)}/${questTarget(quest)}`
   return '接取委托'
 }
@@ -500,6 +542,7 @@ function conditionLabel(kind) {
 
 async function claimQuest(quest) {
   if (!requireLogin()) return
+  if (quest.autoClaim) return
   if (!quest.unlocked || questStatus(quest) === 'completed') return
 
   busyQuestId.value = quest.id
@@ -583,19 +626,20 @@ function applyMock() {
     nextRating: { rating: 'C', requiredReputation: 800, requiredHaruhiCount: 4, available: false }
   }
   quests.value = [
-    { id: 1, title: '每日观测：浏览 3 个画廊作品', description: '接取后浏览任意 3 个公开画廊作品。', questType: 'daily', difficulty: 'normal', requiredRating: 'F', requiredAccessLabel: '1级观测员许可', conditionKind: 'browse_artworks', targetCount: 3, rewardReputation: 15, rewardCoins: 0, deadlineHours: null, unlocked: true, claim: { status: 'active', progress: 2, targetCount: 3 } },
-    { id: 2, title: '每日回声：评论 1 个作品', description: '接取后在任意作品详情留下 1 条评论。', questType: 'daily', difficulty: 'normal', requiredRating: 'F', requiredAccessLabel: '1级观测员许可', conditionKind: 'comment_artworks', targetCount: 1, rewardReputation: 20, rewardCoins: 0, deadlineHours: null, unlocked: true, claim: null },
-    { id: 3, title: 'SOS团特别委托：上传凉宫作品', description: '接取后投稿并通过审核 1 张凉宫个人作品。', questType: 'hard', difficulty: 'hard', requiredRating: 'E', requiredAccessLabel: '1级观测员许可', conditionKind: 'upload_personal_haruhi', targetCount: 1, rewardReputation: 180, rewardCoins: 30, deadlineHours: 72, unlocked: true, claim: null }
+    { id: 1, title: '每日观测：浏览 3 个画廊作品', description: '接取后浏览任意 3 个公开画廊作品。', questType: 'daily', difficulty: 'normal', requiredRating: 'F', requiredAccessLabel: '1级观测员许可', conditionKind: 'browse_artworks', targetCount: 3, rewardReputation: 15, rewardCoins: 0, deadlineHours: null, autoClaim: true, unlocked: true, claim: { status: 'active', progress: 2, targetCount: 3 } },
+    { id: 2, title: '每日回声：评论 1 个作品', description: '接取后在任意作品详情留下 1 条评论。', questType: 'daily', difficulty: 'normal', requiredRating: 'F', requiredAccessLabel: '1级观测员许可', conditionKind: 'comment_artworks', targetCount: 1, rewardReputation: 20, rewardCoins: 0, deadlineHours: null, autoClaim: true, unlocked: true, claim: null },
+    { id: 3, title: 'SOS团特别委托：上传凉宫作品', description: '接取后投稿并通过审核 1 张凉宫个人作品。', questType: 'hard', difficulty: 'hard', requiredRating: 'E', requiredAccessLabel: '1级观测员许可', conditionKind: 'upload_personal_haruhi', targetCount: 1, rewardReputation: 180, rewardCoins: 30, deadlineHours: 72, autoClaim: false, unlocked: true, claim: null }
   ]
   rewards.value = [
     { id: 1, name: 'SOS团电子徽章', description: '个人主页展示用的虚拟徽章。', rewardType: 'virtual', priceCoins: 80, stock: null, requiredRating: 'F', requiredAccessLabel: '1级观测员许可', imageUrl: '', unlocked: true },
     { id: 2, name: '画廊应援明信片', description: '实体奖励，需在备注中填写联系方式或领取方式。', rewardType: 'physical', priceCoins: 300, stock: 20, requiredRating: 'E', requiredAccessLabel: '1级观测员许可', imageUrl: '', unlocked: true }
   ]
   leaderboard.value = [
-    { uid: '橙海', name: '橙海', rating: 'A', coins: 1880, level: 19, reputation: 1880, avatar_url: '' },
-    { uid: 'Mizuhasi', name: 'Mizuhasi', rating: 'B', coins: 1570, level: 16, reputation: 1570, avatar_url: '' },
-    { uid: 'u12', name: 'Kyon', rating: 'D', coins: 1720, level: 8, reputation: 760, avatar_url: '' }
+    { uid: '橙海', name: '橙海', rank: 1, rating: 'A', coins: 1880, level: 19, reputation: 1880, avatar_url: '' },
+    { uid: 'Mizuhasi', name: 'Mizuhasi', rank: 2, rating: 'B', coins: 1570, level: 16, reputation: 1570, avatar_url: '' },
+    { uid: 'u12', name: 'Kyon', rank: 3, rating: 'D', coins: 1720, level: 8, reputation: 760, avatar_url: '' }
   ]
+  currentLeader.value = { uid: 'u12', name: 'Kyon', rank: 3, rating: 'D', coins: 1720, level: 8, reputation: 760, avatar_url: '' }
   redemptions.value = [
     { id: 1, rewardName: 'SOS团电子徽章', status: 'pending' }
   ]
@@ -894,14 +938,45 @@ onMounted(async () => {
 
 /* 排行 */
 .g-board { display: flex; flex-direction: column; gap: 8px; }
+.g-board-current {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.g-board-current__label {
+  color: var(--g-accent-strong);
+  font-size: 12px;
+  font-weight: 850;
+}
+.g-board-separator {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin: 6px 0;
+  color: var(--g-muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+.g-board-separator::before,
+.g-board-separator::after {
+  height: 1px;
+  background: color-mix(in srgb, var(--g-line) 76%, var(--g-accent) 18%);
+  content: '';
+}
 .g-leader {
   display: grid; grid-template-columns: 38px 38px minmax(0, 1fr) auto; align-items: center; gap: var(--sos-space-3);
   padding: 11px 16px; border-radius: 13px; border: 1px solid transparent;
   background: color-mix(in srgb, #ffffff 48%, transparent); color: inherit; text-decoration: none;
   transition: border-color 0.2s, background 0.2s, transform 0.2s;
 }
+.g-leader--current {
+  border-color: color-mix(in srgb, var(--g-accent) 34%, transparent);
+  background: color-mix(in srgb, var(--g-accent) 11%, #ffffff);
+}
 .g-leader:hover { background: color-mix(in srgb, #ffffff 80%, transparent); transform: translateX(2px); border-color: color-mix(in srgb, var(--g-accent) 26%, transparent); }
 .g-leader__no { font-size: 16px; font-weight: 850; color: var(--g-muted); text-align: center; font-family: var(--mono); }
+.g-leader--current .g-leader__no { color: var(--g-accent-strong); }
 .g-leader.is-top .g-leader__no { color: var(--g-gold); }
 .g-leader__rating { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; font-size: 14px; font-weight: 900; color: #fff; background: var(--g-accent); }
 .g-leader__rating.rating-S, .g-leader__rating.rating-X, .g-leader__rating.rating-A { background: var(--g-gold); color: #3a2606; }
