@@ -101,6 +101,7 @@ pub fn router() -> Router<AppState> {
 
 const COOKIE_NAME: &str = "haruhi_anon";
 const COOKIE_SIG: &str = "haruhi_anon_sig";
+const VISITOR_SESSION_WINDOW_MINUTES: i64 = 10;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -455,7 +456,7 @@ async fn map_artworks_with_names(state: &AppState, rows: &[ArtRow]) -> Vec<Value
 // 公开接口
 // ============================================================
 
-// 0. 真实唯一访客计数：复用 art 匿名 Cookie，同一浏览器刷新不重复计入访客总数。
+// 0. 访客计数：复用 art 匿名 Cookie；同一身份超过 10 分钟未访问，再计作一次独立访问。
 async fn record_visitor(State(state): State<AppState>, headers: HeaderMap) -> AppResult<Response> {
     let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
     let now = now_iso();
@@ -470,24 +471,48 @@ async fn record_visitor(State(state): State<AppState>, headers: HeaderMap) -> Ap
     .bind(&now)
     .execute(&state.pools.art)
     .await?;
-    let is_new = insert.rows_affected() > 0;
+    let is_new_visitor = insert.rows_affected() > 0;
+    let mut counted_visit = is_new_visitor;
 
-    if !is_new {
-        sqlx::query(
-            "UPDATE art_visitors SET last_seen_at=?, visit_count=visit_count+1 WHERE anon_id=?",
+    if !is_new_visitor {
+        let counted = sqlx::query(
+            "UPDATE art_visitors
+             SET last_seen_at=?, visit_count=visit_count+1
+             WHERE anon_id=?
+               AND datetime(last_seen_at, '+' || ? || ' minutes') < datetime(?)",
         )
         .bind(&now)
         .bind(&anon_id)
+        .bind(VISITOR_SESSION_WINDOW_MINUTES)
+        .bind(&now)
         .execute(&state.pools.art)
         .await?;
+        counted_visit = counted.rows_affected() > 0;
+
+        if !counted_visit {
+            sqlx::query("UPDATE art_visitors SET last_seen_at=? WHERE anon_id=?")
+                .bind(&now)
+                .bind(&anon_id)
+                .execute(&state.pools.art)
+                .await?;
+        }
     }
 
-    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM art_visitors")
+    let total: i64 = sqlx::query_scalar("SELECT COALESCE(SUM(visit_count), 0) FROM art_visitors")
+        .fetch_one(&state.pools.art)
+        .await?;
+    let unique_visitors: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM art_visitors")
         .fetch_one(&state.pools.art)
         .await?;
 
     Ok(json_with_cookie(
-        json!({ "ok": true, "total": total, "isNew": is_new }),
+        json!({
+            "ok": true,
+            "total": total,
+            "isNew": counted_visit,
+            "isNewVisitor": is_new_visitor,
+            "uniqueVisitors": unique_visitors
+        }),
         set,
     ))
 }

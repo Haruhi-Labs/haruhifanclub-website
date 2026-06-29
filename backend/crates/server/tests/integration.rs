@@ -8,7 +8,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::header::{COOKIE, SET_COOKIE};
+use axum::http::{HeaderMap, Request, StatusCode};
 use axum::Router;
 use haruhi_auth::hash_password;
 use haruhi_core::{Config, MailConfig};
@@ -126,6 +127,35 @@ async fn send(router: &Router, req: Request<Body>) -> (StatusCode, Value) {
         serde_json::from_slice(&bytes).unwrap_or(Value::Null)
     };
     (status, json)
+}
+
+async fn send_full(router: &Router, req: Request<Body>) -> (StatusCode, HeaderMap, Value) {
+    let resp = router.clone().oneshot(req).await.unwrap();
+    let status = resp.status();
+    let headers = resp.headers().clone();
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let json = if bytes.is_empty() {
+        Value::Null
+    } else {
+        serde_json::from_slice(&bytes).unwrap_or(Value::Null)
+    };
+    (status, headers, json)
+}
+
+fn post_json_with_cookie(path: &str, body: Value, cookie: &str) -> Request<Body> {
+    let mut req = post_json(path, body, None);
+    req.headers_mut().insert(COOKIE, cookie.parse().unwrap());
+    req
+}
+
+fn cookie_header_from_set_cookie(headers: &HeaderMap) -> String {
+    headers
+        .get_all(SET_COOKIE)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .filter_map(|value| value.split(';').next())
+        .collect::<Vec<_>>()
+        .join("; ")
 }
 
 async fn login(router: &Router, user: &str, pass: &str) -> String {
@@ -396,6 +426,68 @@ async fn art_list_pagination_math() {
     .await;
     assert_eq!(p2["total"], 8);
     assert_eq!(p2["data"].as_array().unwrap().len(), 2, "次页 2 条");
+}
+
+#[tokio::test]
+async fn art_visitors_count_independent_visit_after_ten_minutes() {
+    let app = setup().await;
+
+    let (s, headers, first) =
+        send_full(&app.router, post_json("/api/art/visitors", json!({}), None)).await;
+    assert_eq!(s, StatusCode::OK, "首次访客统计应成功: {first:?}");
+    assert_eq!(first["ok"], true);
+    assert_eq!(first["total"], 1);
+    assert_eq!(first["uniqueVisitors"], 1);
+    assert_eq!(first["isNew"], true);
+    assert_eq!(first["isNewVisitor"], true);
+
+    let cookie = cookie_header_from_set_cookie(&headers);
+    assert!(
+        cookie.contains("haruhi_anon=") && cookie.contains("haruhi_anon_sig="),
+        "首次响应应下发匿名身份 Cookie，实际: {cookie}"
+    );
+
+    let (s, second) = send(
+        &app.router,
+        post_json_with_cookie("/api/art/visitors", json!({}), &cookie),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(
+        second["total"], 1,
+        "10 分钟内重复访问不增加总数: {second:?}"
+    );
+    assert_eq!(second["uniqueVisitors"], 1);
+    assert_eq!(second["isNew"], false);
+    assert_eq!(second["isNewVisitor"], false);
+
+    let old_seen = (chrono::Utc::now() - chrono::Duration::minutes(11))
+        .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    sqlx::query("UPDATE art_visitors SET last_seen_at=?")
+        .bind(old_seen)
+        .execute(&app.state.pools.art)
+        .await
+        .unwrap();
+
+    let (s, third) = send(
+        &app.router,
+        post_json_with_cookie("/api/art/visitors", json!({}), &cookie),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(
+        third["total"], 2,
+        "同一匿名身份超过 10 分钟后应计作新的独立访问: {third:?}"
+    );
+    assert_eq!(third["uniqueVisitors"], 1);
+    assert_eq!(third["isNew"], true);
+    assert_eq!(third["isNewVisitor"], false);
+
+    let stored_count: i64 = sqlx::query_scalar("SELECT visit_count FROM art_visitors")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+    assert_eq!(stored_count, 2);
 }
 
 #[tokio::test]
