@@ -83,14 +83,15 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { api } from '../services/api.js'
 
 const activeCategory = ref('activity')
 const selectedNoticeId = ref(null)
 
-// 公告暂未接入后端：生产显示空态。下方硬编码示例仅本地开发预览页面设计用，
-// 生产构建（import.meta.env.DEV=false）会被 tree-shake 掉，绝不进生产包，也绝不在线上展示。
-const notices = import.meta.env.DEV ? [
+// 公告改为后端驱动。下方硬编码示例仅本地开发无后端时的离线预览兜底，
+// 生产构建（import.meta.env.DEV=false）会被 tree-shake 掉，绝不进生产包。
+const seedNotices = import.meta.env.DEV ? [
   {
     id: 'activity-20260624',
     category: 'activity',
@@ -163,11 +164,45 @@ const categoryLabels = {
   maintenance: '维护公告'
 }
 
+const notices = ref([])
+
+// 后端公告 → 视图形态：从 publishedAt（形如 2026-06-24...）解析展示日期，type 由 category 映射。
+function toViewNotice(a) {
+  const raw = String(a.publishedAt || a.createdAt || '')
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  const [yy, mm, dd] = m ? [m[1], m[2], m[3]] : ['', '', '']
+  return {
+    id: String(a.id),
+    category: a.category || 'activity',
+    date: raw,
+    month: mm,
+    day: dd,
+    displayDate: m ? `${yy}.${mm}.${dd}` : '',
+    type: categoryLabels[a.category] || '公告',
+    title: a.title || '',
+    summary: a.summary || '',
+    body: a.body || '',
+    tags: Array.isArray(a.tags) ? a.tags : []
+  }
+}
+
+async function loadAnnouncements() {
+  try {
+    const res = await api.announcements()
+    notices.value = Array.isArray(res?.data) ? res.data.map(toViewNotice) : []
+  } catch {
+    // 本地开发无后端：回落到示例便于预览设计；生产保持空态（不展示 mock）。
+    notices.value = seedNotices
+  }
+}
+
+onMounted(loadAnnouncements)
+
 const noticeCategories = computed(() =>
   Object.entries(categoryLabels).map(([id, label]) => ({
     id,
     label,
-    count: notices.filter((notice) => notice.category === id).length
+    count: notices.value.filter((notice) => notice.category === id).length
   }))
 )
 
@@ -176,7 +211,7 @@ const currentCategory = computed(() =>
 )
 
 const filteredNotices = computed(() =>
-  notices
+  notices.value
     .filter((notice) => notice.category === activeCategory.value)
     .slice()
     .sort((a, b) => new Date(b.date) - new Date(a.date))
