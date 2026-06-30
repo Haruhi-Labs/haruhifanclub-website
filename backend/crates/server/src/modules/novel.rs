@@ -3,7 +3,9 @@
 
 use std::path::{Path as FsPath, PathBuf};
 
-use axum::extract::{Multipart, Path, State};
+use axum::extract::{Multipart, Path, Query, State};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, patch, post};
 use axum::{Json, Router};
 use haruhi_auth::{authorize, Action, AuthUser};
@@ -27,6 +29,7 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/books", get(list_books))
         .route("/books/{id}", get(get_book))
+        .route("/thumb", get(cover_thumb))
         .route("/admin/upload", post(upload))
         .route("/admin/books/{id}", patch(update_book).delete(delete_book))
 }
@@ -240,6 +243,125 @@ async fn delete_book(
         .execute(&state.pools.novel)
         .await?;
     Ok(Json(json!({ "success": true })))
+}
+
+// ---------- 封面缩略图 ----------
+// GET /api/novel/thumb?path=novel/covers/x.png&w=320
+// 书架仅显示小图，原始封面常达 2MB+。本端点用 libvips 生成限宽 WebP 并磁盘缓存
+// （uploads/novel/.thumbs/<w>/<path>.webp）：首访生成、其后直接读缓存；封面文件名带
+// 时间戳（内容唯一）故可 immutable 强缓存。生成失败回退原图，保证书架不裂。
+
+/// 允许的缩略宽度白名单（防御任意 w 撑爆缓存目录）。书架封面用小尺寸即可。
+const COVER_THUMB_WIDTHS: &[u32] = &[160, 320, 480];
+/// 缩略图 WebP 质量（vips webpsave 的 Q 参数，0-100）。
+const COVER_THUMB_QUALITY: u8 = 80;
+/// 生成并发闸：libvips 内存有界，但冷缓存下书架会同时回源多张；限并发=2（对齐生产 2 核）。
+static COVER_THUMB_GATE: std::sync::LazyLock<tokio::sync::Semaphore> =
+    std::sync::LazyLock::new(|| tokio::sync::Semaphore::new(2));
+
+#[derive(serde::Deserialize)]
+struct ThumbQuery {
+    path: String,
+    w: Option<u32>,
+}
+
+/// 校验并规范化 path：必须是 uploads 根下 novel/ 内的相对路径，拒绝任何穿越成分。
+fn sanitize_cover_path(raw: &str) -> Option<String> {
+    let p = raw.trim().trim_start_matches('/');
+    if !p.starts_with("novel/") || p.contains('\\') || p.contains('\0') {
+        return None;
+    }
+    if p.split('/')
+        .any(|seg| seg.is_empty() || seg == "." || seg == "..")
+    {
+        return None;
+    }
+    Some(p.to_string())
+}
+
+/// 源封面（novel/ 相对路径）在宽度 w 下的缩略缓存磁盘路径。
+fn cover_thumb_cache_path(state: &AppState, rel: &str, w: u32) -> PathBuf {
+    let ext = haruhi_media::ext_of(rel, "");
+    state
+        .cfg
+        .uploads_subdir("novel")
+        .join(".thumbs")
+        .join(w.to_string())
+        .join(rel.trim_start_matches("novel/"))
+        .with_extension(format!("{ext}.webp"))
+}
+
+/// 用 libvips 生成缩略图并原子落盘到缓存（tmp + rename，防并发读到半成品）。
+async fn build_cover_thumb(src: &FsPath, w: u32, cache: &FsPath) -> AppResult<()> {
+    let _permit = COVER_THUMB_GATE
+        .acquire()
+        .await
+        .map_err(|e| AppError::internal(format!("缩略图限流器异常: {e}")))?;
+    if let Some(dir) = cache.parent() {
+        tokio::fs::create_dir_all(dir)
+            .await
+            .map_err(|e| AppError::internal(format!("缩略图缓存目录创建失败: {e}")))?;
+    }
+    let tmp = cache.with_extension(format!("tmp{:x}.webp", rand::random::<u64>()));
+    match haruhi_media::thumbnail_webp_vips(src, &tmp, w, COVER_THUMB_QUALITY).await {
+        Ok(()) => {
+            if tokio::fs::rename(&tmp, cache).await.is_err() {
+                let _ = tokio::fs::remove_file(&tmp).await;
+                return Err(AppError::internal("缩略图落盘失败"));
+            }
+            Ok(())
+        }
+        Err(e) => {
+            let _ = tokio::fs::remove_file(&tmp).await;
+            Err(AppError::internal(format!("缩略图生成失败: {e}")))
+        }
+    }
+}
+
+async fn cover_thumb(
+    State(state): State<AppState>,
+    Query(q): Query<ThumbQuery>,
+) -> AppResult<Response> {
+    let w = q.w.unwrap_or(320);
+    if !COVER_THUMB_WIDTHS.contains(&w) {
+        return Err(AppError::bad_request("不支持的缩略宽度"));
+    }
+    let rel = sanitize_cover_path(&q.path).ok_or_else(|| AppError::bad_request("非法路径"))?;
+
+    // gif（动图）/ svg（矢量）不转码，直接交回静态服务，保留原始观感
+    let ext = haruhi_media::ext_of(&rel, "");
+    if ext == "gif" || ext == "svg" {
+        return Ok(Redirect::permanent(&format!("/uploads/{rel}")).into_response());
+    }
+
+    let src = state.cfg.uploads_dir.join(&rel);
+    let cache = cover_thumb_cache_path(&state, &rel, w);
+
+    // 缓存未命中才生成。源不存在→404；生成失败（vips 缺失/坏图）→回退原图（302），
+    // 保证书架不裂，且 vips 修复后下次访问会重新生成。
+    if tokio::fs::metadata(&cache).await.is_err() {
+        if tokio::fs::metadata(&src).await.is_err() {
+            return Err(AppError::not_found("封面不存在"));
+        }
+        if let Err(e) = build_cover_thumb(&src, w, &cache).await {
+            tracing::warn!(rel = %rel, error = %e, "封面缩略图生成失败，回退原图");
+            return Ok(Redirect::temporary(&format!("/uploads/{rel}")).into_response());
+        }
+    }
+
+    let bytes = tokio::fs::read(&cache)
+        .await
+        .map_err(|_| AppError::internal("缩略图读取失败"))?;
+    Ok((
+        StatusCode::OK,
+        [
+            ("Content-Type", "image/webp"),
+            // 封面文件名带时间戳（内容唯一），可放心 immutable 强缓存
+            ("Cache-Control", "public, max-age=31536000, immutable"),
+        ],
+        bytes,
+    )
+        .into_response())
 }
 
 // ---------- 辅助 ----------

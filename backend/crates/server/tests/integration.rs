@@ -884,3 +884,56 @@ async fn comment_uses_nickname_for_member_and_rejects_anonymous() {
         .unwrap();
     assert_eq!(leaked, 0, "未登录评论不应落库");
 }
+
+// 书架封面缩略图端点：校验白名单宽度 / novel 前缀 / 路径穿越 / 源存在性；
+// 合法封面在有 vips 时返回 200 webp，无 vips 时回退原图重定向（两者皆非 4xx/5xx）。
+#[tokio::test]
+async fn novel_cover_thumb_validates_and_serves() {
+    let app = setup().await;
+    let covers = app.state.cfg.uploads_dir.join("novel").join("covers");
+    std::fs::create_dir_all(&covers).unwrap();
+    std::fs::write(covers.join("c1.png"), b"\x89PNG\r\n\x1a\n-fake-bytes").unwrap();
+
+    // 合法封面：有 vips → 200 webp；无 vips → 回退原图重定向（3xx）。不得是错误。
+    let (s, _) = send(
+        &app.router,
+        get("/api/novel/thumb?path=novel/covers/c1.png&w=320", None),
+    )
+    .await;
+    assert!(
+        s == StatusCode::OK || s.is_redirection(),
+        "合法封面应 200 或回退重定向，实际 {s}"
+    );
+
+    // 非白名单宽度 → 400
+    let (s, _) = send(
+        &app.router,
+        get("/api/novel/thumb?path=novel/covers/c1.png&w=999", None),
+    )
+    .await;
+    assert_eq!(s, StatusCode::BAD_REQUEST, "非白名单宽度应 400");
+
+    // 越权前缀（art/）→ 400
+    let (s, _) = send(
+        &app.router,
+        get("/api/novel/thumb?path=art/x.png&w=320", None),
+    )
+    .await;
+    assert_eq!(s, StatusCode::BAD_REQUEST, "非 novel/ 前缀应 400");
+
+    // 路径穿越 → 400
+    let (s, _) = send(
+        &app.router,
+        get("/api/novel/thumb?path=novel/../secret.png&w=320", None),
+    )
+    .await;
+    assert_eq!(s, StatusCode::BAD_REQUEST, "路径穿越应 400");
+
+    // 源不存在 → 404
+    let (s, _) = send(
+        &app.router,
+        get("/api/novel/thumb?path=novel/covers/missing.png&w=320", None),
+    )
+    .await;
+    assert_eq!(s, StatusCode::NOT_FOUND, "封面不存在应 404");
+}

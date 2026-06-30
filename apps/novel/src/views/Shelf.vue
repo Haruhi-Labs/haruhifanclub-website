@@ -79,6 +79,8 @@
                   :src="getCoverSrc(book)"
                   :alt="book.title"
                   loading="lazy"
+                  decoding="async"
+                  @error="onCoverError(book, $event)"
                 />
                 <span v-else class="sos-book-card__vertical" aria-hidden="true">{{
                   book.title.charAt(0)
@@ -125,120 +127,38 @@ const BOOK_CATEGORY_MAP = {};
 // 展开状态
 const expandedKeys = ref(new Set());
 
-// 用于缓存每本书压缩后的 webp 封面：{ [bookId]: dataUrl }
-const compressedCovers = ref({});
+// 书架封面走服务端缩略图：原图常达 2MB+，此处请求限宽 WebP，首屏不再下载原图。
+const COVER_THUMB_WIDTH = 320;
 
-// ------------ 工具方法：原始封面 URL ------------
-// 注意：不要把扩展名改写成 .webp——服务器上没有同名 webp 副本（旧站遗留假设），
-// 改写会让全部 png/jpeg 封面 404。展示侧的体积优化由下方 canvas 压缩缓存承担。
+// 原始封面 URL（仅作缩略图不可用时的兜底）。
 const getCoverUrl = (path) => {
   if (!path) return '';
   return resolveUploadUrl(path);
 };
 
 
-// ------------ 工具方法：压缩图片为 webp ------------
-const compressImageToWebp = (url, quality = 0.8) => {
-  return new Promise((resolve, reject) => {
-    try {
-      const img = new Image();
-
-      // 如前后端是不同域名，且服务器允许跨域，这个有利于避免 canvas 污染
-      img.crossOrigin = 'anonymous';
-
-      img.onload = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-
-          const { naturalWidth, naturalHeight } = img;
-
-          // 书架封面一般不需要原始超大分辨率，可在这里做一次简单缩放
-          const maxWidth = 800; // 控制最大宽度，防止特别大的图
-          let targetWidth = naturalWidth;
-          let targetHeight = naturalHeight;
-
-          if (naturalWidth > maxWidth) {
-            const scale = maxWidth / naturalWidth;
-            targetWidth = maxWidth;
-            targetHeight = Math.round(naturalHeight * scale);
-          }
-
-          canvas.width = targetWidth;
-          canvas.height = targetHeight;
-
-          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-
-          // 使用 toBlob 得到 webp，再转成 dataURL
-          canvas.toBlob(
-            (blob) => {
-              if (!blob) {
-                // 兜底：如果失败，就用原图
-                console.warn('WebP 压缩失败，使用原图显示:', url);
-                resolve(url);
-                return;
-              }
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                resolve(reader.result); // dataURL
-              };
-              reader.readAsDataURL(blob);
-            },
-            'image/webp',
-            quality
-          );
-        } catch (err) {
-          console.error('压缩图片时出错:', err);
-          resolve(url); // 出错时退回原图
-        }
-      };
-
-      img.onerror = (e) => {
-        console.error('图片加载失败:', url, e);
-        resolve(url); // 加载失败也退回原图
-      };
-
-      img.src = url;
-    } catch (err) {
-      console.error('compressImageToWebp 异常:', err);
-      resolve(url);
-    }
-  });
-};
-
-// ------------ 在获取到书本数据后，批量预压缩封面 ------------
-const precompressCovers = async (bookList) => {
-  const cache = { ...compressedCovers.value };
-
-  const tasks = bookList
-    .filter((b) => b.cover_path && !cache[b.id])
-    .map(async (b) => {
-      const url = getCoverUrl(b.cover_path);
-      const webpDataUrl = await compressImageToWebp(url, 0.7);
-      cache[b.id] = webpDataUrl;
-    });
-
-  if (tasks.length) {
-    await Promise.allSettled(tasks);
-    compressedCovers.value = cache;
-  }
-};
-
-// 供模板使用：优先返回 webp 封面
+// 模板用：返回服务端缩略图地址（限宽 WebP、磁盘缓存、immutable 强缓存）。
 const getCoverSrc = (book) => {
-  if (book?.id && compressedCovers.value[book.id]) {
-    return compressedCovers.value[book.id];
+  const p = book?.cover_path;
+  if (!p) return '';
+  return `${API_BASE}/thumb?path=${encodeURIComponent(p)}&w=${COVER_THUMB_WIDTH}`;
+};
+
+// 缩略图加载失败时回退原图（仅一次，防循环）。
+const onCoverError = (book, e) => {
+  const img = e?.target;
+  if (!img || img.dataset.fellBack) return;
+  const orig = getCoverUrl(book?.cover_path);
+  if (orig) {
+    img.dataset.fellBack = '1';
+    img.src = orig;
   }
-  // 压缩过程未完成或者失败时，先用原图兜底
-  return getCoverUrl(book.cover_path);
 };
 
 const fetchBooks = async () => {
   try {
     const res = await axios.get(`${API_BASE}/books`);
     books.value = res.data || [];
-    // 拿到 books 后，开始预压缩封面
-    precompressCovers(books.value);
   } catch (e) {
     console.error(e);
   } finally {
