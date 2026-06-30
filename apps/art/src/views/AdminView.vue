@@ -641,6 +641,12 @@
               委托管理
             </button>
             <button
+              :class="['sub-tab', guildTab === 'questClaims' && 'on']"
+              @click="switchGuildTab('questClaims')"
+            >
+              委托验收
+            </button>
+            <button
               :class="['sub-tab', guildTab === 'rewards' && 'on']"
               @click="switchGuildTab('rewards')"
             >
@@ -1433,6 +1439,31 @@
             </section>
           </div>
 
+          <div v-if="guildTab === 'questClaims'" class="guild-list single">
+            <article v-for="item in guildQuestClaims" :key="item.id" class="guild-manage-row">
+              <div>
+                <div class="m-title">
+                  {{ item.questTitle }} · {{ item.name || item.uid }}
+                </div>
+                <div class="m-info">
+                  <span class="tag">{{ guildClaimStatusLabel(item.status) }}</span>
+                  <span class="tag">进度 {{ item.progress }}/{{ item.targetCount }}</span>
+                  <span class="tag">声望 +{{ item.rewardReputation }}</span>
+                  <span v-if="item.rewardCoins > 0" class="tag">金币 +{{ item.rewardCoins }}</span>
+                  <span v-if="item.claimedAt" class="tag">接取 {{ formatDateTime(item.claimedAt) }}</span>
+                  <span v-if="item.cycleEndAt" class="tag">截止 {{ formatDateTime(item.cycleEndAt) }}</span>
+                  <span v-if="item.reviewedAt" class="tag">处理 {{ formatDateTime(item.reviewedAt) }}</span>
+                  <span v-if="item.adminNote" class="tag">备注：{{ item.adminNote }}</span>
+                </div>
+              </div>
+              <div v-if="item.status === 'active'" class="guild-row-actions">
+                <button class="btn-ghost sm" @click="approveQuestClaim(item)">批准</button>
+                <button class="btn-ghost danger sm" @click="rejectQuestClaim(item)">拒绝</button>
+              </div>
+            </article>
+            <div v-if="!guildQuestClaims.length" class="empty-ph">暂无待验收委托</div>
+          </div>
+
           <div v-if="guildTab === 'redemptions'" class="guild-list single">
             <article v-for="item in guildRedemptions" :key="item.id" class="guild-manage-row">
               <div>
@@ -1807,6 +1838,7 @@ const guildRewardPage = ref('list')
 const guildMsg = ref('')
 const guildSaving = ref(false)
 const guildQuests = ref([])
+const guildQuestClaims = ref([])
 const guildRewards = ref([])
 const guildRedemptions = ref([])
 const guildRatings = ref([])
@@ -2194,6 +2226,9 @@ async function loadGuildAdmin() {
   if (guildTab.value === 'quests') {
     const res = await api.adminGuildQuests()
     guildQuests.value = res.data || []
+  } else if (guildTab.value === 'questClaims') {
+    const res = await api.adminGuildQuestClaims()
+    guildQuestClaims.value = res.data || []
   } else if (guildTab.value === 'rewards') {
     const res = await api.adminGuildRewards()
     guildRewards.value = res.data || []
@@ -2411,6 +2446,43 @@ async function deleteGuildReward(reward) {
 function adminNote(defaultText = '') {
   const note = window.prompt('管理员备注：', defaultText)
   return note === null ? null : note
+}
+
+function formatDateTime(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
+function guildClaimStatusLabel(status) {
+  const map = {
+    active: '待验收',
+    completed: '已通过',
+    rejected: '未通过',
+    expired: '已截止',
+  }
+  return map[status] || status
+}
+
+async function approveQuestClaim(item) {
+  const note = adminNote('委托验收通过')
+  if (note === null) return
+  await api.adminApproveGuildQuestClaim(item.id, note)
+  await loadGuildAdmin()
+}
+
+async function rejectQuestClaim(item) {
+  const note = adminNote('委托验收未通过')
+  if (note === null) return
+  await api.adminRejectGuildQuestClaim(item.id, note)
+  await loadGuildAdmin()
 }
 
 async function approveRedemption(item) {

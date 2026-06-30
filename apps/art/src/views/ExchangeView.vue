@@ -660,6 +660,8 @@ function questStatusRaw(quest) {
 function questStatusLabel(quest) {
   const status = questStatus(quest)
   if (status === 'completed') return '已完成'
+  if (status === 'rejected') return '未通过'
+  if (status === 'active' && quest.conditionKind === 'manual_admin_verify') return '待验收'
   if (status === 'active') return '进行中'
   if (status === 'locked') return '未解锁'
   if (status === 'expired') return '已截止'
@@ -680,7 +682,7 @@ function questProgressPercent(quest) {
 function questButtonDisabled(quest) {
   return (
     !quest.unlocked ||
-    ['completed', 'expired'].includes(questStatus(quest)) ||
+    ['completed', 'expired', 'rejected'].includes(questStatus(quest)) ||
     (quest.autoClaim && !!session.state.user)
   )
 }
@@ -689,7 +691,9 @@ function questButtonLabel(quest) {
   if (!session.state.user) return quest.autoClaim ? '登录参与' : '登录接取'
   if (!quest.unlocked) return '权限不足'
   if (status === 'completed') return '已结算'
+  if (status === 'rejected') return '未通过'
   if (status === 'expired') return '已截止'
+  if (status === 'active' && quest.conditionKind === 'manual_admin_verify') return '等待验收'
   if (quest.autoClaim) return status === 'active' ? '自动进行' : '自动接取'
   if (status === 'active') return `${questProgress(quest)}/${questTarget(quest)}`
   return '接取委托'
@@ -1509,6 +1513,10 @@ onUnmounted(() => {
 .g-quest__status.expired {
   color: color-mix(in srgb, #d2453a 82%, #000);
   background: color-mix(in srgb, #ef5350 14%, transparent);
+}
+.g-quest__status.rejected {
+  color: color-mix(in srgb, #a1322c 86%, #000);
+  background: color-mix(in srgb, #d2453a 12%, transparent);
 }
 .g-quest__body p {
   margin: 0;
