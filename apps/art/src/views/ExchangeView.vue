@@ -1964,6 +1964,18 @@ onUnmounted(() => {
 :global(html.art-lights-out .g-rulecard) {
   background: rgba(12, 22, 44, 0.5);
 }
+:global(html.art-lights-out .g-quest.is-done) {
+  border-color: color-mix(in srgb, var(--g-accent) 34%, rgba(120, 165, 220, 0.2));
+  background: rgba(16, 42, 48, 0.58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+:global(html.art-lights-out .g-quest.is-done:hover) {
+  background: rgba(19, 52, 58, 0.66);
+}
+:global(html.art-lights-out .g-quest__status.completed) {
+  background: rgba(42, 129, 132, 0.68);
+  color: rgba(235, 255, 250, 0.96);
+}
 :global(html.art-lights-out .g-feedback) {
   background: rgba(12, 22, 44, 0.45);
 }
