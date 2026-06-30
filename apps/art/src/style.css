@@ -272,6 +272,47 @@ html.art-lights-out .filter-panel-3d .btn-primary {
   color: #fff;
 }
 
+html.art-lights-out .filter-panel-3d .art-search {
+  border-color: rgba(128, 190, 255, 0.22);
+  background: rgba(7, 16, 32, 0.76);
+  color: rgba(232, 240, 255, 0.86);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 12px 28px rgba(0, 0, 0, 0.2);
+}
+
+html.art-lights-out .filter-panel-3d .art-search:focus-within {
+  border-color: rgba(105, 214, 255, 0.42);
+  box-shadow: 0 0 0 3px rgba(105, 214, 255, 0.14);
+}
+
+html.art-lights-out .filter-panel-3d .art-search__field {
+  border-right-color: rgba(148, 191, 255, 0.18);
+  color: rgba(199, 215, 238, 0.76);
+}
+
+html.art-lights-out .filter-panel-3d .sos-search__input {
+  color: rgba(241, 247, 255, 0.94);
+}
+
+html.art-lights-out .filter-panel-3d .sos-search__clear {
+  background: rgba(24, 43, 72, 0.78);
+  color: rgba(199, 215, 238, 0.82);
+}
+
+html.art-lights-out .filter-panel-3d .sos-search__clear:hover {
+  background: rgba(35, 63, 98, 0.86);
+  color: rgba(241, 247, 255, 0.96);
+}
+
+html.art-lights-out .filter-panel-3d .sos-search__submit {
+  background: rgba(34, 76, 108, 0.86);
+  color: rgba(232, 246, 255, 0.94);
+  box-shadow: inset 0 0 0 1px rgba(137, 205, 255, 0.18);
+}
+
+html.art-lights-out .filter-panel-3d .sos-search__submit:hover {
+  background: rgba(42, 94, 132, 0.92);
+}
+
 html.art-lights-out .gallery {
   --text-main: rgba(238, 244, 255, 0.95);
   --text-muted: rgba(210, 222, 242, 0.62);
@@ -420,6 +461,92 @@ html.art-lights-out .upload-page {
   --border: rgba(148, 191, 255, 0.16);
   --shadow-sm: 0 8px 18px rgba(0, 0, 0, 0.24);
   --shadow-md: 0 18px 36px rgba(0, 0, 0, 0.32);
+  --upl-accent: hsl(194, 86%, 66%);
+  --upl-accent-strong: color-mix(in srgb, var(--upl-accent) 74%, #d8f6ff);
+  --upl-accent-soft: rgba(92, 198, 255, 0.16);
+  --upl-glass: rgba(10, 20, 39, 0.68);
+  --upl-glass-line: rgba(148, 191, 255, 0.18);
+  --upl-text: rgba(241, 247, 255, 0.95);
+  --upl-muted: rgba(199, 215, 238, 0.72);
+}
+
+html.art-lights-out .upload-block {
+  background: var(--upl-glass);
+  border-color: var(--upl-glass-line);
+  box-shadow: 0 20px 44px -28px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+html.art-lights-out .upload-license__col,
+html.art-lights-out .upload-suggest {
+  background: rgba(9, 18, 35, 0.78);
+  border-color: var(--upl-glass-line);
+  box-shadow: 0 18px 42px -18px rgba(0, 0, 0, 0.48);
+}
+
+html.art-lights-out .upload-page .sos-input,
+html.art-lights-out .upload-page .sos-textarea,
+html.art-lights-out .upload-page .sos-select {
+  border-color: rgba(148, 191, 255, 0.14);
+  background: rgba(6, 14, 29, 0.78);
+  color: rgba(241, 247, 255, 0.94);
+}
+
+html.art-lights-out .upload-page .sos-input::placeholder,
+html.art-lights-out .upload-page .sos-textarea::placeholder {
+  color: rgba(199, 215, 238, 0.5);
+}
+
+html.art-lights-out .upload-page .sos-input:hover,
+html.art-lights-out .upload-page .sos-textarea:hover,
+html.art-lights-out .upload-page .sos-input:focus,
+html.art-lights-out .upload-page .sos-textarea:focus {
+  background: rgba(11, 24, 46, 0.94);
+  border-color: rgba(105, 214, 255, 0.48);
+  box-shadow: 0 0 0 3px rgba(105, 214, 255, 0.14);
+}
+
+html.art-lights-out .upload-page .sos-field .sos-input[readonly] {
+  background: rgba(11, 24, 46, 0.72);
+}
+
+html.art-lights-out .upload-page .sos-segmented {
+  background: rgba(3, 9, 20, 0.5);
+  border-color: rgba(148, 191, 255, 0.14);
+}
+
+html.art-lights-out .upload-page .sos-segmented__item {
+  color: rgba(199, 215, 238, 0.76);
+}
+
+html.art-lights-out .upload-page .sos-segmented__item[aria-pressed='true'] {
+  background: rgba(31, 61, 101, 0.78);
+  color: rgba(241, 247, 255, 0.96);
+}
+
+html.art-lights-out .upload-loginhint,
+html.art-lights-out .upload-tag,
+html.art-lights-out .upload-tag-mini {
+  background: rgba(20, 47, 75, 0.72);
+}
+
+html.art-lights-out .upload-drop {
+  border-color: rgba(105, 214, 255, 0.34);
+  background: rgba(8, 19, 36, 0.7);
+}
+
+html.art-lights-out .upload-drop:hover,
+html.art-lights-out .upload-suggest__item:hover {
+  background: rgba(18, 37, 66, 0.86);
+}
+
+html.art-lights-out .upload-msg.is-error {
+  background: rgba(127, 29, 29, 0.42);
+  color: #fecaca;
+}
+
+html.art-lights-out .upload-msg.is-ok {
+  background: rgba(6, 95, 70, 0.36);
+  color: #bbf7d0;
 }
 
 html.art-lights-out .main-form,
