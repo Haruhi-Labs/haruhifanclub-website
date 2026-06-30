@@ -250,12 +250,16 @@ const images = computed(() => {
 const currentImgSrc = computed(() => images.value[currentIndex.value]?.image_url || '')
 const currentOriginalUrl = computed(() => images.value[currentIndex.value]?.original_url || '')
 
-// --- 渐进式加载逻辑：缩略图（网格已缓存，秒显）→ 展示图 → 原图 ---
+// --- 渐进式加载逻辑：缩略图（网格已缓存，秒显）→ 展示图；放大时再加载原图 ---
 const displaySrc = ref('')
+const originalLoadedFor = ref('')
+let imageLoadVersion = 0
 
 watch([currentIndex, art, visible], () => {
   // 弹窗未打开不预载（当前父组件隐藏时会清空 item，这里再兜一层防御）
   if (!visible.value) return
+  const version = ++imageLoadVersion
+  originalLoadedFor.value = ''
   // 1. 立即显示网格同款 640px 缩略图（命中浏览器缓存，无需等待）
   const mid = currentImgSrc.value
   displaySrc.value = thumbUrl(mid, 640)
@@ -267,26 +271,34 @@ watch([currentIndex, art, visible], () => {
     const img = new Image()
     img.src = mid
     img.onload = () => {
-      if (currentImgSrc.value === mid) displaySrc.value = mid
+      const originalLoaded = originalLoadedFor.value === currentOriginalUrl.value
+      if (imageLoadVersion === version && currentImgSrc.value === mid && !originalLoaded) {
+        displaySrc.value = mid
+      }
       resolve()
     }
     img.onerror = () => resolve()
   })
 
-  // 3. 最后后台加载原图
   loadMid().then(() => {
-    const highRes = currentOriginalUrl.value
-    if (highRes && highRes !== displaySrc.value) {
-      const img = new Image()
-      img.src = highRes
-      img.onload = () => {
-        if (currentOriginalUrl.value === highRes) {
-          displaySrc.value = highRes
-        }
-      }
-    }
+    if (scale.value > 1) loadOriginalForZoom(version)
   })
 }, { immediate: true })
+
+function loadOriginalForZoom(version = imageLoadVersion) {
+  const highRes = currentOriginalUrl.value
+  if (!visible.value || !highRes || highRes === displaySrc.value || originalLoadedFor.value === highRes) return
+
+  const img = new Image()
+  img.src = highRes
+  img.onload = () => {
+    const needsHighRes = scale.value > 1 || isMobileExpanded.value
+    if (imageLoadVersion === version && currentOriginalUrl.value === highRes && needsHighRes) {
+      originalLoadedFor.value = highRes
+      displaySrc.value = highRes
+    }
+  }
+}
 
 // 切换图片
 function nextImage() {
@@ -364,6 +376,10 @@ const translateX = ref(0)
 const translateY = ref(0)
 const isDragging = ref(false)
 const mediaContainer = ref(null)
+
+watch(scale, (value) => {
+  if (value > 1) loadOriginalForZoom()
+})
 
 // 移动端专用状态
 const isMobileExpanded = ref(false) // 是否处于全屏查看模式
@@ -475,6 +491,7 @@ function handleImageClick(e) {
     if (!isMobileExpanded.value) {
       isMobileExpanded.value = true
       resetZoom()
+      loadOriginalForZoom()
     } else {
       isMobileExpanded.value = false
       resetZoom()
