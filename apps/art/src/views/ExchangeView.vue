@@ -355,6 +355,21 @@
             <ul>
               <li v-for="line in book.lines" :key="line">{{ line }}</li>
             </ul>
+            <div v-for="table in book.tables || []" :key="table.title" class="g-rule-table">
+              <h4>{{ table.title }}</h4>
+              <table>
+                <thead>
+                  <tr>
+                    <th v-for="head in table.headers" :key="head">{{ head }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in table.rows" :key="row.join('-')">
+                    <td v-for="cell in row" :key="cell">{{ cell }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </article>
         </div>
       </section>
@@ -457,7 +472,43 @@ const ruleBooks = [
     lines: [
       '评级从 F 到 X 逐级提升，代表你在画廊中的长期贡献与观测资历。',
       '声望决定冒险者等级，评级提升还需要满足凉宫个人作品数量等条件。',
+      '评级申请在满足下一评级条件后自动提交，由管理员验收通过后生效。',
+      '凉宫个人作品数量仅统计已审核通过的个人来源凉宫作品。',
+      '冒险者等级按公式计算：等级 = floor(声望 / 100) + 1。',
       '评级提升后会解锁更困难的委托，困难委托通常给予大量声望。',
+    ],
+    tables: [
+      {
+        title: '评级申请条件',
+        headers: ['评级', '最低声望', '通过审核的凉宫个人作品'],
+        rows: [
+          ['F', '0', '0（初始评级）'],
+          ['E', '100', '1'],
+          ['D', '300', '2'],
+          ['C', '800', '4'],
+          ['B', '1500', '7'],
+          ['A', '3000', '12'],
+          ['S', '6000', '20'],
+          ['X', '12000', '35'],
+        ],
+      },
+      {
+        title: '等级与声望门槛',
+        headers: ['等级', '最低声望'],
+        rows: [
+          ['1', '0'],
+          ['2', '100'],
+          ['3', '200'],
+          ['4', '300'],
+          ['5', '400'],
+          ['9', '800'],
+          ['10', '900'],
+          ['16', '1500'],
+          ['31', '3000'],
+          ['61', '6000'],
+          ['121', '12000'],
+        ],
+      },
     ],
   },
   {
@@ -1269,6 +1320,45 @@ onUnmounted(() => {
   font-size: 13px;
   line-height: 1.6;
   color: var(--g-muted);
+}
+.g-rule-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-x: auto;
+}
+.g-rule-table h4 {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--g-text);
+}
+.g-rule-table table {
+  width: 100%;
+  min-width: 320px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.g-rule-table th,
+.g-rule-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--g-line);
+  text-align: left;
+  color: var(--g-muted);
+}
+.g-rule-table th {
+  background: color-mix(in srgb, var(--g-accent) 8%, transparent);
+  color: var(--g-text);
+  font-weight: 800;
+}
+.g-rule-table tr:last-child td {
+  border-bottom: 0;
+}
+.g-rule-table th:first-child,
+.g-rule-table td:first-child {
+  font-family: var(--mono);
+  color: var(--g-text);
+  white-space: nowrap;
 }
 
 /* ============ 右栏 终端 ============ */
