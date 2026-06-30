@@ -2,7 +2,7 @@
 import { useRouter } from 'vue-router'
 import { useMainStore } from '@/stores/main'
 import { SosAppbar } from '@haruhi/ui'
-import { AccountMenu } from '@haruhi/auth-ui'
+import { AccountMenu, AccountAvatarLink } from '@haruhi/auth-ui'
 
 defineProps({
   // 博客详情页等深色 hero 之上时，页头转透明叠加态
@@ -58,6 +58,11 @@ const navLinks = [
       </button>
 
       <AccountMenu />
+    </template>
+
+    <!-- 移动端：头像快捷入口提到汉堡左侧，点头像直达个人中心 -->
+    <template #mobile-lead>
+      <AccountAvatarLink />
     </template>
   </SosAppbar>
 </template>

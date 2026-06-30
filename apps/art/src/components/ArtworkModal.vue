@@ -171,26 +171,33 @@
           <div class="sep"></div>
 
           <div class="panel input-panel">
-            <div class="small-muted" style="font-weight: 950; margin-bottom:8px; color:var(--accent);">讲两句？</div>
+            <!-- 登录用户：自动以账号昵称署名，无需填写署名，只留作曲框 -->
+            <template v-if="isLoggedIn">
+              <div class="input-panel__head">
+                <span class="input-panel__title">讲两句？</span>
+                <span class="comment-signas">以 <strong>{{ accountNickname || '账号昵称' }}</strong> 署名</span>
+              </div>
 
-            <div class="search input-row" style="margin-bottom:10px;">
-              <span class="hint">署名</span>
-              <input v-model="commentName" placeholder="无需登录，但可不要冒充别人哦！" />
-            </div>
+              <div class="search input-row" style="height:auto; padding: 10px 12px;">
+                <textarea
+                  v-model="commentBody"
+                  rows="3"
+                  placeholder="下面我来简单喵两句.."
+                  style="width:100%; border:none; outline:none; background:transparent; resize: vertical; font-weight:500;"
+                ></textarea>
+              </div>
 
-            <div class="search input-row" style="height:auto; padding: 10px 12px;">
-              <textarea
-                v-model="commentBody"
-                rows="3"
-                placeholder="下面我来简单喵两句.."
-                style="width:100%; border:none; outline:none; background:transparent; resize: vertical; font-weight:500;"
-              ></textarea>
-            </div>
+              <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+                <button class="btn btn--accent" type="button" @click="postComment" :aria-disabled="posting ? 'true':'false'" data-sfx="click">
+                  {{ posting ? '传送中…' : '发送' }}
+                </button>
+              </div>
+            </template>
 
-            <div style="margin-top:10px; display:flex; justify-content:flex-end;">
-              <button class="btn btn--accent" type="button" @click="postComment" :aria-disabled="posting ? 'true':'false'" data-sfx="click">
-                {{ posting ? '传送中…' : '发送' }}
-              </button>
+            <!-- 未登录用户：评论需登录，仅一句邀请 + 登录按钮 -->
+            <div v-else class="comment-login">
+              <span class="comment-login__text">觉得好看？留下评论吧！</span>
+              <button class="btn btn--accent" type="button" @click="goLogin" data-sfx="click">登录 / 注册</button>
             </div>
           </div>
         </div>
@@ -202,7 +209,20 @@
 
 <script setup>
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useSession } from '@haruhi/auth-ui'
 import { api, thumbUrl } from '../services/api.js'
+
+// 登录态：已登录用户评论自动署名为账号昵称、无需填写；未登录用户不可评论，仅给登录引导。
+const session = useSession('/api')
+const route = useRoute()
+const router = useRouter()
+const isLoggedIn = computed(() => !!session.state.user)
+const accountNickname = computed(() => session.state.user?.nickname || '')
+
+function goLogin() {
+  router.push({ path: '/login', query: { redirect: route.fullPath } })
+}
 
 const props = defineProps({
   modelValue: { type: Boolean, default: undefined },
@@ -586,7 +606,6 @@ function handleTouchEnd(e) {
 ---------------------------------- */
 const comments = ref([])
 const loadingComments = ref(false)
-const commentName = ref('')
 const commentBody = ref('')
 const posting = ref(false)
 
@@ -614,14 +633,14 @@ async function loadComments(){
 }
 
 async function postComment(){
-  if(!art.value?.id) return
-  const name = commentName.value.trim()
+  if(!art.value?.id || !isLoggedIn.value) return
   const body = commentBody.value.trim()
-  if(!name || !body) return
+  if(!body) return
 
+  // 评论需登录；后端以账号昵称署名（忽略前端自报），这里只提交正文。
   posting.value = true
   try{
-    await api.postComment({ artwork_id: art.value.id, user_name: name, body })
+    await api.postComment({ artwork_id: art.value.id, body })
     commentBody.value = ''
     await loadComments()
   }finally{
@@ -670,6 +689,7 @@ watch(visible, (v) => {
 onBeforeUnmount(restoreGlobalModalState)
 
 onMounted(() => {
+  if(!session.state.ready) session.refresh()
   if(visible.value) loadComments()
 })
 </script>
@@ -1102,6 +1122,49 @@ onMounted(() => {
   border-radius: 16px;
   background: rgba(244, 246, 249, 0.5);
   border: 1px dashed rgba(107, 140, 133, 0.3);
+}
+
+/* 登录态作曲框头部：标题 + 紧凑「以 昵称 署名」提示，省去整行署名输入，缓解拥挤 */
+.input-panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.input-panel__title {
+  font-weight: 950;
+  color: var(--accent);
+  font-size: 13px;
+}
+.comment-signas {
+  font-size: 12px;
+  color: var(--text-main);
+  opacity: 0.85;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.comment-signas strong {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+/* 未登录态：评论区一句邀请 + 登录按钮，居中竖排，贴合画廊青绿调 */
+.comment-login {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 4px 0;
+}
+.comment-login__text {
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.5px;
 }
 
 .search {

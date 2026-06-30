@@ -1775,9 +1775,20 @@
   transition: opacity var(--sos-duration-base);
 }
 
+/* 移动端头像快捷位：桌面隐藏，移动端显示在汉堡左侧（见下方 media query） */
+.sos-appbar__mobile-lead {
+  display: none;
+}
+
 /* ---- 移动端（≤768px）：导航聚合容器化为右侧滑入抽屉 ---- */
 @media (max-width: 768px) {
   .sos-appbar__burger { display: inline-flex; }
+  /* 抽屉外、汉堡左侧的快捷位；margin-left:auto 把它与汉堡一起推到右侧（cluster 已脱流） */
+  .sos-appbar__mobile-lead {
+    display: inline-flex;
+    align-items: center;
+    margin-left: auto;
+  }
   .sos-appbar__cluster {
     position: fixed;
     top: 0;

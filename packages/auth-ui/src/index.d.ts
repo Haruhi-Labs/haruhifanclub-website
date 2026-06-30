@@ -62,6 +62,7 @@ export const VerifyEmailView: DefineComponent<Record<string, any>>
 export const ProfileView: DefineComponent<Record<string, any>>
 export const SettingsView: DefineComponent<Record<string, any>>
 export const AccountMenu: DefineComponent<Record<string, any>>
+export const AccountAvatarLink: DefineComponent<Record<string, any>>
 export const AvatarCropper: DefineComponent<Record<string, any>>
 export const UserConsoleLayout: DefineComponent<Record<string, any>>
 export const OverviewView: DefineComponent<Record<string, any>>

@@ -61,6 +61,11 @@
               {{ formatDate(userInfo.createdAt || profile.creatorCreatedAt) }}
             </dd>
           </div>
+          <div v-if="contactDisplay" class="adv-id__row">
+            <dt>{{ contactTypeLabel }}</dt>
+            <span class="adv-id__lead" aria-hidden="true"></span>
+            <dd class="adv-id__contact">{{ contactDisplay }}</dd>
+          </div>
         </dl>
 
         <div class="adv-id__clearance">
@@ -84,6 +89,57 @@
 
       <!-- ===== 右：档案正文 ===== -->
       <main class="adv-dossier">
+        <section class="adv-panel adv-metrics">
+          <header class="adv-panel__head">
+            <div>
+              <span class="adv-panel__eyebrow">Guild Data</span>
+              <h2>创作者公会数据</h2>
+            </div>
+          </header>
+          <div class="adv-metrics__grid">
+            <div class="adv-metric">
+              <span>访问许可</span>
+              <b>{{ profile.accessLabel || '0级公开档案许可' }}</b>
+              <em>{{ profile.accessShortLabel || '档案0' }}</em>
+            </div>
+            <div class="adv-metric">
+              <span>评级</span>
+              <b>{{ profile.ratingLabel || `${profile.rating || 'F'}级冒险者` }}</b>
+              <em>{{ profile.nextRating?.rating ? `下一评级 ${profile.nextRating.rating}` : '当前档案' }}</em>
+            </div>
+            <div class="adv-metric">
+              <span>等级与声望</span>
+              <b>Lv{{ profile.level || 1 }} · {{ profile.reputation || 0 }}</b>
+              <em>公会声望</em>
+            </div>
+            <div class="adv-metric">
+              <span>金币</span>
+              <b>{{ profile.coins?.available || 0 }}G</b>
+              <em>总 {{ profile.coins?.total || 0 }} / 冻结 {{ profile.coins?.frozen || 0 }}</em>
+            </div>
+            <div class="adv-metric">
+              <span>作品统计</span>
+              <b>{{ stats.total || 0 }}</b>
+              <em>个人 {{ stats.personal || 0 }} / 转载 {{ stats.network || 0 }}</em>
+            </div>
+            <div class="adv-metric">
+              <span>凉宫个人作品</span>
+              <b>{{ profile.haruhiPersonalCount || 0 }}</b>
+              <em>评级条件计数</em>
+            </div>
+            <div v-if="contactDisplay" class="adv-metric">
+              <span>联系方式</span>
+              <b>{{ contactDisplay }}</b>
+              <em>{{ contactTypeLabel }}</em>
+            </div>
+            <div class="adv-metric">
+              <span>最近投稿</span>
+              <b>{{ formatDate(stats.latestUploadAt) }}</b>
+              <em>首次 {{ formatDate(stats.firstUploadAt) }}</em>
+            </div>
+          </div>
+        </section>
+
         <section class="adv-panel adv-archive">
           <header class="adv-panel__head">
             <div>
@@ -220,6 +276,22 @@ const profileInitial = computed(() =>
     .slice(0, 1)
     .toUpperCase()
 )
+const contactDisplay = computed(
+  () =>
+    profile.value.contactValue ||
+    profile.value.qq ||
+    profile.value.email ||
+    userInfo.value.email ||
+    ''
+)
+const contactTypeLabel = computed(() => {
+  if (profile.value.contactLabel) return profile.value.contactLabel
+  if (profile.value.contactType === 'qq' || profile.value.qq) return 'QQ'
+  if (profile.value.contactType === 'email' || profile.value.email || userInfo.value.email) {
+    return '邮箱'
+  }
+  return '联系方式'
+})
 
 async function loadProfile() {
   loading.value = true
@@ -497,6 +569,13 @@ onMounted(loadProfile)
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.adv-id__row dd.adv-id__contact {
+  max-width: 190px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-align: right;
+  line-height: 1.25;
+}
 .adv-id__row dd.is-date {
   font-size: 14px;
 }
@@ -631,6 +710,38 @@ onMounted(loadProfile)
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   white-space: nowrap;
+}
+
+.adv-metrics__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.adv-metric {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
+  background: color-mix(in srgb, #ffffff 58%, transparent);
+}
+.adv-metric span,
+.adv-metric em {
+  display: block;
+  font-size: 11px;
+  font-weight: 750;
+  color: var(--muted);
+}
+.adv-metric b {
+  display: block;
+  margin: 5px 0 3px;
+  font-size: 15px;
+  font-weight: 850;
+  color: var(--text);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.adv-metric em {
+  font-style: normal;
 }
 
 /* 作品 grid */
@@ -827,6 +938,9 @@ onMounted(loadProfile)
   .adv-id {
     position: static;
   }
+  .adv-metrics__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .adv-ledgers {
     grid-template-columns: 1fr;
   }
@@ -848,6 +962,7 @@ onMounted(loadProfile)
 }
 :global(html.art-lights-out .adv-panel),
 :global(html.art-lights-out .adv-quest),
+:global(html.art-lights-out .adv-metric),
 :global(html.art-lights-out .adv-art__media) {
   background: rgba(12, 22, 44, 0.5);
 }

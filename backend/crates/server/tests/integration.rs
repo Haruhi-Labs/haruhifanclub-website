@@ -720,3 +720,167 @@ async fn exam_upload_rejects_non_media() {
     let (s, _) = send(&app.router, req).await;
     assert_eq!(s, StatusCode::BAD_REQUEST, "非图片/音频应被拒");
 }
+
+// 画廊积分语义：作品「公开存在」时应有积分，撤稿（隐藏/拒绝/删除）应扣回，
+// 复审再公开应重新发放；兑换消耗不计入「历史累计获得积分」，撤稿扣回则计入。
+#[tokio::test]
+async fn artwork_points_follow_public_state() {
+    use haruhi_server::modules::art_guild;
+
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let uid = "u9001";
+    let ts = "2026-01-01T00:00:00Z";
+
+    sqlx::query(
+        "INSERT INTO guild_profiles(uid, reputation, rating, access_tier, created_at, updated_at) \
+         VALUES(?, 0, 'F', 'observer_clearance', ?, ?)",
+    )
+    .bind(uid)
+    .bind(ts)
+    .bind(ts)
+    .execute(&art)
+    .await
+    .unwrap();
+
+    // 个人凉宫作品，初始 pending（应得 120）
+    let aid: i64 = sqlx::query_scalar(
+        "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at) \
+         VALUES('测试作品', ?, 'personal', 'haruhi', 'pending', ?) RETURNING id",
+    )
+    .bind(uid)
+    .bind(ts)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+
+    async fn net(pool: &sqlx::SqlitePool, aid: i64) -> i64 {
+        sqlx::query_scalar("SELECT COALESCE(SUM(points), 0) FROM points_ledger WHERE artwork_id=?")
+            .bind(aid)
+            .fetch_one(pool)
+            .await
+            .unwrap()
+    }
+    async fn balance(pool: &sqlx::SqlitePool, uid: &str) -> i64 {
+        sqlx::query_scalar("SELECT COALESCE(SUM(points), 0) FROM points_ledger WHERE uid=?")
+            .bind(uid)
+            .fetch_one(pool)
+            .await
+            .unwrap()
+    }
+    async fn earned(pool: &sqlx::SqlitePool, uid: &str) -> i64 {
+        sqlx::query_scalar(
+            "SELECT COALESCE(SUM(CASE WHEN source_type='redemption' THEN 0 ELSE points END), 0) \
+             FROM points_ledger WHERE uid=?",
+        )
+        .bind(uid)
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+
+    // pending：无积分
+    assert_eq!(net(&art, aid).await, 0);
+
+    // 公开 → +120
+    art_guild::on_artwork_published(&app.state, aid, "")
+        .await
+        .unwrap();
+    assert_eq!(net(&art, aid).await, 120, "首次公开应发放 120");
+
+    // 幂等：重复公开不重复发放
+    art_guild::on_artwork_published(&app.state, aid, "")
+        .await
+        .unwrap();
+    assert_eq!(net(&art, aid).await, 120, "重复公开应幂等");
+
+    // 撤稿 → 扣回到 0
+    art_guild::on_artwork_withdrawn(&app.state, aid)
+        .await
+        .unwrap();
+    assert_eq!(net(&art, aid).await, 0, "撤稿应扣回全部投稿积分");
+
+    // 复审再公开 → 重新发放（隐藏后再公开理应有积分）
+    art_guild::on_artwork_published(&app.state, aid, "")
+        .await
+        .unwrap();
+    assert_eq!(net(&art, aid).await, 120, "复审公开应重新发放");
+
+    // 兑换消耗 -50（redemption）：余额下降，但历史获得不受影响
+    sqlx::query(
+        "INSERT INTO points_ledger(uid, artwork_id, points, note, source_type, created_at, granted_at) \
+         VALUES(?, NULL, -50, '兑换「徽章」扣除金币', 'redemption', ?, ?)",
+    )
+    .bind(uid)
+    .bind(ts)
+    .bind(ts)
+    .execute(&art)
+    .await
+    .unwrap();
+    assert_eq!(balance(&art, uid).await, 70, "兑换后余额应扣减");
+    assert_eq!(earned(&art, uid).await, 120, "兑换消耗不计入历史获得");
+
+    // 撤稿：历史获得被扣回 0；兑换消耗仍在，余额可为负
+    art_guild::on_artwork_withdrawn(&app.state, aid)
+        .await
+        .unwrap();
+    assert_eq!(earned(&art, uid).await, 0, "撤稿应把历史获得积分扣回");
+    assert_eq!(
+        balance(&art, uid).await,
+        -50,
+        "撤稿扣回叠加既有兑换消耗，余额可为负"
+    );
+}
+
+// 评论署名：登录用户自动用账号昵称署名（忽略前端自报、归属 author_user_id）；
+// 未登录用户不允许评论（强制登录，返回 401）——前端在评论区改为展示登录提示。
+#[tokio::test]
+async fn comment_uses_nickname_for_member_and_rejects_anonymous() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+
+    let aid: i64 = sqlx::query_scalar(
+        "INSERT INTO artworks(title, status, created_at) \
+         VALUES('作品', 'approved', '2026-01-01T00:00:00Z') RETURNING id",
+    )
+    .fetch_one(&art)
+    .await
+    .unwrap();
+
+    // 1) 登录用户：忽略前端自报署名，使用账号昵称 + 归属 author_user_id
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let (s1, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/comments",
+            json!({ "artwork_id": aid, "user_name": "前端自报应忽略", "body": "登录用户评论" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(s1, StatusCode::OK, "登录用户评论应成功");
+    let (uname, author): (String, Option<i64>) =
+        sqlx::query_as("SELECT user_name, author_user_id FROM comments WHERE body='登录用户评论'")
+            .fetch_one(&art)
+            .await
+            .unwrap();
+    assert_ne!(uname, "前端自报应忽略", "登录用户署名不应取前端自报值");
+    assert!(author.is_some(), "登录用户评论应归属 author_user_id");
+
+    // 2) 未登录用户：强制登录，评论被拒（401），且不落库
+    let (s2, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/comments",
+            json!({ "artwork_id": aid, "user_name": "路人甲", "body": "匿名评论" }),
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(s2, StatusCode::UNAUTHORIZED, "未登录用户评论应被拒（401）");
+    let leaked: i64 = sqlx::query_scalar("SELECT COUNT(1) FROM comments WHERE body='匿名评论'")
+        .fetch_one(&art)
+        .await
+        .unwrap();
+    assert_eq!(leaked, 0, "未登录评论不应落库");
+}

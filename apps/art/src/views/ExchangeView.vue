@@ -228,7 +228,7 @@
           <div>
             <span class="g-view__eyebrow">Ranking</span>
             <h1>冒险者排行榜</h1>
-            <p>按金币结余排序，点击任意冒险者查看其公开档案。</p>
+            <p>按历史累计获得积分排序，点击任意冒险者查看其公开档案。</p>
           </div>
         </header>
 
@@ -253,7 +253,7 @@
                 {{ currentLeader.name || currentLeader.uid }}
                 <i v-if="currentLeader.level">Lv{{ currentLeader.level }}</i>
               </span>
-              <b class="mono">{{ currentLeader.coins }}G</b>
+              <b class="mono">{{ currentLeader.earned }}G</b>
             </RouterLink>
           </div>
           <div v-if="currentLeader" class="g-board-separator"><span>排行榜</span></div>
@@ -276,7 +276,7 @@
               {{ item.name || item.uid }}
               <i v-if="item.level">Lv{{ item.level }}</i>
             </span>
-            <b class="mono">{{ item.coins }}G</b>
+            <b class="mono">{{ item.earned }}G</b>
           </RouterLink>
         </div>
         <div v-if="!leaderboard.length" class="g-empty">暂无公会成员记录</div>
@@ -355,20 +355,16 @@
             <ul>
               <li v-for="line in book.lines" :key="line">{{ line }}</li>
             </ul>
-            <div v-for="table in book.tables || []" :key="table.title" class="g-rule-table">
-              <h4>{{ table.title }}</h4>
-              <table>
-                <thead>
-                  <tr>
-                    <th v-for="head in table.headers" :key="head">{{ head }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in table.rows" :key="row.join('-')">
-                    <td v-for="cell in row" :key="cell">{{ cell }}</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div v-if="book.tables?.length" class="g-rule-actions">
+              <button
+                v-for="table in book.tables"
+                :key="table.title"
+                type="button"
+                class="g-rule-table-button"
+                @click="openRuleTable(table)"
+              >
+                {{ table.title }}
+              </button>
             </div>
           </article>
         </div>
@@ -417,6 +413,39 @@
         </article>
       </div>
     </transition>
+
+    <transition name="g-fade">
+      <div v-if="activeRuleTable" class="g-modal" @click.self="closeRuleTable">
+        <article class="g-dialog g-dialog--table" role="dialog" aria-modal="true">
+          <button class="g-dialog__close" type="button" @click="closeRuleTable" aria-label="关闭">
+            ×
+          </button>
+          <span class="g-dialog__eyebrow">Rule Table</span>
+          <h2>{{ activeRuleTable.title }}</h2>
+          <div class="g-rule-modal-table">
+            <table>
+              <thead>
+                <tr>
+                  <th v-for="head in activeRuleTable.headers" :key="head">{{ head }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, rowIndex) in activeRuleTable.rows" :key="row.join('-')">
+                  <td v-for="(cell, cellIndex) in row" :key="`${rowIndex}-${cellIndex}`">
+                    {{ cell }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="g-dialog__actions">
+            <button type="button" class="sos-button sos-button--ghost" @click="closeRuleTable">
+              关闭
+            </button>
+          </div>
+        </article>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -455,6 +484,40 @@ let countdownTimer = null
 // 兑换备注弹层（替代原生 window.prompt）
 const redeemTarget = ref(null)
 const redeemNote = ref('')
+const activeRuleTable = ref(null)
+
+const ratingApplicationTable = {
+  title: '评级申请条件',
+  headers: ['评级', '最低声望', '通过审核的凉宫个人作品'],
+  rows: [
+    ['F', '0', '0（初始评级）'],
+    ['E', '100', '1'],
+    ['D', '300', '2'],
+    ['C', '800', '4'],
+    ['B', '1500', '7'],
+    ['A', '3000', '12'],
+    ['S', '6000', '20'],
+    ['X', '12000', '35'],
+  ],
+}
+
+const levelReputationTable = {
+  title: '等级与声望门槛',
+  headers: ['等级', '最低声望'],
+  rows: [
+    ['1', '0'],
+    ['2', '100'],
+    ['3', '200'],
+    ['4', '300'],
+    ['5', '400'],
+    ['9', '800'],
+    ['10', '900'],
+    ['16', '1500'],
+    ['31', '3000'],
+    ['61', '6000'],
+    ['121', '12000'],
+  ],
+}
 
 const ruleBooks = [
   {
@@ -465,6 +528,7 @@ const ruleBooks = [
       '上传作品可以获得金币与声望；浏览、评论、点赞等委托只增加声望。',
       '兑换会先冻结对应金币，管理员审核通过后正式扣除，拒绝则解除冻结。',
     ],
+    tables: [levelReputationTable],
   },
   {
     id: 'rating',
@@ -477,39 +541,7 @@ const ruleBooks = [
       '冒险者等级按公式计算：等级 = floor(声望 / 100) + 1。',
       '评级提升后会解锁更困难的委托，困难委托通常给予大量声望。',
     ],
-    tables: [
-      {
-        title: '评级申请条件',
-        headers: ['评级', '最低声望', '通过审核的凉宫个人作品'],
-        rows: [
-          ['F', '0', '0（初始评级）'],
-          ['E', '100', '1'],
-          ['D', '300', '2'],
-          ['C', '800', '4'],
-          ['B', '1500', '7'],
-          ['A', '3000', '12'],
-          ['S', '6000', '20'],
-          ['X', '12000', '35'],
-        ],
-      },
-      {
-        title: '等级与声望门槛',
-        headers: ['等级', '最低声望'],
-        rows: [
-          ['1', '0'],
-          ['2', '100'],
-          ['3', '200'],
-          ['4', '300'],
-          ['5', '400'],
-          ['9', '800'],
-          ['10', '900'],
-          ['16', '1500'],
-          ['31', '3000'],
-          ['61', '6000'],
-          ['121', '12000'],
-        ],
-      },
-    ],
+    tables: [ratingApplicationTable],
   },
   {
     id: 'access',
@@ -660,6 +692,8 @@ function questStatusRaw(quest) {
 function questStatusLabel(quest) {
   const status = questStatus(quest)
   if (status === 'completed') return '已完成'
+  if (status === 'rejected') return '未通过'
+  if (status === 'active' && quest.conditionKind === 'manual_admin_verify') return '待验收'
   if (status === 'active') return '进行中'
   if (status === 'locked') return '未解锁'
   if (status === 'expired') return '已截止'
@@ -680,7 +714,7 @@ function questProgressPercent(quest) {
 function questButtonDisabled(quest) {
   return (
     !quest.unlocked ||
-    ['completed', 'expired'].includes(questStatus(quest)) ||
+    ['completed', 'expired', 'rejected'].includes(questStatus(quest)) ||
     (quest.autoClaim && !!session.state.user)
   )
 }
@@ -689,7 +723,9 @@ function questButtonLabel(quest) {
   if (!session.state.user) return quest.autoClaim ? '登录参与' : '登录接取'
   if (!quest.unlocked) return '权限不足'
   if (status === 'completed') return '已结算'
+  if (status === 'rejected') return '未通过'
   if (status === 'expired') return '已截止'
+  if (status === 'active' && quest.conditionKind === 'manual_admin_verify') return '等待验收'
   if (quest.autoClaim) return status === 'active' ? '自动进行' : '自动接取'
   if (status === 'active') return `${questProgress(quest)}/${questTarget(quest)}`
   return '接取委托'
@@ -763,6 +799,12 @@ function openRedeem(reward) {
 function closeRedeem() {
   redeemTarget.value = null
   redeemNote.value = ''
+}
+function openRuleTable(table) {
+  activeRuleTable.value = table
+}
+function closeRuleTable() {
+  activeRuleTable.value = null
 }
 async function confirmRedeem() {
   const reward = redeemTarget.value
@@ -894,44 +936,45 @@ function applyMock() {
       unlocked: true,
     },
   ]
+  // 排序依据为「历史累计获得积分(earned)」而非评级：低评级但获得多者可排在前。
   leaderboard.value = [
     {
       uid: '橙海',
       name: '橙海',
       rank: 1,
       rating: 'A',
-      coins: 1880,
+      earned: 1880,
       level: 19,
       reputation: 1880,
       avatar_url: '',
     },
     {
-      uid: 'Mizuhasi',
-      name: 'Mizuhasi',
+      uid: 'u12',
+      name: 'Kyon',
       rank: 2,
-      rating: 'B',
-      coins: 1570,
-      level: 16,
-      reputation: 1570,
+      rating: 'D',
+      earned: 1720,
+      level: 8,
+      reputation: 760,
       avatar_url: '',
     },
     {
-      uid: 'u12',
-      name: 'Kyon',
+      uid: 'Mizuhasi',
+      name: 'Mizuhasi',
       rank: 3,
-      rating: 'D',
-      coins: 1720,
-      level: 8,
-      reputation: 760,
+      rating: 'B',
+      earned: 1570,
+      level: 16,
+      reputation: 1570,
       avatar_url: '',
     },
   ]
   currentLeader.value = {
     uid: 'u12',
     name: 'Kyon',
-    rank: 3,
+    rank: 2,
     rating: 'D',
-    coins: 1720,
+    earned: 1720,
     level: 8,
     reputation: 760,
     avatar_url: '',
@@ -1321,44 +1364,39 @@ onUnmounted(() => {
   line-height: 1.6;
   color: var(--g-muted);
 }
-.g-rule-table {
+.g-rule-actions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 8px;
-  overflow-x: auto;
+  margin-top: auto;
+  padding-top: 2px;
 }
-.g-rule-table h4 {
-  margin: 2px 0 0;
-  font-size: 13px;
+.g-rule-table-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 7px 13px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--g-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--g-accent) 8%, #ffffff);
+  color: var(--g-accent-strong);
+  font-size: 12.5px;
   font-weight: 800;
-  color: var(--g-text);
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    transform 0.18s;
 }
-.g-rule-table table {
-  width: 100%;
-  min-width: 320px;
-  border-collapse: collapse;
-  font-size: 12px;
+.g-rule-table-button:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--g-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--g-accent) 14%, #ffffff);
 }
-.g-rule-table th,
-.g-rule-table td {
-  padding: 7px 8px;
-  border-bottom: 1px solid var(--g-line);
-  text-align: left;
-  color: var(--g-muted);
-}
-.g-rule-table th {
-  background: color-mix(in srgb, var(--g-accent) 8%, transparent);
-  color: var(--g-text);
-  font-weight: 800;
-}
-.g-rule-table tr:last-child td {
-  border-bottom: 0;
-}
-.g-rule-table th:first-child,
-.g-rule-table td:first-child {
-  font-family: var(--mono);
-  color: var(--g-text);
-  white-space: nowrap;
+.g-rule-table-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--g-accent) 72%, transparent);
+  outline-offset: 2px;
 }
 
 /* ============ 右栏 终端 ============ */
@@ -1509,6 +1547,10 @@ onUnmounted(() => {
 .g-quest__status.expired {
   color: color-mix(in srgb, #d2453a 82%, #000);
   background: color-mix(in srgb, #ef5350 14%, transparent);
+}
+.g-quest__status.rejected {
+  color: color-mix(in srgb, #a1322c 86%, #000);
+  background: color-mix(in srgb, #d2453a 12%, transparent);
 }
 .g-quest__body p {
   margin: 0;
@@ -1890,6 +1932,9 @@ onUnmounted(() => {
 .g-dialog__close:hover {
   background: color-mix(in srgb, #000 12%, transparent);
 }
+.g-dialog--table {
+  width: min(680px, 100%);
+}
 .g-dialog__eyebrow {
   font-size: 11px;
   font-weight: 800;
@@ -1910,6 +1955,38 @@ onUnmounted(() => {
 }
 .g-dialog__lede b {
   color: var(--g-accent-strong);
+}
+.g-rule-modal-table {
+  overflow-x: auto;
+  border: 1px solid var(--g-line);
+  border-radius: 12px;
+}
+.g-rule-modal-table table {
+  width: 100%;
+  min-width: 420px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.g-rule-modal-table th,
+.g-rule-modal-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--g-line);
+  text-align: left;
+  color: var(--g-muted);
+}
+.g-rule-modal-table th {
+  background: color-mix(in srgb, var(--g-accent) 8%, transparent);
+  color: var(--g-text);
+  font-weight: 850;
+}
+.g-rule-modal-table tr:last-child td {
+  border-bottom: 0;
+}
+.g-rule-modal-table th:first-child,
+.g-rule-modal-table td:first-child {
+  font-family: var(--mono);
+  color: var(--g-text);
+  white-space: nowrap;
 }
 .g-dialog__actions {
   display: flex;
@@ -1975,6 +2052,15 @@ onUnmounted(() => {
 :global(html.art-lights-out .g-quest__status.completed) {
   background: rgba(42, 129, 132, 0.68);
   color: rgba(235, 255, 250, 0.96);
+}
+:global(html.art-lights-out .g-rule-table-button) {
+  border-color: color-mix(in srgb, var(--g-accent) 22%, rgba(160, 185, 230, 0.16));
+  background: rgba(22, 36, 62, 0.7);
+  color: color-mix(in srgb, var(--g-accent) 62%, #e3f3ff);
+}
+:global(html.art-lights-out .g-rule-table-button:hover) {
+  border-color: color-mix(in srgb, var(--g-accent) 38%, rgba(180, 205, 245, 0.22));
+  background: rgba(28, 48, 78, 0.82);
 }
 :global(html.art-lights-out .g-feedback) {
   background: rgba(12, 22, 44, 0.45);

@@ -53,6 +53,10 @@
         <section class="day-hero-panel">
           <p class="day-kicker">Haruhi Fanclub Gallery</p>
           <p class="day-visitor">画廊的第 <strong>{{ visitorNumberText }}</strong> 位访问者，你好</p>
+          <RouterLink :to="{ name: 'gallery' }" class="day-enter" data-sfx="click">
+            <span class="day-enter__label">进入画廊</span>
+            <span class="day-enter__arrow" aria-hidden="true">→</span>
+          </RouterLink>
         </section>
 
         <section
@@ -96,6 +100,10 @@
       <section class="day-hero-panel">
         <p class="day-kicker">Haruhi Fanclub Gallery</p>
         <p class="day-visitor">画廊的第 <strong>{{ visitorNumberText }}</strong> 位访问者，你好</p>
+        <RouterLink :to="{ name: 'gallery' }" class="day-enter" data-sfx="click">
+          <span class="day-enter__label">进入画廊</span>
+          <span class="day-enter__arrow" aria-hidden="true">→</span>
+        </RouterLink>
       </section>
 
       <section
@@ -1440,6 +1448,70 @@ function openGearArtwork(id) {
   display: inline-block;
   min-width: 2.6em;
   text-align: center;
+}
+
+/* 进入画廊：胶囊幽灵按钮，沿用 hero 的青/玫主调 + 设计系统 token，hover 渐填充。
+   内距/字号用 clamp 自适应窄屏；处于 day-hero-panel 的 auto 行内，不挤占上下齿轮带。 */
+.art-home .day-enter {
+  margin: clamp(18px, 2.4dvh, 26px) auto 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: clamp(8px, 1.3dvh, 11px) clamp(18px, 4.4vw, 24px);
+  border-radius: var(--sos-radius-pill, 999px);
+  border: 1px solid rgba(27, 139, 155, 0.45);
+  background: rgba(255, 255, 255, 0.55);
+  color: #12707e;
+  font-size: clamp(13px, 2.4vw, 15px);
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 20px rgba(60, 155, 170, 0.14);
+  transition:
+    transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.32s ease,
+    border-color 0.32s ease,
+    box-shadow 0.32s ease,
+    color 0.32s ease;
+}
+
+.art-home .day-enter:hover {
+  background: #1b8b9b;
+  border-color: #1b8b9b;
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(27, 139, 155, 0.3);
+}
+
+.art-home .day-enter:focus-visible {
+  outline: none;
+  box-shadow: var(--sos-ring, 0 0 0 3px rgba(27, 139, 155, 0.4));
+}
+
+.art-home .day-enter__arrow {
+  font-weight: 700;
+  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.art-home .day-enter:hover .day-enter__arrow {
+  transform: translateX(4px);
+}
+
+/* 关灯态：转青色辉光、暗底译写，与 day-visitor 的关灯发光呼应 */
+:global(html.art-home-route.art-home-lights-out .art-home .day-enter) {
+  border-color: rgba(141, 240, 255, 0.45);
+  background: rgba(141, 240, 255, 0.08);
+  color: rgba(228, 250, 255, 0.95);
+  box-shadow: 0 0 22px rgba(141, 240, 255, 0.16);
+}
+
+:global(html.art-home-route.art-home-lights-out .art-home .day-enter:hover) {
+  border-color: rgba(141, 240, 255, 0.9);
+  background: rgba(141, 240, 255, 0.92);
+  color: #06303a;
+  box-shadow: 0 0 30px rgba(141, 240, 255, 0.4);
 }
 
 :global(html.art-home-route.art-home-lights-out .art-home .day-kicker) {

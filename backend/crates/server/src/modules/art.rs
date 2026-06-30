@@ -1385,10 +1385,6 @@ async fn create_artwork(
                 title: title.clone(),
                 description: description.clone(),
                 cover_path: cover_path.clone(),
-                source_type: source_type.clone(),
-                content_type: content_type.clone(),
-                uploader_uid: uploader_uid.clone(),
-                created_at: created_at.clone(),
             },
         );
     }
@@ -1413,10 +1409,6 @@ struct ArtworkAiReviewJob {
     title: String,
     description: String,
     cover_path: String,
-    source_type: String,
-    content_type: String,
-    uploader_uid: String,
-    created_at: String,
 }
 
 fn spawn_artwork_ai_review(state: AppState, job: ArtworkAiReviewJob) {
@@ -1491,16 +1483,8 @@ async fn run_artwork_ai_review(state: AppState, job: ArtworkAiReviewJob) -> AppR
             &review_note,
         );
     } else if final_status == "approved" {
-        grant_artwork_upload_reward(
-            &state,
-            artwork_id,
-            &job.uploader_uid,
-            &job.content_type,
-            &job.source_type,
-            &job.created_at,
-            "",
-        )
-        .await?;
+        // 作品公开：对齐积分（首发即按应得发放）并首次发放声望、推进委托。
+        super::art_guild::on_artwork_published(&state, artwork_id, "").await?;
     }
 
     Ok(())
@@ -1548,62 +1532,6 @@ fn artwork_ai_status(
     }
 
     (final_status, ai_reason.join("; "))
-}
-
-async fn grant_artwork_upload_reward(
-    state: &AppState,
-    artwork_id: i64,
-    uploader_uid: &str,
-    content_type: &str,
-    source_type: &str,
-    created_at: &str,
-    note_suffix: &str,
-) -> AppResult<bool> {
-    if source_type != "personal" || uploader_uid.is_empty() {
-        return Ok(false);
-    }
-    let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM points_ledger WHERE artwork_id=?")
-        .bind(artwork_id)
-        .fetch_optional(&state.pools.art)
-        .await?;
-    if exists.is_some() {
-        return Ok(false);
-    }
-
-    let (points, base_note) = if content_type == "haruhi" {
-        (120, "投稿凉宫个人作品奖励")
-    } else {
-        (30, "投稿其他个人作品奖励")
-    };
-    if points <= 0 {
-        return Ok(false);
-    }
-    let now = now_iso();
-    let note = format!("{base_note}{note_suffix}");
-    sqlx::query(
-        "INSERT INTO points_ledger(uid, artwork_id, points, note, created_at, granted_at)
-         VALUES(?,?,?,?,?,?)",
-    )
-    .bind(uploader_uid)
-    .bind(artwork_id)
-    .bind(points)
-    .bind(&note)
-    .bind(created_at)
-    .bind(&now)
-    .execute(&state.pools.art)
-    .await?;
-
-    super::art_guild::grant_upload_progress(
-        state,
-        uploader_uid,
-        artwork_id,
-        content_type,
-        source_type,
-        created_at,
-        note_suffix,
-    )
-    .await;
-    Ok(true)
 }
 
 // 8. 评论列表
@@ -2156,6 +2084,8 @@ async fn delete_my_artwork(
         )
             .into_response());
     }
+    // 作者撤稿：作品不再公开，扣回此前已发放的投稿积分。
+    super::art_guild::on_artwork_withdrawn(&state, id).await?;
     Ok(Json(json!({ "ok": true, "status": "hidden" })).into_response())
 }
 
@@ -2230,74 +2160,21 @@ async fn admin_approve_artwork(
         .to_string();
     let now = now_iso();
 
-    // 取作品，决定是否补发积分
-    let art: Option<(
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    )> = sqlx::query_as(
-        "SELECT source_type, uploader_uid, content_type, created_at FROM artworks WHERE id=?",
+    let affected = sqlx::query(
+        "UPDATE artworks SET status='approved', review_note=?, reviewed_at=? WHERE id=?",
     )
+    .bind(&note)
+    .bind(&now)
     .bind(id)
-    .fetch_optional(&state.pools.art)
-    .await?;
-    let art = match art {
-        Some(a) => a,
-        None => return Ok((StatusCode::NOT_FOUND, Json(json!({ "ok": false }))).into_response()),
-    };
-
-    sqlx::query("UPDATE artworks SET status='approved', review_note=?, reviewed_at=? WHERE id=?")
-        .bind(&note)
-        .bind(&now)
-        .bind(id)
-        .execute(&state.pools.art)
-        .await?;
-
-    let (source_type, uploader_uid, content_type, created_at) = art;
-    if source_type.as_deref() == Some("personal") {
-        if let Some(uid) = uploader_uid.filter(|u| !u.is_empty()) {
-            let exists: Option<i64> =
-                sqlx::query_scalar("SELECT 1 FROM points_ledger WHERE artwork_id=?")
-                    .bind(id)
-                    .fetch_optional(&state.pools.art)
-                    .await?;
-            if exists.is_none() {
-                let (points, p_note) = if content_type.as_deref() == Some("haruhi") {
-                    (120, "投稿凉宫个人作品奖励 (人工复核)")
-                } else {
-                    (30, "投稿其他个人作品奖励 (人工复核)")
-                };
-                if points > 0 {
-                    let created = created_at.unwrap_or_else(now_iso);
-                    if let Err(e) = sqlx::query(
-                        "INSERT INTO points_ledger(uid, artwork_id, points, note, created_at, granted_at) VALUES(?,?,?,?,?,?)",
-                    )
-                    .bind(&uid)
-                    .bind(id)
-                    .bind(points)
-                    .bind(p_note)
-                    .bind(&created)
-                    .bind(&now)
-                    .execute(&state.pools.art)
-                    .await
-                    {
-                        tracing::error!("Manual approval grant points failed: {e}");
-                    }
-                    super::art_guild::grant_upload_progress(
-                        &state,
-                        &uid,
-                        id,
-                        content_type.as_deref().unwrap_or("other"),
-                        source_type.as_deref().unwrap_or("personal"),
-                        &created,
-                        " (人工复核)",
-                    )
-                    .await;
-                }
-            }
-        }
+    .execute(&state.pools.art)
+    .await?
+    .rows_affected();
+    if affected == 0 {
+        return Ok((StatusCode::NOT_FOUND, Json(json!({ "ok": false }))).into_response());
     }
+
+    // 作品公开：对齐积分至应得值（隐藏后复审会重新补发），并在首次公开时发放声望、推进委托。
+    super::art_guild::on_artwork_published(&state, id, " (人工复核)").await?;
     Ok(Json(json!({ "ok": true })).into_response())
 }
 
@@ -2320,6 +2197,8 @@ async fn admin_reject_artwork(
         .bind(id)
         .execute(&state.pools.art)
         .await?;
+    // 驳回即不公开：扣回此前可能已发放的投稿积分（如曾通过后又被驳回）。
+    super::art_guild::on_artwork_withdrawn(&state, id).await?;
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -2337,6 +2216,12 @@ async fn admin_artwork_status(
             .bind(id)
             .execute(&state.pools.art)
             .await?;
+        // 状态联动积分：转公开则对齐应得（首次公开补声望/委托），转隐藏/标记则扣回。
+        if status == "approved" {
+            super::art_guild::on_artwork_published(&state, id, "").await?;
+        } else {
+            super::art_guild::on_artwork_withdrawn(&state, id).await?;
+        }
         Ok(Json(json!({ "ok": true })).into_response())
     } else {
         Ok((StatusCode::BAD_REQUEST, Json(json!({ "ok": false }))).into_response())
@@ -2374,6 +2259,13 @@ async fn admin_artwork_update(
     .bind(id)
     .execute(&state.pools.art)
     .await?;
+    // 来源/内容分类被改可能改变应得积分：按作品当前是否公开重新对齐（公开作品才计分）。
+    let is_public: Option<i64> =
+        sqlx::query_scalar("SELECT 1 FROM artworks WHERE id=? AND status='approved'")
+            .bind(id)
+            .fetch_optional(&state.pools.art)
+            .await?;
+    super::art_guild::reconcile_artwork_points(&state, id, is_public.is_some()).await?;
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -2383,6 +2275,9 @@ async fn admin_delete_artwork(
     Path(id): Path<i64>,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+
+    // 硬删除前先结算积分：作品行删除后无法再溯源，须在此把已发放积分扣回（净额归零）。
+    super::art_guild::on_artwork_withdrawn(&state, id).await?;
 
     let row: Option<(Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
         "SELECT file_path, file_path_original, images_json FROM artworks WHERE id=?",
@@ -2531,26 +2426,183 @@ async fn admin_delete_comment(
     Ok(Json(json!({ "ok": true })))
 }
 
+#[derive(sqlx::FromRow)]
+struct AdminCreatorRow {
+    uid: String,
+    avatar_url: Option<String>,
+    created_at: Option<String>,
+    qq: Option<String>,
+    user_id: Option<i64>,
+    reputation: i64,
+    rating: String,
+    access_tier: String,
+    coins: i64,
+    total_artworks: i64,
+    approved_artworks: i64,
+    pending_artworks: i64,
+    restricted_artworks: i64,
+    personal_artworks: i64,
+    network_artworks: i64,
+    haruhi_artworks: i64,
+    other_artworks: i64,
+    haruhi_personal_artworks: i64,
+    first_upload_at: Option<String>,
+    latest_upload_at: Option<String>,
+}
+
 async fn admin_list_creators(
     State(state): State<AppState>,
     user: AuthUser,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Read).await?;
-    let rows: Vec<(String, Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
-        "SELECT uid, avatar_url, created_at, qq FROM creators ORDER BY datetime(created_at) DESC",
+    let rows: Vec<AdminCreatorRow> = sqlx::query_as(
+        "SELECT
+            c.uid,
+            c.avatar_url,
+            c.created_at,
+            c.qq,
+            gp.user_id,
+            COALESCE(gp.reputation, 0) AS reputation,
+            COALESCE(gp.rating, 'F') AS rating,
+            COALESCE(gp.access_tier, 'observer_clearance') AS access_tier,
+            COALESCE((
+                SELECT CAST(SUM(CAST(NULLIF(TRIM(points), '') AS INTEGER)) AS INTEGER)
+                FROM points_ledger pl WHERE pl.uid=c.uid
+            ), 0) AS coins,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid) AS total_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.status='approved') AS approved_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.status='pending') AS pending_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.status IN ('rejected','hidden','flagged')) AS restricted_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.source_type='personal') AS personal_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.source_type='network') AS network_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.content_type='haruhi') AS haruhi_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.content_type='other') AS other_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.status='approved' AND a.source_type='personal' AND a.content_type='haruhi') AS haruhi_personal_artworks,
+            (SELECT MIN(created_at) FROM artworks a WHERE a.uploader_uid=c.uid) AS first_upload_at,
+            (SELECT MAX(created_at) FROM artworks a WHERE a.uploader_uid=c.uid) AS latest_upload_at
+         FROM creators c
+         LEFT JOIN guild_profiles gp ON gp.uid=c.uid
+         ORDER BY datetime(c.created_at) DESC",
     )
     .fetch_all(&state.pools.art)
     .await?;
-    let uids: Vec<String> = rows.iter().map(|(uid, ..)| uid.clone()).collect();
+    let uids: Vec<String> = rows.iter().map(|row| row.uid.clone()).collect();
     let names = member_display_names(&state.pools.core, &uids).await;
+    let mut user_ids: Vec<i64> = rows
+        .iter()
+        .filter_map(|row| row.user_id.or_else(|| user_id_from_creator_uid(&row.uid)))
+        .collect();
+    user_ids.sort_unstable();
+    user_ids.dedup();
+    let user_contacts = user_display_contacts(&state.pools.core, &user_ids).await?;
     let data: Vec<Value> = rows
         .into_iter()
-        .map(|(uid, avatar_url, created_at, qq)| {
-            let name = names.get(&uid).cloned();
-            json!({ "uid": uid, "name": name, "avatar_url": avatar_url, "created_at": created_at, "qq": qq })
+        .map(|row| {
+            let inferred_user_id = row.user_id.or_else(|| user_id_from_creator_uid(&row.uid));
+            let user_contact = inferred_user_id.and_then(|id| user_contacts.get(&id));
+            let name = names
+                .get(&row.uid)
+                .cloned()
+                .or_else(|| user_contact.map(|info| info.0.clone()));
+            let email = clean_creator_contact(user_contact.and_then(|info| info.1.clone()));
+            let qq = clean_creator_contact(row.qq);
+            let (contact_type, contact_value) =
+                preferred_creator_contact(qq.as_deref(), email.as_deref());
+            let contact_label = contact_type.map(creator_contact_type_label);
+            let rating_label = super::art_guild::rating_label(&row.rating);
+            let access_label = super::art_guild::access_label(&row.access_tier);
+            let access_short_label = super::art_guild::access_short_label(&row.access_tier);
+            json!({
+                "uid": row.uid,
+                "name": name,
+                "avatar_url": row.avatar_url,
+                "created_at": row.created_at,
+                "qq": qq,
+                "email": email,
+                "contactType": contact_type,
+                "contactLabel": contact_label,
+                "contactValue": contact_value,
+                "userId": inferred_user_id,
+                "reputation": row.reputation,
+                "level": super::art_guild::level_from_reputation(row.reputation),
+                "rating": row.rating,
+                "ratingLabel": rating_label,
+                "accessTier": row.access_tier,
+                "accessLabel": access_label,
+                "accessShortLabel": access_short_label,
+                "coins": row.coins,
+                "totalArtworks": row.total_artworks,
+                "approvedArtworks": row.approved_artworks,
+                "pendingArtworks": row.pending_artworks,
+                "restrictedArtworks": row.restricted_artworks,
+                "personalArtworks": row.personal_artworks,
+                "networkArtworks": row.network_artworks,
+                "haruhiArtworks": row.haruhi_artworks,
+                "otherArtworks": row.other_artworks,
+                "haruhiPersonalArtworks": row.haruhi_personal_artworks,
+                "firstUploadAt": row.first_upload_at,
+                "latestUploadAt": row.latest_upload_at
+            })
         })
         .collect();
     Ok(Json(json!({ "ok": true, "data": data })))
+}
+
+async fn user_display_contacts(
+    core: &sqlx::SqlitePool,
+    ids: &[i64],
+) -> AppResult<std::collections::HashMap<i64, (String, Option<String>)>> {
+    let mut map = std::collections::HashMap::new();
+    if ids.is_empty() {
+        return Ok(map);
+    }
+    let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!(
+        "SELECT id, nickname, username, email FROM users WHERE id IN ({placeholders}) AND deleted_at IS NULL"
+    );
+    let mut q = sqlx::query_as::<_, (i64, Option<String>, String, Option<String>)>(&sql);
+    for id in ids {
+        q = q.bind(id);
+    }
+    let rows = q.fetch_all(core).await?;
+    for (id, nickname, username, email) in rows {
+        let display_name = nickname
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or(username);
+        map.insert(id, (display_name, email));
+    }
+    Ok(map)
+}
+
+fn user_id_from_creator_uid(uid: &str) -> Option<i64> {
+    uid.strip_prefix('u')?.parse::<i64>().ok()
+}
+
+fn clean_creator_contact(value: Option<String>) -> Option<String> {
+    value
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+fn preferred_creator_contact(
+    qq: Option<&str>,
+    email: Option<&str>,
+) -> (Option<&'static str>, Option<String>) {
+    if let Some(qq) = qq.filter(|s| !s.trim().is_empty()) {
+        return (Some("qq"), Some(qq.trim().to_string()));
+    }
+    if let Some(email) = email.filter(|s| !s.trim().is_empty()) {
+        return (Some("email"), Some(email.trim().to_string()));
+    }
+    (None, None)
+}
+
+fn creator_contact_type_label(contact_type: &str) -> &'static str {
+    match contact_type {
+        "qq" => "QQ",
+        "email" => "邮箱",
+        _ => "联系方式",
+    }
 }
 
 async fn admin_create_creator(
@@ -2577,6 +2629,7 @@ async fn admin_create_creator(
                 .execute(&state.pools.art)
                 .await?;
         }
+        super::art_guild::ensure_profile_for_uid(&state, &uid).await?;
     }
     Ok(Json(json!({ "ok": true })))
 }
@@ -2723,6 +2776,7 @@ async fn admin_update_creator(
     }
 
     tx.commit().await?;
+    super::art_guild::ensure_profile_for_uid(&state, &final_uid).await?;
     Ok(Json(json!({ "ok": true })).into_response())
 }
 
@@ -3027,13 +3081,15 @@ async fn admin_points_grant(
     let points = body.get("points").and_then(json_num_i64);
     let note = body.get("note").and_then(|v| v.as_str());
     let now = now_iso();
+    // 管理员手工增减：标注 manual，计入历史获得积分（仅 redemption 兑换消耗被排除）。
     sqlx::query(
-        "INSERT INTO points_ledger(uid, artwork_id, points, note, created_at, granted_at) VALUES(?,?,?,?,?,?)",
+        "INSERT INTO points_ledger(uid, artwork_id, points, note, source_type, created_at, granted_at) VALUES(?,?,?,?,?,?,?)",
     )
     .bind(uid)
     .bind(artwork_id)
     .bind(points)
     .bind(note)
+    .bind("manual")
     .bind(&now)
     .bind(&now)
     .execute(&state.pools.art)
