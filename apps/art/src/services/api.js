@@ -230,11 +230,13 @@ export const api = {
   guildMe: () => request('GET', `${API_PREFIX}/guild/me`),
   guildTerminal: async () => {
     const data = await request('GET', `${API_PREFIX}/guild/terminal`)
+    if (data.profile) data.profile.avatar_url = fixPath(data.profile.avatar_url)
     if (Array.isArray(data.artworks)) data.artworks = data.artworks.map(transformArtwork)
     return data
   },
   guildProfile: async (uid) => {
     const data = await request('GET', `${API_PREFIX}/guild/profile/${encodeURIComponent(uid)}`)
+    if (data.profile) data.profile.avatar_url = fixPath(data.profile.avatar_url)
     if (Array.isArray(data.artworks)) data.artworks = data.artworks.map(transformArtwork)
     return data
   },
@@ -262,6 +264,9 @@ export const api = {
   adminUpdateGuildQuest: (id, body) => request('PUT', `${API_PREFIX}/admin/guild/quests/${id}`, { body }),
   adminDeleteGuildQuest: (id) => request('DELETE', `${API_PREFIX}/admin/guild/quests/${id}`),
   adminUpdateGuildQuestStatus: (id, status) => request('POST', `${API_PREFIX}/admin/guild/quests/${id}/status`, { body: { status } }),
+  adminGuildQuestClaims: () => request('GET', `${API_PREFIX}/admin/guild/quest-claims`),
+  adminApproveGuildQuestClaim: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/quest-claims/${id}/approve`, { body: { note } }),
+  adminRejectGuildQuestClaim: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/quest-claims/${id}/reject`, { body: { note } }),
   adminGuildRewards: async () => {
     const data = await request('GET', `${API_PREFIX}/admin/guild/rewards`)
     if (Array.isArray(data.data)) data.data = data.data.map(transformGuildReward)

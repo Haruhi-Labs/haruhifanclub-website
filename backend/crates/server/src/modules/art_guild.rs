@@ -58,6 +58,26 @@ struct GuildQuestListRow {
     sort_order: i64,
 }
 
+#[derive(sqlx::FromRow)]
+struct AdminQuestClaimRow {
+    id: i64,
+    quest_id: i64,
+    title: String,
+    uid: String,
+    status: String,
+    progress: i64,
+    target_count: i64,
+    claimed_at: Option<String>,
+    cycle_start_at: Option<String>,
+    cycle_end_at: Option<String>,
+    completed_at: Option<String>,
+    rewarded_at: Option<String>,
+    reviewed_at: Option<String>,
+    admin_note: Option<String>,
+    reward_reputation: i64,
+    reward_coins: i64,
+}
+
 #[derive(Clone)]
 struct QuestWindow {
     cycle_key: String,
@@ -89,6 +109,15 @@ pub fn router() -> Router<AppState> {
             put(admin_update_quest).delete(admin_delete_quest),
         )
         .route("/admin/guild/quests/{id}/status", post(admin_quest_status))
+        .route("/admin/guild/quest-claims", get(admin_guild_quest_claims))
+        .route(
+            "/admin/guild/quest-claims/{id}/approve",
+            post(admin_approve_quest_claim),
+        )
+        .route(
+            "/admin/guild/quest-claims/{id}/reject",
+            post(admin_reject_quest_claim),
+        )
         .route(
             "/admin/guild/rewards",
             get(admin_rewards).post(admin_create_reward),
@@ -1347,7 +1376,9 @@ async fn admin_rating_applications(
     )> = sqlx::query_as(
         "SELECT id, uid, from_rating, target_rating, reputation_snapshot, haruhi_count_snapshot,
                     status, user_note, admin_note, created_at, reviewed_at
-             FROM guild_rating_applications ORDER BY datetime(created_at) DESC",
+             FROM guild_rating_applications
+             WHERE status='pending'
+             ORDER BY datetime(created_at) DESC",
     )
     .fetch_all(&state.pools.art)
     .await?;
@@ -1453,6 +1484,165 @@ async fn admin_reject_rating(
     Ok(Json(json!({ "ok": true })))
 }
 
+async fn admin_guild_quest_claims(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Read).await?;
+    expire_overdue_claims(&state, None).await?;
+    let rows: Vec<AdminQuestClaimRow> = sqlx::query_as(
+        "SELECT c.id, q.id AS quest_id, q.title, c.uid, c.status, c.progress,
+                c.target_count, c.claimed_at, c.cycle_start_at, c.cycle_end_at,
+                c.completed_at, c.rewarded_at, c.reviewed_at, c.admin_note,
+                q.reward_reputation, q.reward_coins
+         FROM guild_quest_claims c
+         JOIN guild_quests q ON q.id=c.quest_id
+         WHERE q.condition_kind='manual_admin_verify'
+         ORDER BY
+            CASE c.status
+                WHEN 'active' THEN 0
+                WHEN 'rejected' THEN 1
+                WHEN 'completed' THEN 2
+                ELSE 3
+            END,
+            datetime(c.claimed_at) DESC,
+            c.id DESC
+         LIMIT 200",
+    )
+    .fetch_all(&state.pools.art)
+    .await?;
+    let uids: Vec<String> = rows.iter().map(|row| row.uid.clone()).collect();
+    let names = super::art::member_display_names(&state.pools.core, &uids).await;
+    let data: Vec<Value> = rows
+        .into_iter()
+        .map(|row| {
+            let name = names.get(&row.uid).cloned();
+            json!({
+                "id": row.id,
+                "questId": row.quest_id,
+                "questTitle": row.title,
+                "uid": row.uid,
+                "name": name,
+                "status": row.status,
+                "progress": row.progress,
+                "targetCount": row.target_count,
+                "claimedAt": row.claimed_at,
+                "cycleStartAt": row.cycle_start_at,
+                "cycleEndAt": row.cycle_end_at,
+                "completedAt": row.completed_at,
+                "rewardedAt": row.rewarded_at,
+                "reviewedAt": row.reviewed_at,
+                "adminNote": row.admin_note,
+                "rewardReputation": row.reward_reputation,
+                "rewardCoins": row.reward_coins
+            })
+        })
+        .collect();
+    Ok(Json(json!({ "ok": true, "data": data })))
+}
+
+async fn admin_approve_quest_claim(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+    expire_overdue_claims(&state, None).await?;
+    let row: Option<(String, i64, String, i64, i64, i64)> = sqlx::query_as(
+        "SELECT c.uid, q.id, q.title, q.reward_reputation, q.reward_coins, c.target_count
+         FROM guild_quest_claims c
+         JOIN guild_quests q ON q.id=c.quest_id
+         WHERE c.id=? AND c.status='active' AND q.condition_kind='manual_admin_verify'",
+    )
+    .bind(id)
+    .fetch_optional(&state.pools.art)
+    .await?;
+    let Some((uid, quest_id, title, reward_rep, reward_coins, target_count)) = row else {
+        return Err(AppError::bad_request("委托验收记录不存在或已处理"));
+    };
+    let now = now_iso();
+    let note = body
+        .get("note")
+        .and_then(|v| v.as_str())
+        .unwrap_or("管理员手动验收通过");
+    let affected = sqlx::query(
+        "UPDATE guild_quest_claims
+         SET status='completed', progress=?, completed_at=?, rewarded_at=?, reviewed_at=?, admin_note=?
+         WHERE id=? AND status='active'",
+    )
+    .bind(target_count)
+    .bind(&now)
+    .bind(&now)
+    .bind(&now)
+    .bind(note)
+    .bind(id)
+    .execute(&state.pools.art)
+    .await?
+    .rows_affected();
+    if affected == 0 {
+        return Err(AppError::bad_request("委托验收记录不存在或已处理"));
+    }
+    let reward_note = format!("完成委托「{title}」奖励");
+    grant_reputation(
+        &state,
+        &uid,
+        reward_rep,
+        Some(quest_id),
+        None,
+        &reward_note,
+        "quest",
+        &now,
+    )
+    .await?;
+    grant_coins(
+        &state,
+        &uid,
+        reward_coins,
+        None,
+        &reward_note,
+        "quest",
+        &now,
+    )
+    .await?;
+    ensure_auto_claims_for_uid(&state, &uid).await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+async fn admin_reject_quest_claim(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+    expire_overdue_claims(&state, None).await?;
+    let note = body
+        .get("note")
+        .and_then(|v| v.as_str())
+        .unwrap_or("管理员手动验收未通过");
+    let affected = sqlx::query(
+        "UPDATE guild_quest_claims
+         SET status='rejected', reviewed_at=?, admin_note=?
+         WHERE id=? AND status='active'
+           AND EXISTS (
+               SELECT 1 FROM guild_quests q
+               WHERE q.id=guild_quest_claims.quest_id
+                 AND q.condition_kind='manual_admin_verify'
+           )",
+    )
+    .bind(now_iso())
+    .bind(note)
+    .bind(id)
+    .execute(&state.pools.art)
+    .await?
+    .rows_affected();
+    if affected == 0 {
+        return Err(AppError::bad_request("委托验收记录不存在或已处理"));
+    }
+    Ok(Json(json!({ "ok": true })))
+}
+
 async fn admin_profiles(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Read).await?;
     let rows: Vec<(String, Option<i64>, i64, String, String, Option<i64>)> = sqlx::query_as(
@@ -1537,7 +1727,7 @@ async fn ensure_profile_for_user(state: &AppState, user: &AuthUser) -> AppResult
     Ok(uid)
 }
 
-async fn ensure_profile_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
+pub(crate) async fn ensure_profile_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
     let uid = normalize_uid(uid)?;
     let now = now_iso();
     let user_id = user_id_from_uid(&uid);
@@ -1583,6 +1773,10 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
             None,
         ),
     };
+    let qq = clean_optional_string(qq);
+    let email = clean_optional_string(user_email_for_id(state, user_id).await?);
+    let (contact_type, contact_value) = preferred_contact(qq.as_deref(), email.as_deref());
+    let contact_label = contact_type.map(contact_type_label);
     let coins = coin_summary(state, uid).await?;
     let haruhi_count = approved_haruhi_personal_count(state, uid).await?;
     let pending_rating_application = if private {
@@ -1603,7 +1797,11 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
         "displayName": display_name,
         "avatar_url": avatar_url,
         "creatorCreatedAt": creator_created_at,
-        "qq": if private { qq } else { None::<String> },
+        "qq": if private { qq.clone() } else { None::<String> },
+        "email": if private { email.clone() } else { None::<String> },
+        "contactType": contact_type,
+        "contactLabel": contact_label,
+        "contactValue": contact_value,
         "reputation": reputation,
         "level": level_from_reputation(reputation),
         "rating": rating,
@@ -1618,6 +1816,18 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
         "pendingRatingApplication": pending_rating_application,
         "user": user_profile
     }))
+}
+
+async fn user_email_for_id(state: &AppState, user_id: Option<i64>) -> AppResult<Option<String>> {
+    let Some(user_id) = user_id else {
+        return Ok(None);
+    };
+    let email: Option<String> = sqlx::query_scalar("SELECT email FROM users WHERE id=?")
+        .bind(user_id)
+        .fetch_optional(&state.pools.core)
+        .await?
+        .flatten();
+    Ok(email)
 }
 
 async fn user_profile_value(state: &AppState, user_id: i64) -> AppResult<Value> {
@@ -1774,18 +1984,33 @@ async fn grant_reputation(
     Ok(())
 }
 
+async fn expire_overdue_claims(state: &AppState, uid: Option<&str>) -> AppResult<()> {
+    let now = iso_utc(Utc::now());
+    if let Some(uid) = uid {
+        sqlx::query(
+            "UPDATE guild_quest_claims
+             SET status='expired'
+             WHERE uid=? AND status='active' AND cycle_end_at IS NOT NULL AND datetime(cycle_end_at) <= datetime(?)",
+        )
+        .bind(uid)
+        .bind(&now)
+        .execute(&state.pools.art)
+        .await?;
+    } else {
+        sqlx::query(
+            "UPDATE guild_quest_claims
+             SET status='expired'
+             WHERE status='active' AND cycle_end_at IS NOT NULL AND datetime(cycle_end_at) <= datetime(?)",
+        )
+        .bind(&now)
+        .execute(&state.pools.art)
+        .await?;
+    }
+    Ok(())
+}
+
 async fn refresh_claims_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
-    let now_dt = Utc::now();
-    let now = iso_utc(now_dt);
-    sqlx::query(
-        "UPDATE guild_quest_claims
-         SET status='expired'
-         WHERE uid=? AND status='active' AND cycle_end_at IS NOT NULL AND datetime(cycle_end_at) <= datetime(?)",
-    )
-    .bind(uid)
-    .bind(&now)
-    .execute(&state.pools.art)
-    .await?;
+    expire_overdue_claims(state, Some(uid)).await?;
     ensure_auto_claims_for_uid(state, uid).await?;
     let rows: Vec<(
         i64,
@@ -2681,7 +2906,34 @@ fn normalize_uid(uid: &str) -> AppResult<String> {
     Ok(uid.to_string())
 }
 
-fn level_from_reputation(reputation: i64) -> i64 {
+fn clean_optional_string(value: Option<String>) -> Option<String> {
+    value
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+fn preferred_contact(
+    qq: Option<&str>,
+    email: Option<&str>,
+) -> (Option<&'static str>, Option<String>) {
+    if let Some(qq) = qq.filter(|s| !s.trim().is_empty()) {
+        return (Some("qq"), Some(qq.trim().to_string()));
+    }
+    if let Some(email) = email.filter(|s| !s.trim().is_empty()) {
+        return (Some("email"), Some(email.trim().to_string()));
+    }
+    (None, None)
+}
+
+fn contact_type_label(contact_type: &str) -> &'static str {
+    match contact_type {
+        "qq" => "QQ",
+        "email" => "邮箱",
+        _ => "联系方式",
+    }
+}
+
+pub(crate) fn level_from_reputation(reputation: i64) -> i64 {
     (reputation.max(0) / 100) + 1
 }
 
@@ -2709,7 +2961,7 @@ fn access_rank(access: &str) -> i64 {
     }
 }
 
-fn access_label(access: &str) -> &'static str {
+pub(crate) fn access_label(access: &str) -> &'static str {
     match access {
         "closed_space" => "3级闭锁空间许可",
         "anomaly_research" => "2级异常观测许可",
@@ -2718,7 +2970,7 @@ fn access_label(access: &str) -> &'static str {
     }
 }
 
-fn access_short_label(access: &str) -> &'static str {
+pub(crate) fn access_short_label(access: &str) -> &'static str {
     match access {
         "closed_space" => "闭锁3",
         "anomaly_research" => "异常2",
@@ -2727,7 +2979,7 @@ fn access_short_label(access: &str) -> &'static str {
     }
 }
 
-fn rating_label(rating: &str) -> String {
+pub(crate) fn rating_label(rating: &str) -> String {
     format!("{rating}级冒险者")
 }
 
