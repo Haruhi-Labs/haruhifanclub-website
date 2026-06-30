@@ -63,6 +63,10 @@ onBeforeUnmount(() => {
           <slot name="actions" :close="close" />
         </div>
       </div>
+      <!-- 移动端专属：汉堡左侧、抽屉外的快捷位（如头像直达个人中心）。桌面端 CSS 隐藏。 -->
+      <div class="sos-appbar__mobile-lead">
+        <slot name="mobile-lead" :close="close" />
+      </div>
       <button
         type="button"
         class="sos-appbar__burger"
