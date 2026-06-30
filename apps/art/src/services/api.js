@@ -193,7 +193,7 @@ export const api = {
   adminDeleteComment: (id) => request('DELETE', `${API_PREFIX}/admin/comments/${id}`),
 
   // Admin - Creators & Points
-  adminPointsLedger: () => request('GET', `${API_PREFIX}/admin/points-ledger`),
+  adminPointsLedger: (params) => request('GET', `${API_PREFIX}/admin/points-ledger`, { params }),
   adminCreators: async () => {
     const data = await request('GET', `${API_PREFIX}/admin/creators`)
     if (data.data) {

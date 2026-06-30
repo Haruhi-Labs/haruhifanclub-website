@@ -1479,8 +1479,8 @@ async function selectCreator(c) {
   pointsForm.value = { amount: 10, reason: '' }
   
   // 加载积分
-  const res = await api.adminPointsLedger()
-  creatorLogs.value = (res.data || []).filter(l => l.uid === c.uid)
+  const res = await api.adminPointsLedger({ uid: c.uid })
+  creatorLogs.value = res.data || []
 }
 
 function handleFileChange(e) {
@@ -1545,8 +1545,8 @@ async function grantPoints() {
       note: pointsForm.value.reason
     })
     // 刷新记录
-    const res = await api.adminPointsLedger()
-    creatorLogs.value = (res.data || []).filter(l => l.uid === selectedCreator.value.uid)
+    const res = await api.adminPointsLedger({ uid: selectedCreator.value.uid })
+    creatorLogs.value = res.data || []
     pointsForm.value.reason = ''
   } catch(e) {
     alert('操作失败')

@@ -460,6 +460,7 @@ async fn map_artworks_with_names(state: &AppState, rows: &[ArtRow]) -> Vec<Value
 async fn record_visitor(State(state): State<AppState>, headers: HeaderMap) -> AppResult<Response> {
     let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
     let now = now_iso();
+    let mut tx = state.pools.art.begin().await?;
 
     // art_visitors 表已随迁移 0003 建好，这里不再运行期建表。
     let insert = sqlx::query(
@@ -469,7 +470,7 @@ async fn record_visitor(State(state): State<AppState>, headers: HeaderMap) -> Ap
     .bind(&anon_id)
     .bind(&now)
     .bind(&now)
-    .execute(&state.pools.art)
+    .execute(&mut *tx)
     .await?;
     let is_new_visitor = insert.rows_affected() > 0;
     let mut counted_visit = is_new_visitor;
@@ -485,7 +486,7 @@ async fn record_visitor(State(state): State<AppState>, headers: HeaderMap) -> Ap
         .bind(&anon_id)
         .bind(VISITOR_SESSION_WINDOW_MINUTES)
         .bind(&now)
-        .execute(&state.pools.art)
+        .execute(&mut *tx)
         .await?;
         counted_visit = counted.rows_affected() > 0;
 
@@ -493,17 +494,39 @@ async fn record_visitor(State(state): State<AppState>, headers: HeaderMap) -> Ap
             sqlx::query("UPDATE art_visitors SET last_seen_at=? WHERE anon_id=?")
                 .bind(&now)
                 .bind(&anon_id)
-                .execute(&state.pools.art)
+                .execute(&mut *tx)
                 .await?;
         }
     }
 
-    let total: i64 = sqlx::query_scalar("SELECT COALESCE(SUM(visit_count), 0) FROM art_visitors")
-        .fetch_one(&state.pools.art)
+    sqlx::query(
+        "INSERT OR IGNORE INTO art_visitor_stats(id, total_visits, unique_visitors, updated_at)
+         VALUES(1,0,0,?)",
+    )
+    .bind(&now)
+    .execute(&mut *tx)
+    .await?;
+
+    if counted_visit {
+        let unique_delta = if is_new_visitor { 1_i64 } else { 0_i64 };
+        sqlx::query(
+            "UPDATE art_visitor_stats
+             SET total_visits=total_visits+1,
+                 unique_visitors=unique_visitors+?,
+                 updated_at=?
+             WHERE id=1",
+        )
+        .bind(unique_delta)
+        .bind(&now)
+        .execute(&mut *tx)
         .await?;
-    let unique_visitors: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM art_visitors")
-        .fetch_one(&state.pools.art)
-        .await?;
+    }
+
+    let (total, unique_visitors): (i64, i64) =
+        sqlx::query_as("SELECT total_visits, unique_visitors FROM art_visitor_stats WHERE id=1")
+            .fetch_one(&mut *tx)
+            .await?;
+    tx.commit().await?;
 
     Ok(json_with_cookie(
         json!({
@@ -2680,21 +2703,34 @@ async fn admin_delete_announcement(
 async fn admin_points_ledger(
     State(state): State<AppState>,
     user: AuthUser,
+    Query(q): Query<std::collections::HashMap<String, String>>,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Read).await?;
+    let uid = q.get("uid").map(|s| s.trim()).unwrap_or("");
     let rows: Vec<(
         Option<String>,
         Option<i64>,
         Option<String>,
         Option<String>,
         Option<String>,
-    )> = sqlx::query_as(
-        "SELECT pl.uid, CAST(NULLIF(TRIM(pl.points), '') AS INTEGER) AS points, pl.granted_at, pl.note, a.title AS artwork_title \
-             FROM points_ledger pl LEFT JOIN artworks a ON a.id=pl.artwork_id \
-             ORDER BY datetime(pl.granted_at) DESC",
-    )
-    .fetch_all(&state.pools.art)
-    .await?;
+    )> = if uid.is_empty() {
+        sqlx::query_as(
+            "SELECT pl.uid, CAST(NULLIF(TRIM(pl.points), '') AS INTEGER) AS points, pl.granted_at, pl.note, a.title AS artwork_title \
+                 FROM points_ledger pl LEFT JOIN artworks a ON a.id=pl.artwork_id \
+                 ORDER BY datetime(pl.granted_at) DESC",
+        )
+        .fetch_all(&state.pools.art)
+        .await?
+    } else {
+        sqlx::query_as(
+            "SELECT pl.uid, CAST(NULLIF(TRIM(pl.points), '') AS INTEGER) AS points, pl.granted_at, pl.note, a.title AS artwork_title \
+                 FROM points_ledger pl LEFT JOIN artworks a ON a.id=pl.artwork_id \
+                 WHERE pl.uid=? ORDER BY datetime(pl.granted_at) DESC",
+        )
+        .bind(uid)
+        .fetch_all(&state.pools.art)
+        .await?
+    };
     let data: Vec<Value> = rows
         .into_iter()
         .map(|(uid, points, granted_at, note, artwork_title)| {
