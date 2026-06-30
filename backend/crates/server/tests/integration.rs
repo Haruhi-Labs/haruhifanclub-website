@@ -833,9 +833,9 @@ async fn artwork_points_follow_public_state() {
 }
 
 // 评论署名：登录用户自动用账号昵称署名（忽略前端自报、归属 author_user_id）；
-// 未登录用户仍可手动署名评论（author_user_id 为空，且不再被强制登录拦下）。
+// 未登录用户不允许评论（强制登录，返回 401）——前端在评论区改为展示登录提示。
 #[tokio::test]
-async fn comment_uses_nickname_for_member_and_allows_anonymous() {
+async fn comment_uses_nickname_for_member_and_rejects_anonymous() {
     let app = setup().await;
     let art = app.state.pools.art.clone();
 
@@ -867,7 +867,7 @@ async fn comment_uses_nickname_for_member_and_allows_anonymous() {
     assert_ne!(uname, "前端自报应忽略", "登录用户署名不应取前端自报值");
     assert!(author.is_some(), "登录用户评论应归属 author_user_id");
 
-    // 2) 未登录用户：保留手动署名，author_user_id 为空，且不是 401
+    // 2) 未登录用户：强制登录，评论被拒（401），且不落库
     let (s2, _) = send(
         &app.router,
         post_json(
@@ -877,12 +877,10 @@ async fn comment_uses_nickname_for_member_and_allows_anonymous() {
         ),
     )
     .await;
-    assert_eq!(s2, StatusCode::OK, "未登录用户也应能署名评论");
-    let (uname2, author2): (String, Option<i64>) =
-        sqlx::query_as("SELECT user_name, author_user_id FROM comments WHERE body='匿名评论'")
-            .fetch_one(&art)
-            .await
-            .unwrap();
-    assert_eq!(uname2, "路人甲", "未登录评论应使用手动署名");
-    assert!(author2.is_none(), "未登录评论 author_user_id 应为空");
+    assert_eq!(s2, StatusCode::UNAUTHORIZED, "未登录用户评论应被拒（401）");
+    let leaked: i64 = sqlx::query_scalar("SELECT COUNT(1) FROM comments WHERE body='匿名评论'")
+        .fetch_one(&art)
+        .await
+        .unwrap();
+    assert_eq!(leaked, 0, "未登录评论不应落库");
 }

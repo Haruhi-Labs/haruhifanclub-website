@@ -1578,25 +1578,13 @@ async fn list_comments(
 // 9. 创建评论
 async fn create_comment(
     State(state): State<AppState>,
-    user: Option<AuthUser>,
-    headers: HeaderMap,
+    user: AuthUser,
     Json(body): Json<Value>,
 ) -> AppResult<Response> {
-    // 登录用户：署名自动取账号昵称、身份键 "u{id}"、归属 author_user_id（忽略前端自报署名）。
-    // 未登录用户：保留匿名署名（body.user_name）+ 签名 Cookie 维持的匿名身份，author_user_id 为空。
-    let (user_name, anon_id, author_user_id, set): (
-        String,
-        String,
-        Option<i64>,
-        Option<[String; 2]>,
-    ) = if let Some(ref u) = user {
-        let name = crate::auth_routes::require_verified_member(&state.pools.core, u).await?;
-        (name, crate::auth_routes::member_uid(u.id), Some(u.id), None)
-    } else {
-        let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
-        let name = clamp_len(body.get("user_name").and_then(|v| v.as_str()), 40);
-        (name, anon_id, None, set)
-    };
+    // 必须登录 + 邮箱已验证；署名取账号昵称，身份键取 "u{id}"（不再读匿名 cookie）
+    let user_name = crate::auth_routes::require_verified_member(&state.pools.core, &user).await?;
+    let anon_id = crate::auth_routes::member_uid(user.id);
+    let set: Option<[String; 2]> = None;
 
     let artwork_id = body.get("artwork_id").and_then(json_num_i64);
     let comment_body = clamp_len(body.get("body").and_then(|v| v.as_str()), 800);
@@ -1652,7 +1640,7 @@ async fn create_comment(
     .bind(&created_at)
     .bind(&status)
     .bind(&ai_reason)
-    .bind(author_user_id)
+    .bind(user.id)
     .fetch_one(&state.pools.art)
     .await?;
 
@@ -1675,9 +1663,13 @@ async fn create_comment(
             set,
         ))
     } else {
-        // 委托进度只对登录用户记账；匿名评论 user=None，record_user_event 内部会早退。
-        super::art_guild::record_user_event(&state, user, "comment_artwork", Some(artwork_id))
-            .await;
+        super::art_guild::record_user_event(
+            &state,
+            Some(user),
+            "comment_artwork",
+            Some(artwork_id),
+        )
+        .await;
         Ok(json_with_cookie(
             json!({ "ok": true, "data": {
                 "id": last_id, "artwork_id": artwork_id, "user_name": user_name,

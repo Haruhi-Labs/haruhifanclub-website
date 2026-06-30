@@ -171,36 +171,37 @@
           <div class="sep"></div>
 
           <div class="panel input-panel">
-            <div class="small-muted" style="font-weight: 950; margin-bottom:8px; color:var(--accent);">讲两句？</div>
+            <!-- 登录用户：自动以账号昵称署名，无需填写署名，只留作曲框 -->
+            <template v-if="isLoggedIn">
+              <div class="input-panel__head">
+                <span class="input-panel__title">讲两句？</span>
+                <span class="comment-signas">以 <strong>{{ accountNickname || '账号昵称' }}</strong> 署名</span>
+              </div>
 
-            <div class="search input-row" style="margin-bottom:10px;">
-              <span class="hint">署名</span>
-              <input
-                v-if="isLoggedIn"
-                :value="accountNickname || '请先在「个人中心 → 资料」填写昵称'"
-                readonly
-                title="已登录，自动使用账号昵称署名"
-              />
-              <input
-                v-else
-                v-model="commentName"
-                placeholder="无需登录，但可不要冒充别人哦！"
-              />
-            </div>
+              <div class="search input-row" style="height:auto; padding: 10px 12px;">
+                <textarea
+                  v-model="commentBody"
+                  rows="3"
+                  placeholder="下面我来简单喵两句.."
+                  style="width:100%; border:none; outline:none; background:transparent; resize: vertical; font-weight:500;"
+                ></textarea>
+              </div>
 
-            <div class="search input-row" style="height:auto; padding: 10px 12px;">
-              <textarea
-                v-model="commentBody"
-                rows="3"
-                placeholder="下面我来简单喵两句.."
-                style="width:100%; border:none; outline:none; background:transparent; resize: vertical; font-weight:500;"
-              ></textarea>
-            </div>
+              <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+                <button class="btn btn--accent" type="button" @click="postComment" :aria-disabled="posting ? 'true':'false'" data-sfx="click">
+                  {{ posting ? '传送中…' : '发送' }}
+                </button>
+              </div>
+            </template>
 
-            <div style="margin-top:10px; display:flex; justify-content:flex-end;">
-              <button class="btn btn--accent" type="button" @click="postComment" :aria-disabled="posting ? 'true':'false'" data-sfx="click">
-                {{ posting ? '传送中…' : '发送' }}
-              </button>
+            <!-- 未登录用户：评论需登录，给出克制美观的登录引导 -->
+            <div v-else class="comment-login">
+              <div class="comment-login__icon" aria-hidden="true">🔒</div>
+              <div class="comment-login__body">
+                <strong class="comment-login__title">登录后留下你的回音</strong>
+                <span class="comment-login__desc">评论将以账号昵称署名，一起为画廊添一句。</span>
+              </div>
+              <button class="btn btn--accent comment-login__btn" type="button" @click="goLogin" data-sfx="click">登录 / 注册</button>
             </div>
           </div>
         </div>
@@ -212,13 +213,20 @@
 
 <script setup>
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useSession } from '@haruhi/auth-ui'
 import { api, thumbUrl } from '../services/api.js'
 
-// 登录态：已登录用户评论自动署名为账号昵称，无需填写；未登录用户保留手动署名。
+// 登录态：已登录用户评论自动署名为账号昵称、无需填写；未登录用户不可评论，仅给登录引导。
 const session = useSession('/api')
+const route = useRoute()
+const router = useRouter()
 const isLoggedIn = computed(() => !!session.state.user)
 const accountNickname = computed(() => session.state.user?.nickname || '')
+
+function goLogin() {
+  router.push({ path: '/login', query: { redirect: route.fullPath } })
+}
 
 const props = defineProps({
   modelValue: { type: Boolean, default: undefined },
@@ -602,7 +610,6 @@ function handleTouchEnd(e) {
 ---------------------------------- */
 const comments = ref([])
 const loadingComments = ref(false)
-const commentName = ref('')
 const commentBody = ref('')
 const posting = ref(false)
 
@@ -630,23 +637,14 @@ async function loadComments(){
 }
 
 async function postComment(){
-  if(!art.value?.id) return
+  if(!art.value?.id || !isLoggedIn.value) return
   const body = commentBody.value.trim()
   if(!body) return
 
-  // 登录用户：后端以账号昵称署名（这里传昵称仅供乐观展示，后端会忽略前端自报 user_name）。
-  // 未登录用户：必须手动填写署名。
-  let name = ''
-  if(isLoggedIn.value){
-    name = accountNickname.value
-  }else{
-    name = commentName.value.trim()
-    if(!name) return
-  }
-
+  // 评论需登录；后端以账号昵称署名（忽略前端自报），这里只提交正文。
   posting.value = true
   try{
-    await api.postComment({ artwork_id: art.value.id, user_name: name, body })
+    await api.postComment({ artwork_id: art.value.id, body })
     commentBody.value = ''
     await loadComments()
   }finally{
@@ -1128,6 +1126,75 @@ onMounted(() => {
   border-radius: 16px;
   background: rgba(244, 246, 249, 0.5);
   border: 1px dashed rgba(107, 140, 133, 0.3);
+}
+
+/* 登录态作曲框头部：标题 + 紧凑「以 昵称 署名」提示，省去整行署名输入，缓解拥挤 */
+.input-panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.input-panel__title {
+  font-weight: 950;
+  color: var(--accent);
+  font-size: 13px;
+}
+.comment-signas {
+  font-size: 12px;
+  color: var(--text-main);
+  opacity: 0.85;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.comment-signas strong {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+/* 未登录态：评论区登录引导卡，横向紧凑、贴合画廊青绿调 */
+.comment-login {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.comment-login__icon {
+  font-size: 20px;
+  line-height: 1;
+  flex: none;
+  filter: grayscale(0.2);
+}
+.comment-login__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.comment-login__title {
+  font-weight: 800;
+  color: var(--text-deep);
+  font-size: 14px;
+}
+.comment-login__desc {
+  font-size: 12px;
+  color: var(--text-main);
+  opacity: 0.8;
+  line-height: 1.5;
+}
+.comment-login__btn {
+  flex: none;
+}
+@media (max-width: 480px) {
+  .comment-login {
+    flex-wrap: wrap;
+  }
+  .comment-login__btn {
+    width: 100%;
+  }
 }
 
 .search {
