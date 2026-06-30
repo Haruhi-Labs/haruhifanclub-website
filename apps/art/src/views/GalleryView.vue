@@ -176,6 +176,25 @@ function exitMode() {
 }
 
 // --- 核心：将路由解析逻辑提取出来 ---
+// 可选的 listItem：列表已加载完该作品时直接用它打开弹窗，避免与 syncStateFromRoute
+// 的详情请求对同一作品重复打后端。浏览进度由 syncStateFromRoute 那次 fetch 负责记录，
+// 凡进入本路径的 artwork 都已被它请求过，这里跳过 fetch 不会漏记 browse 事件。
+function openArtworkById(id, listItem) {
+  if (listItem) {
+    if (String(route.query.artwork || '') !== String(id)) return
+    activeItem.value = listItem
+    modalOpen.value = true
+    return
+  }
+  store.fetchArtworkById(id).then(item => {
+    if (String(route.query.artwork || '') !== String(id)) return
+    if (item) {
+      activeItem.value = item
+      modalOpen.value = true
+    }
+  })
+}
+
 function syncStateFromRoute(q) {
   const newTag = q.tag
   const newAuthorUid = q.author
@@ -215,14 +234,8 @@ function syncStateFromRoute(q) {
 
   // C. 处理详情弹窗
   if (newArtworkId) {
-    // Always fetch detail to ensure we have full images list (and comments etc.)
-    // The store handles caching/optimization internally now
-    store.fetchArtworkById(newArtworkId).then(item => {
-      if (item) {
-        activeItem.value = item
-        modalOpen.value = true
-      }
-    })
+    // Always fetch detail to ensure we have full images list and record guild browse progress.
+    openArtworkById(newArtworkId)
   } else {
     modalOpen.value = false
     activeItem.value = null
@@ -260,8 +273,8 @@ watch(() => store.list, (list) => {
   if (targetId && !modalOpen.value) {
     const target = list.find(i => String(i.id) === String(targetId))
     if (target) {
-      activeItem.value = target
-      modalOpen.value = true
+      // 列表里已有该作品，直接用列表项打开（不再二次请求详情，详情已由 syncStateFromRoute 请求）
+      openArtworkById(targetId, target)
     }
   }
 })

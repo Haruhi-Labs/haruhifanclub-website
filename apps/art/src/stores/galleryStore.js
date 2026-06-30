@@ -231,27 +231,13 @@ export const useGalleryStore = defineStore('gallery', {
       if (!id) return null
 
       // 1. Try to find in current list first
-      let existing = this.list.find(i => String(i.id) === String(id))
+      const existing = this.list.find(i => String(i.id) === String(id))
 
       if (USE_DEV_SEED_ONLY) {
         return existing || seedArtworks.find(i => String(i.id) === String(id)) || null
       }
 
-      // If we found it, but it looks "incomplete" (missing images array for a multi-image post),
-      // or we just want to be sure, we might want to fetch details.
-      // For now, let's say if `images` is missing or empty, we fetch. 
-      // (Note: simple posts might strictly have no images array if the backend doesn't send it, 
-      // but usually the backend should send it if we ask for detail).
-      if (existing) {
-        // If it already has images populated, return it directly
-        if (Array.isArray(existing.images) && existing.images.length > 0) {
-          return existing
-        }
-        // If it's a seed data item (negative ID usually or just local), we might not be able to fetch
-        // But for real items, we should fetch.
-      }
-
-      // 2. Fetch from API
+      // 2. Fetch from API. Opening detail must hit the backend so guild browse quests can record progress.
       try {
         const res = await api.getArtwork(id)
         if (res.ok && res.data) {
