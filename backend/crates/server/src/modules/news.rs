@@ -1004,9 +1004,15 @@ async fn points_users(State(state): State<AppState>, user: AuthUser) -> AppResul
     )
     .fetch_all(&state.pools.news)
     .await?;
+    // 账户键是统一 uid，展示用昵称（经 core 解析；缺失则前端回退到 id）
+    let uids: Vec<String> = rows.iter().map(|(id, _)| id.clone()).collect();
+    let names = crate::modules::art::member_display_names(&state.pools.core, &uids).await;
     let data: Vec<Value> = rows
         .into_iter()
-        .map(|(id, total)| json!({ "id": id, "total": total }))
+        .map(|(id, total)| {
+            let nickname = names.get(&id).cloned();
+            json!({ "id": id, "nickname": nickname, "total": total })
+        })
         .collect();
     Ok(Json(json!({ "message": "success", "data": data })))
 }
@@ -1034,21 +1040,20 @@ async fn points_get(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
-    let user_row: Option<(String, Option<i64>)> = sqlx::query_as(
-        "SELECT id, CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total FROM users WHERE id = ?",
+    // 入参可能是 uid 或昵称：解析出统一 uid 后，余额按 uid 取（避免按昵称查命中不到余额显示 0），
+    // 历史按 uid/昵称并集取（避免按 uid 查命中不到旧昵称历史）。
+    let (uid, nickname) = resolve_points_identity(&state, &id).await;
+    let total_row: Option<(Option<i64>,)> = sqlx::query_as(
+        "SELECT CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total FROM users WHERE id = ?",
     )
-    .bind(&id)
+    .bind(&uid)
     .fetch_optional(&state.pools.news)
     .await?;
-    let history = fetch_points_history(&state, &id).await?;
-
-    let (uid, total) = match user_row {
-        Some((uid, total)) => (uid, total.unwrap_or(0)),
-        None => (id.clone(), 0),
-    };
+    let total = total_row.and_then(|(t,)| t).unwrap_or(0);
+    let history = fetch_points_history(&state, &uid, nickname.as_deref()).await?;
     Ok(Json(json!({
         "message": "success",
-        "data": { "id": uid, "total": total, "history": history }
+        "data": { "id": uid, "nickname": nickname, "total": total, "history": history }
     })))
 }
 
@@ -1136,21 +1141,60 @@ async fn points_update(
     .execute(&state.pools.news)
     .await?;
 
-    let history = fetch_points_history(&state, id).await?;
+    let (uid, nickname) = resolve_points_identity(&state, id).await;
+    let history = fetch_points_history(&state, &uid, nickname.as_deref()).await?;
     Ok(Json(json!({
         "message": "success",
-        "data": { "id": id, "total": new_total, "history": history }
+        "data": { "id": id, "nickname": nickname, "total": new_total, "history": history }
     }))
     .into_response())
 }
 
+/// 解析积分账户键 → (uid, nickname)。
+/// 历史包袱：余额表 `users` 按统一 uid（"u{id}"）存，旧 `points_history` 按昵称存。
+/// 入参可能是 uid 或昵称，统一解析出两者，便于余额按 uid 取、历史按昵称/uid 并集取，并展示昵称。
+async fn resolve_points_identity(state: &AppState, key: &str) -> (String, Option<String>) {
+    let key = key.trim();
+    if key.is_empty() {
+        return (String::new(), None);
+    }
+    // 情况一：已是 "u{id}" → 经 core 取昵称
+    if key
+        .strip_prefix('u')
+        .and_then(|s| s.parse::<i64>().ok())
+        .is_some()
+    {
+        let names =
+            crate::modules::art::member_display_names(&state.pools.core, &[key.to_string()]).await;
+        return (key.to_string(), names.get(key).cloned());
+    }
+    // 情况二：当作昵称反查 uid（昵称有唯一索引，至多一条）；查不到则原样回退当昵称用
+    let row: Option<(i64,)> =
+        sqlx::query_as("SELECT id FROM users WHERE nickname = ? AND deleted_at IS NULL")
+            .bind(key)
+            .fetch_optional(&state.pools.core)
+            .await
+            .unwrap_or(None);
+    match row {
+        Some((id,)) => (format!("u{id}"), Some(key.to_string())),
+        None => (key.to_string(), Some(key.to_string())),
+    }
+}
+
 /// 取用户积分历史（最近 50 条，timestamp 降序）。
-async fn fetch_points_history(state: &AppState, user_id: &str) -> AppResult<Vec<Value>> {
+/// 同时按统一 uid 与昵称查：新写入按 uid 落库，旧数据按昵称落库，并集后两者都可见。
+async fn fetch_points_history(
+    state: &AppState,
+    uid: &str,
+    nickname: Option<&str>,
+) -> AppResult<Vec<Value>> {
+    let alt = nickname.unwrap_or(uid);
     let rows: Vec<(Option<String>, Option<String>, Option<String>, Option<i64>)> = sqlx::query_as(
         "SELECT date, change, reason, CAST(NULLIF(TRIM(timestamp), '') AS INTEGER) AS timestamp FROM points_history \
-         WHERE user_id = ? ORDER BY timestamp DESC LIMIT 50",
+         WHERE user_id = ? OR user_id = ? ORDER BY timestamp DESC LIMIT 50",
     )
-    .bind(user_id)
+    .bind(uid)
+    .bind(alt)
     .fetch_all(&state.pools.news)
     .await?;
     Ok(rows
@@ -1180,6 +1224,8 @@ async fn my_articles(State(state): State<AppState>, user: AuthUser) -> AppResult
 /// GET /api/news/me/points —— 我的团报积分（应援积分：余额 + 历史）。账户键取 "u{id}"。
 async fn my_points(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     let uid = crate::auth_routes::member_uid(user.id);
+    let names = crate::modules::art::member_display_names(&state.pools.core, &[uid.clone()]).await;
+    let nickname = names.get(&uid).cloned();
     let row: Option<(String, Option<i64>)> = sqlx::query_as(
         "SELECT id, CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total FROM users WHERE id = ?",
     )
@@ -1187,10 +1233,10 @@ async fn my_points(State(state): State<AppState>, user: AuthUser) -> AppResult<J
     .fetch_optional(&state.pools.news)
     .await?;
     let total = row.map(|(_, t)| t.unwrap_or(0)).unwrap_or(0);
-    let history = fetch_points_history(&state, &uid).await?;
+    let history = fetch_points_history(&state, &uid, nickname.as_deref()).await?;
     Ok(Json(json!({
         "message": "success",
-        "data": { "id": uid, "total": total, "history": history }
+        "data": { "id": uid, "nickname": nickname, "total": total, "history": history }
     })))
 }
 

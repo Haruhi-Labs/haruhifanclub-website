@@ -20,7 +20,7 @@
         </div>
         <div v-for="user in pointsUserList" :key="user.id" @click="selectUserFromList(user)" class="user-card" :class="currentPointsUser?.id === user.id ? 'user-card-active' : 'user-card-inactive'">
           <div class="user-card-top">
-            <span class="user-card-id">{{ user.id }}</span>
+            <span class="user-card-id">{{ user.nickname || user.id }}</span>
             <span class="user-card-label">User</span>
           </div>
           <div class="user-card-bottom">
@@ -35,7 +35,7 @@
         <div class="points-detail-header">
              <div>
               <h2 class="points-detail-title">用户详情</h2>
-              <p class="points-detail-id">{{ currentPointsUser.id }}</p>
+              <p class="points-detail-id">{{ currentPointsUser.nickname || currentPointsUser.id }}</p>
              </div>
              <div class="points-detail-total-wrap">
                  <div class="points-total-label">Total Points</div>
@@ -159,6 +159,7 @@ const buildPointsUser = (userId, data, fallback = {}) => ({
     ...fallback,
     ...data,
     id: userId,
+    nickname: data?.nickname ?? fallback?.nickname ?? null,
     total: Number(data?.total ?? fallback?.total ?? 0),
     history: Array.isArray(data?.history) ? data.history : (Array.isArray(fallback?.history) ? fallback.history : [])
 });
