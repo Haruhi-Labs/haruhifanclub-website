@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { thumbUrl } from '../services/api.js'
 // import { useRouter } from 'vue-router' // No longer needed for author navigation
 
@@ -130,11 +130,6 @@ function clickTag(tag, item, e){
   emit('tagClick', tag)
 }
 
-// --- 智能缩放逻辑 ---
-import { reactive } from 'vue'
-
-const imgStyle = reactive({})
-
 // 与模板 :key 同一回退链：id 缺失时不让多个项落进同一个 undefined 桶串样式
 function itemKey(item) {
   return item?.id ?? item?.file_path ?? item?.title ?? imgSrc(item)
@@ -143,35 +138,34 @@ function itemKey(item) {
 function onImgLoad(item, e) {
   const el = e.target
   if (!el) return
-  
+
   const w = el.naturalWidth
   const h = el.naturalHeight
-  
+
   // 避免除零
-  if (!h) return 
+  if (!h) return
 
   const ratio = w / h
-  
+
   // 阈值设定：
   // 极端比例定义：更宽松一点，避免正常竖图(9:16=0.56)被裁切
   // 取 < 0.45 (极高) 或 > 2.2 (极宽) 作为极端阈值
   // 极端比例 -> cover (保证填满，避免主体看起来太小)
   // 正常比例 -> contain (完整展示)
-  
+
   const isExtreme = ratio < 0.42 || ratio > 2.3
 
-  imgStyle[itemKey(item)] = {
-    objectFit: isExtreme ? 'cover' : 'contain',
-    // 统一居中，对于 contain 模式会留白，对于 cover 模式会裁切
-    objectPosition: 'center center'
-  }
+  // 这是单个 DOM 节点自己的展示策略，不需要写入 Vue 响应式状态。
+  // 否则滚动懒加载图片时，每张图都会触发整张网格重新渲染。
+  el.style.objectFit = isExtreme ? 'cover' : 'contain'
+  el.style.objectPosition = 'center center'
 }
 
 // --- 视口外暂停浮动动画：滚出屏幕的卡片不再产生每帧合成开销 ---
-import { ref, onMounted, onUpdated, onBeforeUnmount } from 'vue'
-
 const galleryEl = ref(null)
 let cardObserver = null
+let observeFrame = 0
+let scrollIdleTimer = 0
 
 function observeCards() {
   if (!cardObserver || !galleryEl.value) return
@@ -180,29 +174,67 @@ function observeCards() {
   galleryEl.value.querySelectorAll('.art-card-wrap').forEach(el => cardObserver.observe(el))
 }
 
+function scheduleObserveCards() {
+  if (typeof window === 'undefined') {
+    nextTick(observeCards)
+    return
+  }
+
+  nextTick(() => {
+    if (observeFrame) window.cancelAnimationFrame(observeFrame)
+    observeFrame = window.requestAnimationFrame(() => {
+      observeFrame = 0
+      observeCards()
+    })
+  })
+}
+
+function setScrollInteracting(value) {
+  galleryEl.value?.classList.toggle('is-scroll-interacting', value)
+}
+
+function onWindowScroll() {
+  setScrollInteracting(true)
+  if (scrollIdleTimer) window.clearTimeout(scrollIdleTimer)
+  scrollIdleTimer = window.setTimeout(() => {
+    scrollIdleTimer = 0
+    setScrollInteracting(false)
+  }, 140)
+}
+
 onMounted(() => {
   cardObserver = new IntersectionObserver((entries) => {
     for (const en of entries) {
       en.target.style.animationPlayState = en.isIntersecting ? '' : 'paused'
     }
   }, { rootMargin: '100px' })
-  observeCards()
+  scheduleObserveCards()
+  window.addEventListener('scroll', onWindowScroll, { passive: true })
 })
 
-onUpdated(observeCards)
+watch(list, scheduleObserveCards, { flush: 'post' })
 
 onBeforeUnmount(() => {
+  if (observeFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(observeFrame)
+  }
+  if (scrollIdleTimer && typeof window !== 'undefined') {
+    window.clearTimeout(scrollIdleTimer)
+  }
+  window.removeEventListener('scroll', onWindowScroll)
   cardObserver?.disconnect()
   cardObserver = null
+  observeFrame = 0
+  scrollIdleTimer = 0
 })
 </script>
 
 <template>
-  <div class="gallery" ref="galleryEl">
+  <div ref="galleryEl" class="gallery">
     <div class="grid">
       <div
         v-for="it in list"
-        :key="it.id ?? it.file_path ?? it.title"
+        :key="itemKey(it)"
         class="art-card-wrap"
       >
         <article
@@ -225,7 +257,6 @@ onBeforeUnmount(() => {
               :alt="it.title || 'artwork'"
               loading="lazy"
               decoding="async"
-              :style="imgStyle[itemKey(it)] || { objectFit: 'cover' }"
               @load="onImgLoad(it, $event)"
             />
           </div>
@@ -380,6 +411,28 @@ onBeforeUnmount(() => {
 
 .art-card-wrap:hover {
   animation-play-state: paused;
+}
+
+/* 滚动时鼠标位置是被动扫过卡片，不应触发卡片 hover 交互状态。 */
+.gallery.is-scroll-interacting .art-card-wrap {
+  pointer-events: none;
+}
+
+.gallery.is-scroll-interacting .art-card-wrap:hover {
+  animation-play-state: running;
+}
+
+.gallery.is-scroll-interacting .art-card:hover {
+  transform: translateZ(0);
+  z-index: auto;
+}
+
+.gallery.is-scroll-interacting .art-card:hover .art-card__media {
+  box-shadow: var(--shadow-media), 0 25px 50px rgba(0,0,0,0.5);
+}
+
+.gallery.is-scroll-interacting .art-card:hover .art-card__img {
+  transform: scale(1.02);
 }
 
 /* 弹窗打开时暂停浮动：卡片被全屏 backdrop-filter 遮罩盖住，
