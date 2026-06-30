@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { SosCard, SosField, SosInput, SosButton, SosNotice, SosTabs, SosDivider } from '@haruhi/ui'
 import { useSession } from './useSession.js'
+import brandLogo from './assets/haruhi-logo-192.png'
 import './auth.css'
 
 const props = defineProps({
@@ -184,7 +185,7 @@ async function onForgot() {
   <div class="hauth-root sos-scope hauth-shell" :data-sos-site="site">
     <SosCard class="hauth-card" as="section">
       <header class="hauth-brand">
-        <span class="hauth-brand__mark" aria-hidden="true">{{ title.slice(0, 1) }}</span>
+        <img class="hauth-brand__mark" :src="brandLogo" alt="" />
         <h1 class="sos-title" style="font-size: var(--sos-text-2xl)">{{ title }}</h1>
         <p class="sos-copy sos-copy--small">
           {{
