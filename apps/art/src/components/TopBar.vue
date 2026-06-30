@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { SosAppbar } from '@haruhi/ui'
-import { AccountMenu, useSession } from '@haruhi/auth-ui'
+import { AccountMenu, AccountAvatarLink, useSession } from '@haruhi/auth-ui'
 import logoUrl from '../assets/logo.webp'
 
 const route = useRoute()
@@ -62,6 +62,11 @@ const isActive = (path) => {
 
     <template #actions>
       <AccountMenu login-path="/login" profile-path="/account" settings-path="/account/settings" />
+    </template>
+
+    <!-- 移动端：头像快捷入口提到汉堡左侧，点头像直达个人中心 -->
+    <template #mobile-lead>
+      <AccountAvatarLink profile-path="/account" />
     </template>
   </SosAppbar>
 </template>

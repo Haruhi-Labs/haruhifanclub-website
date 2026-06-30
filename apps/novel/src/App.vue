@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { RouterView, RouterLink, useRoute } from 'vue-router'
 import { SosAppbar } from '@haruhi/ui'
 import FooterBar from '@/components/FooterBar.vue'
-import { AccountMenu } from '@haruhi/auth-ui'
+import { AccountMenu, AccountAvatarLink } from '@haruhi/auth-ui'
 
 const route = useRoute()
 // 阅读页全屏沉浸，隐藏全局页头
@@ -32,6 +32,11 @@ const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`
       </nav>
       <template #actions>
         <AccountMenu />
+      </template>
+
+      <!-- 移动端：头像快捷入口提到汉堡左侧，点头像直达个人中心 -->
+      <template #mobile-lead>
+        <AccountAvatarLink />
       </template>
     </SosAppbar>
 
