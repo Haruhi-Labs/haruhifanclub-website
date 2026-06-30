@@ -4,11 +4,15 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
+use chrono::{DateTime, Datelike, Duration, FixedOffset, TimeZone, Utc};
 use haruhi_auth::{authorize, Action, AuthUser};
 use haruhi_core::{AppError, AppResult};
 use serde_json::{json, Value};
 
 use crate::state::AppState;
+
+const DEFAULT_CYCLE_RESET_HOUR: i64 = 4;
+const BEIJING_OFFSET_SECONDS: i32 = 8 * 60 * 60;
 
 const RATINGS: &[(&str, i64, i64)] = &[
     ("F", 0, 0),
@@ -44,13 +48,22 @@ struct GuildQuestListRow {
     reward_reputation: i64,
     reward_coins: i64,
     deadline_hours: Option<i64>,
+    deadline_days: Option<i64>,
+    fixed_deadline_at: Option<String>,
+    cycle_days: Option<i64>,
+    cycle_reset_hour: i64,
+    repeat_on_complete: i64,
     auto_claim: i64,
     status: String,
     sort_order: i64,
-    claim_status: Option<String>,
-    claim_progress: Option<i64>,
-    claim_target_count: Option<i64>,
-    claim_rewarded_at: Option<String>,
+}
+
+#[derive(Clone)]
+struct QuestWindow {
+    cycle_key: String,
+    cycle_start_at: Option<DateTime<Utc>>,
+    cycle_end_at: Option<DateTime<Utc>>,
+    deadline_at: Option<DateTime<Utc>>,
 }
 
 pub fn router() -> Router<AppState> {
@@ -142,14 +155,17 @@ pub async fn record_user_event(
     if ensure_profile_for_user(state, &user).await.is_err() {
         return;
     }
-    let now = now_iso();
+    let now_dt = Utc::now();
+    let now = iso_utc(now_dt);
+    let event_scope = default_event_scope(now_dt);
     let insert = sqlx::query(
-        "INSERT OR IGNORE INTO guild_quest_events(uid, event_kind, target_id, created_at)
-         VALUES(?,?,?,?)",
+        "INSERT OR IGNORE INTO guild_quest_events(uid, event_kind, target_id, event_scope, created_at)
+         VALUES(?,?,?,?,?)",
     )
     .bind(&uid)
     .bind(event_kind)
     .bind(target_id)
+    .bind(event_scope)
     .bind(&now)
     .execute(&state.pools.art)
     .await;
@@ -341,16 +357,14 @@ async fn guild_quests(
     let rows: Vec<GuildQuestListRow> = sqlx::query_as(
         "SELECT q.id, q.title, q.description, q.quest_type, q.difficulty,
                 q.required_rating, q.required_access, q.condition_kind, q.target_count,
-                q.reward_reputation, q.reward_coins, q.deadline_hours, COALESCE(q.auto_claim, 0) AS auto_claim,
-                q.status, q.sort_order,
-                c.status AS claim_status, c.progress AS claim_progress,
-                c.target_count AS claim_target_count, c.rewarded_at AS claim_rewarded_at
+                q.reward_reputation, q.reward_coins, q.deadline_hours, q.deadline_days,
+                q.fixed_deadline_at, q.cycle_days, COALESCE(q.cycle_reset_hour, 4) AS cycle_reset_hour,
+                COALESCE(q.repeat_on_complete, 0) AS repeat_on_complete, COALESCE(q.auto_claim, 0) AS auto_claim,
+                q.status, q.sort_order
          FROM guild_quests q
-         LEFT JOIN guild_quest_claims c ON c.quest_id=q.id AND c.uid=?
          WHERE q.status='active'
          ORDER BY q.sort_order ASC, q.id ASC",
     )
-    .bind(uid.as_deref().unwrap_or(""))
     .fetch_all(&state.pools.art)
     .await?;
 
@@ -365,40 +379,106 @@ async fn guild_quests(
         .and_then(|v| v.as_str())
         .unwrap_or("public_archive");
 
-    let data: Vec<Value> = rows
-        .into_iter()
-        .map(|row| {
-            let unlocked = uid.is_some()
-                && rating_rank(profile_rating) >= rating_rank(&row.required_rating)
-                && access_rank(profile_access) >= access_rank(&row.required_access);
-            let required_access_label = access_label(&row.required_access);
-            json!({
-                "id": row.id,
-                "title": row.title,
-                "description": row.description,
-                "questType": row.quest_type,
-                "difficulty": row.difficulty,
-                "requiredRating": row.required_rating,
-                "requiredAccess": row.required_access,
-                "requiredAccessLabel": required_access_label,
-                "conditionKind": row.condition_kind,
-                "targetCount": row.target_count,
-                "rewardReputation": row.reward_reputation,
-                "rewardCoins": row.reward_coins,
-                "deadlineHours": row.deadline_hours,
-                "autoClaim": row.auto_claim != 0,
-                "status": row.status,
-                "sortOrder": row.sort_order,
-                "unlocked": unlocked,
-                "claim": row.claim_status.map(|s| json!({
-                    "status": s,
-                    "progress": row.claim_progress.unwrap_or(0),
-                    "targetCount": row.claim_target_count.unwrap_or(row.target_count),
-                    "rewarded": row.claim_rewarded_at.is_some()
-                }))
-            })
-        })
-        .collect();
+    let now = Utc::now();
+    let mut data = Vec::with_capacity(rows.len());
+    for row in rows {
+        let unlocked = uid.is_some()
+            && rating_rank(profile_rating) >= rating_rank(&row.required_rating)
+            && access_rank(profile_access) >= access_rank(&row.required_access);
+        let repeat_on_complete = uses_repeat_on_complete(
+            row.repeat_on_complete,
+            row.deadline_days,
+            row.fixed_deadline_at.as_deref(),
+        );
+        let window = quest_window(
+            row.cycle_days,
+            row.cycle_reset_hour,
+            row.deadline_days,
+            row.fixed_deadline_at.as_deref(),
+            repeat_on_complete,
+            now,
+            None,
+        );
+        let claim: Option<(
+            String,
+            i64,
+            i64,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+        )> = match (&uid, repeat_on_complete) {
+            (Some(uid), true) => sqlx::query_as(
+                "SELECT status, progress, target_count, cycle_start_at, cycle_end_at, rewarded_at
+                     FROM guild_quest_claims
+                     WHERE quest_id=? AND uid=? AND status='active'
+                     ORDER BY datetime(claimed_at) DESC, id DESC LIMIT 1",
+            )
+            .bind(row.id)
+            .bind(uid)
+            .fetch_optional(&state.pools.art)
+            .await?,
+            (Some(uid), false) => sqlx::query_as(
+                "SELECT status, progress, target_count, cycle_start_at, cycle_end_at, rewarded_at
+                     FROM guild_quest_claims
+                     WHERE quest_id=? AND uid=? AND cycle_key=?",
+            )
+            .bind(row.id)
+            .bind(uid)
+            .bind(&window.cycle_key)
+            .fetch_optional(&state.pools.art)
+            .await?,
+            (None, _) => None,
+        };
+        let claim_cycle_start = claim
+            .as_ref()
+            .and_then(|(_, _, _, cycle_start, _, _)| cycle_start.as_deref())
+            .and_then(parse_datetime_utc);
+        let claim_cycle_end = claim
+            .as_ref()
+            .and_then(|(_, _, _, _, cycle_end, _)| cycle_end.as_deref())
+            .and_then(parse_datetime_utc);
+        let display_start = claim_cycle_start.or(window.cycle_start_at);
+        let display_end = claim_cycle_end.or(window.cycle_end_at);
+        let display_deadline = claim_cycle_end.or(window.deadline_at);
+        let required_access_label = access_label(&row.required_access);
+        data.push(json!({
+            "id": row.id,
+            "title": row.title,
+            "description": row.description,
+            "questType": row.quest_type,
+            "difficulty": row.difficulty,
+            "requiredRating": row.required_rating,
+            "requiredAccess": row.required_access,
+            "requiredAccessLabel": required_access_label,
+            "conditionKind": row.condition_kind,
+            "targetCount": row.target_count,
+            "rewardReputation": row.reward_reputation,
+            "rewardCoins": row.reward_coins,
+            "deadlineHours": row.deadline_hours,
+            "deadlineDays": row.deadline_days,
+            "fixedDeadlineAt": row.fixed_deadline_at,
+            "cycleDays": row.cycle_days,
+            "cycleResetHour": row.cycle_reset_hour,
+            "repeatOnComplete": repeat_on_complete,
+            "cycleKey": window.cycle_key,
+            "cycleStartAt": display_start.map(iso_utc),
+            "cycleEndAt": display_end.map(iso_utc),
+            "deadlineAt": display_deadline.map(iso_utc),
+            "remainingSeconds": display_deadline.map(|deadline| remaining_seconds(deadline, now)),
+            "autoClaim": row.auto_claim != 0,
+            "status": row.status,
+            "sortOrder": row.sort_order,
+            "unlocked": unlocked,
+            "claim": claim.map(|(status, progress, target_count, cycle_start, cycle_end, rewarded_at)| json!({
+                "status": status,
+                "progress": progress,
+                "targetCount": target_count,
+                "cycleStartAt": cycle_start,
+                "cycleEndAt": cycle_end,
+                "rewarded": rewarded_at.is_some()
+            }))
+        }));
+    }
 
     Ok(Json(
         json!({ "ok": true, "profile": profile, "data": data }),
@@ -411,14 +491,35 @@ async fn guild_claim_quest(
     Path(id): Path<i64>,
 ) -> AppResult<Json<Value>> {
     let uid = ensure_profile_for_user(&state, &user).await?;
-    let quest: Option<(String, String, i64)> = sqlx::query_as(
-        "SELECT required_rating, required_access, target_count
+    refresh_claims_for_uid(&state, &uid).await?;
+    let quest: Option<(
+        String,
+        String,
+        i64,
+        Option<i64>,
+        i64,
+        i64,
+        Option<i64>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT required_rating, required_access, target_count,
+                cycle_days, COALESCE(cycle_reset_hour, 4), COALESCE(repeat_on_complete, 0), deadline_days, fixed_deadline_at
          FROM guild_quests WHERE id=? AND status='active'",
     )
     .bind(id)
     .fetch_optional(&state.pools.art)
     .await?;
-    let Some((required_rating, required_access, target_count)) = quest else {
+    let Some((
+        required_rating,
+        required_access,
+        target_count,
+        cycle_days,
+        cycle_reset_hour,
+        repeat_on_complete,
+        deadline_days,
+        fixed_deadline_at,
+    )) = quest
+    else {
         return Err(AppError::bad_request("委托不存在或已下架"));
     };
     let profile = profile_value(&state, &uid, true).await?;
@@ -435,17 +536,62 @@ async fn guild_claim_quest(
     {
         return Err(AppError::bad_request("评级或访问许可不足"));
     }
-    let now = now_iso();
+    let now_dt = Utc::now();
+    let repeat_on_complete = uses_repeat_on_complete(
+        repeat_on_complete,
+        deadline_days,
+        fixed_deadline_at.as_deref(),
+    );
+    if repeat_on_complete {
+        let active_claim: Option<i64> = sqlx::query_scalar(
+            "SELECT id FROM guild_quest_claims
+             WHERE quest_id=? AND uid=? AND status='active'
+             ORDER BY datetime(claimed_at) DESC, id DESC LIMIT 1",
+        )
+        .bind(id)
+        .bind(&uid)
+        .fetch_optional(&state.pools.art)
+        .await?;
+        if active_claim.is_some() {
+            return Ok(Json(json!({ "ok": true })));
+        }
+    }
+    let window = quest_window(
+        cycle_days,
+        cycle_reset_hour,
+        deadline_days,
+        fixed_deadline_at.as_deref(),
+        repeat_on_complete,
+        now_dt,
+        Some(now_dt),
+    );
+    if window
+        .deadline_at
+        .map(|deadline| deadline <= now_dt)
+        .unwrap_or(false)
+    {
+        return Err(AppError::bad_request("委托已过截止时间"));
+    }
+    let now = iso_utc(now_dt);
     sqlx::query(
-        "INSERT OR IGNORE INTO guild_quest_claims(quest_id, uid, status, progress, target_count, claimed_at)
-         VALUES(?,?,?,?,?,?)",
+        "INSERT OR IGNORE INTO guild_quest_claims(
+            quest_id, uid, cycle_key, status, progress, target_count, claimed_at, cycle_start_at, cycle_end_at
+         ) VALUES(?,?,?,?,?,?,?,?,?)",
     )
     .bind(id)
     .bind(&uid)
+    .bind(&window.cycle_key)
     .bind("active")
     .bind(0_i64)
     .bind(target_count)
     .bind(&now)
+    .bind(
+        window
+            .cycle_start_at
+            .map(iso_utc)
+            .unwrap_or_else(|| now.clone()),
+    )
+    .bind(window.deadline_at.map(iso_utc))
     .execute(&state.pools.art)
     .await?;
     refresh_claims_for_uid(&state, &uid).await?;
@@ -547,18 +693,17 @@ async fn guild_apply_rating(
     if !RATINGS.iter().any(|(r, _, _)| *r == target) {
         return Err(AppError::bad_request("评级无效"));
     }
-    let profile = profile_value(&state, &uid, true).await?;
-    let current = profile
-        .get("rating")
-        .and_then(|v| v.as_str())
-        .unwrap_or("F");
-    if rating_rank(&target) <= rating_rank(current) {
+    let row: Option<(i64, String)> =
+        sqlx::query_as("SELECT reputation, rating FROM guild_profiles WHERE uid=?")
+            .bind(&uid)
+            .fetch_optional(&state.pools.art)
+            .await?;
+    let Some((rep, current)) = row else {
+        return Err(AppError::bad_request("冒险者档案不存在"));
+    };
+    if rating_rank(&target) <= rating_rank(&current) {
         return Err(AppError::bad_request("只能申请更高评级"));
     }
-    let rep = profile
-        .get("reputation")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
     let haruhi_count = approved_haruhi_personal_count(&state, &uid).await?;
     if !rating_requirements_met(&target, rep, haruhi_count) {
         return Err(AppError::bad_request("尚未满足评级申请条件"));
@@ -579,7 +724,7 @@ async fn guild_apply_rating(
          VALUES(?,?,?,?,?,?,?,?)",
     )
     .bind(&uid)
-    .bind(current)
+    .bind(&current)
     .bind(&target)
     .bind(rep)
     .bind(haruhi_count)
@@ -761,11 +906,26 @@ async fn admin_create_quest(
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Manage).await?;
     let now = now_iso();
+    let fixed_deadline_at = datetime_field(&body, "fixedDeadlineAt");
+    let deadline_days = if fixed_deadline_at.is_some() {
+        None
+    } else {
+        optional_positive_i64_field(&body, "deadlineDays")
+    };
+    let repeat_on_complete = deadline_days.is_some()
+        && fixed_deadline_at.is_none()
+        && bool_field(&body, "repeatOnComplete", false);
+    let cycle_days = if deadline_days.is_some() {
+        None
+    } else {
+        optional_positive_i64_field(&body, "cycleDays")
+    };
     sqlx::query(
         "INSERT INTO guild_quests(title, description, quest_type, difficulty, required_rating,
          required_access, condition_kind, target_count, reward_reputation, reward_coins,
-         deadline_hours, auto_claim, status, sort_order, created_at, updated_at)
-         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+         deadline_hours, deadline_days, fixed_deadline_at, cycle_days, cycle_reset_hour,
+         repeat_on_complete, auto_claim, status, sort_order, created_at, updated_at)
+         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
     )
     .bind(str_field(&body, "title", "未命名委托"))
     .bind(str_field(&body, "description", ""))
@@ -778,6 +938,11 @@ async fn admin_create_quest(
     .bind(int_field(&body, "rewardReputation", 0))
     .bind(int_field(&body, "rewardCoins", 0))
     .bind(body.get("deadlineHours").and_then(json_num_i64))
+    .bind(deadline_days)
+    .bind(fixed_deadline_at)
+    .bind(cycle_days)
+    .bind(int_field(&body, "cycleResetHour", DEFAULT_CYCLE_RESET_HOUR).clamp(0, 23))
+    .bind(if repeat_on_complete { 1_i64 } else { 0_i64 })
     .bind(if bool_field(&body, "autoClaim", false) {
         1_i64
     } else {
@@ -800,10 +965,25 @@ async fn admin_update_quest(
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Manage).await?;
     let now = now_iso();
+    let fixed_deadline_at = datetime_field(&body, "fixedDeadlineAt");
+    let deadline_days = if fixed_deadline_at.is_some() {
+        None
+    } else {
+        optional_positive_i64_field(&body, "deadlineDays")
+    };
+    let repeat_on_complete = deadline_days.is_some()
+        && fixed_deadline_at.is_none()
+        && bool_field(&body, "repeatOnComplete", false);
+    let cycle_days = if deadline_days.is_some() {
+        None
+    } else {
+        optional_positive_i64_field(&body, "cycleDays")
+    };
     sqlx::query(
         "UPDATE guild_quests SET title=?, description=?, quest_type=?, difficulty=?,
          required_rating=?, required_access=?, condition_kind=?, target_count=?,
-         reward_reputation=?, reward_coins=?, deadline_hours=?, auto_claim=?, status=?, sort_order=?, updated_at=?
+         reward_reputation=?, reward_coins=?, deadline_hours=?, deadline_days=?, fixed_deadline_at=?,
+         cycle_days=?, cycle_reset_hour=?, repeat_on_complete=?, auto_claim=?, status=?, sort_order=?, updated_at=?
          WHERE id=?",
     )
     .bind(str_field(&body, "title", "未命名委托"))
@@ -817,6 +997,11 @@ async fn admin_update_quest(
     .bind(int_field(&body, "rewardReputation", 0))
     .bind(int_field(&body, "rewardCoins", 0))
     .bind(body.get("deadlineHours").and_then(json_num_i64))
+    .bind(deadline_days)
+    .bind(fixed_deadline_at)
+    .bind(cycle_days)
+    .bind(int_field(&body, "cycleResetHour", DEFAULT_CYCLE_RESET_HOUR).clamp(0, 23))
+    .bind(if repeat_on_complete { 1_i64 } else { 0_i64 })
     .bind(if bool_field(&body, "autoClaim", false) {
         1_i64
     } else {
@@ -1236,7 +1421,18 @@ async fn admin_approve_rating(
     .bind(id)
     .execute(&state.pools.art)
     .await?;
-    Ok(Json(json!({ "ok": true })))
+    let reputation: i64 = sqlx::query_scalar("SELECT reputation FROM guild_profiles WHERE uid=?")
+        .bind(&uid)
+        .fetch_optional(&state.pools.art)
+        .await?
+        .unwrap_or(0);
+    let haruhi_count = approved_haruhi_personal_count(&state, &uid).await?;
+    let next_application =
+        sync_auto_rating_application(&state, &uid, &target_rating, reputation, haruhi_count)
+            .await?;
+    Ok(Json(
+        json!({ "ok": true, "nextRatingApplication": next_application }),
+    ))
 }
 
 async fn admin_reject_rating(
@@ -1389,6 +1585,11 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
     };
     let coins = coin_summary(state, uid).await?;
     let haruhi_count = approved_haruhi_personal_count(state, uid).await?;
+    let pending_rating_application = if private {
+        sync_auto_rating_application(state, uid, &rating, reputation, haruhi_count).await?
+    } else {
+        None
+    };
     let next_rating = next_rating(&rating, reputation, haruhi_count);
     let user_profile = match (private, user_id) {
         (true, Some(id)) => Some(user_profile_value(state, id).await?),
@@ -1414,6 +1615,7 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
         "coins": coins,
         "haruhiPersonalCount": haruhi_count,
         "nextRating": next_rating,
+        "pendingRatingApplication": pending_rating_application,
         "user": user_profile
     }))
 }
@@ -1553,20 +1755,58 @@ async fn grant_reputation(
         .bind(uid)
         .execute(&state.pools.art)
         .await?;
+    let state_row: Option<(i64, String)> =
+        sqlx::query_as("SELECT reputation, rating FROM guild_profiles WHERE uid=?")
+            .bind(uid)
+            .fetch_optional(&state.pools.art)
+            .await?;
+    if let Some((current_reputation, current_rating)) = state_row {
+        let haruhi_count = approved_haruhi_personal_count(state, uid).await?;
+        sync_auto_rating_application(
+            state,
+            uid,
+            &current_rating,
+            current_reputation,
+            haruhi_count,
+        )
+        .await?;
+    }
     Ok(())
 }
 
 async fn refresh_claims_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
+    let now_dt = Utc::now();
+    let now = iso_utc(now_dt);
+    sqlx::query(
+        "UPDATE guild_quest_claims
+         SET status='expired'
+         WHERE uid=? AND status='active' AND cycle_end_at IS NOT NULL AND datetime(cycle_end_at) <= datetime(?)",
+    )
+    .bind(uid)
+    .bind(&now)
+    .execute(&state.pools.art)
+    .await?;
     ensure_auto_claims_for_uid(state, uid).await?;
-    let rows: Vec<(i64, i64, String, i64, i64, i64, String, String)> = sqlx::query_as(
+    let rows: Vec<(
+        i64,
+        i64,
+        String,
+        i64,
+        i64,
+        i64,
+        String,
+        Option<String>,
+        String,
+    )> = sqlx::query_as(
         "SELECT c.id, q.id, q.condition_kind, q.target_count, q.reward_reputation, q.reward_coins,
-                c.claimed_at, q.title
+                c.claimed_at, c.cycle_end_at, q.title
          FROM guild_quest_claims c JOIN guild_quests q ON q.id=c.quest_id
          WHERE c.uid=? AND c.status='active'",
     )
     .bind(uid)
     .fetch_all(&state.pools.art)
     .await?;
+    let mut completed_any = false;
     for (
         claim_id,
         quest_id,
@@ -1575,10 +1815,18 @@ async fn refresh_claims_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
         reward_rep,
         reward_coins,
         claimed_at,
+        cycle_end_at,
         title,
     ) in rows
     {
-        let progress = quest_progress(state, uid, &condition_kind, &claimed_at).await?;
+        let progress = quest_progress(
+            state,
+            uid,
+            &condition_kind,
+            &claimed_at,
+            cycle_end_at.as_deref(),
+        )
+        .await?;
         let progress = progress.min(target_count);
         if progress >= target_count {
             let now = now_iso();
@@ -1594,6 +1842,7 @@ async fn refresh_claims_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
             .await?
             .rows_affected();
             if affected > 0 {
+                completed_any = true;
                 let note = format!("完成委托「{title}」奖励");
                 grant_reputation(
                     state,
@@ -1616,6 +1865,9 @@ async fn refresh_claims_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
                 .await?;
         }
     }
+    if completed_any {
+        ensure_auto_claims_for_uid(state, uid).await?;
+    }
     Ok(())
 }
 
@@ -1629,31 +1881,105 @@ async fn ensure_auto_claims_for_uid(state: &AppState, uid: &str) -> AppResult<()
         return Ok(());
     };
 
-    let rows: Vec<(i64, String, String, i64, Option<String>)> = sqlx::query_as(
-        "SELECT id, required_rating, required_access, target_count, created_at
+    let rows: Vec<(
+        i64,
+        String,
+        String,
+        i64,
+        Option<i64>,
+        i64,
+        i64,
+        Option<i64>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT id, required_rating, required_access, target_count,
+                cycle_days, COALESCE(cycle_reset_hour, 4), COALESCE(repeat_on_complete, 0),
+                deadline_days, fixed_deadline_at, created_at
          FROM guild_quests
          WHERE status='active' AND COALESCE(auto_claim, 0)=1",
     )
     .fetch_all(&state.pools.art)
     .await?;
 
-    for (quest_id, required_rating, required_access, target_count, created_at) in rows {
+    let now_dt = Utc::now();
+    for (
+        quest_id,
+        required_rating,
+        required_access,
+        target_count,
+        cycle_days,
+        cycle_reset_hour,
+        repeat_on_complete,
+        deadline_days,
+        fixed_deadline_at,
+        created_at,
+    ) in rows
+    {
         if rating_rank(&rating) < rating_rank(&required_rating)
             || access_rank(&access) < access_rank(&required_access)
         {
             continue;
         }
-        let claimed_at = created_at.unwrap_or_else(now_iso);
+        let repeat_on_complete = uses_repeat_on_complete(
+            repeat_on_complete,
+            deadline_days,
+            fixed_deadline_at.as_deref(),
+        );
+        if repeat_on_complete {
+            let active_claim: Option<i64> = sqlx::query_scalar(
+                "SELECT id FROM guild_quest_claims
+                 WHERE quest_id=? AND uid=? AND status='active'
+                 ORDER BY datetime(claimed_at) DESC, id DESC LIMIT 1",
+            )
+            .bind(quest_id)
+            .bind(uid)
+            .fetch_optional(&state.pools.art)
+            .await?;
+            if active_claim.is_some() {
+                continue;
+            }
+        }
+        let retroactive_claimed_at = if repeat_on_complete {
+            now_dt
+        } else {
+            created_at
+                .as_deref()
+                .and_then(parse_datetime_utc)
+                .unwrap_or(now_dt)
+        };
+        let window = quest_window(
+            cycle_days,
+            cycle_reset_hour,
+            deadline_days,
+            fixed_deadline_at.as_deref(),
+            repeat_on_complete,
+            now_dt,
+            Some(retroactive_claimed_at),
+        );
+        if window
+            .deadline_at
+            .map(|deadline| deadline <= now_dt)
+            .unwrap_or(false)
+        {
+            continue;
+        }
+        let cycle_start_at = window.cycle_start_at;
+        let claimed_at = cycle_start_at.unwrap_or(retroactive_claimed_at);
         sqlx::query(
-            "INSERT OR IGNORE INTO guild_quest_claims(quest_id, uid, status, progress, target_count, claimed_at)
-             VALUES(?,?,?,?,?,?)",
+            "INSERT OR IGNORE INTO guild_quest_claims(
+                quest_id, uid, cycle_key, status, progress, target_count, claimed_at, cycle_start_at, cycle_end_at
+             ) VALUES(?,?,?,?,?,?,?,?,?)",
         )
         .bind(quest_id)
         .bind(uid)
+        .bind(&window.cycle_key)
         .bind("active")
         .bind(0_i64)
         .bind(target_count)
-        .bind(&claimed_at)
+        .bind(iso_utc(claimed_at))
+        .bind(cycle_start_at.map(iso_utc))
+        .bind(window.deadline_at.map(iso_utc))
         .execute(&state.pools.art)
         .await?;
     }
@@ -1666,24 +1992,43 @@ async fn quest_progress(
     uid: &str,
     condition_kind: &str,
     claimed_at: &str,
+    cycle_end_at: Option<&str>,
 ) -> AppResult<i64> {
-    let sql = match condition_kind {
-        "upload_personal_haruhi" => {
+    let sql = match (condition_kind, cycle_end_at.is_some()) {
+        ("upload_personal_haruhi", true) => {
+            "SELECT COUNT(*) FROM artworks WHERE uploader_uid=? AND source_type='personal' AND content_type='haruhi' AND status='approved' AND datetime(COALESCE(reviewed_at, created_at)) >= datetime(?) AND datetime(COALESCE(reviewed_at, created_at)) < datetime(?)"
+        }
+        ("upload_personal_haruhi", false) => {
             "SELECT COUNT(*) FROM artworks WHERE uploader_uid=? AND source_type='personal' AND content_type='haruhi' AND status='approved' AND datetime(COALESCE(reviewed_at, created_at)) >= datetime(?)"
         }
-        "upload_personal_any" => {
+        ("upload_personal_any", true) => {
+            "SELECT COUNT(*) FROM artworks WHERE uploader_uid=? AND source_type='personal' AND status='approved' AND datetime(COALESCE(reviewed_at, created_at)) >= datetime(?) AND datetime(COALESCE(reviewed_at, created_at)) < datetime(?)"
+        }
+        ("upload_personal_any", false) => {
             "SELECT COUNT(*) FROM artworks WHERE uploader_uid=? AND source_type='personal' AND status='approved' AND datetime(COALESCE(reviewed_at, created_at)) >= datetime(?)"
         }
-        "upload_network" => {
+        ("upload_network", true) => {
+            "SELECT COUNT(*) FROM artworks WHERE uploader_uid=? AND source_type='network' AND status='approved' AND datetime(COALESCE(reviewed_at, created_at)) >= datetime(?) AND datetime(COALESCE(reviewed_at, created_at)) < datetime(?)"
+        }
+        ("upload_network", false) => {
             "SELECT COUNT(*) FROM artworks WHERE uploader_uid=? AND source_type='network' AND status='approved' AND datetime(COALESCE(reviewed_at, created_at)) >= datetime(?)"
         }
-        "browse_artworks" => {
+        ("browse_artworks", true) => {
+            "SELECT COUNT(*) FROM guild_quest_events WHERE uid=? AND event_kind='browse_artwork' AND datetime(created_at) >= datetime(?) AND datetime(created_at) < datetime(?)"
+        }
+        ("browse_artworks", false) => {
             "SELECT COUNT(*) FROM guild_quest_events WHERE uid=? AND event_kind='browse_artwork' AND datetime(created_at) >= datetime(?)"
         }
-        "like_artworks" => {
+        ("like_artworks", true) => {
+            "SELECT COUNT(*) FROM guild_quest_events WHERE uid=? AND event_kind='like_artwork' AND datetime(created_at) >= datetime(?) AND datetime(created_at) < datetime(?)"
+        }
+        ("like_artworks", false) => {
             "SELECT COUNT(*) FROM guild_quest_events WHERE uid=? AND event_kind='like_artwork' AND datetime(created_at) >= datetime(?)"
         }
-        "comment_artworks" => {
+        ("comment_artworks", true) => {
+            "SELECT COUNT(*) FROM guild_quest_events WHERE uid=? AND event_kind='comment_artwork' AND datetime(created_at) >= datetime(?) AND datetime(created_at) < datetime(?)"
+        }
+        ("comment_artworks", false) => {
             "SELECT COUNT(*) FROM guild_quest_events WHERE uid=? AND event_kind='comment_artwork' AND datetime(created_at) >= datetime(?)"
         }
         _ => "SELECT 0",
@@ -1694,11 +2039,11 @@ async fn quest_progress(
     let count: i64 = if sql == "SELECT 0" {
         0
     } else {
-        sqlx::query_scalar(sql)
-            .bind(uid)
-            .bind(claimed_at)
-            .fetch_one(&state.pools.art)
-            .await?
+        let mut q = sqlx::query_scalar(sql).bind(uid).bind(claimed_at);
+        if let Some(cycle_end_at) = cycle_end_at {
+            q = q.bind(cycle_end_at);
+        }
+        q.fetch_one(&state.pools.art).await?
     };
     Ok(count)
 }
@@ -2064,6 +2409,119 @@ async fn applications_for_uid(state: &AppState, uid: &str) -> AppResult<Vec<Valu
         .collect())
 }
 
+async fn pending_rating_application_for_uid(
+    state: &AppState,
+    uid: &str,
+) -> AppResult<Option<Value>> {
+    let row: Option<(
+        i64,
+        Option<String>,
+        String,
+        String,
+        i64,
+        i64,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT id, from_rating, target_rating, status, reputation_snapshot,
+                haruhi_count_snapshot, user_note, created_at
+         FROM guild_rating_applications
+         WHERE uid=? AND status='pending'
+         ORDER BY datetime(created_at) DESC, id DESC
+         LIMIT 1",
+    )
+    .bind(uid)
+    .fetch_optional(&state.pools.art)
+    .await?;
+
+    Ok(row.map(
+        |(
+            id,
+            from_rating,
+            target_rating,
+            status,
+            reputation,
+            haruhi_count,
+            user_note,
+            created_at,
+        )| {
+            json!({
+                "id": id,
+                "fromRating": from_rating,
+                "targetRating": target_rating,
+                "status": status,
+                "reputationSnapshot": reputation,
+                "haruhiCountSnapshot": haruhi_count,
+                "userNote": user_note,
+                "createdAt": created_at
+            })
+        },
+    ))
+}
+
+async fn sync_auto_rating_application(
+    state: &AppState,
+    uid: &str,
+    current_rating: &str,
+    reputation: i64,
+    haruhi_count: i64,
+) -> AppResult<Option<Value>> {
+    if let Some(pending) = pending_rating_application_for_uid(state, uid).await? {
+        return Ok(Some(pending));
+    }
+
+    let Some((target_rating, required_reputation, required_haruhi_count)) =
+        next_rating_rule(current_rating)
+    else {
+        return Ok(None);
+    };
+    if reputation < required_reputation || haruhi_count < required_haruhi_count {
+        return Ok(None);
+    }
+
+    let last_application: Option<(String, i64, i64)> = sqlx::query_as(
+        "SELECT status, reputation_snapshot, haruhi_count_snapshot
+         FROM guild_rating_applications
+         WHERE uid=? AND target_rating=?
+         ORDER BY datetime(created_at) DESC, id DESC
+         LIMIT 1",
+    )
+    .bind(uid)
+    .bind(target_rating)
+    .fetch_optional(&state.pools.art)
+    .await?;
+    if let Some((status, last_reputation, last_haruhi_count)) = last_application {
+        if status == "approved" {
+            return Ok(None);
+        }
+        if status == "rejected"
+            && reputation <= last_reputation
+            && haruhi_count <= last_haruhi_count
+        {
+            return Ok(None);
+        }
+    }
+
+    let now = now_iso();
+    sqlx::query(
+        "INSERT OR IGNORE INTO guild_rating_applications(uid, from_rating, target_rating,
+         reputation_snapshot, haruhi_count_snapshot, status, user_note, created_at)
+         VALUES(?,?,?,?,?,?,?,?)",
+    )
+    .bind(uid)
+    .bind(current_rating)
+    .bind(target_rating)
+    .bind(reputation)
+    .bind(haruhi_count)
+    .bind("pending")
+    .bind("系统自动提交：已满足评级条件")
+    .bind(&now)
+    .execute(&state.pools.art)
+    .await?;
+
+    pending_rating_application_for_uid(state, uid).await
+}
+
 type RewardRow = (
     i64,
     String,
@@ -2123,69 +2581,42 @@ fn reward_value(row: RewardRow, logged_in: bool, rating: &str, access: &str) -> 
 }
 
 async fn admin_quest_rows(state: &AppState) -> AppResult<Vec<Value>> {
-    let rows: Vec<(
-        i64,
-        String,
-        Option<String>,
-        String,
-        String,
-        String,
-        String,
-        String,
-        i64,
-        i64,
-        i64,
-        Option<i64>,
-        i64,
-        String,
-        i64,
-    )> = sqlx::query_as(
+    let rows: Vec<GuildQuestListRow> = sqlx::query_as(
         "SELECT id, title, description, quest_type, difficulty, required_rating,
                     required_access, condition_kind, target_count, reward_reputation,
-                    reward_coins, deadline_hours, COALESCE(auto_claim, 0), status, sort_order
+                    reward_coins, deadline_hours, deadline_days, fixed_deadline_at,
+                    cycle_days, COALESCE(cycle_reset_hour, 4), COALESCE(repeat_on_complete, 0),
+                    COALESCE(auto_claim, 0), status, sort_order
              FROM guild_quests ORDER BY sort_order ASC, id ASC",
     )
     .fetch_all(&state.pools.art)
     .await?;
     Ok(rows
         .into_iter()
-        .map(
-            |(
-                id,
-                title,
-                description,
-                quest_type,
-                difficulty,
-                required_rating,
-                required_access,
-                condition_kind,
-                target_count,
-                reward_reputation,
-                reward_coins,
-                deadline_hours,
-                auto_claim,
-                status,
-                sort_order,
-            )| {
-                json!({
-                    "id": id,
-                    "title": title,
-                    "description": description,
-                    "questType": quest_type,
-                    "difficulty": difficulty,
-                    "requiredRating": required_rating,
-                    "requiredAccess": required_access,
-                    "conditionKind": condition_kind,
-                    "targetCount": target_count,
-                    "rewardReputation": reward_reputation,
-                    "rewardCoins": reward_coins,
-                    "deadlineHours": deadline_hours,
-                    "autoClaim": auto_claim != 0,
-                    "status": status,
-                    "sortOrder": sort_order
-                })
-            },
-        )
+        .map(|row| {
+            json!({
+                "id": row.id,
+                "title": row.title,
+                "description": row.description,
+                "questType": row.quest_type,
+                "difficulty": row.difficulty,
+                "requiredRating": row.required_rating,
+                "requiredAccess": row.required_access,
+                "conditionKind": row.condition_kind,
+                "targetCount": row.target_count,
+                "rewardReputation": row.reward_reputation,
+                "rewardCoins": row.reward_coins,
+                "deadlineHours": row.deadline_hours,
+                "deadlineDays": row.deadline_days,
+                "fixedDeadlineAt": row.fixed_deadline_at,
+                "cycleDays": row.cycle_days,
+                "cycleResetHour": row.cycle_reset_hour,
+                "repeatOnComplete": row.repeat_on_complete != 0,
+                "autoClaim": row.auto_claim != 0,
+                "status": row.status,
+                "sortOrder": row.sort_order
+            })
+        })
         .collect())
 }
 
@@ -2299,17 +2730,22 @@ fn rating_label(rating: &str) -> String {
     format!("{rating}级冒险者")
 }
 
-fn next_rating(current: &str, reputation: i64, haruhi_count: i64) -> Value {
+fn next_rating_rule(current: &str) -> Option<(&'static str, i64, i64)> {
     let current_rank = rating_rank(current);
-    for (rating, required_rep, required_haruhi) in RATINGS {
-        if rating_rank(rating) > current_rank {
-            return json!({
-                "rating": rating,
-                "requiredReputation": required_rep,
-                "requiredHaruhiCount": required_haruhi,
-                "available": reputation >= *required_rep && haruhi_count >= *required_haruhi
-            });
-        }
+    RATINGS
+        .iter()
+        .find(|(rating, _, _)| rating_rank(rating) > current_rank)
+        .copied()
+}
+
+fn next_rating(current: &str, reputation: i64, haruhi_count: i64) -> Value {
+    if let Some((rating, required_rep, required_haruhi)) = next_rating_rule(current) {
+        return json!({
+            "rating": rating,
+            "requiredReputation": required_rep,
+            "requiredHaruhiCount": required_haruhi,
+            "available": reputation >= required_rep && haruhi_count >= required_haruhi
+        });
     }
     Value::Null
 }
@@ -2324,8 +2760,158 @@ fn rating_requirements_met(rating: &str, reputation: i64, haruhi_count: i64) -> 
         .unwrap_or(false)
 }
 
+fn beijing_offset() -> FixedOffset {
+    FixedOffset::east_opt(BEIJING_OFFSET_SECONDS).expect("valid Beijing UTC offset")
+}
+
+fn beijing_now(now: DateTime<Utc>) -> DateTime<FixedOffset> {
+    now.with_timezone(&beijing_offset())
+}
+
+fn beijing_cycle_anchor(now: DateTime<Utc>, reset_hour: i64) -> DateTime<FixedOffset> {
+    let local = beijing_now(now);
+    let reset_hour = reset_hour.clamp(0, 23) as u32;
+    let today_anchor = beijing_offset()
+        .with_ymd_and_hms(local.year(), local.month(), local.day(), reset_hour, 0, 0)
+        .single()
+        .unwrap_or(local);
+    if local < today_anchor {
+        today_anchor - Duration::days(1)
+    } else {
+        today_anchor
+    }
+}
+
+fn quest_window(
+    cycle_days: Option<i64>,
+    cycle_reset_hour: i64,
+    deadline_days: Option<i64>,
+    fixed_deadline_at: Option<&str>,
+    repeat_on_complete: bool,
+    now: DateTime<Utc>,
+    claimed_at: Option<DateTime<Utc>>,
+) -> QuestWindow {
+    let deadline_days = deadline_days.filter(|days| *days > 0);
+    let fixed_deadline = fixed_deadline_at.and_then(parse_datetime_utc);
+
+    if repeat_on_complete && deadline_days.is_some() && fixed_deadline.is_none() {
+        let claimed_at_ref = claimed_at.as_ref();
+        let start = claimed_at.unwrap_or(now);
+        let deadline_at = claimed_at_ref
+            .and_then(|start| deadline_days.map(|days| *start + Duration::days(days)));
+        return QuestWindow {
+            cycle_key: claimed_at_ref
+                .map(|start| format!("repeat-{}", start.format("%Y%m%dT%H%M%S%.3fZ")))
+                .unwrap_or_else(|| "repeat-ready".to_string()),
+            cycle_start_at: Some(start),
+            cycle_end_at: deadline_at,
+            deadline_at,
+        };
+    }
+
+    if let Some(cycle_days) = cycle_days.filter(|days| *days > 0) {
+        let anchor = beijing_cycle_anchor(now, cycle_reset_hour);
+        let days_since_epoch = anchor.date_naive().num_days_from_ce() as i64;
+        let cycle_index = days_since_epoch.div_euclid(cycle_days);
+        let cycle_start_days = cycle_index * cycle_days;
+        let cycle_start_date =
+            chrono::NaiveDate::from_num_days_from_ce_opt(cycle_start_days as i32)
+                .unwrap_or_else(|| anchor.date_naive());
+        let reset_hour = cycle_reset_hour.clamp(0, 23) as u32;
+        let cycle_start_local = beijing_offset()
+            .with_ymd_and_hms(
+                cycle_start_date.year(),
+                cycle_start_date.month(),
+                cycle_start_date.day(),
+                reset_hour,
+                0,
+                0,
+            )
+            .single()
+            .unwrap_or(anchor);
+        let cycle_end_local = cycle_start_local + Duration::days(cycle_days);
+        let cycle_start_at = cycle_start_local.with_timezone(&Utc);
+        let cycle_end_at = cycle_end_local.with_timezone(&Utc);
+        let relative_deadline = deadline_days
+            .map(|days| cycle_start_at + Duration::days(days))
+            .map(|deadline| deadline.min(cycle_end_at))
+            .unwrap_or(cycle_end_at);
+        let deadline_at = fixed_deadline
+            .map(|deadline| deadline.min(cycle_end_at))
+            .unwrap_or(relative_deadline);
+        let cycle_deadline_at = deadline_at;
+        return QuestWindow {
+            cycle_key: format!("cycle-{}", cycle_start_at.format("%Y%m%dT%H%M%SZ")),
+            cycle_start_at: Some(cycle_start_at),
+            cycle_end_at: Some(cycle_deadline_at),
+            deadline_at: Some(deadline_at),
+        };
+    }
+
+    let start = claimed_at.unwrap_or(now);
+    let relative_deadline =
+        claimed_at.and_then(|start| deadline_days.map(|days| start + Duration::days(days)));
+    let deadline_at = fixed_deadline.or(relative_deadline);
+    let cycle_end_at = deadline_at;
+    QuestWindow {
+        cycle_key: "once".to_string(),
+        cycle_start_at: Some(start),
+        cycle_end_at,
+        deadline_at,
+    }
+}
+
+fn uses_repeat_on_complete(
+    repeat_on_complete: i64,
+    deadline_days: Option<i64>,
+    fixed_deadline_at: Option<&str>,
+) -> bool {
+    repeat_on_complete != 0
+        && deadline_days.filter(|days| *days > 0).is_some()
+        && fixed_deadline_at.and_then(parse_datetime_utc).is_none()
+}
+
+fn default_event_scope(now: DateTime<Utc>) -> String {
+    let anchor = beijing_cycle_anchor(now, DEFAULT_CYCLE_RESET_HOUR);
+    format!("day-{}", anchor.format("%Y-%m-%d"))
+}
+
+fn parse_datetime_utc(value: &str) -> Option<DateTime<Utc>> {
+    let value = value.trim();
+    if value.is_empty() {
+        return None;
+    }
+    DateTime::parse_from_rfc3339(value)
+        .map(|dt| dt.with_timezone(&Utc))
+        .ok()
+        .or_else(|| {
+            chrono::NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M")
+                .ok()
+                .and_then(|dt| beijing_offset().from_local_datetime(&dt).single())
+                .map(|dt| dt.with_timezone(&Utc))
+        })
+        .or_else(|| {
+            chrono::NaiveDate::parse_from_str(value, "%Y-%m-%d")
+                .ok()
+                .and_then(|date| {
+                    beijing_offset()
+                        .with_ymd_and_hms(date.year(), date.month(), date.day(), 23, 59, 59)
+                        .single()
+                })
+                .map(|dt| dt.with_timezone(&Utc))
+        })
+}
+
+fn iso_utc(dt: DateTime<Utc>) -> String {
+    dt.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+}
+
+fn remaining_seconds(deadline: DateTime<Utc>, now: DateTime<Utc>) -> i64 {
+    (deadline - now).num_seconds().max(0)
+}
+
 fn now_iso() -> String {
-    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+    iso_utc(Utc::now())
 }
 
 fn json_num_i64(v: &Value) -> Option<i64> {
@@ -2364,6 +2950,21 @@ fn bool_field(body: &Value, key: &str, fallback: bool) -> bool {
 
 fn int_field(body: &Value, key: &str, fallback: i64) -> i64 {
     body.get(key).and_then(json_num_i64).unwrap_or(fallback)
+}
+
+fn optional_positive_i64_field(body: &Value, key: &str) -> Option<i64> {
+    body.get(key)
+        .and_then(json_num_i64)
+        .filter(|value| *value > 0)
+}
+
+fn datetime_field(body: &Value, key: &str) -> Option<String> {
+    body.get(key)
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .and_then(parse_datetime_utc)
+        .map(iso_utc)
 }
 
 fn clamp_query_i64(value: Option<&String>, min: i64, max: i64, fallback: i64) -> i64 {

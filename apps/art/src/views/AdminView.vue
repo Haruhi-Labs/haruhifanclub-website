@@ -12,8 +12,20 @@
     <!-- 登录页（统一 JWT 单点登录：用户名 + 密码） -->
     <div v-if="!authed" class="auth-box">
       <div class="form2">
-        <input class="input" v-model="loginUser" type="text" placeholder="请输入用户名" @keydown.enter="checkPw" />
-        <input class="input" v-model="inputPw" type="password" placeholder="请输入密码" @keydown.enter="checkPw" />
+        <input
+          class="input"
+          v-model="loginUser"
+          type="text"
+          placeholder="请输入用户名"
+          @keydown.enter="checkPw"
+        />
+        <input
+          class="input"
+          v-model="inputPw"
+          type="password"
+          placeholder="请输入密码"
+          @keydown.enter="checkPw"
+        />
         <button class="btn" @click="checkPw" :disabled="loading">
           {{ loading ? '验证中...' : '进入系统' }}
         </button>
@@ -25,35 +37,47 @@
     <div v-else class="panel-layout">
       <!-- 左侧/顶部 一级导航 -->
       <nav class="main-nav">
-        <button :class="['nav-item', mainTab==='images' && 'active']" @click="mainTab='images'">
+        <button :class="['nav-item', mainTab === 'images' && 'active']" @click="mainTab = 'images'">
           📷 图片管理
         </button>
-        <button :class="['nav-item', mainTab==='comments' && 'active']" @click="mainTab='comments'">
+        <button
+          :class="['nav-item', mainTab === 'comments' && 'active']"
+          @click="mainTab = 'comments'"
+        >
           💬 评论管理
         </button>
-        <button :class="['nav-item', mainTab==='creators' && 'active']" @click="mainTab='creators'">
+        <button
+          :class="['nav-item', mainTab === 'creators' && 'active']"
+          @click="mainTab = 'creators'"
+        >
           🎨 创作者
         </button>
-        <button :class="['nav-item', mainTab==='guild' && 'active']" @click="mainTab='guild'">
+        <button :class="['nav-item', mainTab === 'guild' && 'active']" @click="mainTab = 'guild'">
           ⚔️ 公会系统
         </button>
-        <button :class="['nav-item', mainTab==='announcements' && 'active']" @click="mainTab='announcements'">
+        <button
+          :class="['nav-item', mainTab === 'announcements' && 'active']"
+          @click="mainTab = 'announcements'"
+        >
           📢 公告
         </button>
       </nav>
 
       <!-- 内容区域 -->
       <main class="content-area">
-
         <!-- ================= 图片管理 ================= -->
-        <div v-if="mainTab==='images'" class="tab-content">
+        <div v-if="mainTab === 'images'" class="tab-content">
           <div class="sub-tabs">
-            <button :class="['sub-tab', imageTab==='audit' && 'on']" @click="imageTab='audit'">审核管理 ({{ adminStore.pending.length }})</button>
-            <button :class="['sub-tab', imageTab==='list' && 'on']" @click="imageTab='list'">作品列表 (已过审)</button>
+            <button :class="['sub-tab', imageTab === 'audit' && 'on']" @click="imageTab = 'audit'">
+              审核管理 ({{ adminStore.pending.length }})
+            </button>
+            <button :class="['sub-tab', imageTab === 'list' && 'on']" @click="imageTab = 'list'">
+              作品列表 (已过审)
+            </button>
           </div>
 
           <!-- 子页：审核管理 -->
-          <div v-if="imageTab==='audit'" class="sub-view">
+          <div v-if="imageTab === 'audit'" class="sub-view">
             <div class="toolbar">
               <span class="tip">待审核或被AI拦截的内容</span>
               <button class="btn-ghost sm" @click="adminStore.loadPending">刷新队列</button>
@@ -61,16 +85,23 @@
 
             <div v-if="adminStore.pending.length" class="card-grid">
               <article class="manage-card has-trash" v-for="it in adminStore.pending" :key="it.id">
-                <div class="m-thumb" @click="openPreview(it)" style="cursor: pointer;" title="点击预览">
+                <div
+                  class="m-thumb"
+                  @click="openPreview(it)"
+                  style="cursor: pointer"
+                  title="点击预览"
+                >
                   <img :src="it.image_url" loading="lazy" />
-                  <div class="status-badge" :class="it.status">{{ it.status === 'flagged' ? 'AI 锁定' : '待审核' }}</div>
+                  <div class="status-badge" :class="it.status">
+                    {{ it.status === 'flagged' ? 'AI 锁定' : '待审核' }}
+                  </div>
                 </div>
                 <div class="m-body">
                   <div class="m-row title-row">
                     <div class="m-title">{{ it.title }}</div>
                     <button class="btn-text" @click="startEdit(it)">编辑</button>
                   </div>
-                  
+
                   <div class="ai-box" v-if="it.status === 'flagged'">
                     <span class="ai-label">🤖 拦截原因:</span> {{ it.ai_reason || '未知风险' }}
                   </div>
@@ -78,18 +109,28 @@
                   <div class="m-info">
                     <span class="tag">{{ it.content_type }}</span>
                     <span class="tag">{{ it.source_type }}</span>
-                    <span class="u-name">UP: {{ it.uploader_display_name || it.uploader_name || '匿名' }}</span>
+                    <span class="u-name"
+                      >UP: {{ it.uploader_display_name || it.uploader_name || '匿名' }}</span
+                    >
                   </div>
                   <div class="m-desc">{{ it.description }}</div>
-                  
+
                   <!-- 编辑器 -->
                   <div v-if="editingId === it.id" class="inline-editor expanded">
                     <div class="editor-row">
-                      <input v-model="editForm.title" class="input sm" placeholder="标题">
-                      <input v-model="editForm.tags" class="input sm" placeholder="标签 (空格分隔)">
+                      <input v-model="editForm.title" class="input sm" placeholder="标题" />
+                      <input
+                        v-model="editForm.tags"
+                        class="input sm"
+                        placeholder="标签 (空格分隔)"
+                      />
                     </div>
-                    <textarea v-model="editForm.description" class="textarea sm" placeholder="描述"></textarea>
-                    
+                    <textarea
+                      v-model="editForm.description"
+                      class="textarea sm"
+                      placeholder="描述"
+                    ></textarea>
+
                     <div class="editor-row">
                       <select v-model="editForm.source_type" class="select sm">
                         <option value="personal">个人作品</option>
@@ -101,37 +142,55 @@
                       </select>
                     </div>
 
-                    
                     <div class="editor-row">
-                      <input v-model="editForm.origin_url" class="input sm" placeholder="来源链接 (URL)" style="flex:1">
+                      <input
+                        v-model="editForm.origin_url"
+                        class="input sm"
+                        placeholder="来源链接 (URL)"
+                        style="flex: 1"
+                      />
                     </div>
 
                     <div class="editor-licenses">
                       <div class="lic-group">
                         <div class="lic-title">公开授权</div>
                         <label v-for="opt in NET_LICENSE_OPTIONS" :key="opt" class="chk-item">
-                          <input type="checkbox" :value="opt" v-model="editForm.netLicenses"> {{ opt }}
+                          <input type="checkbox" :value="opt" v-model="editForm.netLicenses" />
+                          {{ opt }}
                         </label>
                       </div>
                       <div class="lic-group">
                         <div class="lic-title">社团授权</div>
                         <label v-for="opt in GROUP_LICENSE_OPTIONS" :key="opt" class="chk-item">
-                          <input type="checkbox" :value="opt" v-model="editForm.groupLicenses"> {{ opt }}
+                          <input type="checkbox" :value="opt" v-model="editForm.groupLicenses" />
+                          {{ opt }}
                         </label>
                       </div>
                     </div>
 
                     <div class="btns">
                       <button class="btn sm" @click="saveEdit(it)">💾 保存修改</button>
-                      <button class="btn-ghost sm" @click="editingId=null">取消</button>
+                      <button class="btn-ghost sm" @click="editingId = null">取消</button>
                     </div>
                   </div>
 
                   <div class="m-actions">
-                    <textarea class="textarea note-input" v-model="notes[it.id]" placeholder="审核备注..."></textarea>
+                    <textarea
+                      class="textarea note-input"
+                      v-model="notes[it.id]"
+                      placeholder="审核备注..."
+                    ></textarea>
                     <div class="btn-group">
                       <button class="btn success" @click="approve(it)">通过</button>
-                      <button class="trash-btn" type="button" title="彻底删除" aria-label="彻底删除作品" @click="hardDelete(it)">🗑</button>
+                      <button
+                        class="trash-btn"
+                        type="button"
+                        title="彻底删除"
+                        aria-label="彻底删除作品"
+                        @click="hardDelete(it)"
+                      >
+                        🗑
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -141,7 +200,7 @@
           </div>
 
           <!-- 子页：作品列表 (已过审) -->
-          <div v-if="imageTab==='list'" class="sub-view">
+          <div v-if="imageTab === 'list'" class="sub-view">
             <div class="toolbar filter-bar">
               <div class="filters">
                 <select v-model="artListFilter.content" @change="loadApprovedList" class="select">
@@ -154,35 +213,55 @@
                   <option value="personal">个人作品</option>
                   <option value="network">网络收集</option>
                 </select>
-                <input v-model="artListFilter.q" @keydown.enter="loadApprovedList" class="input sm search-input" placeholder="搜索标题/描述/UID..." />
+                <input
+                  v-model="artListFilter.q"
+                  @keydown.enter="loadApprovedList"
+                  class="input sm search-input"
+                  placeholder="搜索标题/描述/UID..."
+                />
                 <button class="btn sm" @click="loadApprovedList">查询</button>
               </div>
             </div>
 
             <div class="card-grid">
               <article class="manage-card has-trash" v-for="it in approvedList" :key="it.id">
-                <div class="m-thumb" @click="openPreview(it)" style="cursor: pointer;" title="点击预览">
+                <div
+                  class="m-thumb"
+                  @click="openPreview(it)"
+                  style="cursor: pointer"
+                  title="点击预览"
+                >
                   <img :src="it.image_url" loading="lazy" />
                   <div class="status-badge approved">已发布</div>
                 </div>
                 <div class="m-body">
-                   <div class="m-row title-row">
+                  <div class="m-row title-row">
                     <div class="m-title">{{ it.title }}</div>
                     <button class="btn-text" @click="startEdit(it)">编辑</button>
                   </div>
                   <div class="m-info">
                     <span class="tag">{{ it.content_type }}</span>
                     <span class="tag">{{ it.source_type }}</span>
-                    <span class="u-name">UP: {{ it.uploader_display_name || it.uploader_name || '—' }}</span>
+                    <span class="u-name"
+                      >UP: {{ it.uploader_display_name || it.uploader_name || '—' }}</span
+                    >
                   </div>
                   <div class="m-desc">{{ it.description }}</div>
-                  
+
                   <div v-if="editingId === it.id" class="inline-editor expanded">
                     <div class="editor-row">
-                      <input v-model="editForm.title" class="input sm" placeholder="标题">
-                      <input v-model="editForm.tags" class="input sm" placeholder="标签 (空格分隔)">
+                      <input v-model="editForm.title" class="input sm" placeholder="标题" />
+                      <input
+                        v-model="editForm.tags"
+                        class="input sm"
+                        placeholder="标签 (空格分隔)"
+                      />
                     </div>
-                    <textarea v-model="editForm.description" class="textarea sm" placeholder="描述"></textarea>
+                    <textarea
+                      v-model="editForm.description"
+                      class="textarea sm"
+                      placeholder="描述"
+                    ></textarea>
 
                     <div class="editor-row">
                       <select v-model="editForm.source_type" class="select sm">
@@ -195,41 +274,59 @@
                       </select>
                     </div>
 
-
                     <div class="editor-row">
-                      <input v-model="editForm.origin_url" class="input sm" placeholder="来源链接 (URL)" style="flex:1">
+                      <input
+                        v-model="editForm.origin_url"
+                        class="input sm"
+                        placeholder="来源链接 (URL)"
+                        style="flex: 1"
+                      />
                     </div>
-                    
+
                     <div class="editor-licenses">
                       <div class="lic-group">
                         <div class="lic-title">公开授权</div>
                         <label v-for="opt in NET_LICENSE_OPTIONS" :key="opt" class="chk-item">
-                          <input type="checkbox" :value="opt" v-model="editForm.netLicenses"> {{ opt }}
+                          <input type="checkbox" :value="opt" v-model="editForm.netLicenses" />
+                          {{ opt }}
                         </label>
                       </div>
                       <div class="lic-group">
                         <div class="lic-title">社团授权</div>
                         <label v-for="opt in GROUP_LICENSE_OPTIONS" :key="opt" class="chk-item">
-                          <input type="checkbox" :value="opt" v-model="editForm.groupLicenses"> {{ opt }}
+                          <input type="checkbox" :value="opt" v-model="editForm.groupLicenses" />
+                          {{ opt }}
                         </label>
                       </div>
                     </div>
 
                     <div class="btns">
                       <button class="btn sm" @click="saveEdit(it)">💾 保存修改</button>
-                      <button class="btn-ghost sm" @click="editingId=null">取消</button>
+                      <button class="btn-ghost sm" @click="editingId = null">取消</button>
                     </div>
                   </div>
 
                   <div class="m-actions right">
-                    <button class="btn-ghost warn sm" @click="lockArtwork(it)">🔒 锁定 (退回审核)</button>
-                    <button class="trash-btn" type="button" title="删除" aria-label="删除作品" @click="hardDelete(it, 'list')">🗑</button>
+                    <button class="btn-ghost warn sm" @click="lockArtwork(it)">
+                      🔒 锁定 (退回审核)
+                    </button>
+                    <button
+                      class="trash-btn"
+                      type="button"
+                      title="删除"
+                      aria-label="删除作品"
+                      @click="hardDelete(it, 'list')"
+                    >
+                      🗑
+                    </button>
                   </div>
                 </div>
               </article>
             </div>
             <div class="pagination">
-              <button class="btn-ghost sm" :disabled="artListPage<=1" @click="changePage(-1)">上一页</button>
+              <button class="btn-ghost sm" :disabled="artListPage <= 1" @click="changePage(-1)">
+                上一页
+              </button>
               <span>第 {{ artListPage }} 页</span>
               <button class="btn-ghost sm" @click="changePage(1)">下一页</button>
             </div>
@@ -237,14 +334,28 @@
         </div>
 
         <!-- ================= 评论管理 ================= -->
-        <div v-if="mainTab==='comments'" class="tab-content">
+        <div v-if="mainTab === 'comments'" class="tab-content">
           <div class="sub-tabs">
-            <button :class="['sub-tab', commentTab==='pending' && 'on']" @click="switchCommentTab('pending')">待复核 (AI锁定)</button>
-            <button :class="['sub-tab', commentTab==='all' && 'on']" @click="switchCommentTab('all')">全部评论</button>
+            <button
+              :class="['sub-tab', commentTab === 'pending' && 'on']"
+              @click="switchCommentTab('pending')"
+            >
+              待复核 (AI锁定)
+            </button>
+            <button
+              :class="['sub-tab', commentTab === 'all' && 'on']"
+              @click="switchCommentTab('all')"
+            >
+              全部评论
+            </button>
           </div>
 
-          <div class="toolbar" v-if="commentTab==='all'">
-            <input v-model="commentSearch" class="input sm comment-search" placeholder="搜索评论内容..." />
+          <div class="toolbar" v-if="commentTab === 'all'">
+            <input
+              v-model="commentSearch"
+              class="input sm comment-search"
+              placeholder="搜索评论内容..."
+            />
           </div>
 
           <div class="comment-table desktop-only">
@@ -264,32 +375,80 @@
                 <div v-if="c.ai_reason" class="ai-reason-mini">🤖 {{ c.ai_reason }}</div>
               </div>
               <div class="col-status">
-                <span :class="['badge-mini', c.status]">{{ c.status === 'flagged' ? 'AI锁定' : (c.status==='hidden'?'隐藏':'正常') }}</span>
+                <span :class="['badge-mini', c.status]">{{
+                  c.status === 'flagged' ? 'AI锁定' : c.status === 'hidden' ? '隐藏' : '正常'
+                }}</span>
               </div>
               <div class="col-action actions-flex">
-                <button v-if="c.status !== 'public'" class="btn-mini success" @click="updateComment(c, 'public')">通过</button>
-                <button v-if="c.status === 'public'" class="btn-mini warn" @click="updateComment(c, 'flagged')">锁定</button>
-                <button class="trash-btn" type="button" title="删除" aria-label="删除评论" @click="deleteComment(c)">🗑</button>
+                <button
+                  v-if="c.status !== 'public'"
+                  class="btn-mini success"
+                  @click="updateComment(c, 'public')"
+                >
+                  通过
+                </button>
+                <button
+                  v-if="c.status === 'public'"
+                  class="btn-mini warn"
+                  @click="updateComment(c, 'flagged')"
+                >
+                  锁定
+                </button>
+                <button
+                  class="trash-btn"
+                  type="button"
+                  title="删除"
+                  aria-label="删除评论"
+                  @click="deleteComment(c)"
+                >
+                  🗑
+                </button>
               </div>
             </div>
             <div v-if="filteredComments.length === 0" class="empty-row">无数据</div>
           </div>
 
           <div class="comment-list-mobile">
-            <article class="comment-card has-trash" v-for="c in filteredComments" :key="`mobile-${c.id}`">
+            <article
+              class="comment-card has-trash"
+              v-for="c in filteredComments"
+              :key="`mobile-${c.id}`"
+            >
               <div class="comment-card-top">
                 <div>
                   <div class="u-name">{{ c.user_name }}</div>
                   <div class="u-time">{{ new Date(c.created_at).toLocaleString() }}</div>
                 </div>
-                <span :class="['badge-mini', c.status]">{{ c.status === 'flagged' ? 'AI锁定' : (c.status==='hidden'?'隐藏':'正常') }}</span>
+                <span :class="['badge-mini', c.status]">{{
+                  c.status === 'flagged' ? 'AI锁定' : c.status === 'hidden' ? '隐藏' : '正常'
+                }}</span>
               </div>
               <div class="body-text">{{ c.body }}</div>
               <div v-if="c.ai_reason" class="ai-reason-mini">🤖 {{ c.ai_reason }}</div>
               <div class="comment-card-actions">
-                <button v-if="c.status !== 'public'" class="btn-mini success" @click="updateComment(c, 'public')">通过</button>
-                <button v-if="c.status === 'public'" class="btn-mini warn" @click="updateComment(c, 'flagged')">锁定</button>
-                <button class="trash-btn" type="button" title="删除" aria-label="删除评论" @click="deleteComment(c)">🗑</button>
+                <button
+                  v-if="c.status !== 'public'"
+                  class="btn-mini success"
+                  @click="updateComment(c, 'public')"
+                >
+                  通过
+                </button>
+                <button
+                  v-if="c.status === 'public'"
+                  class="btn-mini warn"
+                  @click="updateComment(c, 'flagged')"
+                >
+                  锁定
+                </button>
+                <button
+                  class="trash-btn"
+                  type="button"
+                  title="删除"
+                  aria-label="删除评论"
+                  @click="deleteComment(c)"
+                >
+                  🗑
+                </button>
               </div>
             </article>
             <div v-if="filteredComments.length === 0" class="empty-row">无数据</div>
@@ -297,22 +456,23 @@
         </div>
 
         <!-- ================= 创作者管理 (优化后) ================= -->
-        <div v-if="mainTab==='creators'" class="tab-content">
+        <div v-if="mainTab === 'creators'" class="tab-content">
           <div class="two-col-layout">
             <!-- 左列：列表 -->
             <div class="col-left" :class="{ 'mobile-hidden': selectedCreator }">
               <div class="toolbar tight">
                 <input v-model="creatorSearch" class="input sm" placeholder="搜索 UID..." />
                 <div class="add-row">
-                   <input v-model="newCreatorUid" placeholder="新增 UID" class="input sm" />
-                   <button class="btn sm" @click="addCreator">+</button>
+                  <input v-model="newCreatorUid" placeholder="新增 UID" class="input sm" />
+                  <button class="btn sm" @click="addCreator">+</button>
                 </div>
               </div>
 
               <div class="creator-list-v">
-                <div 
-                  v-for="c in filteredCreators" :key="c.uid" 
-                  class="creator-item" 
+                <div
+                  v-for="c in filteredCreators"
+                  :key="c.uid"
+                  class="creator-item"
                   :class="{ active: selectedCreator?.uid === c.uid }"
                   @click="selectCreator(c)"
                 >
@@ -334,41 +494,73 @@
             <div class="col-right" :class="{ 'mobile-visible': selectedCreator }">
               <div v-if="selectedCreator" class="creator-detail-panel">
                 <div class="panel-header">
-                  <div class="ph-title">编辑创作者: {{ selectedCreator.name || selectedCreator.uid }}</div>
+                  <div class="ph-title">
+                    编辑创作者: {{ selectedCreator.name || selectedCreator.uid }}
+                  </div>
                   <div class="panel-actions">
-                    <button class="btn-ghost sm mobile-only" @click="selectedCreator=null">返回列表</button>
-                    <button class="trash-btn" type="button" title="删除账号" aria-label="删除账号" @click="deleteCreator">🗑</button>
+                    <button class="btn-ghost sm mobile-only" @click="selectedCreator = null">
+                      返回列表
+                    </button>
+                    <button
+                      class="trash-btn"
+                      type="button"
+                      title="删除账号"
+                      aria-label="删除账号"
+                      @click="deleteCreator"
+                    >
+                      🗑
+                    </button>
                   </div>
                 </div>
 
                 <div class="edit-form">
-                   <!-- 头像设置 -->
-                   <div class="form-group">
-                     <label>头像配置</label>
-                     <div class="avatar-uploader">
-                       <img :src="previewAvatar || selectedCreator.avatar_url || '/api/art/placeholder/80/80'" class="avatar-preview" />
-                       <div class="au-actions">
-                         <input type="file" ref="fileInput" accept="image/*" @change="handleFileChange" style="display:none" />
-                         <button class="btn-ghost sm" @click="$refs.fileInput.click()">选择本地图片</button>
-                         <div class="tip-text">支持 jpg, png, webp</div>
-                       </div>
-                     </div>
-                   </div>
+                  <!-- 头像设置 -->
+                  <div class="form-group">
+                    <label>头像配置</label>
+                    <div class="avatar-uploader">
+                      <img
+                        :src="
+                          previewAvatar ||
+                          selectedCreator.avatar_url ||
+                          '/api/art/placeholder/80/80'
+                        "
+                        class="avatar-preview"
+                      />
+                      <div class="au-actions">
+                        <input
+                          type="file"
+                          ref="fileInput"
+                          accept="image/*"
+                          @change="handleFileChange"
+                          style="display: none"
+                        />
+                        <button class="btn-ghost sm" @click="$refs.fileInput.click()">
+                          选择本地图片
+                        </button>
+                        <div class="tip-text">支持 jpg, png, webp</div>
+                      </div>
+                    </div>
+                  </div>
 
+                  <!-- QQ号 修改 -->
+                  <div class="form-group">
+                    <label>关联 QQ 号</label>
+                    <div class="row">
+                      <input
+                        v-model="editCreatorForm.qq"
+                        class="input"
+                        placeholder="输入关联的QQ号码"
+                      />
+                    </div>
+                    <div class="tip-text">用于身份核实或联系，仅后台可见。</div>
+                  </div>
 
-                   <!-- QQ号 修改 -->
-                   <div class="form-group">
-                     <label>关联 QQ 号</label>
-                     <div class="row">
-                       <input v-model="editCreatorForm.qq" class="input" placeholder="输入关联的QQ号码" />
-                     </div>
-                     <div class="tip-text">用于身份核实或联系，仅后台可见。</div>
-                   </div>
-                   
-                   <div class="form-actions">
-                     <button class="btn" @click="updateCreator" :disabled="!isCreatorModified">保存更改</button>
-                     <span v-if="saveMsg" class="save-msg">{{ saveMsg }}</span>
-                   </div>
+                  <div class="form-actions">
+                    <button class="btn" @click="updateCreator" :disabled="!isCreatorModified">
+                      保存更改
+                    </button>
+                    <span v-if="saveMsg" class="save-msg">{{ saveMsg }}</span>
+                  </div>
                 </div>
 
                 <div class="divider"></div>
@@ -376,23 +568,37 @@
                 <!-- 积分管理 -->
                 <div class="points-section">
                   <div class="label-lg">积分管理</div>
-                  
+
                   <div class="points-action-row">
                     <div class="quick-points">
-                      <button v-for="v in [10, 20, 50, -10, -50]" :key="v" 
-                        class="chip-btn" 
+                      <button
+                        v-for="v in [10, 20, 50, -10, -50]"
+                        :key="v"
+                        class="chip-btn"
                         :class="pointsForm.amount === v && 'active'"
-                        @click="pointsForm.amount = v">
+                        @click="pointsForm.amount = v"
+                      >
                         {{ v > 0 ? '+' + v : v }}
                       </button>
                     </div>
                     <div class="pa-form">
                       <div class="input-group">
                         <span class="input-prefix">分值</span>
-                        <input type="number" v-model.number="pointsForm.amount" class="input points-num sm" />
+                        <input
+                          type="number"
+                          v-model.number="pointsForm.amount"
+                          class="input points-num sm"
+                        />
                       </div>
-                      <input v-model="pointsForm.reason" class="input sm" placeholder="变更原因 (必填)" style="flex:1" />
-                      <button class="btn sm" @click="grantPoints" :disabled="!pointsForm.reason">执行</button>
+                      <input
+                        v-model="pointsForm.reason"
+                        class="input sm"
+                        placeholder="变更原因 (必填)"
+                        style="flex: 1"
+                      />
+                      <button class="btn sm" @click="grantPoints" :disabled="!pointsForm.reason">
+                        执行
+                      </button>
                     </div>
                   </div>
 
@@ -403,16 +609,19 @@
                       <span>原因</span>
                     </div>
                     <div class="ph-scroll-area">
-                       <div class="ph-row" v-for="(log, idx) in creatorLogs" :key="idx">
-                        <span class="ph-time">{{ new Date(log.granted_at).toLocaleDateString() }}</span>
-                        <span class="ph-val" :class="log.points > 0 ? 'pos' : 'neg'">{{ log.points > 0 ? '+' : '' }}{{ log.points }}</span>
+                      <div class="ph-row" v-for="(log, idx) in creatorLogs" :key="idx">
+                        <span class="ph-time">{{
+                          new Date(log.granted_at).toLocaleDateString()
+                        }}</span>
+                        <span class="ph-val" :class="log.points > 0 ? 'pos' : 'neg'"
+                          >{{ log.points > 0 ? '+' : '' }}{{ log.points }}</span
+                        >
                         <span class="ph-reason">{{ log.note || log.artwork_title }}</span>
                       </div>
                       <div v-if="!creatorLogs.length" class="empty-ph">暂无积分记录</div>
                     </div>
                   </div>
                 </div>
-
               </div>
               <div v-else class="empty-select">
                 <div class="icon">🎨</div>
@@ -423,19 +632,44 @@
         </div>
 
         <!-- ================= 公会系统 ================= -->
-        <div v-if="mainTab==='guild'" class="tab-content guild-admin">
+        <div v-if="mainTab === 'guild'" class="tab-content guild-admin">
           <div class="sub-tabs">
-            <button :class="['sub-tab', guildTab==='quests' && 'on']" @click="switchGuildTab('quests')">委托管理</button>
-            <button :class="['sub-tab', guildTab==='rewards' && 'on']" @click="switchGuildTab('rewards')">商品管理</button>
-            <button :class="['sub-tab', guildTab==='redemptions' && 'on']" @click="switchGuildTab('redemptions')">兑换审核</button>
-            <button :class="['sub-tab', guildTab==='ratings' && 'on']" @click="switchGuildTab('ratings')">评级审核</button>
-            <button :class="['sub-tab', guildTab==='profiles' && 'on']" @click="switchGuildTab('profiles')">访问许可</button>
+            <button
+              :class="['sub-tab', guildTab === 'quests' && 'on']"
+              @click="switchGuildTab('quests')"
+            >
+              委托管理
+            </button>
+            <button
+              :class="['sub-tab', guildTab === 'rewards' && 'on']"
+              @click="switchGuildTab('rewards')"
+            >
+              商品管理
+            </button>
+            <button
+              :class="['sub-tab', guildTab === 'redemptions' && 'on']"
+              @click="switchGuildTab('redemptions')"
+            >
+              兑换审核
+            </button>
+            <button
+              :class="['sub-tab', guildTab === 'ratings' && 'on']"
+              @click="switchGuildTab('ratings')"
+            >
+              评级审核
+            </button>
+            <button
+              :class="['sub-tab', guildTab === 'profiles' && 'on']"
+              @click="switchGuildTab('profiles')"
+            >
+              访问许可
+            </button>
           </div>
 
           <div v-if="guildMsg" class="guild-msg">{{ guildMsg }}</div>
 
-          <div v-if="guildTab==='quests'" class="guild-quest-page">
-            <section v-if="guildQuestPage==='list'" class="guild-list single guild-quest-list">
+          <div v-if="guildTab === 'quests'" class="guild-quest-page">
+            <section v-if="guildQuestPage === 'list'" class="guild-list single guild-quest-list">
               <div class="panel-header compact guild-list-toolbar">
                 <div>
                   <div class="ph-title">已有委托管理</div>
@@ -458,16 +692,39 @@
                     <span class="tag">评级 {{ quest.requiredRating }}</span>
                     <span class="tag">声望 +{{ quest.rewardReputation }}</span>
                     <span class="tag">金币 +{{ quest.rewardCoins }}</span>
+                    <span v-if="quest.deadlineDays && quest.repeatOnComplete" class="tag"
+                      >完成后循环</span
+                    >
+                    <span v-else-if="quest.cycleDays" class="tag">{{
+                      quest.cycleDays === 1 ? '每日循环' : `${quest.cycleDays}天循环`
+                    }}</span>
+                    <span v-if="quest.deadlineDays" class="tag"
+                      >限时 {{ quest.deadlineDays }} 天</span
+                    >
+                    <span v-if="quest.fixedDeadlineAt" class="tag">固定截止</span>
                     <span v-if="quest.autoClaim" class="tag">自动接取</span>
                     <span class="tag">{{ quest.status }}</span>
                   </div>
                 </div>
                 <div class="guild-row-actions">
                   <button class="btn-ghost sm" @click="editGuildQuest(quest)">编辑</button>
-                  <button class="btn-ghost warn sm" @click="setGuildQuestStatus(quest, quest.status === 'active' ? 'paused' : 'active')">
+                  <button
+                    class="btn-ghost warn sm"
+                    @click="
+                      setGuildQuestStatus(quest, quest.status === 'active' ? 'paused' : 'active')
+                    "
+                  >
                     {{ quest.status === 'active' ? '暂停' : '启用' }}
                   </button>
-                  <button class="trash-btn" type="button" title="删除" aria-label="删除委托" @click="deleteGuildQuest(quest)">🗑</button>
+                  <button
+                    class="trash-btn"
+                    type="button"
+                    title="删除"
+                    aria-label="删除委托"
+                    @click="deleteGuildQuest(quest)"
+                  >
+                    🗑
+                  </button>
                 </div>
               </article>
               <div v-if="!guildQuests.length" class="empty-ph">暂无委托，点击上方按钮新增。</div>
@@ -477,7 +734,13 @@
               <div class="panel-header compact guild-form-head">
                 <div>
                   <div class="ph-title">{{ guildQuestEditingId ? '编辑委托' : '新增委托' }}</div>
-                  <div class="tip-text">{{ guildQuestEditingId ? '修改后会覆盖当前委托配置。' : '填写后会新增到已有委托列表。' }}</div>
+                  <div class="tip-text">
+                    {{
+                      guildQuestEditingId
+                        ? '修改后会覆盖当前委托配置。'
+                        : '填写后会新增到已有委托列表。'
+                    }}
+                  </div>
                 </div>
                 <button class="btn-ghost sm" @click="openGuildQuestList">返回委托列表</button>
               </div>
@@ -492,7 +755,12 @@
                       </span>
                     </button>
                   </div>
-                  <input id="guild-quest-title" v-model="guildQuestForm.title" class="input" placeholder="例如：浏览 5 个画廊作品">
+                  <input
+                    id="guild-quest-title"
+                    v-model="guildQuestForm.title"
+                    class="input"
+                    placeholder="例如：浏览 5 个画廊作品"
+                  />
                 </div>
                 <div class="guild-field guild-field--wide">
                   <div class="guild-field-label-row">
@@ -504,7 +772,12 @@
                       </span>
                     </button>
                   </div>
-                  <textarea id="guild-quest-description" v-model="guildQuestForm.description" class="textarea guild-textarea" placeholder="写给用户看的任务说明"></textarea>
+                  <textarea
+                    id="guild-quest-description"
+                    v-model="guildQuestForm.description"
+                    class="textarea guild-textarea"
+                    placeholder="写给用户看的任务说明"
+                  ></textarea>
                 </div>
                 <div class="guild-form-grid two">
                   <div class="guild-field">
@@ -534,7 +807,11 @@
                         </span>
                       </button>
                     </div>
-                    <select id="guild-quest-difficulty" v-model="guildQuestForm.difficulty" class="select">
+                    <select
+                      id="guild-quest-difficulty"
+                      v-model="guildQuestForm.difficulty"
+                      class="select"
+                    >
                       <option value="easy">easy</option>
                       <option value="normal">normal</option>
                       <option value="hard">hard</option>
@@ -553,7 +830,11 @@
                         </span>
                       </button>
                     </div>
-                    <select id="guild-quest-required-rating" v-model="guildQuestForm.requiredRating" class="select">
+                    <select
+                      id="guild-quest-required-rating"
+                      v-model="guildQuestForm.requiredRating"
+                      class="select"
+                    >
                       <option v-for="r in ratingOptions" :key="r" :value="r">{{ r }}</option>
                     </select>
                   </div>
@@ -567,8 +848,14 @@
                         </span>
                       </button>
                     </div>
-                    <select id="guild-quest-required-access" v-model="guildQuestForm.requiredAccess" class="select">
-                      <option v-for="a in accessOptions" :key="a.value" :value="a.value">{{ a.label }}</option>
+                    <select
+                      id="guild-quest-required-access"
+                      v-model="guildQuestForm.requiredAccess"
+                      class="select"
+                    >
+                      <option v-for="a in accessOptions" :key="a.value" :value="a.value">
+                        {{ a.label }}
+                      </option>
                     </select>
                   </div>
                 </div>
@@ -582,8 +869,14 @@
                       </span>
                     </button>
                   </div>
-                  <select id="guild-quest-condition" v-model="guildQuestForm.conditionKind" class="select">
-                    <option v-for="c in conditionOptions" :key="c.value" :value="c.value">{{ c.label }}</option>
+                  <select
+                    id="guild-quest-condition"
+                    v-model="guildQuestForm.conditionKind"
+                    class="select"
+                  >
+                    <option v-for="c in conditionOptions" :key="c.value" :value="c.value">
+                      {{ c.label }}
+                    </option>
                   </select>
                 </div>
                 <div class="guild-form-grid three">
@@ -597,7 +890,13 @@
                         </span>
                       </button>
                     </div>
-                    <input id="guild-quest-target-count" type="number" v-model.number="guildQuestForm.targetCount" class="input" placeholder="1">
+                    <input
+                      id="guild-quest-target-count"
+                      type="number"
+                      v-model.number="guildQuestForm.targetCount"
+                      class="input"
+                      placeholder="1"
+                    />
                   </div>
                   <div class="guild-field">
                     <div class="guild-field-label-row">
@@ -609,7 +908,13 @@
                         </span>
                       </button>
                     </div>
-                    <input id="guild-quest-reputation" type="number" v-model.number="guildQuestForm.rewardReputation" class="input" placeholder="0">
+                    <input
+                      id="guild-quest-reputation"
+                      type="number"
+                      v-model.number="guildQuestForm.rewardReputation"
+                      class="input"
+                      placeholder="0"
+                    />
                   </div>
                   <div class="guild-field">
                     <div class="guild-field-label-row">
@@ -621,33 +926,138 @@
                         </span>
                       </button>
                     </div>
-                    <input id="guild-quest-coins" type="number" v-model.number="guildQuestForm.rewardCoins" class="input" placeholder="0">
+                    <input
+                      id="guild-quest-coins"
+                      type="number"
+                      v-model.number="guildQuestForm.rewardCoins"
+                      class="input"
+                      placeholder="0"
+                    />
                   </div>
                 </div>
                 <div class="guild-form-grid three">
                   <div class="guild-field">
                     <div class="guild-field-label-row">
-                      <label for="guild-quest-deadline">限时小时</label>
-                      <button class="help-tip" type="button" aria-label="限时小时说明">
+                      <label for="guild-quest-time-limit-mode">时间限制</label>
+                      <button class="help-tip" type="button" aria-label="时间限制说明">
                         ?
                         <span class="help-tip__bubble" role="tooltip">
-                          用户接取后需要在多少小时内完成；留空表示不设置限时。
+                          同一委托只能选择一种截止逻辑；不单独设置时，循环任务默认到下一次北京时间刷新点截止。
                         </span>
                       </button>
                     </div>
-                    <input id="guild-quest-deadline" type="number" v-model.number="guildQuestForm.deadlineHours" class="input" placeholder="可留空">
+                    <div class="guild-time-limit">
+                      <select
+                        id="guild-quest-time-limit-mode"
+                        v-model="guildQuestForm.timeLimitMode"
+                        class="select"
+                        @change="normalizeGuildQuestTimeLimit"
+                      >
+                        <option value="none">不单独设置</option>
+                        <option value="days">按天数截止</option>
+                        <option value="fixed">固定截止日期</option>
+                      </select>
+                      <input
+                        v-if="guildQuestForm.timeLimitMode === 'days'"
+                        id="guild-quest-deadline-days"
+                        type="number"
+                        min="1"
+                        v-model.number="guildQuestForm.deadlineDays"
+                        class="input"
+                        placeholder="完成期限（天）"
+                      />
+                      <input
+                        v-else-if="guildQuestForm.timeLimitMode === 'fixed'"
+                        id="guild-quest-fixed-deadline"
+                        type="datetime-local"
+                        v-model="guildQuestForm.fixedDeadlineAt"
+                        class="input"
+                      />
+                    </div>
                   </div>
+                  <div v-if="guildQuestForm.timeLimitMode === 'days'" class="guild-field">
+                    <div class="guild-field-label-row">
+                      <label for="guild-quest-repeat-on-complete">完成后循环</label>
+                      <button class="help-tip" type="button" aria-label="完成后循环说明">
+                        ?
+                        <span class="help-tip__bubble" role="tooltip">
+                          开启后本轮完成并结算后，委托会立即恢复为可再次接取；关闭则只完成一次。
+                        </span>
+                      </button>
+                    </div>
+                    <label class="guild-toggle-card" for="guild-quest-repeat-on-complete">
+                      <input
+                        id="guild-quest-repeat-on-complete"
+                        type="checkbox"
+                        v-model="guildQuestForm.repeatOnComplete"
+                      />
+                      <span>
+                        <b>{{ guildQuestForm.repeatOnComplete ? '循环开启' : '循环关闭' }}</b>
+                        <small>按接取时间计算截止天数，完成后立即刷新。</small>
+                      </span>
+                    </label>
+                  </div>
+                  <template v-else>
+                    <div class="guild-field">
+                      <div class="guild-field-label-row">
+                        <label for="guild-quest-cycle-days">循环周期</label>
+                        <button class="help-tip" type="button" aria-label="循环周期说明">
+                          ?
+                          <span class="help-tip__bubble" role="tooltip">
+                            填 1 即每日循环；留空表示一次性任务，不会自动进入下一轮。
+                          </span>
+                        </button>
+                      </div>
+                      <input
+                        id="guild-quest-cycle-days"
+                        type="number"
+                        min="1"
+                        v-model.number="guildQuestForm.cycleDays"
+                        class="input"
+                        placeholder="日常填 1"
+                      />
+                    </div>
+                    <div class="guild-field">
+                      <div class="guild-field-label-row">
+                        <label for="guild-quest-reset-hour">北京时间刷新点</label>
+                        <button class="help-tip" type="button" aria-label="北京时间刷新点说明">
+                          ?
+                          <span class="help-tip__bubble" role="tooltip">
+                            循环任务按北京时间几点刷新，默认 4 点，即每天凌晨 4 点进入下一轮。
+                          </span>
+                        </button>
+                      </div>
+                      <input
+                        id="guild-quest-reset-hour"
+                        type="number"
+                        min="0"
+                        max="23"
+                        v-model.number="guildQuestForm.cycleResetHour"
+                        class="input"
+                        placeholder="4"
+                      />
+                    </div>
+                  </template>
+                </div>
+                <div class="guild-form-grid three">
                   <div class="guild-field">
                     <div class="guild-field-label-row">
                       <label for="guild-quest-sort-order">排序权重</label>
                       <button class="help-tip" type="button" aria-label="排序权重说明">
                         ?
                         <span class="help-tip__bubble" role="tooltip">
-                          数字越小展示越靠前，越大越靠后。默认 100；需要优先展示可填 10，放后面可填 999。
+                          数字越小展示越靠前，越大越靠后。默认 100；需要优先展示可填 10，放后面可填
+                          999。
                         </span>
                       </button>
                     </div>
-                    <input id="guild-quest-sort-order" type="number" v-model.number="guildQuestForm.sortOrder" class="input" placeholder="100">
+                    <input
+                      id="guild-quest-sort-order"
+                      type="number"
+                      v-model.number="guildQuestForm.sortOrder"
+                      class="input"
+                      placeholder="100"
+                    />
                   </div>
                   <div class="guild-field">
                     <div class="guild-field-label-row">
@@ -677,23 +1087,38 @@
                     </button>
                   </div>
                   <label class="guild-toggle-card" for="guild-quest-auto-claim">
-                    <input id="guild-quest-auto-claim" type="checkbox" v-model="guildQuestForm.autoClaim">
+                    <input
+                      id="guild-quest-auto-claim"
+                      type="checkbox"
+                      v-model="guildQuestForm.autoClaim"
+                    />
                     <span>
                       <b>{{ guildQuestForm.autoClaim ? '已开启自动接取' : '需要用户手动接取' }}</b>
-                      <small>{{ guildQuestForm.autoClaim ? '适合日常、浏览、点赞、评论等不需要确认意愿的任务。' : '用户需要先在兑换页点击接取，之后才会记录任务进度。' }}</small>
+                      <small>{{
+                        guildQuestForm.autoClaim
+                          ? '适合日常、浏览、点赞、评论等不需要确认意愿的任务。'
+                          : '用户需要先在兑换页点击接取，之后才会记录任务进度。'
+                      }}</small>
                     </span>
                   </label>
                 </div>
                 <div class="btns guild-form-actions">
-                  <button class="btn" @click="saveGuildQuest" :disabled="guildSaving">{{ guildQuestEditingId ? '更新委托' : '创建委托' }}</button>
-                  <button class="btn-ghost" @click="guildQuestEditingId ? openGuildQuestList() : resetGuildQuestForm()">{{ guildQuestEditingId ? '取消编辑' : '清空' }}</button>
+                  <button class="btn" @click="saveGuildQuest" :disabled="guildSaving">
+                    {{ guildQuestEditingId ? '更新委托' : '创建委托' }}
+                  </button>
+                  <button
+                    class="btn-ghost"
+                    @click="guildQuestEditingId ? openGuildQuestList() : resetGuildQuestForm()"
+                  >
+                    {{ guildQuestEditingId ? '取消编辑' : '清空' }}
+                  </button>
                 </div>
               </div>
             </section>
           </div>
 
-          <div v-if="guildTab==='rewards'" class="guild-quest-page">
-            <section v-if="guildRewardPage==='list'" class="guild-list single guild-reward-list">
+          <div v-if="guildTab === 'rewards'" class="guild-quest-page">
+            <section v-if="guildRewardPage === 'list'" class="guild-list single guild-reward-list">
               <div class="panel-header compact guild-list-toolbar">
                 <div>
                   <div class="ph-title">已有商品管理</div>
@@ -701,10 +1126,14 @@
                 </div>
                 <button class="btn sm" @click="openGuildRewardCreate">新增商品</button>
               </div>
-              <article v-for="reward in guildRewards" :key="reward.id" class="guild-manage-row has-trash">
+              <article
+                v-for="reward in guildRewards"
+                :key="reward.id"
+                class="guild-manage-row has-trash"
+              >
                 <div class="guild-row-main guild-reward-row-main">
                   <div v-if="reward.imageUrl" class="guild-reward-thumb">
-                    <img :src="reward.imageUrl" :alt="reward.name">
+                    <img :src="reward.imageUrl" :alt="reward.name" />
                   </div>
                   <div class="guild-row-copy">
                     <div class="m-title">{{ reward.name }}</div>
@@ -720,10 +1149,23 @@
                 </div>
                 <div class="guild-row-actions">
                   <button class="btn-ghost sm" @click="editGuildReward(reward)">编辑</button>
-                  <button class="btn-ghost warn sm" @click="setGuildRewardStatus(reward, reward.status === 'active' ? 'paused' : 'active')">
+                  <button
+                    class="btn-ghost warn sm"
+                    @click="
+                      setGuildRewardStatus(reward, reward.status === 'active' ? 'paused' : 'active')
+                    "
+                  >
                     {{ reward.status === 'active' ? '下架' : '上架' }}
                   </button>
-                  <button class="trash-btn" type="button" title="删除" aria-label="删除商品" @click="deleteGuildReward(reward)">🗑</button>
+                  <button
+                    class="trash-btn"
+                    type="button"
+                    title="删除"
+                    aria-label="删除商品"
+                    @click="deleteGuildReward(reward)"
+                  >
+                    🗑
+                  </button>
                 </div>
               </article>
               <div v-if="!guildRewards.length" class="empty-ph">暂无商品，点击上方按钮新增。</div>
@@ -733,7 +1175,13 @@
               <div class="panel-header compact guild-form-head">
                 <div>
                   <div class="ph-title">{{ guildRewardEditingId ? '编辑商品' : '新增商品' }}</div>
-                  <div class="tip-text">{{ guildRewardEditingId ? '修改后会覆盖当前商品配置。' : '填写后会新增到已有商品列表。' }}</div>
+                  <div class="tip-text">
+                    {{
+                      guildRewardEditingId
+                        ? '修改后会覆盖当前商品配置。'
+                        : '填写后会新增到已有商品列表。'
+                    }}
+                  </div>
                 </div>
                 <button class="btn-ghost sm" @click="openGuildRewardList">返回商品列表</button>
               </div>
@@ -748,7 +1196,12 @@
                       </span>
                     </button>
                   </div>
-                  <input id="guild-reward-name" v-model="guildRewardForm.name" class="input" placeholder="例如：头像框兑换券">
+                  <input
+                    id="guild-reward-name"
+                    v-model="guildRewardForm.name"
+                    class="input"
+                    placeholder="例如：头像框兑换券"
+                  />
                 </div>
                 <div class="guild-field guild-field--wide">
                   <div class="guild-field-label-row">
@@ -760,7 +1213,12 @@
                       </span>
                     </button>
                   </div>
-                  <textarea id="guild-reward-description" v-model="guildRewardForm.description" class="textarea guild-textarea" placeholder="写给用户看的兑换说明"></textarea>
+                  <textarea
+                    id="guild-reward-description"
+                    v-model="guildRewardForm.description"
+                    class="textarea guild-textarea"
+                    placeholder="写给用户看的兑换说明"
+                  ></textarea>
                 </div>
                 <div class="guild-form-grid three">
                   <div class="guild-field">
@@ -773,7 +1231,11 @@
                         </span>
                       </button>
                     </div>
-                    <select id="guild-reward-type" v-model="guildRewardForm.rewardType" class="select">
+                    <select
+                      id="guild-reward-type"
+                      v-model="guildRewardForm.rewardType"
+                      class="select"
+                    >
                       <option value="virtual">虚拟物品</option>
                       <option value="physical">实体物品</option>
                     </select>
@@ -788,7 +1250,13 @@
                         </span>
                       </button>
                     </div>
-                    <input id="guild-reward-price" type="number" v-model.number="guildRewardForm.priceCoins" class="input" placeholder="0">
+                    <input
+                      id="guild-reward-price"
+                      type="number"
+                      v-model.number="guildRewardForm.priceCoins"
+                      class="input"
+                      placeholder="0"
+                    />
                   </div>
                   <div class="guild-field">
                     <div class="guild-field-label-row">
@@ -800,7 +1268,13 @@
                         </span>
                       </button>
                     </div>
-                    <input id="guild-reward-stock" type="number" v-model.number="guildRewardForm.stock" class="input" placeholder="-1">
+                    <input
+                      id="guild-reward-stock"
+                      type="number"
+                      v-model.number="guildRewardForm.stock"
+                      class="input"
+                      placeholder="-1"
+                    />
                     <small>-1 表示不限库存</small>
                   </div>
                 </div>
@@ -815,7 +1289,11 @@
                         </span>
                       </button>
                     </div>
-                    <select id="guild-reward-required-rating" v-model="guildRewardForm.requiredRating" class="select">
+                    <select
+                      id="guild-reward-required-rating"
+                      v-model="guildRewardForm.requiredRating"
+                      class="select"
+                    >
                       <option v-for="r in ratingOptions" :key="r" :value="r">{{ r }}</option>
                     </select>
                   </div>
@@ -829,8 +1307,14 @@
                         </span>
                       </button>
                     </div>
-                    <select id="guild-reward-required-access" v-model="guildRewardForm.requiredAccess" class="select">
-                      <option v-for="a in accessOptions" :key="a.value" :value="a.value">{{ a.label }}</option>
+                    <select
+                      id="guild-reward-required-access"
+                      v-model="guildRewardForm.requiredAccess"
+                      class="select"
+                    >
+                      <option v-for="a in accessOptions" :key="a.value" :value="a.value">
+                        {{ a.label }}
+                      </option>
                     </select>
                   </div>
                 </div>
@@ -852,16 +1336,36 @@
                       type="file"
                       accept="image/*"
                       @change="handleGuildRewardImageChange"
+                    />
+                    <div
+                      class="reward-image-preview"
+                      :class="{ 'is-empty': !guildRewardForm.imageUrl }"
                     >
-                    <div class="reward-image-preview" :class="{ 'is-empty': !guildRewardForm.imageUrl }">
-                      <img v-if="guildRewardForm.imageUrl" :src="guildRewardForm.imageUrl" alt="">
+                      <img v-if="guildRewardForm.imageUrl" :src="guildRewardForm.imageUrl" alt="" />
                       <span v-else>未上传展示图</span>
                     </div>
                     <div class="reward-image-tools">
-                      <button class="btn-ghost sm" type="button" :disabled="guildRewardImageUploading" @click="openGuildRewardImagePicker">
-                        {{ guildRewardImageUploading ? '上传中...' : (guildRewardForm.imageUrl ? '更换图片' : '上传图片') }}
+                      <button
+                        class="btn-ghost sm"
+                        type="button"
+                        :disabled="guildRewardImageUploading"
+                        @click="openGuildRewardImagePicker"
+                      >
+                        {{
+                          guildRewardImageUploading
+                            ? '上传中...'
+                            : guildRewardForm.imageUrl
+                              ? '更换图片'
+                              : '上传图片'
+                        }}
                       </button>
-                      <button v-if="guildRewardForm.imageUrl" class="btn-ghost danger sm" type="button" :disabled="guildRewardImageUploading" @click="clearGuildRewardImage">
+                      <button
+                        v-if="guildRewardForm.imageUrl"
+                        class="btn-ghost danger sm"
+                        type="button"
+                        :disabled="guildRewardImageUploading"
+                        @click="clearGuildRewardImage"
+                      >
                         清除图片
                       </button>
                       <small>支持 JPG、PNG、WebP、GIF、SVG、BMP、AVIF 等常见展示图片</small>
@@ -875,11 +1379,18 @@
                       <button class="help-tip" type="button" aria-label="排序权重说明">
                         ?
                         <span class="help-tip__bubble" role="tooltip">
-                          数字越小展示越靠前，越大越靠后。默认 100；需要优先展示可填 10，放后面可填 999。
+                          数字越小展示越靠前，越大越靠后。默认 100；需要优先展示可填 10，放后面可填
+                          999。
                         </span>
                       </button>
                     </div>
-                    <input id="guild-reward-sort-order" type="number" v-model.number="guildRewardForm.sortOrder" class="input" placeholder="100">
+                    <input
+                      id="guild-reward-sort-order"
+                      type="number"
+                      v-model.number="guildRewardForm.sortOrder"
+                      class="input"
+                      placeholder="100"
+                    />
                   </div>
                   <div class="guild-field">
                     <div class="guild-field-label-row">
@@ -891,7 +1402,11 @@
                         </span>
                       </button>
                     </div>
-                    <select id="guild-reward-status" v-model="guildRewardForm.status" class="select">
+                    <select
+                      id="guild-reward-status"
+                      v-model="guildRewardForm.status"
+                      class="select"
+                    >
                       <option value="active">active</option>
                       <option value="paused">paused</option>
                       <option value="deleted">deleted</option>
@@ -899,14 +1414,26 @@
                   </div>
                 </div>
                 <div class="btns guild-form-actions">
-                  <button class="btn" @click="saveGuildReward" :disabled="guildSaving || guildRewardImageUploading">{{ guildRewardEditingId ? '更新商品' : '保存商品' }}</button>
-                  <button class="btn-ghost" :disabled="guildRewardImageUploading" @click="guildRewardEditingId ? openGuildRewardList() : resetGuildRewardForm()">{{ guildRewardEditingId ? '取消编辑' : '清空' }}</button>
+                  <button
+                    class="btn"
+                    @click="saveGuildReward"
+                    :disabled="guildSaving || guildRewardImageUploading"
+                  >
+                    {{ guildRewardEditingId ? '更新商品' : '保存商品' }}
+                  </button>
+                  <button
+                    class="btn-ghost"
+                    :disabled="guildRewardImageUploading"
+                    @click="guildRewardEditingId ? openGuildRewardList() : resetGuildRewardForm()"
+                  >
+                    {{ guildRewardEditingId ? '取消编辑' : '清空' }}
+                  </button>
                 </div>
               </div>
             </section>
           </div>
 
-          <div v-if="guildTab==='redemptions'" class="guild-list single">
+          <div v-if="guildTab === 'redemptions'" class="guild-list single">
             <article v-for="item in guildRedemptions" :key="item.id" class="guild-manage-row">
               <div>
                 <div class="m-title">{{ item.rewardName }} · {{ item.name || item.uid }}</div>
@@ -926,10 +1453,12 @@
             <div v-if="!guildRedemptions.length" class="empty-ph">暂无兑换申请</div>
           </div>
 
-          <div v-if="guildTab==='ratings'" class="guild-list single">
+          <div v-if="guildTab === 'ratings'" class="guild-list single">
             <article v-for="item in guildRatings" :key="item.id" class="guild-manage-row">
               <div>
-                <div class="m-title">{{ item.name || item.uid }}：{{ item.fromRating }} → {{ item.targetRating }}</div>
+                <div class="m-title">
+                  {{ item.name || item.uid }}：{{ item.fromRating }} → {{ item.targetRating }}
+                </div>
                 <div class="m-info">
                   <span class="tag">声望 {{ item.reputationSnapshot }}</span>
                   <span class="tag">凉宫作品 {{ item.haruhiCountSnapshot }}</span>
@@ -945,7 +1474,7 @@
             <div v-if="!guildRatings.length" class="empty-ph">暂无评级申请</div>
           </div>
 
-          <div v-if="guildTab==='profiles'" class="guild-list single">
+          <div v-if="guildTab === 'profiles'" class="guild-list single">
             <article v-for="item in guildProfiles" :key="item.uid" class="guild-manage-row">
               <div>
                 <div class="m-title">{{ item.name || item.uid }}</div>
@@ -968,7 +1497,9 @@
                     </button>
                   </div>
                   <select v-model="item.accessTier" class="select sm">
-                    <option v-for="a in accessOptions" :key="a.value" :value="a.value">{{ a.label }}</option>
+                    <option v-for="a in accessOptions" :key="a.value" :value="a.value">
+                      {{ a.label }}
+                    </option>
                   </select>
                 </div>
                 <button class="btn-ghost sm" @click="saveProfileAccess(item)">保存许可</button>
@@ -979,14 +1510,18 @@
         </div>
 
         <!-- ================= 公告管理 ================= -->
-        <div v-if="mainTab==='announcements'" class="tab-content guild-admin">
+        <div v-if="mainTab === 'announcements'" class="tab-content guild-admin">
           <div v-if="annMsg" class="guild-msg">{{ annMsg }}</div>
           <div class="ann-admin-layout">
-            <section v-if="annPage==='form'" class="guild-editor ann-editor-panel">
+            <section v-if="annPage === 'form'" class="guild-editor ann-editor-panel">
               <div class="panel-header compact ann-editor-head">
                 <div>
                   <div class="ph-title">{{ annEditingId ? '编辑公告' : '新增公告' }}</div>
-                  <div class="tip-text">{{ annEditingId ? '正在编辑 #' + annEditingId : '填写后会新增到已有公告列表。' }}</div>
+                  <div class="tip-text">
+                    {{
+                      annEditingId ? '正在编辑 #' + annEditingId : '填写后会新增到已有公告列表。'
+                    }}
+                  </div>
                 </div>
                 <button class="btn-ghost sm" @click="openAnnouncementList">返回公告列表</button>
               </div>
@@ -1001,7 +1536,12 @@
                       </span>
                     </button>
                   </div>
-                  <input id="ann-title" v-model="annForm.title" class="input" placeholder="公告标题">
+                  <input
+                    id="ann-title"
+                    v-model="annForm.title"
+                    class="input"
+                    placeholder="公告标题"
+                  />
                 </div>
                 <div class="ann-meta-grid">
                   <div class="ann-field">
@@ -1015,8 +1555,8 @@
                       </button>
                     </div>
                     <select id="ann-category" v-model="annForm.category" class="select">
-                    <option value="activity">活动公告</option>
-                    <option value="maintenance">维护公告</option>
+                      <option value="activity">活动公告</option>
+                      <option value="maintenance">维护公告</option>
                     </select>
                   </div>
                   <div class="ann-field">
@@ -1030,8 +1570,8 @@
                       </button>
                     </div>
                     <select id="ann-status" v-model="annForm.status" class="select">
-                    <option value="published">已发布</option>
-                    <option value="draft">草稿</option>
+                      <option value="published">已发布</option>
+                      <option value="draft">草稿</option>
                     </select>
                   </div>
                   <div class="ann-field">
@@ -1044,7 +1584,12 @@
                         </span>
                       </button>
                     </div>
-                    <input id="ann-published-at" type="date" v-model="annForm.publishedAt" class="input">
+                    <input
+                      id="ann-published-at"
+                      type="date"
+                      v-model="annForm.publishedAt"
+                      class="input"
+                    />
                   </div>
                   <div class="ann-field">
                     <div class="admin-field-label-row">
@@ -1056,7 +1601,9 @@
                         </span>
                       </button>
                     </div>
-                    <label class="ann-pin ann-pin--card"><input type="checkbox" v-model="annForm.pinned"> 置顶公告</label>
+                    <label class="ann-pin ann-pin--card"
+                      ><input type="checkbox" v-model="annForm.pinned" /> 置顶公告</label
+                    >
                   </div>
                 </div>
                 <div class="ann-field">
@@ -1069,7 +1616,12 @@
                       </span>
                     </button>
                   </div>
-                  <input id="ann-summary" v-model="annForm.summary" class="input" placeholder="摘要（一句话概述）">
+                  <input
+                    id="ann-summary"
+                    v-model="annForm.summary"
+                    class="input"
+                    placeholder="摘要（一句话概述）"
+                  />
                 </div>
                 <div class="ann-field ann-field--body">
                   <div class="admin-field-label-row">
@@ -1081,7 +1633,12 @@
                       </span>
                     </button>
                   </div>
-                  <textarea id="ann-body" v-model="annForm.body" class="textarea ann-body-editor" placeholder="公告正文"></textarea>
+                  <textarea
+                    id="ann-body"
+                    v-model="annForm.body"
+                    class="textarea ann-body-editor"
+                    placeholder="公告正文"
+                  ></textarea>
                 </div>
                 <div class="ann-form-footer">
                   <div class="ann-field ann-field--tags">
@@ -1094,11 +1651,23 @@
                         </span>
                       </button>
                     </div>
-                    <input id="ann-tags" v-model="annForm.tags" class="input" placeholder="标签，逗号分隔（可空）">
+                    <input
+                      id="ann-tags"
+                      v-model="annForm.tags"
+                      class="input"
+                      placeholder="标签，逗号分隔（可空）"
+                    />
                   </div>
                   <div class="btns ann-editor-actions">
-                    <button class="btn" @click="saveAnnouncement" :disabled="annSaving">{{ annEditingId ? '更新公告' : '发布公告' }}</button>
-                    <button class="btn-ghost" @click="annEditingId ? openAnnouncementList() : resetAnnForm()">{{ annEditingId ? '取消编辑' : '清空' }}</button>
+                    <button class="btn" @click="saveAnnouncement" :disabled="annSaving">
+                      {{ annEditingId ? '更新公告' : '发布公告' }}
+                    </button>
+                    <button
+                      class="btn-ghost"
+                      @click="annEditingId ? openAnnouncementList() : resetAnnForm()"
+                    >
+                      {{ annEditingId ? '取消编辑' : '清空' }}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1108,7 +1677,9 @@
               <div class="panel-header compact ann-list-head">
                 <div>
                   <div class="ph-title">已有公告管理</div>
-                  <div class="tip-text">共 {{ announcements.length }} 条，点击编辑会进入公告表单</div>
+                  <div class="tip-text">
+                    共 {{ announcements.length }} 条，点击编辑会进入公告表单
+                  </div>
                 </div>
                 <div class="btns">
                   <button class="btn-ghost sm" @click="loadAnnouncementsAdmin">刷新</button>
@@ -1124,7 +1695,9 @@
                 <div class="ann-row-main">
                   <div class="m-title">{{ a.title }}</div>
                   <div class="m-info">
-                    <span class="tag">{{ a.category === 'maintenance' ? '维护公告' : '活动公告' }}</span>
+                    <span class="tag">{{
+                      a.category === 'maintenance' ? '维护公告' : '活动公告'
+                    }}</span>
                     <span class="tag">{{ a.status === 'draft' ? '草稿' : '已发布' }}</span>
                     <span v-if="a.pinned" class="tag">置顶</span>
                     <span class="tag">{{ (a.publishedAt || '').slice(0, 10) }}</span>
@@ -1134,20 +1707,26 @@
                 </div>
                 <div class="guild-row-actions">
                   <button class="btn-ghost sm" @click="editAnnouncement(a)">编辑</button>
-                  <button class="trash-btn" type="button" title="删除" aria-label="删除公告" @click="deleteAnnouncement(a)">🗑</button>
+                  <button
+                    class="trash-btn"
+                    type="button"
+                    title="删除"
+                    aria-label="删除公告"
+                    @click="deleteAnnouncement(a)"
+                  >
+                    🗑
+                  </button>
                 </div>
               </article>
               <div v-if="!announcements.length" class="empty-ph">暂无公告，点击上方按钮新增。</div>
             </section>
           </div>
         </div>
-
       </main>
     </div>
 
     <!-- 作品预览弹窗 -->
     <ArtworkModal v-model="showPreview" :item="previewItem" />
-
   </section>
 </template>
 
@@ -1179,23 +1758,28 @@ const approvedList = ref([])
 const artListPage = ref(1)
 const artListFilter = ref({ content: 'all', source: 'all', q: '' })
 const editingId = ref(null)
-const editForm = ref({ 
-  title: '', description: '', tags: '',
-  source_type: 'personal', content_type: 'haruhi', origin_url: '',
-  netLicenses: [], groupLicenses: []
+const editForm = ref({
+  title: '',
+  description: '',
+  tags: '',
+  source_type: 'personal',
+  content_type: 'haruhi',
+  origin_url: '',
+  netLicenses: [],
+  groupLicenses: [],
 })
 
 const NET_LICENSE_OPTIONS = [
   '可在b站、小红书等社交媒体转载',
   '允许用于视频等个人创作',
-  '允许用于制作无料发放'
+  '允许用于制作无料发放',
 ]
 
 const GROUP_LICENSE_OPTIONS = [
   '允许应援团社交媒体官方账号转载',
   '允许用于应援团官方视频/游戏等创作企划',
   '允许制作无料周边发放',
-  '允许制作贩售周边'
+  '允许制作贩售周边',
 ]
 const notes = ref({}) // 审核备注
 const showPreview = ref(false)
@@ -1237,7 +1821,7 @@ const accessOptions = [
   { value: 'public_archive', label: '档案0 · 公开档案许可' },
   { value: 'observer_clearance', label: '观测1 · 观测员许可' },
   { value: 'anomaly_research', label: '异常2 · 异常观测许可' },
-  { value: 'closed_space', label: '闭锁3 · 闭锁空间许可' }
+  { value: 'closed_space', label: '闭锁3 · 闭锁空间许可' },
 ]
 const conditionOptions = [
   { value: 'browse_artworks', label: '浏览画廊作品' },
@@ -1246,7 +1830,7 @@ const conditionOptions = [
   { value: 'upload_personal_haruhi', label: '上传凉宫个人作品' },
   { value: 'upload_personal_any', label: '上传任意个人作品' },
   { value: 'upload_network', label: '提交转载作品' },
-  { value: 'manual_admin_verify', label: '管理员手动验收' }
+  { value: 'manual_admin_verify', label: '管理员手动验收' },
 ]
 
 const defaultQuestForm = () => ({
@@ -1261,9 +1845,15 @@ const defaultQuestForm = () => ({
   rewardReputation: 0,
   rewardCoins: 0,
   deadlineHours: null,
+  timeLimitMode: 'none',
+  deadlineDays: null,
+  fixedDeadlineAt: '',
+  repeatOnComplete: false,
+  cycleDays: 1,
+  cycleResetHour: 4,
   autoClaim: false,
   status: 'active',
-  sortOrder: 100
+  sortOrder: 100,
 })
 const defaultRewardForm = () => ({
   name: '',
@@ -1275,7 +1865,7 @@ const defaultRewardForm = () => ({
   requiredAccess: 'observer_clearance',
   imageUrl: '',
   status: 'active',
-  sortOrder: 100
+  sortOrder: 100,
 })
 const guildQuestForm = ref(defaultQuestForm())
 const guildRewardForm = ref(defaultRewardForm())
@@ -1284,7 +1874,7 @@ const guildRewardForm = ref(defaultRewardForm())
 const filteredCreators = computed(() => {
   if (!creatorSearch.value) return creators.value
   const q = creatorSearch.value.toLowerCase()
-  return creators.value.filter(c => c.uid.toLowerCase().includes(q))
+  return creators.value.filter((c) => c.uid.toLowerCase().includes(q))
 })
 
 // 计算是否有修改
@@ -1297,12 +1887,11 @@ const isCreatorModified = computed(() => {
 
 // 计算属性：过滤后的评论
 const filteredComments = computed(() => {
-  if (commentTab.value === 'pending') return comments.value 
+  if (commentTab.value === 'pending') return comments.value
   if (!commentSearch.value) return comments.value
   const q = commentSearch.value.toLowerCase()
-  return comments.value.filter(c => 
-    c.body.toLowerCase().includes(q) || 
-    c.user_name.toLowerCase().includes(q)
+  return comments.value.filter(
+    (c) => c.body.toLowerCase().includes(q) || c.user_name.toLowerCase().includes(q)
   )
 })
 
@@ -1351,10 +1940,12 @@ async function loadApprovedList() {
       source_type: artListFilter.value.source,
       q: artListFilter.value.q,
       page: artListPage.value,
-      pageSize: 20
+      pageSize: 20,
     })
     approvedList.value = res.data || []
-  } catch(e) { console.error(e) }
+  } catch (e) {
+    console.error(e)
+  }
 }
 
 function changePage(delta) {
@@ -1372,7 +1963,8 @@ async function approve(it) {
 }
 
 async function hardDelete(it, from = 'audit') {
-  if (!confirm(`⚠️ 警告：正在从数据库中永久删除作品 "${it.title}"。\n此操作不可恢复！是否继续？`)) return
+  if (!confirm(`⚠️ 警告：正在从数据库中永久删除作品 "${it.title}"。\n此操作不可恢复！是否继续？`))
+    return
   await api.adminDeleteArtwork(it.id)
   if (from === 'audit') adminStore.removeItem(it.id)
   else if (from === 'list') loadApprovedList()
@@ -1382,7 +1974,7 @@ async function lockArtwork(it) {
   if (!confirm('锁定后该作品将下架并进入审核队列，确认？')) return
   await api.adminUpdateArtworkStatus(it.id, 'flagged')
   loadApprovedList()
-  adminStore.loadPending() 
+  adminStore.loadPending()
 }
 
 function startEdit(it) {
@@ -1395,11 +1987,11 @@ function startEdit(it) {
     content_type: it.content_type || 'haruhi',
     origin_url: it.origin_url || '',
     netLicenses: [],
-    groupLicenses: []
+    groupLicenses: [],
   }
-  
+
   if (Array.isArray(it.licenses)) {
-    it.licenses.forEach(l => {
+    it.licenses.forEach((l) => {
       if (l.startsWith('NET:')) editForm.value.netLicenses.push(l.replace('NET:', ''))
       if (l.startsWith('GROUP:')) editForm.value.groupLicenses.push(l.replace('GROUP:', ''))
     })
@@ -1409,12 +2001,12 @@ async function saveEdit(it) {
   const payload = {
     ...editForm.value,
     licenses: JSON.stringify([
-      ...editForm.value.netLicenses.map(x => `NET:${x}`),
-      ...editForm.value.groupLicenses.map(x => `GROUP:${x}`)
-    ])
+      ...editForm.value.netLicenses.map((x) => `NET:${x}`),
+      ...editForm.value.groupLicenses.map((x) => `GROUP:${x}`),
+    ]),
   }
   await api.adminUpdateArtworkDetails(it.id, payload)
-  
+
   // 更新本地数据
   it.title = editForm.value.title
   it.description = editForm.value.description
@@ -1422,8 +2014,8 @@ async function saveEdit(it) {
   it.content_type = editForm.value.content_type
   it.origin_url = editForm.value.origin_url
   it.licenses = [
-      ...editForm.value.netLicenses.map(x => `NET:${x}`),
-      ...editForm.value.groupLicenses.map(x => `GROUP:${x}`)
+    ...editForm.value.netLicenses.map((x) => `NET:${x}`),
+    ...editForm.value.groupLicenses.map((x) => `GROUP:${x}`),
   ]
   editingId.value = null
 }
@@ -1446,7 +2038,7 @@ async function updateComment(c, status) {
 async function deleteComment(c) {
   if (!confirm('确认删除评论？')) return
   await api.adminDeleteComment(c.id)
-  comments.value = comments.value.filter(x => x.id !== c.id)
+  comments.value = comments.value.filter((x) => x.id !== c.id)
 }
 
 // ---------------- 创作者管理 (新逻辑) ----------------
@@ -1456,10 +2048,10 @@ async function loadCreators() {
   creators.value = res.data
   // 如果当前选中的创作者还在列表中，刷新它
   if (selectedCreator.value) {
-    const fresh = creators.value.find(c => c.uid === selectedCreator.value.uid)
+    const fresh = creators.value.find((c) => c.uid === selectedCreator.value.uid)
     if (fresh) {
       // 保持选中，但可能数据已更新，暂不强制覆盖表单，避免打断输入
-    } 
+    }
   }
 }
 
@@ -1477,7 +2069,7 @@ async function selectCreator(c) {
   previewAvatar.value = null
   saveMsg.value = ''
   pointsForm.value = { amount: 10, reason: '' }
-  
+
   // 加载积分
   const res = await api.adminPointsLedger({ uid: c.uid })
   creatorLogs.value = res.data || []
@@ -1492,7 +2084,7 @@ function handleFileChange(e) {
 
 async function updateCreator() {
   if (!selectedCreator.value) return
-  
+
   try {
     const formData = new FormData()
     // 统一身份后不允许管理员改 UID：仍带原 uid，后端检测 new_uid == old_uid 即跳过改名
@@ -1503,19 +2095,19 @@ async function updateCreator() {
     }
 
     const res = await api.adminUpdateCreator(selectedCreator.value.uid, formData)
-    
+
     saveMsg.value = '保存成功！'
-    setTimeout(() => saveMsg.value = '', 2000)
+    setTimeout(() => (saveMsg.value = ''), 2000)
 
     // 重新加载列表
     await loadCreators()
-    
+
     // UID 不变，定位回当前创作者
-    const newObj = creators.value.find(c => c.uid === selectedCreator.value.uid)
+    const newObj = creators.value.find((c) => c.uid === selectedCreator.value.uid)
     if (newObj) {
       selectCreator(newObj)
     }
-  } catch(e) {
+  } catch (e) {
     console.error(e)
     alert('保存失败: ' + (e.message || '未知错误'))
   }
@@ -1530,7 +2122,7 @@ async function deleteCreator() {
     await api.adminDeleteCreator(uid)
     selectedCreator.value = null
     await loadCreators()
-  } catch(e) {
+  } catch (e) {
     alert('删除失败')
   }
 }
@@ -1542,13 +2134,13 @@ async function grantPoints() {
       uid: selectedCreator.value.uid,
       artwork_id: 0,
       points: pointsForm.value.amount,
-      note: pointsForm.value.reason
+      note: pointsForm.value.reason,
     })
     // 刷新记录
     const res = await api.adminPointsLedger({ uid: selectedCreator.value.uid })
     creatorLogs.value = res.data || []
     pointsForm.value.reason = ''
-  } catch(e) {
+  } catch (e) {
     alert('操作失败')
   }
 }
@@ -1566,6 +2158,32 @@ function cleanNullableNumber(value) {
   if (value === '' || value === undefined || value === null) return null
   const n = Number(value)
   return Number.isFinite(n) ? n : null
+}
+
+function toDateTimeLocal(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function getGuildQuestTimeLimitMode({ deadlineDays, fixedDeadlineAt }) {
+  if (fixedDeadlineAt) return 'fixed'
+  if (cleanNullableNumber(deadlineDays)) return 'days'
+  return 'none'
+}
+
+function normalizeGuildQuestTimeLimit() {
+  const mode = ['none', 'days', 'fixed'].includes(guildQuestForm.value.timeLimitMode)
+    ? guildQuestForm.value.timeLimitMode
+    : 'none'
+  guildQuestForm.value.timeLimitMode = mode
+  if (mode !== 'days') {
+    guildQuestForm.value.deadlineDays = null
+    guildQuestForm.value.repeatOnComplete = false
+  }
+  if (mode !== 'fixed') guildQuestForm.value.fixedDeadlineAt = ''
 }
 
 async function loadGuildAdmin() {
@@ -1614,6 +2232,9 @@ function openGuildQuestList() {
 
 function editGuildQuest(quest) {
   guildQuestEditingId.value = quest.id
+  const deadlineDays = quest.deadlineDays ?? null
+  const fixedDeadlineAt = toDateTimeLocal(quest.fixedDeadlineAt)
+  const timeLimitMode = getGuildQuestTimeLimitMode({ deadlineDays, fixedDeadlineAt })
   guildQuestForm.value = {
     title: quest.title || '',
     description: quest.description || '',
@@ -1626,9 +2247,15 @@ function editGuildQuest(quest) {
     rewardReputation: Number(quest.rewardReputation || 0),
     rewardCoins: Number(quest.rewardCoins || 0),
     deadlineHours: quest.deadlineHours ?? null,
+    timeLimitMode,
+    deadlineDays: timeLimitMode === 'days' ? deadlineDays : null,
+    fixedDeadlineAt: timeLimitMode === 'fixed' ? fixedDeadlineAt : '',
+    repeatOnComplete: timeLimitMode === 'days' ? Boolean(quest.repeatOnComplete) : false,
+    cycleDays: timeLimitMode === 'days' ? null : quest.cycleDays ?? (quest.questType === 'daily' ? 1 : null),
+    cycleResetHour: Number(quest.cycleResetHour ?? 4),
     autoClaim: Boolean(quest.autoClaim),
     status: quest.status || 'active',
-    sortOrder: Number(quest.sortOrder || 100)
+    sortOrder: Number(quest.sortOrder || 100),
   }
   guildQuestPage.value = 'form'
 }
@@ -1637,9 +2264,16 @@ async function saveGuildQuest() {
   if (!guildQuestForm.value.title.trim()) return
   guildSaving.value = true
   try {
+    normalizeGuildQuestTimeLimit()
+    const { timeLimitMode, ...form } = guildQuestForm.value
     const payload = {
-      ...guildQuestForm.value,
-      deadlineHours: cleanNullableNumber(guildQuestForm.value.deadlineHours)
+      ...form,
+      deadlineHours: null,
+      deadlineDays: timeLimitMode === 'days' ? cleanNullableNumber(form.deadlineDays) : null,
+      repeatOnComplete: timeLimitMode === 'days' ? Boolean(form.repeatOnComplete) : false,
+      cycleDays: timeLimitMode === 'days' ? null : cleanNullableNumber(form.cycleDays),
+      cycleResetHour: timeLimitMode === 'days' ? 4 : cleanNullableNumber(form.cycleResetHour) ?? 4,
+      fixedDeadlineAt: timeLimitMode === 'fixed' ? form.fixedDeadlineAt || '' : '',
     }
     if (guildQuestEditingId.value) {
       await api.adminUpdateGuildQuest(guildQuestEditingId.value, payload)
@@ -1699,7 +2333,7 @@ function editGuildReward(reward) {
     requiredAccess: reward.requiredAccess || 'observer_clearance',
     imageUrl: reward.imageUrl || '',
     status: reward.status || 'active',
-    sortOrder: Number(reward.sortOrder || 100)
+    sortOrder: Number(reward.sortOrder || 100),
   }
   if (guildRewardImageInput.value) guildRewardImageInput.value.value = ''
   guildRewardPage.value = 'form'
@@ -1739,7 +2373,7 @@ async function saveGuildReward() {
   try {
     const payload = {
       ...guildRewardForm.value,
-      stock: cleanNullableNumber(guildRewardForm.value.stock)
+      stock: cleanNullableNumber(guildRewardForm.value.stock),
     }
     if (guildRewardEditingId.value) {
       await api.adminUpdateGuildReward(guildRewardEditingId.value, payload)
@@ -1833,14 +2467,16 @@ function defaultAnnForm() {
     tags: '',
     pinned: false,
     status: 'published',
-    publishedAt: ''
+    publishedAt: '',
   }
 }
 const annForm = ref(defaultAnnForm())
 let annMsgTimer = null
 function clearAnnMsgSoon() {
   if (annMsgTimer) clearTimeout(annMsgTimer)
-  annMsgTimer = setTimeout(() => { annMsg.value = '' }, 2500)
+  annMsgTimer = setTimeout(() => {
+    annMsg.value = ''
+  }, 2500)
 }
 
 async function loadAnnouncementsAdmin() {
@@ -1873,13 +2509,16 @@ function editAnnouncement(a) {
     tags: Array.isArray(a.tags) ? a.tags.join(', ') : '',
     pinned: Boolean(a.pinned),
     status: a.status || 'published',
-    publishedAt: (a.publishedAt || '').slice(0, 10)
+    publishedAt: (a.publishedAt || '').slice(0, 10),
   }
   annPage.value = 'form'
 }
 
 async function saveAnnouncement() {
-  if (!annForm.value.title.trim()) { annMsg.value = '标题不能为空'; return }
+  if (!annForm.value.title.trim()) {
+    annMsg.value = '标题不能为空'
+    return
+  }
   annSaving.value = true
   try {
     const payload = {
@@ -1887,10 +2526,13 @@ async function saveAnnouncement() {
       title: annForm.value.title.trim(),
       summary: annForm.value.summary.trim(),
       body: annForm.value.body.trim(),
-      tags: annForm.value.tags.split(/[,，]/).map(s => s.trim()).filter(Boolean),
+      tags: annForm.value.tags
+        .split(/[,，]/)
+        .map((s) => s.trim())
+        .filter(Boolean),
       pinned: annForm.value.pinned,
       status: annForm.value.status,
-      publishedAt: annForm.value.publishedAt || undefined
+      publishedAt: annForm.value.publishedAt || undefined,
     }
     if (annEditingId.value) {
       await api.adminUpdateAnnouncement(annEditingId.value, payload)
@@ -1961,16 +2603,45 @@ onMounted(async () => {
   padding-bottom: 16px;
   border-bottom: 1px solid var(--sos-bg-muted);
 }
-.head-left { display: flex; flex-direction: column; gap: 4px; }
-.h1 { font-size: 24px; font-weight: 900; color: var(--sos-text-primary); }
-.sub { font-size: 13px; color: var(--sos-text-tertiary); font-family: monospace; }
+.head-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.h1 {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--sos-text-primary);
+}
+.sub {
+  font-size: 13px;
+  color: var(--sos-text-tertiary);
+  font-family: monospace;
+}
 
-.auth-box { padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.form2 { display: flex; gap: 10px; }
-.msg { color: var(--sos-danger); font-size: 13px; margin-top: 10px; }
+.auth-box {
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.form2 {
+  display: flex;
+  gap: 10px;
+}
+.msg {
+  color: var(--sos-danger);
+  font-size: 13px;
+  margin-top: 10px;
+}
 
 /* 布局 */
-.panel-layout { display: flex; flex: 1; margin-top: 0px; }
+.panel-layout {
+  display: flex;
+  flex: 1;
+  margin-top: 0px;
+}
 .main-nav {
   width: 140px;
   border-right: 1px solid var(--sos-border-default);
@@ -1990,13 +2661,29 @@ onMounted(async () => {
   border-left: 3px solid transparent;
   transition: all 0.2s;
 }
-.nav-item:hover { background: var(--sos-bg-muted); color: var(--sos-text-primary); }
-.nav-item.active { background: var(--sos-accent-soft); color: var(--sos-accent); border-left-color: var(--sos-accent); }
+.nav-item:hover {
+  background: var(--sos-bg-muted);
+  color: var(--sos-text-primary);
+}
+.nav-item.active {
+  background: var(--sos-accent-soft);
+  color: var(--sos-accent);
+  border-left-color: var(--sos-accent);
+}
 
-.content-area { flex: 1; padding: 20px 30px; background: var(--sos-bg-subtle); }
+.content-area {
+  flex: 1;
+  padding: 20px 30px;
+  background: var(--sos-bg-subtle);
+}
 
 /* 子Tab */
-.sub-tabs { display: flex; gap: 20px; border-bottom: 1px solid var(--sos-border-default); margin-bottom: 20px; }
+.sub-tabs {
+  display: flex;
+  gap: 20px;
+  border-bottom: 1px solid var(--sos-border-default);
+  margin-bottom: 20px;
+}
 .sub-tab {
   padding: 10px 0;
   background: transparent;
@@ -2007,180 +2694,647 @@ onMounted(async () => {
   cursor: pointer;
   border-bottom: 2px solid transparent;
 }
-.sub-tab:hover { color: var(--sos-text-secondary); }
-.sub-tab.on { color: var(--sos-text-primary); border-bottom-color: var(--sos-text-primary); }
+.sub-tab:hover {
+  color: var(--sos-text-secondary);
+}
+.sub-tab.on {
+  color: var(--sos-text-primary);
+  border-bottom-color: var(--sos-text-primary);
+}
 
 /* 工具栏 */
-.toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
-.toolbar.tight { margin-bottom: 10px; flex-direction: column; align-items: stretch; gap: 8px; }
-.filter-bar { background: var(--sos-bg-surface); padding: 12px; border-radius: 8px; border: 1px solid var(--sos-border-default); }
-.filters { display: flex; gap: 10px; align-items: center; flex: 1; }
-.comment-search { width: 240px; }
-.tip { font-size: 13px; color: var(--sos-text-tertiary); }
-.add-row { display: flex; gap: 8px; }
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.toolbar.tight {
+  margin-bottom: 10px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.filter-bar {
+  background: var(--sos-bg-surface);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--sos-border-default);
+}
+.filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex: 1;
+}
+.comment-search {
+  width: 240px;
+}
+.tip {
+  font-size: 13px;
+  color: var(--sos-text-tertiary);
+}
+.add-row {
+  display: flex;
+  gap: 8px;
+}
 
 /* 两列式布局 */
-.two-col-layout { display: flex; height: calc(100vh - 200px); min-height: 500px; gap: 20px; }
-.col-left { width: 280px; display: flex; flex-direction: column; border-right: 1px solid var(--sos-border-default); padding-right: 16px; }
-.col-right { flex: 1; overflow-y: auto; background: var(--sos-bg-surface); border-radius: 8px; border: 1px solid var(--sos-border-default); padding: 0; }
+.two-col-layout {
+  display: flex;
+  height: calc(100vh - 200px);
+  min-height: 500px;
+  gap: 20px;
+}
+.col-left {
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--sos-border-default);
+  padding-right: 16px;
+}
+.col-right {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--sos-bg-surface);
+  border-radius: 8px;
+  border: 1px solid var(--sos-border-default);
+  padding: 0;
+}
 
 /* 创作者列表 */
-.creator-list-v { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
-.creator-item {
-  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;
-  cursor: pointer; transition: all 0.15s; border: 1px solid transparent;
+.creator-list-v {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 4px;
 }
-.creator-item:hover { background: var(--sos-bg-surface); border-color: var(--sos-border-default); }
-.creator-item.active { background: var(--sos-accent-soft); border-color: var(--sos-accent-soft); }
-.c-avatar.sm { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: var(--sos-border-default); }
-.c-info-mini { flex: 1; overflow: hidden; }
-.c-uid { font-weight: 600; font-size: 14px; color: var(--sos-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.c-sub { font-size: 11px; color: var(--sos-text-tertiary); display: flex; gap: 6px; align-items: center; }
-.qq-badge { background: var(--sos-accent-soft); color: #1e40af; padding: 0 4px; border-radius: 3px; font-size: 10px; font-weight: bold; }
-.c-arr { color: var(--sos-border-strong); font-size: 18px; }
+.creator-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+.creator-item:hover {
+  background: var(--sos-bg-surface);
+  border-color: var(--sos-border-default);
+}
+.creator-item.active {
+  background: var(--sos-accent-soft);
+  border-color: var(--sos-accent-soft);
+}
+.c-avatar.sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--sos-border-default);
+}
+.c-info-mini {
+  flex: 1;
+  overflow: hidden;
+}
+.c-uid {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--sos-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.c-sub {
+  font-size: 11px;
+  color: var(--sos-text-tertiary);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.qq-badge {
+  background: var(--sos-accent-soft);
+  color: #1e40af;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: bold;
+}
+.c-arr {
+  color: var(--sos-border-strong);
+  font-size: 18px;
+}
 
 /* 创作者详情面板 */
-.creator-detail-panel { display: flex; flex-direction: column; height: 100%; }
-.panel-header { padding: 16px 24px; border-bottom: 1px solid var(--sos-border-default); display: flex; justify-content: space-between; align-items: center; background: var(--sos-bg-subtle); }
-.ph-title { font-size: 18px; font-weight: bold; color: var(--sos-text-primary); }
-.panel-actions { display: flex; align-items: center; gap: 8px; }
-.empty-select { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--sos-text-tertiary); gap: 10px; }
-.empty-select .icon { font-size: 40px; opacity: 0.5; }
+.creator-detail-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.panel-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--sos-border-default);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--sos-bg-subtle);
+}
+.ph-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--sos-text-primary);
+}
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.empty-select {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--sos-text-tertiary);
+  gap: 10px;
+}
+.empty-select .icon {
+  font-size: 40px;
+  opacity: 0.5;
+}
 
-.edit-form { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
-.form-group { display: flex; flex-direction: column; gap: 8px; }
-.form-group label { font-size: 13px; font-weight: 600; color: var(--sos-text-secondary); }
-.avatar-uploader { display: flex; align-items: center; gap: 20px; }
-.avatar-preview { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 1px solid var(--sos-border-default); }
-.au-actions { display: flex; flex-direction: column; gap: 6px; }
-.tip-text { font-size: 12px; color: var(--sos-text-tertiary); }
-.tip-text.warn { color: var(--sos-warning); margin-top: 4px; }
-.form-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-.save-msg { color: var(--sos-success); font-size: 13px; font-weight: 600; }
-.divider { height: 1px; background: var(--sos-border-default); margin: 0 24px; }
+.edit-form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sos-text-secondary);
+}
+.avatar-uploader {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.avatar-preview {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--sos-border-default);
+}
+.au-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tip-text {
+  font-size: 12px;
+  color: var(--sos-text-tertiary);
+}
+.tip-text.warn {
+  color: var(--sos-warning);
+  margin-top: 4px;
+}
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.save-msg {
+  color: var(--sos-success);
+  font-size: 13px;
+  font-weight: 600;
+}
+.divider {
+  height: 1px;
+  background: var(--sos-border-default);
+  margin: 0 24px;
+}
 
 /* 详情页内的积分部分 */
-.points-section { padding: 24px; }
-.label-lg { font-size: 16px; font-weight: bold; color: var(--sos-text-primary); margin-bottom: 16px; }
-.points-action-row { margin-bottom: 16px; }
+.points-section {
+  padding: 24px;
+}
+.label-lg {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--sos-text-primary);
+  margin-bottom: 16px;
+}
+.points-action-row {
+  margin-bottom: 16px;
+}
 
-.ph-list.compact { border: 1px solid var(--sos-border-default); border-radius: 8px; overflow: hidden; }
-.ph-scroll-area { max-height: 200px; overflow-y: auto; }
-.ph-row { padding: 8px 12px; font-size: 12px; }
+.ph-list.compact {
+  border: 1px solid var(--sos-border-default);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ph-scroll-area {
+  max-height: 200px;
+  overflow-y: auto;
+}
+.ph-row {
+  padding: 8px 12px;
+  font-size: 12px;
+}
 
 /* 卡片通用 */
-.card-grid { display: grid; gap: 16px; }
+.card-grid {
+  display: grid;
+  gap: 16px;
+}
 .manage-card {
   display: flex;
   background: var(--sos-bg-surface);
   border: 1px solid var(--sos-border-default);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
-.m-thumb { width: 140px; height: 140px; position: relative; flex-shrink: 0; }
-.m-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.m-thumb {
+  width: 140px;
+  height: 140px;
+  position: relative;
+  flex-shrink: 0;
+}
+.m-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
 /* 状态标 */
 .status-badge {
   position: absolute;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   padding: 4px;
   text-align: center;
   font-size: 11px;
   font-weight: bold;
   color: var(--sos-bg-surface);
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
 }
-.status-badge.flagged { background: var(--sos-danger); }
-.status-badge.approved { background: var(--sos-success); }
-.status-badge.pending { background: var(--sos-warning); }
+.status-badge.flagged {
+  background: var(--sos-danger);
+}
+.status-badge.approved {
+  background: var(--sos-success);
+}
+.status-badge.pending {
+  background: var(--sos-warning);
+}
 
-.m-body { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-.m-row { display: flex; justify-content: space-between; align-items: center; }
-.m-title { font-weight: bold; font-size: 16px; color: var(--sos-text-primary); }
+.m-body {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.m-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.m-title {
+  font-weight: bold;
+  font-size: 16px;
+  color: var(--sos-text-primary);
+}
 
-.m-info { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--sos-text-tertiary); flex-wrap: wrap; }
-.tag { background: var(--sos-bg-muted); padding: 2px 8px; border-radius: 4px; }
-.m-info .u-name { margin-left: auto; }
+.m-info {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--sos-text-tertiary);
+  flex-wrap: wrap;
+}
+.tag {
+  background: var(--sos-bg-muted);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.m-info .u-name {
+  margin-left: auto;
+}
 
-.m-desc { font-size: 13px; color: var(--sos-text-secondary); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.m-desc {
+  font-size: 13px;
+  color: var(--sos-text-secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
-.ai-box { background: var(--sos-danger-soft); border: 1px solid var(--sos-danger-soft); padding: 6px 10px; border-radius: 4px; font-size: 12px; color: #b91c1c; }
+.ai-box {
+  background: var(--sos-danger-soft);
+  border: 1px solid var(--sos-danger-soft);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #b91c1c;
+}
 
 /* 编辑器 */
-.inline-editor { padding: 12px; background: var(--sos-bg-subtle); border: 1px dashed var(--sos-border-strong); border-radius: 6px; display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
-.btns { display: flex; gap: 8px; }
+.inline-editor {
+  padding: 12px;
+  background: var(--sos-bg-subtle);
+  border: 1px dashed var(--sos-border-strong);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+.btns {
+  display: flex;
+  gap: 8px;
+}
 
 /* 操作栏 */
-.m-actions { margin-top: auto; padding-top: 10px; display: flex; gap: 10px; align-items: center; }
-.m-actions.right { justify-content: flex-end; }
-.note-input { flex: 1; height: 34px; font-size: 13px; }
-.btn-group { display: flex; gap: 8px; }
+.m-actions {
+  margin-top: auto;
+  padding-top: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.m-actions.right {
+  justify-content: flex-end;
+}
+.note-input {
+  flex: 1;
+  height: 34px;
+  font-size: 13px;
+}
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
 
 /* 评论表格 */
-.comment-table { border: 1px solid var(--sos-border-default); border-radius: 8px; background: var(--sos-bg-surface); overflow: hidden; }
-.c-row { display: flex; padding: 12px 16px; border-bottom: 1px solid var(--sos-bg-muted); align-items: flex-start; gap: 12px; }
-.c-row.header { background: var(--sos-bg-subtle); font-weight: bold; font-size: 13px; color: var(--sos-text-tertiary); border-bottom: 1px solid var(--sos-border-default); }
-.col-user { width: 140px; font-size: 13px; }
-.col-content { flex: 1; font-size: 13px; }
-.col-status { width: 90px; text-align: center; }
-.col-action { width: 160px; display: flex; gap: 6px; justify-content: flex-end; }
-.desktop-only { display: block; }
-.mobile-only { display: none !important; }
-.comment-list-mobile { display: none; }
-
-.u-name { font-weight: bold; color: var(--sos-text-primary); }
-.u-time { font-size: 11px; color: var(--sos-text-tertiary); margin-top: 2px; }
-.body-text { color: var(--sos-text-secondary); line-height: 1.4; }
-.ai-reason-mini { font-size: 11px; color: var(--sos-danger); margin-top: 4px; font-weight: 500; }
-
-.badge-mini { font-size: 11px; padding: 3px 8px; border-radius: 4px; background: var(--sos-bg-muted); color: var(--sos-text-tertiary); }
-.badge-mini.flagged { background: var(--sos-danger-soft); color: var(--sos-danger); }
-.badge-mini.public { background: var(--sos-success-soft); color: var(--sos-success); }
-
-.quick-points { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-.chip-btn {
-  padding: 4px 12px; border-radius: 20px; border: 1px solid var(--sos-border-default); background: var(--sos-bg-surface); 
-  cursor: pointer; font-size: 13px; font-weight: 500; color: var(--sos-text-secondary); transition: all 0.2s;
+.comment-table {
+  border: 1px solid var(--sos-border-default);
+  border-radius: 8px;
+  background: var(--sos-bg-surface);
+  overflow: hidden;
 }
-.chip-btn:hover { border-color: var(--sos-border-strong); background: var(--sos-bg-muted); }
-.chip-btn.active { background: var(--sos-text-primary); color: var(--sos-bg-surface); border-color: var(--sos-text-primary); }
+.c-row {
+  display: flex;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--sos-bg-muted);
+  align-items: flex-start;
+  gap: 12px;
+}
+.c-row.header {
+  background: var(--sos-bg-subtle);
+  font-weight: bold;
+  font-size: 13px;
+  color: var(--sos-text-tertiary);
+  border-bottom: 1px solid var(--sos-border-default);
+}
+.col-user {
+  width: 140px;
+  font-size: 13px;
+}
+.col-content {
+  flex: 1;
+  font-size: 13px;
+}
+.col-status {
+  width: 90px;
+  text-align: center;
+}
+.col-action {
+  width: 160px;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.desktop-only {
+  display: block;
+}
+.mobile-only {
+  display: none !important;
+}
+.comment-list-mobile {
+  display: none;
+}
 
-.pa-form { display: flex; gap: 12px; align-items: stretch; }
-.input-group { position: relative; width: 100px; flex-shrink: 0; }
-.input-prefix { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--sos-text-tertiary); pointer-events: none; }
-.points-num { padding-left: 40px !important; text-align: center; font-weight: bold; }
+.u-name {
+  font-weight: bold;
+  color: var(--sos-text-primary);
+}
+.u-time {
+  font-size: 11px;
+  color: var(--sos-text-tertiary);
+  margin-top: 2px;
+}
+.body-text {
+  color: var(--sos-text-secondary);
+  line-height: 1.4;
+}
+.ai-reason-mini {
+  font-size: 11px;
+  color: var(--sos-danger);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.badge-mini {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--sos-bg-muted);
+  color: var(--sos-text-tertiary);
+}
+.badge-mini.flagged {
+  background: var(--sos-danger-soft);
+  color: var(--sos-danger);
+}
+.badge-mini.public {
+  background: var(--sos-success-soft);
+  color: var(--sos-success);
+}
+
+.quick-points {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.chip-btn {
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--sos-border-default);
+  background: var(--sos-bg-surface);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sos-text-secondary);
+  transition: all 0.2s;
+}
+.chip-btn:hover {
+  border-color: var(--sos-border-strong);
+  background: var(--sos-bg-muted);
+}
+.chip-btn.active {
+  background: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
+  border-color: var(--sos-text-primary);
+}
+
+.pa-form {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+.input-group {
+  position: relative;
+  width: 100px;
+  flex-shrink: 0;
+}
+.input-prefix {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--sos-text-tertiary);
+  pointer-events: none;
+}
+.points-num {
+  padding-left: 40px !important;
+  text-align: center;
+  font-weight: bold;
+}
 
 /* 按钮与输入框通用 */
-.btn { 
-  padding: 0 16px; height: 38px; border-radius: 8px; font-size: 14px; font-weight: 600; 
-  cursor: pointer; border: none; background: var(--sos-text-primary); color: var(--sos-bg-surface); transition: all 0.2s; 
-  display: inline-flex; align-items: center; justify-content: center;
+.btn {
+  padding: 0 16px;
+  height: 38px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: var(--sos-text-primary);
+  color: var(--sos-bg-surface);
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-.btn:hover:not(:disabled) { background: var(--sos-text-secondary); transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.btn:active:not(:disabled) { transform: translateY(0); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; background: var(--sos-text-secondary); }
-.btn.sm { height: 32px; font-size: 12px; padding: 0 12px; }
-.btn.lg { height: 42px; font-size: 14px; }
-.btn.success { background: var(--sos-success); }
-.btn.danger { background: var(--sos-danger); }
-
-.btn-ghost { 
-  height: 38px; padding: 0 16px; background: transparent; border: 1px solid var(--sos-border-strong); 
-  color: var(--sos-text-secondary); border-radius: 8px; cursor: pointer; transition: all 0.2s;
-  display: inline-flex; align-items: center; justify-content: center;
+.btn:hover:not(:disabled) {
+  background: var(--sos-text-secondary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
-.btn-ghost:hover { background: var(--sos-bg-muted); border-color: var(--sos-text-tertiary); color: var(--sos-text-primary); }
-.btn-ghost.sm { height: 32px; font-size: 12px; padding: 0 12px; }
-.btn-ghost.warn { color: var(--sos-warning); border-color: #fbbf24; }
-.btn-ghost.danger { color: var(--sos-danger); border-color: #fca5a5; }
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--sos-text-secondary);
+}
+.btn.sm {
+  height: 32px;
+  font-size: 12px;
+  padding: 0 12px;
+}
+.btn.lg {
+  height: 42px;
+  font-size: 14px;
+}
+.btn.success {
+  background: var(--sos-success);
+}
+.btn.danger {
+  background: var(--sos-danger);
+}
 
-.btn-text { background: transparent; border: none; color: var(--sos-accent); cursor: pointer; font-size: 13px; text-decoration: underline; padding: 0; }
-.btn-mini { padding: 4px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; color: var(--sos-bg-surface); background: var(--sos-text-tertiary); font-weight: 600; }
-.btn-mini.success { background: var(--sos-success); }
-.btn-mini.warn { background: var(--sos-warning); }
-.btn-mini.danger { background: var(--sos-danger); }
+.btn-ghost {
+  height: 38px;
+  padding: 0 16px;
+  background: transparent;
+  border: 1px solid var(--sos-border-strong);
+  color: var(--sos-text-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-ghost:hover {
+  background: var(--sos-bg-muted);
+  border-color: var(--sos-text-tertiary);
+  color: var(--sos-text-primary);
+}
+.btn-ghost.sm {
+  height: 32px;
+  font-size: 12px;
+  padding: 0 12px;
+}
+.btn-ghost.warn {
+  color: var(--sos-warning);
+  border-color: #fbbf24;
+}
+.btn-ghost.danger {
+  color: var(--sos-danger);
+  border-color: #fca5a5;
+}
+
+.btn-text {
+  background: transparent;
+  border: none;
+  color: var(--sos-accent);
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: underline;
+  padding: 0;
+}
+.btn-mini {
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  color: var(--sos-bg-surface);
+  background: var(--sos-text-tertiary);
+  font-weight: 600;
+}
+.btn-mini.success {
+  background: var(--sos-success);
+}
+.btn-mini.warn {
+  background: var(--sos-warning);
+}
+.btn-mini.danger {
+  background: var(--sos-danger);
+}
 
 .trash-btn {
   width: 26px;
@@ -2235,7 +3389,9 @@ onMounted(async () => {
   padding-bottom: 42px;
 }
 
-.input, .textarea, .select { 
+.input,
+.textarea,
+.select {
   border: 1px solid color-mix(in srgb, var(--sos-border-strong) 82%, var(--sos-accent) 10%);
   border-radius: 8px;
   padding: 10px 12px;
@@ -2246,17 +3402,26 @@ onMounted(async () => {
   background: linear-gradient(180deg, #fff, color-mix(in srgb, var(--sos-bg-subtle) 52%, #fff));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.74);
 }
-.input.sm, .select.sm { padding: 6px 10px; font-size: 13px; }
+.input.sm,
+.select.sm {
+  padding: 6px 10px;
+  font-size: 13px;
+}
 .input:hover,
 .textarea:hover,
 .select:hover {
   border-color: color-mix(in srgb, var(--sos-accent) 38%, var(--sos-border-strong));
 }
-.input:focus, .textarea:focus, .select:focus {
+.input:focus,
+.textarea:focus,
+.select:focus {
   border-color: var(--sos-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--sos-accent) 18%, transparent);
 }
-.textarea { resize: vertical; min-height: 80px; }
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+}
 .ann-body-editor {
   min-height: clamp(240px, 34vh, 460px);
   line-height: 1.7;
@@ -2269,24 +3434,28 @@ onMounted(async () => {
 
 .ann-editor-panel,
 .ann-list-panel {
-  background:
-    linear-gradient(135deg,
-      color-mix(in srgb, var(--sos-accent) 7%, #fff),
-      color-mix(in srgb, var(--sos-accent-2, #ec4899) 5%, #fff) 44%,
-      #fff 88%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--sos-accent) 7%, #fff),
+    color-mix(in srgb, var(--sos-accent-2, #ec4899) 5%, #fff) 44%,
+    #fff 88%
+  );
   border: 1px solid color-mix(in srgb, var(--sos-border-default) 74%, var(--sos-accent) 18%);
   border-radius: 10px;
   overflow: visible;
-  box-shadow: 0 12px 28px -24px rgba(15, 23, 42, 0.36), 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 12px 28px -24px rgba(15, 23, 42, 0.36),
+    0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .ann-editor-head,
 .ann-list-head {
   gap: 12px;
-  background:
-    linear-gradient(90deg,
-      color-mix(in srgb, var(--sos-accent) 10%, var(--sos-bg-subtle)),
-      color-mix(in srgb, var(--sos-accent-2, #ec4899) 7%, var(--sos-bg-subtle)));
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--sos-accent) 10%, var(--sos-bg-subtle)),
+    color-mix(in srgb, var(--sos-accent-2, #ec4899) 7%, var(--sos-bg-subtle))
+  );
 }
 
 .ann-editor-form {
@@ -2354,10 +3523,11 @@ onMounted(async () => {
 }
 
 .ann-list-panel .ann-list-head {
-  background:
-    linear-gradient(90deg,
-      color-mix(in srgb, var(--sos-accent) 10%, var(--sos-bg-subtle)),
-      color-mix(in srgb, var(--sos-accent-2, #ec4899) 7%, var(--sos-bg-subtle)));
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--sos-accent) 10%, var(--sos-bg-subtle)),
+    color-mix(in srgb, var(--sos-accent-2, #ec4899) 7%, var(--sos-bg-subtle))
+  );
   border-bottom: 1px solid var(--sos-border-default);
 }
 
@@ -2393,24 +3563,86 @@ onMounted(async () => {
 }
 
 /* 积分记录 */
-.ph-row { display: flex; padding: 10px 16px; border-bottom: 1px solid var(--sos-bg-muted); font-size: 13px; }
-.ph-row:last-child { border-bottom: none; }
-.ph-row.head { background: var(--sos-bg-subtle); font-weight: bold; color: var(--sos-text-tertiary); border-bottom: 1px solid var(--sos-border-default); }
-.ph-time { width: 100px; color: var(--sos-text-tertiary); }
-.ph-val { width: 70px; font-weight: bold; }
-.ph-val.pos { color: var(--sos-success); }
-.ph-val.neg { color: var(--sos-danger); }
-.ph-reason { flex: 1; color: var(--sos-text-secondary); }
-.empty-ph { padding: 24px; text-align: center; color: var(--sos-text-tertiary); font-size: 13px; }
+.ph-row {
+  display: flex;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--sos-bg-muted);
+  font-size: 13px;
+}
+.ph-row:last-child {
+  border-bottom: none;
+}
+.ph-row.head {
+  background: var(--sos-bg-subtle);
+  font-weight: bold;
+  color: var(--sos-text-tertiary);
+  border-bottom: 1px solid var(--sos-border-default);
+}
+.ph-time {
+  width: 100px;
+  color: var(--sos-text-tertiary);
+}
+.ph-val {
+  width: 70px;
+  font-weight: bold;
+}
+.ph-val.pos {
+  color: var(--sos-success);
+}
+.ph-val.neg {
+  color: var(--sos-danger);
+}
+.ph-reason {
+  flex: 1;
+  color: var(--sos-text-secondary);
+}
+.empty-ph {
+  padding: 24px;
+  text-align: center;
+  color: var(--sos-text-tertiary);
+  font-size: 13px;
+}
 
 /* Expanded Editor Styles */
-.inline-editor.expanded { gap: 12px; }
-.editor-row { display: flex; gap: 8px; }
-.editor-licenses { display: flex; flex-direction: column; gap: 8px; background: var(--sos-bg-surface); padding: 10px; border: 1px solid var(--sos-border-default); border-radius: 6px; }
-.lic-group { display: flex; flex-direction: column; gap: 4px; }
-.lic-title { font-size: 11px; font-weight: bold; color: var(--sos-text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; }
-.chk-item { font-size: 12px; display: flex; align-items: center; gap: 6px; color: var(--sos-text-secondary); cursor: pointer; }
-.chk-item:hover { color: var(--sos-text-primary); }
+.inline-editor.expanded {
+  gap: 12px;
+}
+.editor-row {
+  display: flex;
+  gap: 8px;
+}
+.editor-licenses {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--sos-bg-surface);
+  padding: 10px;
+  border: 1px solid var(--sos-border-default);
+  border-radius: 6px;
+}
+.lic-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lic-title {
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--sos-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.chk-item {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--sos-text-secondary);
+  cursor: pointer;
+}
+.chk-item:hover {
+  color: var(--sos-text-primary);
+}
 
 /* 公会系统后台 */
 .guild-admin-layout {
@@ -2430,15 +3662,18 @@ onMounted(async () => {
 
 .guild-editor,
 .guild-list.single {
-  background:
-    linear-gradient(135deg,
-      color-mix(in srgb, var(--sos-accent) 7%, #fff),
-      color-mix(in srgb, var(--sos-accent-2, #ec4899) 5%, #fff) 46%,
-      #fff 88%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--sos-accent) 7%, #fff),
+    color-mix(in srgb, var(--sos-accent-2, #ec4899) 5%, #fff) 46%,
+    #fff 88%
+  );
   border: 1px solid color-mix(in srgb, var(--sos-border-default) 74%, var(--sos-accent) 18%);
   border-radius: 10px;
   overflow: visible;
-  box-shadow: 0 12px 28px -24px rgba(15, 23, 42, 0.36), 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 12px 28px -24px rgba(15, 23, 42, 0.36),
+    0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .guild-list {
@@ -2464,10 +3699,11 @@ onMounted(async () => {
 
 .guild-editor .panel-header.compact,
 .guild-list.single .panel-header.compact {
-  background:
-    linear-gradient(90deg,
-      color-mix(in srgb, var(--sos-accent) 10%, var(--sos-bg-subtle)),
-      color-mix(in srgb, var(--sos-accent-2, #ec4899) 7%, var(--sos-bg-subtle)));
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--sos-accent) 10%, var(--sos-bg-subtle)),
+    color-mix(in srgb, var(--sos-accent-2, #ec4899) 7%, var(--sos-bg-subtle))
+  );
 }
 
 .guild-form-panel {
@@ -2563,7 +3799,9 @@ onMounted(async () => {
   line-height: 1.45;
   opacity: 0;
   pointer-events: none;
-  box-shadow: 0 14px 30px -16px rgba(15, 23, 42, 0.48), 0 8px 18px -14px rgba(15, 23, 42, 0.34);
+  box-shadow:
+    0 14px 30px -16px rgba(15, 23, 42, 0.48),
+    0 8px 18px -14px rgba(15, 23, 42, 0.34);
   text-align: left;
   transform: translate(-50%, 4px);
   transition:
@@ -2599,6 +3837,11 @@ onMounted(async () => {
   line-height: 1.35;
 }
 
+.guild-time-limit {
+  display: grid;
+  gap: 8px;
+}
+
 .guild-toggle-card {
   min-height: 58px;
   display: grid;
@@ -2608,10 +3851,11 @@ onMounted(async () => {
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--sos-border-strong) 74%, var(--sos-accent) 18%);
   border-radius: 10px;
-  background:
-    linear-gradient(135deg,
-      color-mix(in srgb, var(--sos-accent) 6%, #fff),
-      color-mix(in srgb, var(--sos-bg-subtle) 80%, #fff));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--sos-accent) 6%, #fff),
+    color-mix(in srgb, var(--sos-bg-subtle) 80%, #fff)
+  );
   cursor: pointer;
 }
 
@@ -2749,10 +3993,11 @@ onMounted(async () => {
   padding: 12px;
   border: 1px dashed color-mix(in srgb, var(--sos-border-strong) 72%, var(--sos-accent) 18%);
   border-radius: 10px;
-  background:
-    linear-gradient(135deg,
-      color-mix(in srgb, var(--sos-accent) 6%, #fff),
-      color-mix(in srgb, var(--sos-bg-subtle) 82%, #fff));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--sos-accent) 6%, #fff),
+    color-mix(in srgb, var(--sos-bg-subtle) 82%, #fff)
+  );
 }
 
 .reward-image-input {
@@ -2781,10 +4026,11 @@ onMounted(async () => {
 }
 
 .reward-image-preview.is-empty {
-  background:
-    linear-gradient(135deg,
-      color-mix(in srgb, var(--sos-accent) 9%, #fff),
-      color-mix(in srgb, var(--sos-accent-2, #ec4899) 6%, #fff));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--sos-accent) 9%, #fff),
+    color-mix(in srgb, var(--sos-accent-2, #ec4899) 6%, #fff)
+  );
 }
 
 .reward-image-tools {
@@ -2801,10 +4047,20 @@ onMounted(async () => {
 }
 
 @media (max-width: 1024px) {
-  .content-area { padding: 16px; }
-  .filters { flex-wrap: wrap; }
-  .two-col-layout { gap: 12px; min-height: 0; height: auto; }
-  .col-left { width: 240px; }
+  .content-area {
+    padding: 16px;
+  }
+  .filters {
+    flex-wrap: wrap;
+  }
+  .two-col-layout {
+    gap: 12px;
+    min-height: 0;
+    height: auto;
+  }
+  .col-left {
+    width: 240px;
+  }
   .guild-admin-layout {
     grid-template-columns: 1fr;
   }
@@ -2830,7 +4086,9 @@ onMounted(async () => {
     gap: 10px;
     margin-bottom: 14px;
   }
-  .h1 { font-size: 20px; }
+  .h1 {
+    font-size: 20px;
+  }
 
   .auth-box {
     padding: 16px 0 8px;
@@ -2840,9 +4098,13 @@ onMounted(async () => {
     flex-direction: column;
     width: 100%;
   }
-  .form2 .btn { width: 100%; }
+  .form2 .btn {
+    width: 100%;
+  }
 
-  .panel-layout { display: block; }
+  .panel-layout {
+    display: block;
+  }
   .main-nav {
     width: auto;
     border-right: none;
@@ -2869,7 +4131,9 @@ onMounted(async () => {
     border-left-color: transparent;
     border-bottom-color: var(--sos-accent);
   }
-  .content-area { padding: 12px; }
+  .content-area {
+    padding: 12px;
+  }
 
   .sub-tabs {
     gap: 12px;
@@ -2885,9 +4149,15 @@ onMounted(async () => {
     align-items: stretch;
     gap: 8px;
   }
-  .tip { font-size: 12px; }
-  .comment-search { width: 100%; }
-  .filter-bar { padding: 10px; }
+  .tip {
+    font-size: 12px;
+  }
+  .comment-search {
+    width: 100%;
+  }
+  .filter-bar {
+    padding: 10px;
+  }
   .filters {
     flex-direction: column;
     align-items: stretch;
@@ -2899,18 +4169,36 @@ onMounted(async () => {
     width: 100%;
   }
 
-  .card-grid { gap: 12px; }
-  .manage-card { flex-direction: column; }
-  .m-thumb { width: 100%; height: 190px; }
-  .m-body { padding: 12px; gap: 10px; }
-  .title-row { gap: 8px; align-items: flex-start; }
-  .m-title { font-size: 15px; line-height: 1.35; }
+  .card-grid {
+    gap: 12px;
+  }
+  .manage-card {
+    flex-direction: column;
+  }
+  .m-thumb {
+    width: 100%;
+    height: 190px;
+  }
+  .m-body {
+    padding: 12px;
+    gap: 10px;
+  }
+  .title-row {
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .m-title {
+    font-size: 15px;
+    line-height: 1.35;
+  }
   .m-actions {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
   }
-  .m-actions.right { justify-content: flex-start; }
+  .m-actions.right {
+    justify-content: flex-start;
+  }
   .m-actions .btn,
   .m-actions .btn-ghost {
     width: 100%;
@@ -2934,8 +4222,12 @@ onMounted(async () => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .desktop-only { display: none !important; }
-  .mobile-only { display: inline-flex !important; }
+  .desktop-only {
+    display: none !important;
+  }
+  .mobile-only {
+    display: inline-flex !important;
+  }
   .comment-list-mobile {
     display: flex;
     flex-direction: column;
@@ -2976,7 +4268,9 @@ onMounted(async () => {
     border-right: none;
     padding-right: 0;
   }
-  .col-left.mobile-hidden { display: none; }
+  .col-left.mobile-hidden {
+    display: none;
+  }
   .creator-list-v {
     max-height: calc(100vh - 300px);
     padding-right: 0;
@@ -2985,14 +4279,18 @@ onMounted(async () => {
     display: none;
     min-height: 0;
   }
-  .col-right.mobile-visible { display: block; }
+  .col-right.mobile-visible {
+    display: block;
+  }
   .panel-header {
     padding: 12px;
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
   }
-  .ph-title { font-size: 16px; }
+  .ph-title {
+    font-size: 16px;
+  }
   .panel-actions {
     width: 100%;
   }
@@ -3004,7 +4302,9 @@ onMounted(async () => {
     padding: 12px;
     gap: 14px;
   }
-  .divider { margin: 0 12px; }
+  .divider {
+    margin: 0 12px;
+  }
   .avatar-uploader {
     flex-direction: column;
     align-items: flex-start;
@@ -3014,18 +4314,24 @@ onMounted(async () => {
     width: 100%;
     align-items: stretch;
   }
-  .au-actions .btn-ghost { width: 100%; }
+  .au-actions .btn-ghost {
+    width: 100%;
+  }
   .form-actions {
     flex-direction: column;
     align-items: stretch;
     margin-top: 4px;
   }
-  .form-actions .btn { width: 100%; }
+  .form-actions .btn {
+    width: 100%;
+  }
   .pa-form {
     flex-direction: column;
     gap: 8px;
   }
-  .input-group { width: 100%; }
+  .input-group {
+    width: 100%;
+  }
   .points-num {
     text-align: left;
     padding-left: 50px !important;
@@ -3096,5 +4402,4 @@ onMounted(async () => {
     flex: 1 1 120px;
   }
 }
-
 </style>
