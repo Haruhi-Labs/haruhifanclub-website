@@ -230,11 +230,13 @@ export const api = {
   guildMe: () => request('GET', `${API_PREFIX}/guild/me`),
   guildTerminal: async () => {
     const data = await request('GET', `${API_PREFIX}/guild/terminal`)
+    if (data.profile) data.profile.avatar_url = fixPath(data.profile.avatar_url)
     if (Array.isArray(data.artworks)) data.artworks = data.artworks.map(transformArtwork)
     return data
   },
   guildProfile: async (uid) => {
     const data = await request('GET', `${API_PREFIX}/guild/profile/${encodeURIComponent(uid)}`)
+    if (data.profile) data.profile.avatar_url = fixPath(data.profile.avatar_url)
     if (Array.isArray(data.artworks)) data.artworks = data.artworks.map(transformArtwork)
     return data
   },

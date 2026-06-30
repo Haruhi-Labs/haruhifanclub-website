@@ -46,12 +46,6 @@
         >
           💬 评论管理
         </button>
-        <button
-          :class="['nav-item', mainTab === 'creators' && 'active']"
-          @click="mainTab = 'creators'"
-        >
-          🎨 创作者
-        </button>
         <button :class="['nav-item', mainTab === 'guild' && 'active']" @click="mainTab = 'guild'">
           ⚔️ 公会系统
         </button>
@@ -455,182 +449,6 @@
           </div>
         </div>
 
-        <!-- ================= 创作者管理 (优化后) ================= -->
-        <div v-if="mainTab === 'creators'" class="tab-content">
-          <div class="two-col-layout">
-            <!-- 左列：列表 -->
-            <div class="col-left" :class="{ 'mobile-hidden': selectedCreator }">
-              <div class="toolbar tight">
-                <input v-model="creatorSearch" class="input sm" placeholder="搜索 UID..." />
-                <div class="add-row">
-                  <input v-model="newCreatorUid" placeholder="新增 UID" class="input sm" />
-                  <button class="btn sm" @click="addCreator">+</button>
-                </div>
-              </div>
-
-              <div class="creator-list-v">
-                <div
-                  v-for="c in filteredCreators"
-                  :key="c.uid"
-                  class="creator-item"
-                  :class="{ active: selectedCreator?.uid === c.uid }"
-                  @click="selectCreator(c)"
-                >
-                  <img :src="c.avatar_url || '/api/art/placeholder/40/40'" class="c-avatar sm" />
-                  <div class="c-info-mini">
-                    <div class="c-uid">{{ c.name || c.uid }}</div>
-                    <div class="c-sub">
-                      <span>{{ new Date(c.created_at).toLocaleDateString() }}</span>
-                      <span v-if="c.qq" class="qq-badge">QQ</span>
-                    </div>
-                  </div>
-                  <div class="c-arr">›</div>
-                </div>
-                <div v-if="filteredCreators.length === 0" class="empty-ph">暂无数据</div>
-              </div>
-            </div>
-
-            <!-- 右列：详情与编辑 -->
-            <div class="col-right" :class="{ 'mobile-visible': selectedCreator }">
-              <div v-if="selectedCreator" class="creator-detail-panel">
-                <div class="panel-header">
-                  <div class="ph-title">
-                    编辑创作者: {{ selectedCreator.name || selectedCreator.uid }}
-                  </div>
-                  <div class="panel-actions">
-                    <button class="btn-ghost sm mobile-only" @click="selectedCreator = null">
-                      返回列表
-                    </button>
-                    <button
-                      class="trash-btn"
-                      type="button"
-                      title="删除账号"
-                      aria-label="删除账号"
-                      @click="deleteCreator"
-                    >
-                      🗑
-                    </button>
-                  </div>
-                </div>
-
-                <div class="edit-form">
-                  <!-- 头像设置 -->
-                  <div class="form-group">
-                    <label>头像配置</label>
-                    <div class="avatar-uploader">
-                      <img
-                        :src="
-                          previewAvatar ||
-                          selectedCreator.avatar_url ||
-                          '/api/art/placeholder/80/80'
-                        "
-                        class="avatar-preview"
-                      />
-                      <div class="au-actions">
-                        <input
-                          type="file"
-                          ref="fileInput"
-                          accept="image/*"
-                          @change="handleFileChange"
-                          style="display: none"
-                        />
-                        <button class="btn-ghost sm" @click="$refs.fileInput.click()">
-                          选择本地图片
-                        </button>
-                        <div class="tip-text">支持 jpg, png, webp</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- QQ号 修改 -->
-                  <div class="form-group">
-                    <label>关联 QQ 号</label>
-                    <div class="row">
-                      <input
-                        v-model="editCreatorForm.qq"
-                        class="input"
-                        placeholder="输入关联的QQ号码"
-                      />
-                    </div>
-                    <div class="tip-text">用于身份核实或联系，仅后台可见。</div>
-                  </div>
-
-                  <div class="form-actions">
-                    <button class="btn" @click="updateCreator" :disabled="!isCreatorModified">
-                      保存更改
-                    </button>
-                    <span v-if="saveMsg" class="save-msg">{{ saveMsg }}</span>
-                  </div>
-                </div>
-
-                <div class="divider"></div>
-
-                <!-- 积分管理 -->
-                <div class="points-section">
-                  <div class="label-lg">积分管理</div>
-
-                  <div class="points-action-row">
-                    <div class="quick-points">
-                      <button
-                        v-for="v in [10, 20, 50, -10, -50]"
-                        :key="v"
-                        class="chip-btn"
-                        :class="pointsForm.amount === v && 'active'"
-                        @click="pointsForm.amount = v"
-                      >
-                        {{ v > 0 ? '+' + v : v }}
-                      </button>
-                    </div>
-                    <div class="pa-form">
-                      <div class="input-group">
-                        <span class="input-prefix">分值</span>
-                        <input
-                          type="number"
-                          v-model.number="pointsForm.amount"
-                          class="input points-num sm"
-                        />
-                      </div>
-                      <input
-                        v-model="pointsForm.reason"
-                        class="input sm"
-                        placeholder="变更原因 (必填)"
-                        style="flex: 1"
-                      />
-                      <button class="btn sm" @click="grantPoints" :disabled="!pointsForm.reason">
-                        执行
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="ph-list compact">
-                    <div class="ph-row head">
-                      <span>时间</span>
-                      <span>变动</span>
-                      <span>原因</span>
-                    </div>
-                    <div class="ph-scroll-area">
-                      <div class="ph-row" v-for="(log, idx) in creatorLogs" :key="idx">
-                        <span class="ph-time">{{
-                          new Date(log.granted_at).toLocaleDateString()
-                        }}</span>
-                        <span class="ph-val" :class="log.points > 0 ? 'pos' : 'neg'"
-                          >{{ log.points > 0 ? '+' : '' }}{{ log.points }}</span
-                        >
-                        <span class="ph-reason">{{ log.note || log.artwork_title }}</span>
-                      </div>
-                      <div v-if="!creatorLogs.length" class="empty-ph">暂无积分记录</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div v-else class="empty-select">
-                <div class="icon">🎨</div>
-                <div>请在左侧选择一个创作者进行管理</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- ================= 公会系统 ================= -->
         <div v-if="mainTab === 'guild'" class="tab-content guild-admin">
           <div class="sub-tabs">
@@ -665,6 +483,12 @@
               评级审核
             </button>
             <button
+              :class="['sub-tab', guildTab === 'creators' && 'on']"
+              @click="switchGuildTab('creators')"
+            >
+              创作者档案
+            </button>
+            <button
               :class="['sub-tab', guildTab === 'profiles' && 'on']"
               @click="switchGuildTab('profiles')"
             >
@@ -673,6 +497,242 @@
           </div>
 
           <div v-if="guildMsg" class="guild-msg">{{ guildMsg }}</div>
+
+          <div v-if="guildTab === 'creators'" class="guild-creator-page">
+            <div class="two-col-layout guild-creator-layout">
+              <div class="col-left" :class="{ 'mobile-hidden': selectedCreator }">
+                <div class="toolbar tight">
+                  <input
+                    v-model="creatorSearch"
+                    class="input sm"
+                    placeholder="搜索 UID、昵称、联系方式..."
+                  />
+                  <div class="add-row">
+                    <input v-model="newCreatorUid" placeholder="新增 UID" class="input sm" />
+                    <button class="btn sm" @click="addCreator">+</button>
+                  </div>
+                </div>
+
+                <div class="creator-list-v">
+                  <div
+                    v-for="c in filteredCreators"
+                    :key="c.uid"
+                    class="creator-item creator-item--guild"
+                    :class="{ active: selectedCreator?.uid === c.uid }"
+                    @click="selectCreator(c)"
+                  >
+                    <img :src="c.avatar_url || '/api/art/placeholder/40/40'" class="c-avatar sm" />
+                    <div class="c-info-mini">
+                      <div class="c-uid">{{ c.name || c.uid }}</div>
+                      <div class="c-sub">
+                        <span>{{ c.rating || 'F' }}级 / Lv{{ c.level || 1 }}</span>
+                        <span>{{ c.accessShortLabel || '档案0' }}</span>
+                        <span v-if="creatorContact(c)" class="qq-badge">{{
+                          creatorContactLabel(c)
+                        }}</span>
+                      </div>
+                    </div>
+                    <div class="c-arr">›</div>
+                  </div>
+                  <div v-if="filteredCreators.length === 0" class="empty-ph">暂无创作者档案</div>
+                </div>
+              </div>
+
+              <div class="col-right" :class="{ 'mobile-visible': selectedCreator }">
+                <div v-if="selectedCreator" class="creator-detail-panel">
+                  <div class="panel-header">
+                    <div class="ph-title">
+                      创作者档案: {{ selectedCreator.name || selectedCreator.uid }}
+                    </div>
+                    <div class="panel-actions">
+                      <button class="btn-ghost sm mobile-only" @click="selectedCreator = null">
+                        返回列表
+                      </button>
+                      <button
+                        class="trash-btn"
+                        type="button"
+                        title="删除账号"
+                        aria-label="删除账号"
+                        @click="deleteCreator"
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="creator-guild-summary">
+                    <div class="creator-guild-card">
+                      <span>访问许可</span>
+                      <b>{{ selectedCreator.accessLabel || '0级公开档案许可' }}</b>
+                      <em>{{ selectedCreator.accessShortLabel || '档案0' }}</em>
+                    </div>
+                    <div class="creator-guild-card">
+                      <span>评级</span>
+                      <b>{{ selectedCreator.ratingLabel || `${selectedCreator.rating || 'F'}级冒险者` }}</b>
+                      <em>等级 Lv{{ selectedCreator.level || 1 }}</em>
+                    </div>
+                    <div class="creator-guild-card">
+                      <span>声望</span>
+                      <b>{{ selectedCreator.reputation || 0 }}</b>
+                      <em>金币 {{ selectedCreator.coins || 0 }}G</em>
+                    </div>
+                    <div class="creator-guild-card">
+                      <span>作品</span>
+                      <b>{{ selectedCreator.totalArtworks || 0 }}</b>
+                      <em>
+                        通过 {{ selectedCreator.approvedArtworks || 0 }} / 待审
+                        {{ selectedCreator.pendingArtworks || 0 }}
+                      </em>
+                    </div>
+                    <div class="creator-guild-card">
+                      <span>来源</span>
+                      <b>个人 {{ selectedCreator.personalArtworks || 0 }}</b>
+                      <em>转载 {{ selectedCreator.networkArtworks || 0 }}</em>
+                    </div>
+                    <div class="creator-guild-card">
+                      <span>内容</span>
+                      <b>凉宫 {{ selectedCreator.haruhiArtworks || 0 }}</b>
+                      <em>其他 {{ selectedCreator.otherArtworks || 0 }}</em>
+                    </div>
+                    <div class="creator-guild-card">
+                      <span>评级计数</span>
+                      <b>{{ selectedCreator.haruhiPersonalArtworks || 0 }}</b>
+                      <em>已通过凉宫个人作品</em>
+                    </div>
+                    <div class="creator-guild-card">
+                      <span>{{ creatorContactLabel(selectedCreator) }}</span>
+                      <b>{{ creatorContact(selectedCreator) || '暂无' }}</b>
+                      <em>QQ 为空时使用邮箱</em>
+                    </div>
+                  </div>
+
+                  <div class="edit-form">
+                    <div class="form-group">
+                      <label>访问许可</label>
+                      <div class="creator-access-row">
+                        <select v-model="selectedCreator.accessTier" class="select">
+                          <option v-for="a in accessOptions" :key="a.value" :value="a.value">
+                            {{ a.label }}
+                          </option>
+                        </select>
+                        <button class="btn-ghost sm" @click="saveProfileAccess(selectedCreator)">
+                          保存许可
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label>头像配置</label>
+                      <div class="avatar-uploader">
+                        <img
+                          :src="
+                            previewAvatar ||
+                            selectedCreator.avatar_url ||
+                            '/api/art/placeholder/80/80'
+                          "
+                          class="avatar-preview"
+                        />
+                        <div class="au-actions">
+                          <input
+                            type="file"
+                            ref="fileInput"
+                            accept="image/*"
+                            @change="handleFileChange"
+                            style="display: none"
+                          />
+                          <button class="btn-ghost sm" @click="$refs.fileInput.click()">
+                            选择本地图片
+                          </button>
+                          <div class="tip-text">支持 jpg, png, webp</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label>关联 QQ 号</label>
+                      <input
+                        v-model="editCreatorForm.qq"
+                        class="input"
+                        placeholder="输入关联的 QQ 号码"
+                      />
+                      <div class="tip-text">
+                        当前页面联系方式：{{ creatorContact(selectedCreator) || '暂无' }}。QQ 为空时使用邮箱。
+                      </div>
+                    </div>
+
+                    <div class="form-actions">
+                      <button class="btn" @click="updateCreator" :disabled="!isCreatorModified">
+                        保存创作者资料
+                      </button>
+                      <span v-if="saveMsg" class="save-msg">{{ saveMsg }}</span>
+                    </div>
+                  </div>
+
+                  <div class="divider"></div>
+
+                  <div class="points-section">
+                    <div class="label-lg">金币 / 积分管理</div>
+                    <div class="points-action-row">
+                      <div class="quick-points">
+                        <button
+                          v-for="v in [10, 20, 50, -10, -50]"
+                          :key="v"
+                          class="chip-btn"
+                          :class="pointsForm.amount === v && 'active'"
+                          @click="pointsForm.amount = v"
+                        >
+                          {{ v > 0 ? '+' + v : v }}
+                        </button>
+                      </div>
+                      <div class="pa-form">
+                        <div class="input-group">
+                          <span class="input-prefix">分值</span>
+                          <input
+                            type="number"
+                            v-model.number="pointsForm.amount"
+                            class="input points-num sm"
+                          />
+                        </div>
+                        <input
+                          v-model="pointsForm.reason"
+                          class="input sm"
+                          placeholder="变更原因 (必填)"
+                          style="flex: 1"
+                        />
+                        <button class="btn sm" @click="grantPoints" :disabled="!pointsForm.reason">
+                          执行
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="ph-list compact">
+                      <div class="ph-row head">
+                        <span>时间</span>
+                        <span>变动</span>
+                        <span>原因</span>
+                      </div>
+                      <div class="ph-scroll-area">
+                        <div class="ph-row" v-for="(log, idx) in creatorLogs" :key="idx">
+                          <span class="ph-time">{{
+                            new Date(log.granted_at).toLocaleDateString()
+                          }}</span>
+                          <span class="ph-val" :class="log.points > 0 ? 'pos' : 'neg'"
+                            >{{ log.points > 0 ? '+' : '' }}{{ log.points }}</span
+                          >
+                          <span class="ph-reason">{{ log.note || log.artwork_title }}</span>
+                        </div>
+                        <div v-if="!creatorLogs.length" class="empty-ph">暂无积分记录</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="empty-select">
+                  <div class="icon">🎨</div>
+                  <div>请在左侧选择一个创作者档案</div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div v-if="guildTab === 'quests'" class="guild-quest-page">
             <section v-if="guildQuestPage === 'list'" class="guild-list single guild-quest-list">
@@ -1780,7 +1840,7 @@ const msg = ref('')
 const loading = ref(false)
 
 // 导航状态
-const mainTab = ref('images') // images, comments, creators
+const mainTab = ref('images') // images, comments, guild, announcements
 const imageTab = ref('audit') // audit, list
 const commentTab = ref('pending') // pending, all
 
@@ -1906,7 +1966,22 @@ const guildRewardForm = ref(defaultRewardForm())
 const filteredCreators = computed(() => {
   if (!creatorSearch.value) return creators.value
   const q = creatorSearch.value.toLowerCase()
-  return creators.value.filter((c) => c.uid.toLowerCase().includes(q))
+  return creators.value.filter((c) =>
+    [
+      c.uid,
+      c.name,
+      c.qq,
+      c.email,
+      c.contactValue,
+      c.rating,
+      c.accessLabel,
+      c.accessShortLabel,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(q)
+  )
 })
 
 // 计算是否有修改
@@ -2082,7 +2157,9 @@ async function loadCreators() {
   if (selectedCreator.value) {
     const fresh = creators.value.find((c) => c.uid === selectedCreator.value.uid)
     if (fresh) {
-      // 保持选中，但可能数据已更新，暂不强制覆盖表单，避免打断输入
+      selectedCreator.value = { ...selectedCreator.value, ...fresh }
+    } else {
+      selectedCreator.value = null
     }
   }
 }
@@ -2105,6 +2182,17 @@ async function selectCreator(c) {
   // 加载积分
   const res = await api.adminPointsLedger({ uid: c.uid })
   creatorLogs.value = res.data || []
+}
+
+function creatorContact(c) {
+  return c?.contactValue || c?.qq || c?.email || ''
+}
+
+function creatorContactLabel(c) {
+  if (c?.contactLabel) return c.contactLabel
+  if (c?.contactType === 'qq' || c?.qq) return 'QQ'
+  if (c?.contactType === 'email' || c?.email) return '邮箱'
+  return '联系方式'
 }
 
 function handleFileChange(e) {
@@ -2238,6 +2326,8 @@ async function loadGuildAdmin() {
   } else if (guildTab.value === 'ratings') {
     const res = await api.adminGuildRatingApplications()
     guildRatings.value = res.data || []
+  } else if (guildTab.value === 'creators') {
+    await loadCreators()
   } else if (guildTab.value === 'profiles') {
     const res = await api.adminGuildProfiles()
     guildProfiles.value = res.data || []
@@ -2635,7 +2725,6 @@ async function deleteAnnouncement(a) {
 watch(mainTab, (v) => {
   if (v === 'images' && imageTab.value === 'list') loadApprovedList()
   if (v === 'comments') switchCommentTab('pending')
-  if (v === 'creators') loadCreators()
   if (v === 'guild') {
     if (guildTab.value === 'quests') guildQuestPage.value = 'list'
     if (guildTab.value === 'rewards') guildRewardPage.value = 'list'
@@ -2867,6 +2956,9 @@ onMounted(async () => {
   background: var(--sos-accent-soft);
   border-color: var(--sos-accent-soft);
 }
+.creator-item--guild {
+  align-items: flex-start;
+}
 .c-avatar.sm {
   width: 36px;
   height: 36px;
@@ -2892,6 +2984,7 @@ onMounted(async () => {
   display: flex;
   gap: 6px;
   align-items: center;
+  flex-wrap: wrap;
 }
 .qq-badge {
   background: var(--sos-accent-soft);
@@ -2911,6 +3004,46 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+.creator-guild-layout {
+  min-height: 620px;
+}
+.creator-guild-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 16px 24px 0;
+}
+.creator-guild-card {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--sos-border-default);
+  background: linear-gradient(180deg, #fff, color-mix(in srgb, var(--sos-bg-subtle) 72%, #fff));
+}
+.creator-guild-card span,
+.creator-guild-card em {
+  display: block;
+  color: var(--sos-text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+}
+.creator-guild-card b {
+  display: block;
+  margin: 4px 0 2px;
+  color: var(--sos-text-primary);
+  font-size: 14px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.creator-guild-card em {
+  font-style: normal;
+}
+.creator-access-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
 }
 .panel-header {
   padding: 16px 24px;
@@ -4146,6 +4279,10 @@ onMounted(async () => {
   .guild-form-grid.three {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .creator-guild-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 12px 16px 0;
+  }
   .ann-meta-grid,
   .ann-form-footer {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4372,6 +4509,13 @@ onMounted(async () => {
   }
   .panel-actions .btn-ghost {
     flex: 1;
+  }
+  .creator-guild-summary {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+  .creator-access-row {
+    grid-template-columns: 1fr;
   }
   .edit-form,
   .points-section {

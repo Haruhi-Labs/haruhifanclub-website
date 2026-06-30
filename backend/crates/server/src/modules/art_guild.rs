@@ -1727,7 +1727,7 @@ async fn ensure_profile_for_user(state: &AppState, user: &AuthUser) -> AppResult
     Ok(uid)
 }
 
-async fn ensure_profile_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
+pub(crate) async fn ensure_profile_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
     let uid = normalize_uid(uid)?;
     let now = now_iso();
     let user_id = user_id_from_uid(&uid);
@@ -1773,6 +1773,10 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
             None,
         ),
     };
+    let qq = clean_optional_string(qq);
+    let email = clean_optional_string(user_email_for_id(state, user_id).await?);
+    let (contact_type, contact_value) = preferred_contact(qq.as_deref(), email.as_deref());
+    let contact_label = contact_type.map(contact_type_label);
     let coins = coin_summary(state, uid).await?;
     let haruhi_count = approved_haruhi_personal_count(state, uid).await?;
     let pending_rating_application = if private {
@@ -1793,7 +1797,11 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
         "displayName": display_name,
         "avatar_url": avatar_url,
         "creatorCreatedAt": creator_created_at,
-        "qq": if private { qq } else { None::<String> },
+        "qq": if private { qq.clone() } else { None::<String> },
+        "email": if private { email.clone() } else { None::<String> },
+        "contactType": contact_type,
+        "contactLabel": contact_label,
+        "contactValue": contact_value,
         "reputation": reputation,
         "level": level_from_reputation(reputation),
         "rating": rating,
@@ -1808,6 +1816,18 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
         "pendingRatingApplication": pending_rating_application,
         "user": user_profile
     }))
+}
+
+async fn user_email_for_id(state: &AppState, user_id: Option<i64>) -> AppResult<Option<String>> {
+    let Some(user_id) = user_id else {
+        return Ok(None);
+    };
+    let email: Option<String> = sqlx::query_scalar("SELECT email FROM users WHERE id=?")
+        .bind(user_id)
+        .fetch_optional(&state.pools.core)
+        .await?
+        .flatten();
+    Ok(email)
 }
 
 async fn user_profile_value(state: &AppState, user_id: i64) -> AppResult<Value> {
@@ -2886,7 +2906,34 @@ fn normalize_uid(uid: &str) -> AppResult<String> {
     Ok(uid.to_string())
 }
 
-fn level_from_reputation(reputation: i64) -> i64 {
+fn clean_optional_string(value: Option<String>) -> Option<String> {
+    value
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+fn preferred_contact(
+    qq: Option<&str>,
+    email: Option<&str>,
+) -> (Option<&'static str>, Option<String>) {
+    if let Some(qq) = qq.filter(|s| !s.trim().is_empty()) {
+        return (Some("qq"), Some(qq.trim().to_string()));
+    }
+    if let Some(email) = email.filter(|s| !s.trim().is_empty()) {
+        return (Some("email"), Some(email.trim().to_string()));
+    }
+    (None, None)
+}
+
+fn contact_type_label(contact_type: &str) -> &'static str {
+    match contact_type {
+        "qq" => "QQ",
+        "email" => "邮箱",
+        _ => "联系方式",
+    }
+}
+
+pub(crate) fn level_from_reputation(reputation: i64) -> i64 {
     (reputation.max(0) / 100) + 1
 }
 
@@ -2914,7 +2961,7 @@ fn access_rank(access: &str) -> i64 {
     }
 }
 
-fn access_label(access: &str) -> &'static str {
+pub(crate) fn access_label(access: &str) -> &'static str {
     match access {
         "closed_space" => "3级闭锁空间许可",
         "anomaly_research" => "2级异常观测许可",
@@ -2923,7 +2970,7 @@ fn access_label(access: &str) -> &'static str {
     }
 }
 
-fn access_short_label(access: &str) -> &'static str {
+pub(crate) fn access_short_label(access: &str) -> &'static str {
     match access {
         "closed_space" => "闭锁3",
         "anomaly_research" => "异常2",
@@ -2932,7 +2979,7 @@ fn access_short_label(access: &str) -> &'static str {
     }
 }
 
-fn rating_label(rating: &str) -> String {
+pub(crate) fn rating_label(rating: &str) -> String {
     format!("{rating}级冒险者")
 }
 

@@ -2531,26 +2531,183 @@ async fn admin_delete_comment(
     Ok(Json(json!({ "ok": true })))
 }
 
+#[derive(sqlx::FromRow)]
+struct AdminCreatorRow {
+    uid: String,
+    avatar_url: Option<String>,
+    created_at: Option<String>,
+    qq: Option<String>,
+    user_id: Option<i64>,
+    reputation: i64,
+    rating: String,
+    access_tier: String,
+    coins: i64,
+    total_artworks: i64,
+    approved_artworks: i64,
+    pending_artworks: i64,
+    restricted_artworks: i64,
+    personal_artworks: i64,
+    network_artworks: i64,
+    haruhi_artworks: i64,
+    other_artworks: i64,
+    haruhi_personal_artworks: i64,
+    first_upload_at: Option<String>,
+    latest_upload_at: Option<String>,
+}
+
 async fn admin_list_creators(
     State(state): State<AppState>,
     user: AuthUser,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Read).await?;
-    let rows: Vec<(String, Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
-        "SELECT uid, avatar_url, created_at, qq FROM creators ORDER BY datetime(created_at) DESC",
+    let rows: Vec<AdminCreatorRow> = sqlx::query_as(
+        "SELECT
+            c.uid,
+            c.avatar_url,
+            c.created_at,
+            c.qq,
+            gp.user_id,
+            COALESCE(gp.reputation, 0) AS reputation,
+            COALESCE(gp.rating, 'F') AS rating,
+            COALESCE(gp.access_tier, 'observer_clearance') AS access_tier,
+            COALESCE((
+                SELECT CAST(SUM(CAST(NULLIF(TRIM(points), '') AS INTEGER)) AS INTEGER)
+                FROM points_ledger pl WHERE pl.uid=c.uid
+            ), 0) AS coins,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid) AS total_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.status='approved') AS approved_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.status='pending') AS pending_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.status IN ('rejected','hidden','flagged')) AS restricted_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.source_type='personal') AS personal_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.source_type='network') AS network_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.content_type='haruhi') AS haruhi_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.content_type='other') AS other_artworks,
+            (SELECT COUNT(1) FROM artworks a WHERE a.uploader_uid=c.uid AND a.status='approved' AND a.source_type='personal' AND a.content_type='haruhi') AS haruhi_personal_artworks,
+            (SELECT MIN(created_at) FROM artworks a WHERE a.uploader_uid=c.uid) AS first_upload_at,
+            (SELECT MAX(created_at) FROM artworks a WHERE a.uploader_uid=c.uid) AS latest_upload_at
+         FROM creators c
+         LEFT JOIN guild_profiles gp ON gp.uid=c.uid
+         ORDER BY datetime(c.created_at) DESC",
     )
     .fetch_all(&state.pools.art)
     .await?;
-    let uids: Vec<String> = rows.iter().map(|(uid, ..)| uid.clone()).collect();
+    let uids: Vec<String> = rows.iter().map(|row| row.uid.clone()).collect();
     let names = member_display_names(&state.pools.core, &uids).await;
+    let mut user_ids: Vec<i64> = rows
+        .iter()
+        .filter_map(|row| row.user_id.or_else(|| user_id_from_creator_uid(&row.uid)))
+        .collect();
+    user_ids.sort_unstable();
+    user_ids.dedup();
+    let user_contacts = user_display_contacts(&state.pools.core, &user_ids).await?;
     let data: Vec<Value> = rows
         .into_iter()
-        .map(|(uid, avatar_url, created_at, qq)| {
-            let name = names.get(&uid).cloned();
-            json!({ "uid": uid, "name": name, "avatar_url": avatar_url, "created_at": created_at, "qq": qq })
+        .map(|row| {
+            let inferred_user_id = row.user_id.or_else(|| user_id_from_creator_uid(&row.uid));
+            let user_contact = inferred_user_id.and_then(|id| user_contacts.get(&id));
+            let name = names
+                .get(&row.uid)
+                .cloned()
+                .or_else(|| user_contact.map(|info| info.0.clone()));
+            let email = clean_creator_contact(user_contact.and_then(|info| info.1.clone()));
+            let qq = clean_creator_contact(row.qq);
+            let (contact_type, contact_value) =
+                preferred_creator_contact(qq.as_deref(), email.as_deref());
+            let contact_label = contact_type.map(creator_contact_type_label);
+            let rating_label = super::art_guild::rating_label(&row.rating);
+            let access_label = super::art_guild::access_label(&row.access_tier);
+            let access_short_label = super::art_guild::access_short_label(&row.access_tier);
+            json!({
+                "uid": row.uid,
+                "name": name,
+                "avatar_url": row.avatar_url,
+                "created_at": row.created_at,
+                "qq": qq,
+                "email": email,
+                "contactType": contact_type,
+                "contactLabel": contact_label,
+                "contactValue": contact_value,
+                "userId": inferred_user_id,
+                "reputation": row.reputation,
+                "level": super::art_guild::level_from_reputation(row.reputation),
+                "rating": row.rating,
+                "ratingLabel": rating_label,
+                "accessTier": row.access_tier,
+                "accessLabel": access_label,
+                "accessShortLabel": access_short_label,
+                "coins": row.coins,
+                "totalArtworks": row.total_artworks,
+                "approvedArtworks": row.approved_artworks,
+                "pendingArtworks": row.pending_artworks,
+                "restrictedArtworks": row.restricted_artworks,
+                "personalArtworks": row.personal_artworks,
+                "networkArtworks": row.network_artworks,
+                "haruhiArtworks": row.haruhi_artworks,
+                "otherArtworks": row.other_artworks,
+                "haruhiPersonalArtworks": row.haruhi_personal_artworks,
+                "firstUploadAt": row.first_upload_at,
+                "latestUploadAt": row.latest_upload_at
+            })
         })
         .collect();
     Ok(Json(json!({ "ok": true, "data": data })))
+}
+
+async fn user_display_contacts(
+    core: &sqlx::SqlitePool,
+    ids: &[i64],
+) -> AppResult<std::collections::HashMap<i64, (String, Option<String>)>> {
+    let mut map = std::collections::HashMap::new();
+    if ids.is_empty() {
+        return Ok(map);
+    }
+    let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!(
+        "SELECT id, nickname, username, email FROM users WHERE id IN ({placeholders}) AND deleted_at IS NULL"
+    );
+    let mut q = sqlx::query_as::<_, (i64, Option<String>, String, Option<String>)>(&sql);
+    for id in ids {
+        q = q.bind(id);
+    }
+    let rows = q.fetch_all(core).await?;
+    for (id, nickname, username, email) in rows {
+        let display_name = nickname
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or(username);
+        map.insert(id, (display_name, email));
+    }
+    Ok(map)
+}
+
+fn user_id_from_creator_uid(uid: &str) -> Option<i64> {
+    uid.strip_prefix('u')?.parse::<i64>().ok()
+}
+
+fn clean_creator_contact(value: Option<String>) -> Option<String> {
+    value
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+fn preferred_creator_contact(
+    qq: Option<&str>,
+    email: Option<&str>,
+) -> (Option<&'static str>, Option<String>) {
+    if let Some(qq) = qq.filter(|s| !s.trim().is_empty()) {
+        return (Some("qq"), Some(qq.trim().to_string()));
+    }
+    if let Some(email) = email.filter(|s| !s.trim().is_empty()) {
+        return (Some("email"), Some(email.trim().to_string()));
+    }
+    (None, None)
+}
+
+fn creator_contact_type_label(contact_type: &str) -> &'static str {
+    match contact_type {
+        "qq" => "QQ",
+        "email" => "邮箱",
+        _ => "联系方式",
+    }
 }
 
 async fn admin_create_creator(
@@ -2577,6 +2734,7 @@ async fn admin_create_creator(
                 .execute(&state.pools.art)
                 .await?;
         }
+        super::art_guild::ensure_profile_for_uid(&state, &uid).await?;
     }
     Ok(Json(json!({ "ok": true })))
 }
@@ -2723,6 +2881,7 @@ async fn admin_update_creator(
     }
 
     tx.commit().await?;
+    super::art_guild::ensure_profile_for_uid(&state, &final_uid).await?;
     Ok(Json(json!({ "ok": true })).into_response())
 }
 
