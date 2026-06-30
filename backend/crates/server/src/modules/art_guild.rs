@@ -915,7 +915,7 @@ async fn admin_create_quest(
     let repeat_on_complete = deadline_days.is_some()
         && fixed_deadline_at.is_none()
         && bool_field(&body, "repeatOnComplete", false);
-    let cycle_days = if deadline_days.is_some() {
+    let cycle_days = if deadline_days.is_some() || fixed_deadline_at.is_some() {
         None
     } else {
         optional_positive_i64_field(&body, "cycleDays")
@@ -974,7 +974,7 @@ async fn admin_update_quest(
     let repeat_on_complete = deadline_days.is_some()
         && fixed_deadline_at.is_none()
         && bool_field(&body, "repeatOnComplete", false);
-    let cycle_days = if deadline_days.is_some() {
+    let cycle_days = if deadline_days.is_some() || fixed_deadline_at.is_some() {
         None
     } else {
         optional_positive_i64_field(&body, "cycleDays")
@@ -2809,6 +2809,17 @@ fn quest_window(
         };
     }
 
+    if let Some(deadline_at) = fixed_deadline.as_ref() {
+        let start = claimed_at.unwrap_or(now);
+        let deadline_at = *deadline_at;
+        return QuestWindow {
+            cycle_key: "once".to_string(),
+            cycle_start_at: Some(start),
+            cycle_end_at: Some(deadline_at),
+            deadline_at: Some(deadline_at),
+        };
+    }
+
     if let Some(cycle_days) = cycle_days.filter(|days| *days > 0) {
         let anchor = beijing_cycle_anchor(now, cycle_reset_hour);
         let days_since_epoch = anchor.date_naive().num_days_from_ce() as i64;
@@ -2972,4 +2983,21 @@ fn clamp_query_i64(value: Option<&String>, min: i64, max: i64, fallback: i64) ->
         .and_then(|s| s.parse::<i64>().ok())
         .unwrap_or(fallback)
         .clamp(min, max)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fixed_deadline_ignores_cycle_days() {
+        let now = Utc.with_ymd_and_hms(2026, 6, 30, 0, 0, 0).single().unwrap();
+        let deadline = "2026-07-10T04:00:00.000Z";
+
+        let window = quest_window(Some(1), 4, None, Some(deadline), false, now, Some(now));
+
+        assert_eq!(window.cycle_key, "once");
+        assert_eq!(window.deadline_at.map(iso_utc).as_deref(), Some(deadline));
+        assert_eq!(window.cycle_end_at.map(iso_utc).as_deref(), Some(deadline));
+    }
 }

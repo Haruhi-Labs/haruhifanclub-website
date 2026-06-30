@@ -997,7 +997,7 @@
                       </span>
                     </label>
                   </div>
-                  <template v-else>
+                  <template v-if="guildQuestForm.timeLimitMode === 'none'">
                     <div class="guild-field">
                       <div class="guild-field-label-row">
                         <label for="guild-quest-cycle-days">循环周期</label>
@@ -2184,6 +2184,10 @@ function normalizeGuildQuestTimeLimit() {
     guildQuestForm.value.repeatOnComplete = false
   }
   if (mode !== 'fixed') guildQuestForm.value.fixedDeadlineAt = ''
+  if (mode !== 'none') {
+    guildQuestForm.value.cycleDays = null
+    guildQuestForm.value.cycleResetHour = 4
+  }
 }
 
 async function loadGuildAdmin() {
@@ -2251,7 +2255,7 @@ function editGuildQuest(quest) {
     deadlineDays: timeLimitMode === 'days' ? deadlineDays : null,
     fixedDeadlineAt: timeLimitMode === 'fixed' ? fixedDeadlineAt : '',
     repeatOnComplete: timeLimitMode === 'days' ? Boolean(quest.repeatOnComplete) : false,
-    cycleDays: timeLimitMode === 'days' ? null : quest.cycleDays ?? (quest.questType === 'daily' ? 1 : null),
+    cycleDays: timeLimitMode === 'none' ? quest.cycleDays ?? (quest.questType === 'daily' ? 1 : null) : null,
     cycleResetHour: Number(quest.cycleResetHour ?? 4),
     autoClaim: Boolean(quest.autoClaim),
     status: quest.status || 'active',
@@ -2271,8 +2275,8 @@ async function saveGuildQuest() {
       deadlineHours: null,
       deadlineDays: timeLimitMode === 'days' ? cleanNullableNumber(form.deadlineDays) : null,
       repeatOnComplete: timeLimitMode === 'days' ? Boolean(form.repeatOnComplete) : false,
-      cycleDays: timeLimitMode === 'days' ? null : cleanNullableNumber(form.cycleDays),
-      cycleResetHour: timeLimitMode === 'days' ? 4 : cleanNullableNumber(form.cycleResetHour) ?? 4,
+      cycleDays: timeLimitMode === 'none' ? cleanNullableNumber(form.cycleDays) : null,
+      cycleResetHour: timeLimitMode === 'none' ? cleanNullableNumber(form.cycleResetHour) ?? 4 : 4,
       fixedDeadlineAt: timeLimitMode === 'fixed' ? form.fixedDeadlineAt || '' : '',
     }
     if (guildQuestEditingId.value) {
