@@ -2585,8 +2585,9 @@ async fn admin_quest_rows(state: &AppState) -> AppResult<Vec<Value>> {
         "SELECT id, title, description, quest_type, difficulty, required_rating,
                     required_access, condition_kind, target_count, reward_reputation,
                     reward_coins, deadline_hours, deadline_days, fixed_deadline_at,
-                    cycle_days, COALESCE(cycle_reset_hour, 4), COALESCE(repeat_on_complete, 0),
-                    COALESCE(auto_claim, 0), status, sort_order
+                    cycle_days, COALESCE(cycle_reset_hour, 4) AS cycle_reset_hour,
+                    COALESCE(repeat_on_complete, 0) AS repeat_on_complete,
+                    COALESCE(auto_claim, 0) AS auto_claim, status, sort_order
              FROM guild_quests ORDER BY sort_order ASC, id ASC",
     )
     .fetch_all(&state.pools.art)

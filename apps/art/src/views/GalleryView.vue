@@ -176,6 +176,16 @@ function exitMode() {
 }
 
 // --- 核心：将路由解析逻辑提取出来 ---
+function openArtworkById(id) {
+  store.fetchArtworkById(id).then(item => {
+    if (String(route.query.artwork || '') !== String(id)) return
+    if (item) {
+      activeItem.value = item
+      modalOpen.value = true
+    }
+  })
+}
+
 function syncStateFromRoute(q) {
   const newTag = q.tag
   const newAuthorUid = q.author
@@ -215,14 +225,8 @@ function syncStateFromRoute(q) {
 
   // C. 处理详情弹窗
   if (newArtworkId) {
-    // Always fetch detail to ensure we have full images list (and comments etc.)
-    // The store handles caching/optimization internally now
-    store.fetchArtworkById(newArtworkId).then(item => {
-      if (item) {
-        activeItem.value = item
-        modalOpen.value = true
-      }
-    })
+    // Always fetch detail to ensure we have full images list and record guild browse progress.
+    openArtworkById(newArtworkId)
   } else {
     modalOpen.value = false
     activeItem.value = null
@@ -260,8 +264,7 @@ watch(() => store.list, (list) => {
   if (targetId && !modalOpen.value) {
     const target = list.find(i => String(i.id) === String(targetId))
     if (target) {
-      activeItem.value = target
-      modalOpen.value = true
+      openArtworkById(targetId)
     }
   }
 })
