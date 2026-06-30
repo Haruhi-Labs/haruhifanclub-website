@@ -175,7 +175,17 @@
 
             <div class="search input-row" style="margin-bottom:10px;">
               <span class="hint">署名</span>
-              <input v-model="commentName" placeholder="无需登录，但可不要冒充别人哦！" />
+              <input
+                v-if="isLoggedIn"
+                :value="accountNickname || '请先在「个人中心 → 资料」填写昵称'"
+                readonly
+                title="已登录，自动使用账号昵称署名"
+              />
+              <input
+                v-else
+                v-model="commentName"
+                placeholder="无需登录，但可不要冒充别人哦！"
+              />
             </div>
 
             <div class="search input-row" style="height:auto; padding: 10px 12px;">
@@ -202,7 +212,13 @@
 
 <script setup>
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useSession } from '@haruhi/auth-ui'
 import { api, thumbUrl } from '../services/api.js'
+
+// 登录态：已登录用户评论自动署名为账号昵称，无需填写；未登录用户保留手动署名。
+const session = useSession('/api')
+const isLoggedIn = computed(() => !!session.state.user)
+const accountNickname = computed(() => session.state.user?.nickname || '')
 
 const props = defineProps({
   modelValue: { type: Boolean, default: undefined },
@@ -615,9 +631,18 @@ async function loadComments(){
 
 async function postComment(){
   if(!art.value?.id) return
-  const name = commentName.value.trim()
   const body = commentBody.value.trim()
-  if(!name || !body) return
+  if(!body) return
+
+  // 登录用户：后端以账号昵称署名（这里传昵称仅供乐观展示，后端会忽略前端自报 user_name）。
+  // 未登录用户：必须手动填写署名。
+  let name = ''
+  if(isLoggedIn.value){
+    name = accountNickname.value
+  }else{
+    name = commentName.value.trim()
+    if(!name) return
+  }
 
   posting.value = true
   try{
@@ -670,6 +695,7 @@ watch(visible, (v) => {
 onBeforeUnmount(restoreGlobalModalState)
 
 onMounted(() => {
+  if(!session.state.ready) session.refresh()
   if(visible.value) loadComments()
 })
 </script>

@@ -831,3 +831,58 @@ async fn artwork_points_follow_public_state() {
         "撤稿扣回叠加既有兑换消耗，余额可为负"
     );
 }
+
+// 评论署名：登录用户自动用账号昵称署名（忽略前端自报、归属 author_user_id）；
+// 未登录用户仍可手动署名评论（author_user_id 为空，且不再被强制登录拦下）。
+#[tokio::test]
+async fn comment_uses_nickname_for_member_and_allows_anonymous() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+
+    let aid: i64 = sqlx::query_scalar(
+        "INSERT INTO artworks(title, status, created_at) \
+         VALUES('作品', 'approved', '2026-01-01T00:00:00Z') RETURNING id",
+    )
+    .fetch_one(&art)
+    .await
+    .unwrap();
+
+    // 1) 登录用户：忽略前端自报署名，使用账号昵称 + 归属 author_user_id
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let (s1, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/comments",
+            json!({ "artwork_id": aid, "user_name": "前端自报应忽略", "body": "登录用户评论" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(s1, StatusCode::OK, "登录用户评论应成功");
+    let (uname, author): (String, Option<i64>) =
+        sqlx::query_as("SELECT user_name, author_user_id FROM comments WHERE body='登录用户评论'")
+            .fetch_one(&art)
+            .await
+            .unwrap();
+    assert_ne!(uname, "前端自报应忽略", "登录用户署名不应取前端自报值");
+    assert!(author.is_some(), "登录用户评论应归属 author_user_id");
+
+    // 2) 未登录用户：保留手动署名，author_user_id 为空，且不是 401
+    let (s2, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/comments",
+            json!({ "artwork_id": aid, "user_name": "路人甲", "body": "匿名评论" }),
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(s2, StatusCode::OK, "未登录用户也应能署名评论");
+    let (uname2, author2): (String, Option<i64>) =
+        sqlx::query_as("SELECT user_name, author_user_id FROM comments WHERE body='匿名评论'")
+            .fetch_one(&art)
+            .await
+            .unwrap();
+    assert_eq!(uname2, "路人甲", "未登录评论应使用手动署名");
+    assert!(author2.is_none(), "未登录评论 author_user_id 应为空");
+}
