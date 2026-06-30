@@ -300,13 +300,18 @@ async fn grant_role(state: &AppState, username: &str, app: &str, role_key: &str)
 }
 
 async fn seed_artwork(state: &AppState, title: &str, status: &str, created_at: &str) {
+    let random_key = title
+        .bytes()
+        .fold(0_i64, |acc, b| (acc * 31 + i64::from(b)) % 2_147_483_646)
+        + 1;
     sqlx::query(
-        "INSERT INTO artworks (title, status, content_type, source_type, created_at, like_total) \
-         VALUES (?, ?, 'haruhi', 'network', ?, 0)",
+        "INSERT INTO artworks (title, status, content_type, source_type, created_at, like_total, random_key) \
+         VALUES (?, ?, 'haruhi', 'network', ?, 0, ?)",
     )
     .bind(title)
     .bind(status)
     .bind(created_at)
+    .bind(random_key)
     .execute(&state.pools.art)
     .await
     .unwrap();
@@ -426,6 +431,64 @@ async fn art_list_pagination_math() {
     .await;
     assert_eq!(p2["total"], 8);
     assert_eq!(p2["data"].as_array().unwrap().len(), 2, "次页 2 条");
+}
+
+#[tokio::test]
+async fn art_random_list_uses_stable_pagination() {
+    let app = setup().await;
+    for i in 0..12 {
+        seed_artwork(
+            &app.state,
+            &format!("random-art-{i}"),
+            "approved",
+            &format!("2024-03-{:02} 00:00:00", i + 1),
+        )
+        .await;
+    }
+
+    let (_, p1) = send(
+        &app.router,
+        get(
+            "/api/art/artworks?sort=random&seed=42&pageSize=6&page=1",
+            None,
+        ),
+    )
+    .await;
+    let (_, p1_again) = send(
+        &app.router,
+        get(
+            "/api/art/artworks?sort=random&seed=42&pageSize=6&page=1",
+            None,
+        ),
+    )
+    .await;
+    let (_, p2) = send(
+        &app.router,
+        get(
+            "/api/art/artworks?sort=random&seed=42&pageSize=6&page=2",
+            None,
+        ),
+    )
+    .await;
+
+    assert_eq!(p1["seedUsed"], 42);
+    assert_eq!(p1["total"], 12);
+    assert_eq!(p1["data"], p1_again["data"], "同 seed 的随机页应稳定");
+    let ids1: std::collections::HashSet<i64> = p1["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|v| v["id"].as_i64())
+        .collect();
+    let ids2: std::collections::HashSet<i64> = p2["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|v| v["id"].as_i64())
+        .collect();
+    assert_eq!(ids1.len(), 6);
+    assert_eq!(ids2.len(), 6);
+    assert!(ids1.is_disjoint(&ids2), "随机分页不应在相邻页重复");
 }
 
 #[tokio::test]
@@ -632,9 +695,18 @@ async fn art_upload_accepts_image_and_persists() {
     let (s, j) = send(&app.router, req).await;
     assert_eq!(s, StatusCode::OK, "合法图片登录上传应成功: {j:?}");
     assert_eq!(j["ok"], true);
+    assert_eq!(j["status"], "pending");
+    assert_eq!(j["aiReviewPending"], false);
     // 落库可验证（AI 离线 → 状态 pending，用 status=all 查得到）
     let (_, all) = send(&app.router, get("/api/art/artworks?status=all", None)).await;
     assert_eq!(all["total"], 1, "上传的作品应已落库");
+    let (status, random_key): (String, i64) =
+        sqlx::query_as("SELECT status, random_key FROM artworks WHERE title='我的作品'")
+            .fetch_one(&app.state.pools.art)
+            .await
+            .unwrap();
+    assert_eq!(status, "pending");
+    assert!(random_key > 0, "上传作品应写入随机排序键");
 }
 
 #[tokio::test]
