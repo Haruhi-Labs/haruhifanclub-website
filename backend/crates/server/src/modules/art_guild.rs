@@ -636,19 +636,18 @@ async fn guild_leaderboard(
         None => None,
     };
 
+    // 历史累计获得积分：排除兑换等正常消耗(redemption)，但包含撤稿扣回(withdraw, 负值)。
+    // 排序以该值为唯一依据（不再按评级/等级），声望与 uid 仅作并列时的兜底。
     let rows: Vec<GuildLeaderboardRow> = sqlx::query_as(
         "SELECT gp.uid, gp.reputation, gp.rating, gp.access_tier,
-                COALESCE(SUM(pl.points), 0) AS coins, c.avatar_url
+                COALESCE(SUM(CASE WHEN pl.source_type='redemption' THEN 0 ELSE pl.points END), 0) AS earned,
+                c.avatar_url
          FROM guild_profiles gp
          LEFT JOIN points_ledger pl ON pl.uid=gp.uid
          LEFT JOIN creators c ON c.uid=gp.uid
          GROUP BY gp.uid
          ORDER BY
-           CASE gp.rating
-             WHEN 'X' THEN 8 WHEN 'S' THEN 7 WHEN 'A' THEN 6 WHEN 'B' THEN 5
-             WHEN 'C' THEN 4 WHEN 'D' THEN 3 WHEN 'E' THEN 2 ELSE 1 END DESC,
-           CAST((gp.reputation / 100) AS INTEGER) DESC,
-           coins DESC,
+           earned DESC,
            gp.reputation DESC,
            gp.uid ASC",
     )
@@ -678,7 +677,7 @@ fn leaderboard_value(
     rank: usize,
     names: &std::collections::HashMap<String, String>,
 ) -> Value {
-    let (uid, reputation, rating, access, coins, avatar) = row;
+    let (uid, reputation, rating, access, earned, avatar) = row;
     let rep = reputation.unwrap_or(0);
     let name = names.get(uid).cloned().unwrap_or_else(|| uid.clone());
     json!({
@@ -690,7 +689,7 @@ fn leaderboard_value(
         "rating": rating,
         "accessTier": access,
         "accessLabel": access_label(access),
-        "coins": coins.unwrap_or(0),
+        "earned": earned.unwrap_or(0),
         "avatar_url": avatar
     })
 }
@@ -1909,26 +1908,172 @@ async fn grant_coins(
     coins: i64,
     artwork_id: Option<i64>,
     note: &str,
-    _source_type: &str,
+    source_type: &str,
     created_at: &str,
 ) -> AppResult<()> {
     if coins == 0 {
         return Ok(());
     }
-    // 金币即画廊积分，统一写入 points_ledger（points_ledger 无 source_type 列，来源以 note 表达）。
+    // 金币即画廊积分，统一写入 points_ledger；source_type 标注来源（quest/redemption/…），
+    // 供「历史累计获得积分」区分消耗（redemption 不计入）。
     sqlx::query(
-        "INSERT INTO points_ledger(uid, artwork_id, points, note, created_at, granted_at)
-         VALUES(?,?,?,?,?,?)",
+        "INSERT INTO points_ledger(uid, artwork_id, points, note, source_type, created_at, granted_at)
+         VALUES(?,?,?,?,?,?,?)",
     )
     .bind(uid)
     .bind(artwork_id)
     .bind(coins)
     .bind(note)
+    .bind(source_type)
     .bind(created_at)
     .bind(now_iso())
     .execute(&state.pools.art)
     .await?;
     Ok(())
+}
+
+/// 投稿作品「应得画廊积分」：仅个人作品计分，凉宫个人 120、其他个人 30，非个人 0。
+fn upload_award(source_type: &str, content_type: &str) -> i64 {
+    if source_type != "personal" {
+        return 0;
+    }
+    if content_type == "haruhi" {
+        120
+    } else {
+        30
+    }
+}
+
+struct ArtworkPointsCtx {
+    uid: String,
+    source_type: String,
+    content_type: String,
+    created_at: String,
+}
+
+async fn load_artwork_points_ctx(
+    state: &AppState,
+    artwork_id: i64,
+) -> AppResult<Option<ArtworkPointsCtx>> {
+    let row: Option<(
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT uploader_uid, source_type, content_type, created_at FROM artworks WHERE id=?",
+    )
+    .bind(artwork_id)
+    .fetch_optional(&state.pools.art)
+    .await?;
+    Ok(row.map(
+        |(uid, source_type, content_type, created_at)| ArtworkPointsCtx {
+            uid: uid.unwrap_or_default(),
+            source_type: source_type.unwrap_or_default(),
+            content_type: content_type.unwrap_or_default(),
+            created_at: created_at.unwrap_or_default(),
+        },
+    ))
+}
+
+/// 把某作品已发放的画廊积分对齐到「目标值」：公开(approved)时应得 upload_award，否则 0。
+/// 以该作品在 points_ledger 的净额为基准补一笔差值，因而幂等且可逆：
+/// 首发→+奖励(upload)；撤稿/隐藏/拒绝/删除→扣回(withdraw, 负值)；隐藏后再公开→重新补发。
+/// 撤稿扣回计入「历史获得积分」（被扣减），兑换消耗(redemption)不在此函数范围、不受影响。
+pub async fn reconcile_artwork_points(
+    state: &AppState,
+    artwork_id: i64,
+    public: bool,
+) -> AppResult<()> {
+    let Some(ctx) = load_artwork_points_ctx(state, artwork_id).await? else {
+        return Ok(());
+    };
+    if ctx.uid.trim().is_empty() {
+        return Ok(());
+    }
+    let desired = if public {
+        upload_award(&ctx.source_type, &ctx.content_type)
+    } else {
+        0
+    };
+    let current: i64 =
+        sqlx::query_scalar("SELECT COALESCE(SUM(points), 0) FROM points_ledger WHERE artwork_id=?")
+            .bind(artwork_id)
+            .fetch_one(&state.pools.art)
+            .await?;
+    let delta = desired - current;
+    if delta == 0 {
+        return Ok(());
+    }
+    let (note, src) = if delta > 0 {
+        let note = if ctx.content_type == "haruhi" {
+            "投稿凉宫个人作品奖励"
+        } else {
+            "投稿其他个人作品奖励"
+        };
+        (note.to_string(), "upload")
+    } else {
+        ("作品撤稿，扣回投稿积分".to_string(), "withdraw")
+    };
+    let now = now_iso();
+    let created = if ctx.created_at.is_empty() {
+        now.clone()
+    } else {
+        ctx.created_at.clone()
+    };
+    sqlx::query(
+        "INSERT INTO points_ledger(uid, artwork_id, points, note, source_type, created_at, granted_at)
+         VALUES(?,?,?,?,?,?,?)",
+    )
+    .bind(&ctx.uid)
+    .bind(artwork_id)
+    .bind(delta)
+    .bind(&note)
+    .bind(src)
+    .bind(&created)
+    .bind(&now)
+    .execute(&state.pools.art)
+    .await?;
+    Ok(())
+}
+
+/// 作品转入公开(approved)：对齐积分到应得值，并在「首次公开」时发放声望、推进委托。
+/// 声望沿用既有一次性语义（以 reputation_ledger 是否已有 upload_artwork 记录判定），撤稿不回收。
+pub async fn on_artwork_published(
+    state: &AppState,
+    artwork_id: i64,
+    note_suffix: &str,
+) -> AppResult<()> {
+    reconcile_artwork_points(state, artwork_id, true).await?;
+    let granted: Option<i64> = sqlx::query_scalar(
+        "SELECT 1 FROM reputation_ledger WHERE artwork_id=? AND source_type='upload_artwork'",
+    )
+    .bind(artwork_id)
+    .fetch_optional(&state.pools.art)
+    .await?;
+    if granted.is_none() {
+        if let Some(ctx) = load_artwork_points_ctx(state, artwork_id).await? {
+            if !ctx.uid.trim().is_empty() {
+                grant_upload_progress(
+                    state,
+                    &ctx.uid,
+                    artwork_id,
+                    &ctx.content_type,
+                    &ctx.source_type,
+                    &ctx.created_at,
+                    note_suffix,
+                )
+                .await;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// 作品撤稿/隐藏/拒绝/删除：扣回该作品已发放的画廊积分（声望按既有一次性语义保留，不回收）。
+/// 硬删除场景需在 DELETE 作品行之前调用，以便读取上传者并结算。
+pub async fn on_artwork_withdrawn(state: &AppState, artwork_id: i64) -> AppResult<()> {
+    reconcile_artwork_points(state, artwork_id, false).await
 }
 
 #[allow(clippy::too_many_arguments)]

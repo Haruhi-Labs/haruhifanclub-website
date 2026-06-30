@@ -228,7 +228,7 @@
           <div>
             <span class="g-view__eyebrow">Ranking</span>
             <h1>冒险者排行榜</h1>
-            <p>按金币结余排序，点击任意冒险者查看其公开档案。</p>
+            <p>按历史累计获得积分排序，点击任意冒险者查看其公开档案。</p>
           </div>
         </header>
 
@@ -253,7 +253,7 @@
                 {{ currentLeader.name || currentLeader.uid }}
                 <i v-if="currentLeader.level">Lv{{ currentLeader.level }}</i>
               </span>
-              <b class="mono">{{ currentLeader.coins }}G</b>
+              <b class="mono">{{ currentLeader.earned }}G</b>
             </RouterLink>
           </div>
           <div v-if="currentLeader" class="g-board-separator"><span>排行榜</span></div>
@@ -276,7 +276,7 @@
               {{ item.name || item.uid }}
               <i v-if="item.level">Lv{{ item.level }}</i>
             </span>
-            <b class="mono">{{ item.coins }}G</b>
+            <b class="mono">{{ item.earned }}G</b>
           </RouterLink>
         </div>
         <div v-if="!leaderboard.length" class="g-empty">暂无公会成员记录</div>
@@ -936,44 +936,45 @@ function applyMock() {
       unlocked: true,
     },
   ]
+  // 排序依据为「历史累计获得积分(earned)」而非评级：低评级但获得多者可排在前。
   leaderboard.value = [
     {
       uid: '橙海',
       name: '橙海',
       rank: 1,
       rating: 'A',
-      coins: 1880,
+      earned: 1880,
       level: 19,
       reputation: 1880,
       avatar_url: '',
     },
     {
-      uid: 'Mizuhasi',
-      name: 'Mizuhasi',
+      uid: 'u12',
+      name: 'Kyon',
       rank: 2,
-      rating: 'B',
-      coins: 1570,
-      level: 16,
-      reputation: 1570,
+      rating: 'D',
+      earned: 1720,
+      level: 8,
+      reputation: 760,
       avatar_url: '',
     },
     {
-      uid: 'u12',
-      name: 'Kyon',
+      uid: 'Mizuhasi',
+      name: 'Mizuhasi',
       rank: 3,
-      rating: 'D',
-      coins: 1720,
-      level: 8,
-      reputation: 760,
+      rating: 'B',
+      earned: 1570,
+      level: 16,
+      reputation: 1570,
       avatar_url: '',
     },
   ]
   currentLeader.value = {
     uid: 'u12',
     name: 'Kyon',
-    rank: 3,
+    rank: 2,
     rating: 'D',
-    coins: 1720,
+    earned: 1720,
     level: 8,
     reputation: 760,
     avatar_url: '',
