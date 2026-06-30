@@ -24,7 +24,7 @@ import AdventurerProfileView from '../views/AdventurerProfileView.vue'
 const AdminView = () => import('../views/AdminView.vue')
 const LicenseView = () => import('../views/LicenseView.vue')
 
-const authProps = { site: 'art', title: '应援团画廊', home: '/' }
+const authProps = { site: 'art', title: '凉宫春日应援团', home: '/' }
 const accountSections = [
   'overview',
   'artworks',

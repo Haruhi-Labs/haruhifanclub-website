@@ -42,16 +42,11 @@
   margin-bottom: var(--sos-space-2);
 }
 .hauth-brand__mark {
-  width: 3rem;
-  height: 3rem;
-  display: grid;
-  place-items: center;
-  border-radius: var(--sos-radius-full);
-  background: var(--sos-accent);
-  color: var(--sos-accent-contrast);
-  font-family: var(--sos-display-family);
-  font-weight: var(--sos-weight-black);
-  font-size: var(--sos-text-lg);
+  width: 3.5rem;
+  height: 3.5rem;
+  display: block;
+  object-fit: contain;
+  border-radius: var(--sos-radius-lg, 14px);
 }
 
 /* ---------- 两步验证：备用恢复码网格 ---------- */

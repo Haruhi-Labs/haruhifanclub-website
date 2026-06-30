@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { SosCard, SosButton, SosNotice, SosSpinner } from '@haruhi/ui'
 import { useSession } from './useSession.js'
+import brandLogo from './assets/haruhi-logo-192.png'
 import './auth.css'
 
 const props = defineProps({
@@ -40,7 +41,7 @@ onMounted(async () => {
   <div class="hauth-root sos-scope hauth-shell" :data-sos-site="site">
     <SosCard class="hauth-card" as="section">
       <header class="hauth-brand">
-        <span class="hauth-brand__mark" aria-hidden="true">{{ title.slice(0, 1) }}</span>
+        <img class="hauth-brand__mark" :src="brandLogo" alt="" />
         <h1 class="sos-title" style="font-size: var(--sos-text-2xl)">邮箱验证</h1>
       </header>
 
