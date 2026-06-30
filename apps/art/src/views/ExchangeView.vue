@@ -24,26 +24,35 @@
             <b>{{ profile.reputation || 0 }} / {{ profile.nextRating.requiredReputation }}</b>
           </div>
           <div class="g-nextrank__bar">
-            <i :style="{ width: reqPercent(profile.reputation, profile.nextRating.requiredReputation) + '%' }"></i>
+            <i
+              :style="{
+                width: reqPercent(profile.reputation, profile.nextRating.requiredReputation) + '%',
+              }"
+            ></i>
           </div>
         </div>
 
         <!-- 状态台账 -->
         <dl class="g-ledger">
           <div class="g-ledger__row">
-            <dt>冒险者编号</dt><dd class="mono">{{ profile.uid || 'VISITOR' }}</dd>
+            <dt>冒险者编号</dt>
+            <dd class="mono">{{ profile.uid || 'VISITOR' }}</dd>
           </div>
           <div class="g-ledger__row g-ledger__row--coin">
-            <dt>金币结余</dt><dd class="mono">{{ coinText }}</dd>
+            <dt>金币结余</dt>
+            <dd class="mono">{{ coinText }}</dd>
           </div>
           <div v-if="profile.coins?.frozen" class="g-ledger__sub">
-            <dt>· 冻结中</dt><dd class="mono">{{ profile.coins.frozen }}G</dd>
+            <dt>· 冻结中</dt>
+            <dd class="mono">{{ profile.coins.frozen }}G</dd>
           </div>
           <div class="g-ledger__row">
-            <dt>声望 / 等级</dt><dd class="mono">{{ profile.reputation || 0 }} · Lv{{ profile.level || 1 }}</dd>
+            <dt>声望 / 等级</dt>
+            <dd class="mono">{{ profile.reputation || 0 }} · Lv{{ profile.level || 1 }}</dd>
           </div>
           <div class="g-ledger__row">
-            <dt>访问许可</dt><dd>{{ profile.accessShortLabel || '档案0' }}</dd>
+            <dt>访问许可</dt>
+            <dd>{{ profile.accessShortLabel || '档案0' }}</dd>
           </div>
         </dl>
 
@@ -64,7 +73,6 @@
             <span class="g-nav__count">{{ tab.summary }}</span>
           </button>
         </nav>
-
       </div>
     </aside>
 
@@ -78,11 +86,20 @@
             <h1>委托终端</h1>
             <p>系统会根据你的真实画廊行为自动查验进度并结算奖励。</p>
           </div>
-          <button type="button" class="sos-button sos-button--ghost sos-button--sm" @click="loadGuild">刷新</button>
+          <button
+            type="button"
+            class="sos-button sos-button--ghost sos-button--sm"
+            @click="loadGuild"
+          >
+            刷新
+          </button>
         </header>
 
         <div v-for="group in questGroups" :key="group.id" class="g-questgroup">
-          <div class="g-questgroup__title"><span>{{ group.label }}</span><b>{{ group.items.length }}</b></div>
+          <div class="g-questgroup__title">
+            <span>{{ group.label }}</span
+            ><b>{{ group.items.length }}</b>
+          </div>
           <article
             v-for="quest in group.items"
             :key="quest.id"
@@ -92,20 +109,41 @@
             <div class="g-quest__body">
               <div class="g-quest__top">
                 <h3>{{ quest.title }}</h3>
-                <span class="g-quest__status" :class="questStatus(quest)">{{ questStatusLabel(quest) }}</span>
+                <span class="g-quest__status" :class="questStatus(quest)">{{
+                  questStatusLabel(quest)
+                }}</span>
               </div>
               <p>{{ quest.description || conditionLabel(quest.conditionKind) }}</p>
               <div class="g-chips">
                 <span class="g-chip">评级 {{ quest.requiredRating }}</span>
                 <span class="g-chip">{{ quest.requiredAccessLabel }}</span>
-                <span v-if="quest.deadlineHours" class="g-chip g-chip--time">{{ quest.deadlineHours }}h 限时</span>
+                <span v-if="questDeadlineText(quest)" class="g-chip g-chip--time">{{
+                  questDeadlineText(quest)
+                }}</span>
+                <span v-else-if="quest.deadlineDays" class="g-chip g-chip--time">
+                  接取后 {{ quest.deadlineDays }} 天
+                </span>
+                <span v-if="quest.deadlineDays && quest.repeatOnComplete" class="g-chip"
+                  >完成后刷新</span
+                >
+                <span v-else-if="quest.cycleDays" class="g-chip">{{
+                  quest.cycleDays === 1 ? '每日刷新' : `${quest.cycleDays} 天循环`
+                }}</span>
                 <span v-if="quest.autoClaim" class="g-chip">自动接取</span>
                 <span class="g-chip g-chip--rep">声望 +{{ quest.rewardReputation }}</span>
-                <span v-if="quest.rewardCoins > 0" class="g-chip g-chip--coin">金币 +{{ quest.rewardCoins }}</span>
+                <span v-if="quest.rewardCoins > 0" class="g-chip g-chip--coin"
+                  >金币 +{{ quest.rewardCoins }}</span
+                >
               </div>
-              <div class="g-progress" :aria-label="`${questProgress(quest)} / ${questTarget(quest)}`">
+              <div
+                class="g-progress"
+                :aria-label="`${questProgress(quest)} / ${questTarget(quest)}`"
+              >
                 <div class="g-progress__track">
-                  <span class="g-progress__fill" :style="{ width: `${questProgressPercent(quest)}%` }"></span>
+                  <span
+                    class="g-progress__fill"
+                    :style="{ width: `${questProgressPercent(quest)}%` }"
+                  ></span>
                 </div>
                 <i class="g-progress__num">{{ questProgress(quest) }}/{{ questTarget(quest) }}</i>
               </div>
@@ -131,13 +169,23 @@
             <h1>补给兑换柜台</h1>
             <p>用金币兑换 SOS团补给，提交后冻结金币并等待管理员审核。</p>
           </div>
-          <RouterLink v-if="session.state.user" class="sos-button sos-button--ghost sos-button--sm" to="/terminal">个人终端 ›</RouterLink>
+          <RouterLink
+            v-if="session.state.user"
+            class="sos-button sos-button--ghost sos-button--sm"
+            to="/terminal"
+            >个人终端 ›</RouterLink
+          >
         </header>
 
         <div class="g-rewards">
-          <article v-for="reward in rewards" :key="reward.id" class="g-reward" :class="{ 'is-locked': !reward.unlocked }">
+          <article
+            v-for="reward in rewards"
+            :key="reward.id"
+            class="g-reward"
+            :class="{ 'is-locked': !reward.unlocked }"
+          >
             <div class="g-reward__visual">
-              <img v-if="reward.imageUrl" :src="reward.imageUrl" :alt="reward.name">
+              <img v-if="reward.imageUrl" :src="reward.imageUrl" :alt="reward.name" />
               <span v-else>{{ reward.rewardType === 'physical' ? '实体补给' : '虚拟补给' }}</span>
             </div>
             <div class="g-reward__copy">
@@ -147,7 +195,9 @@
                 <span class="g-chip g-chip--coin">{{ reward.priceCoins }}G</span>
                 <span class="g-chip">评级 {{ reward.requiredRating }}</span>
                 <span class="g-chip">{{ reward.requiredAccessLabel }}</span>
-                <span v-if="reward.stock !== null && reward.stock !== undefined" class="g-chip">库存 {{ reward.stock }}</span>
+                <span v-if="reward.stock !== null && reward.stock !== undefined" class="g-chip"
+                  >库存 {{ reward.stock }}</span
+                >
               </div>
             </div>
             <button
@@ -187,10 +237,18 @@
             <span class="g-board-current__label">当前排名</span>
             <RouterLink
               class="g-leader g-leader--current"
-              :to="{ name: 'adventurer-profile', params: { uid: currentLeader.uid }, query: { from: 'ranking' } }"
+              :to="{
+                name: 'adventurer-profile',
+                params: { uid: currentLeader.uid },
+                query: { from: 'ranking' },
+              }"
             >
-              <span class="g-leader__no" :data-rank="currentLeader.rank">#{{ currentLeader.rank }}</span>
-              <span class="g-leader__rating" :class="`rating-${currentLeader.rating}`">{{ currentLeader.rating }}</span>
+              <span class="g-leader__no" :data-rank="currentLeader.rank"
+                >#{{ currentLeader.rank }}</span
+              >
+              <span class="g-leader__rating" :class="`rating-${currentLeader.rating}`">{{
+                currentLeader.rating
+              }}</span>
               <span class="g-leader__name">
                 {{ currentLeader.name || currentLeader.uid }}
                 <i v-if="currentLeader.level">Lv{{ currentLeader.level }}</i>
@@ -204,9 +262,15 @@
             :key="item.uid"
             class="g-leader"
             :class="{ 'is-top': index < 3 }"
-            :to="{ name: 'adventurer-profile', params: { uid: item.uid }, query: { from: 'ranking' } }"
+            :to="{
+              name: 'adventurer-profile',
+              params: { uid: item.uid },
+              query: { from: 'ranking' },
+            }"
           >
-            <span class="g-leader__no" :data-rank="item.rank || index + 1">{{ item.rank || index + 1 }}</span>
+            <span class="g-leader__no" :data-rank="item.rank || index + 1">{{
+              item.rank || index + 1
+            }}</span>
             <span class="g-leader__rating" :class="`rating-${item.rating}`">{{ item.rating }}</span>
             <span class="g-leader__name">
               {{ item.name || item.uid }}
@@ -230,24 +294,47 @@
 
         <div v-if="profile.nextRating?.rating" class="g-rating-reqs">
           <div class="g-req">
-            <div class="g-req__head"><span>声望</span><b class="mono">{{ profile.reputation || 0 }} / {{ profile.nextRating.requiredReputation }}</b></div>
-            <div class="g-req__bar"><i :style="{ width: reqPercent(profile.reputation, profile.nextRating.requiredReputation) + '%' }"></i></div>
+            <div class="g-req__head">
+              <span>声望</span
+              ><b class="mono"
+                >{{ profile.reputation || 0 }} / {{ profile.nextRating.requiredReputation }}</b
+              >
+            </div>
+            <div class="g-req__bar">
+              <i
+                :style="{
+                  width:
+                    reqPercent(profile.reputation, profile.nextRating.requiredReputation) + '%',
+                }"
+              ></i>
+            </div>
           </div>
           <div class="g-req">
-            <div class="g-req__head"><span>凉宫个人作品</span><b class="mono">{{ profile.haruhiPersonalCount || 0 }} / {{ profile.nextRating.requiredHaruhiCount }}</b></div>
-            <div class="g-req__bar"><i :style="{ width: reqPercent(profile.haruhiPersonalCount, profile.nextRating.requiredHaruhiCount) + '%' }"></i></div>
+            <div class="g-req__head">
+              <span>凉宫个人作品</span
+              ><b class="mono"
+                >{{ profile.haruhiPersonalCount || 0 }} /
+                {{ profile.nextRating.requiredHaruhiCount }}</b
+              >
+            </div>
+            <div class="g-req__bar">
+              <i
+                :style="{
+                  width:
+                    reqPercent(
+                      profile.haruhiPersonalCount,
+                      profile.nextRating.requiredHaruhiCount
+                    ) + '%',
+                }"
+              ></i>
+            </div>
           </div>
         </div>
 
-        <textarea class="sos-textarea" v-model="ratingNote" placeholder="给管理员的申请说明，可留空"></textarea>
-        <button
-          type="button"
-          class="sos-button sos-button--primary sos-button--lg sos-button--block"
-          :disabled="!canApplyRating || applyingRating"
-          @click="applyRating"
-        >
-          {{ applyButtonText }}
-        </button>
+        <div class="g-feedback">
+          <span class="g-feedback__dot" aria-hidden="true"></span>
+          <span>{{ ratingAuditText }}</span>
+        </div>
       </section>
 
       <!-- 规则书 -->
@@ -283,17 +370,34 @@
     <transition name="g-fade">
       <div v-if="redeemTarget" class="g-modal" @click.self="closeRedeem">
         <article class="g-dialog">
-          <button class="g-dialog__close" type="button" @click="closeRedeem" aria-label="关闭">×</button>
+          <button class="g-dialog__close" type="button" @click="closeRedeem" aria-label="关闭">
+            ×
+          </button>
           <span class="g-dialog__eyebrow">Redeem</span>
           <h2>兑换「{{ redeemTarget.name }}」</h2>
           <p class="g-dialog__lede">
             将冻结 <b>{{ redeemTarget.priceCoins }}G</b>，提交后等待管理员审核通过才正式扣除。
-            <template v-if="redeemTarget.rewardType === 'physical'">实体补给请在备注中填写联系方式 / 领取方式。</template>
+            <template v-if="redeemTarget.rewardType === 'physical'"
+              >实体补给请在备注中填写联系方式 / 领取方式。</template
+            >
           </p>
-          <textarea class="sos-textarea" v-model="redeemNote" placeholder="给管理员的备注（可留空）"></textarea>
+          <textarea
+            class="sos-textarea"
+            v-model="redeemNote"
+            placeholder="给管理员的备注（可留空）"
+          ></textarea>
           <div class="g-dialog__actions">
-            <button type="button" class="sos-button sos-button--ghost" @click="closeRedeem">取消</button>
-            <button type="button" class="sos-button sos-button--primary" :disabled="busyRewardId === redeemTarget.id" @click="confirmRedeem">确认提交</button>
+            <button type="button" class="sos-button sos-button--ghost" @click="closeRedeem">
+              取消
+            </button>
+            <button
+              type="button"
+              class="sos-button sos-button--primary"
+              :disabled="busyRewardId === redeemTarget.id"
+              @click="confirmRedeem"
+            >
+              确认提交
+            </button>
           </div>
         </article>
       </div>
@@ -302,7 +406,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSession } from '@haruhi/auth-ui'
 import { api } from '../services/api.js'
@@ -323,15 +427,15 @@ const profile = ref({
   level: 1,
   reputation: 0,
   accessShortLabel: '',
-  coins: { total: 0, available: 0, frozen: 0 }
+  coins: { total: 0, available: 0, frozen: 0 },
 })
 const feedback = ref('公会柜台待机中。委托进度会由系统根据你的真实画廊行为自动查验。')
-const ratingNote = ref('')
 const GUILD_TAB_IDS = ['quests', 'rewards', 'ranking', 'rating', 'rules']
 const activeTab = ref(normalizeGuildTab(route.query.tab))
 const busyQuestId = ref(null)
 const busyRewardId = ref(null)
-const applyingRating = ref(false)
+const nowTick = ref(Date.now())
+let countdownTimer = null
 
 // 兑换备注弹层（替代原生 window.prompt）
 const redeemTarget = ref(null)
@@ -344,8 +448,8 @@ const ruleBooks = [
     lines: [
       '原积分按 1:1 等量迁移为金币，金币可用于兑换虚拟或实体奖励。',
       '上传作品可以获得金币与声望；浏览、评论、点赞等委托只增加声望。',
-      '兑换会先冻结对应金币，管理员审核通过后正式扣除，拒绝则解除冻结。'
-    ]
+      '兑换会先冻结对应金币，管理员审核通过后正式扣除，拒绝则解除冻结。',
+    ],
   },
   {
     id: 'rating',
@@ -353,8 +457,8 @@ const ruleBooks = [
     lines: [
       '评级从 F 到 X 逐级提升，代表你在画廊中的长期贡献与观测资历。',
       '声望决定冒险者等级，评级提升还需要满足凉宫个人作品数量等条件。',
-      '评级提升后会解锁更困难的委托，困难委托通常给予大量声望。'
-    ]
+      '评级提升后会解锁更困难的委托，困难委托通常给予大量声望。',
+    ],
   },
   {
     id: 'access',
@@ -362,8 +466,8 @@ const ruleBooks = [
     lines: [
       '档案0：公开档案许可，可浏览公开画廊与公会规则。',
       '观测1：观测员许可，可参与日常委托与基础兑换。',
-      '异常2 / 闭锁3：更高阶观测许可，由管理员根据社团需要授予。'
-    ]
+      '异常2 / 闭锁3：更高阶观测许可，由管理员根据社团需要授予。',
+    ],
   },
   {
     id: 'redemption',
@@ -371,9 +475,9 @@ const ruleBooks = [
     lines: [
       '虚拟奖励由管理员审核后在站内或指定渠道发放。',
       '实体奖励需要管理员线下核对信息后发放，页面仅提交兑换申请。',
-      '商品、库存、委托内容和奖励数值都可由管理员后台维护。'
-    ]
-  }
+      '商品、库存、委托内容和奖励数值都可由管理员后台维护。',
+    ],
+  },
 ]
 
 const coinText = computed(() => {
@@ -389,9 +493,13 @@ const guildTabs = computed(() => [
     id: 'rating',
     eyebrow: 'Rank Up',
     label: '评级',
-    summary: profile.value.nextRating?.rating ? `申请 ${profile.value.nextRating.rating}` : '当前'
+    summary: profile.value.pendingRatingApplication?.targetRating
+      ? `待验收 ${profile.value.pendingRatingApplication.targetRating}`
+      : profile.value.nextRating?.rating
+        ? `目标 ${profile.value.nextRating.rating}`
+        : '当前',
   },
-  { id: 'rules', eyebrow: 'Rule Book', label: '规则书', summary: `${ruleBooks.length} 章` }
+  { id: 'rules', eyebrow: 'Rule Book', label: '规则书', summary: `${ruleBooks.length} 章` },
 ])
 
 const questGroups = computed(() => {
@@ -399,7 +507,7 @@ const questGroups = computed(() => {
     { id: 'daily', label: '日常委托', items: [] },
     { id: 'limited', label: '限时委托', items: [] },
     { id: 'hard', label: '困难委托', items: [] },
-    { id: 'unknown', label: '未知委托', items: [] }
+    { id: 'unknown', label: '未知委托', items: [] },
   ]
   for (const quest of quests.value) {
     const type = quest.questType || 'daily'
@@ -409,26 +517,22 @@ const questGroups = computed(() => {
   return groups.filter((group) => group.items.length)
 })
 
-// 修复：后端 next_rating 返回 { rating, requiredReputation, requiredHaruhiCount, available }
-// （旧代码读 next.target / next.eligible 字段名不匹配，导致评级申请永久失效）
-const canApplyRating = computed(() => {
-  const next = profile.value.nextRating
-  return !!session.state.user && !!next?.rating && !!next?.available
-})
-
 const nextRatingText = computed(() => {
-  if (!session.state.user) return '登录后可查看下一评级申请条件。'
+  if (!session.state.user) return '登录后可查看下一评级验收条件。'
   const next = profile.value.nextRating
   if (!next?.rating) return '你已经站在当前规则书的最高评级。'
-  const status = next.available ? '已满足申请条件' : '尚未满足申请条件'
+  const status = next.available ? '已满足验收条件' : '尚未满足验收条件'
   return `下一评级 ${next.rating}：需要 ${next.requiredReputation} 声望 / ${next.requiredHaruhiCount} 张凉宫个人作品，当前${status}。`
 })
 
-const applyButtonText = computed(() => {
-  if (!session.state.user) return '登录后申请'
+const ratingAuditText = computed(() => {
+  if (!session.state.user) return '登录后系统会根据真实档案检测评级资格。'
+  const pending = profile.value.pendingRatingApplication
+  if (pending?.targetRating) return `${pending.targetRating} 评级申请已自动提交，等待管理员验收。`
   const next = profile.value.nextRating
-  if (!next?.rating) return '暂无更高评级'
-  return `申请 ${next.rating} 评级`
+  if (!next?.rating) return '当前评级已经达到最高阶。'
+  if (next.available) return `${next.rating} 评级条件已满足，系统会自动提交验收申请。`
+  return '继续完成委托与投稿，满足条件后会自动进入管理员验收。'
 })
 
 function reqPercent(current, required) {
@@ -453,8 +557,8 @@ function selectGuildTab(tab) {
   router.replace({
     query: {
       ...route.query,
-      tab: next === 'quests' ? undefined : next
-    }
+      tab: next === 'quests' ? undefined : next,
+    },
   })
 }
 
@@ -463,7 +567,7 @@ async function loadGuild() {
     const [questRes, rewardRes, rankRes] = await Promise.all([
       api.guildQuests(),
       api.guildRewards(),
-      api.guildLeaderboard()
+      api.guildLeaderboard(),
     ])
     quests.value = questRes.data || []
     rewards.value = rewardRes.data || []
@@ -488,11 +592,18 @@ async function loadGuild() {
   }
 }
 
-watch(() => route.query.tab, (tab) => {
-  activeTab.value = normalizeGuildTab(tab)
-})
+watch(
+  () => route.query.tab,
+  (tab) => {
+    activeTab.value = normalizeGuildTab(tab)
+  }
+)
 
 function questStatus(quest) {
+  if (questExpired(quest) && questStatusRaw(quest) !== 'completed') return 'expired'
+  return questStatusRaw(quest)
+}
+function questStatusRaw(quest) {
   return quest.claim?.status || (quest.unlocked ? 'ready' : 'locked')
 }
 function questStatusLabel(quest) {
@@ -500,6 +611,7 @@ function questStatusLabel(quest) {
   if (status === 'completed') return '已完成'
   if (status === 'active') return '进行中'
   if (status === 'locked') return '未解锁'
+  if (status === 'expired') return '已截止'
   if (quest.autoClaim) return '自动接取'
   return '可接取'
 }
@@ -515,16 +627,51 @@ function questProgressPercent(quest) {
   return Math.min(100, Math.round((questProgress(quest) / target) * 100))
 }
 function questButtonDisabled(quest) {
-  return !quest.unlocked || questStatus(quest) === 'completed' || (quest.autoClaim && !!session.state.user)
+  return (
+    !quest.unlocked ||
+    ['completed', 'expired'].includes(questStatus(quest)) ||
+    (quest.autoClaim && !!session.state.user)
+  )
 }
 function questButtonLabel(quest) {
   const status = questStatus(quest)
   if (!session.state.user) return quest.autoClaim ? '登录参与' : '登录接取'
   if (!quest.unlocked) return '权限不足'
   if (status === 'completed') return '已结算'
+  if (status === 'expired') return '已截止'
   if (quest.autoClaim) return status === 'active' ? '自动进行' : '自动接取'
   if (status === 'active') return `${questProgress(quest)}/${questTarget(quest)}`
   return '接取委托'
+}
+
+function questDeadlineAt(quest) {
+  const raw = quest.deadlineAt || quest.cycleEndAt
+  if (!raw) return null
+  const date = new Date(raw)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function questExpired(quest) {
+  const deadline = questDeadlineAt(quest)
+  return !!deadline && deadline.getTime() <= nowTick.value
+}
+
+function questDeadlineText(quest) {
+  const deadline = questDeadlineAt(quest)
+  if (!deadline) return ''
+  const delta = deadline.getTime() - nowTick.value
+  if (delta <= 0) return '已截止'
+  return `距截止 ${formatRemaining(delta)}`
+}
+
+function formatRemaining(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000))
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  if (days > 0) return `${days}天${hours}小时`
+  if (hours > 0) return `${hours}小时${minutes}分`
+  return `${minutes}分`
 }
 
 function conditionLabel(kind) {
@@ -535,7 +682,7 @@ function conditionLabel(kind) {
     upload_personal_haruhi: '上传凉宫个人作品',
     upload_personal_any: '上传个人作品',
     upload_network: '提交转载资料',
-    manual_admin_verify: '等待管理员验收'
+    manual_admin_verify: '等待管理员验收',
   }
   return map[kind] || '完成公会指定动作'
 }
@@ -543,7 +690,7 @@ function conditionLabel(kind) {
 async function claimQuest(quest) {
   if (!requireLogin()) return
   if (quest.autoClaim) return
-  if (!quest.unlocked || questStatus(quest) === 'completed') return
+  if (!quest.unlocked || ['completed', 'expired'].includes(questStatus(quest))) return
 
   busyQuestId.value = quest.id
   try {
@@ -554,24 +701,6 @@ async function claimQuest(quest) {
     feedback.value = error.message || '接取委托失败'
   } finally {
     busyQuestId.value = null
-  }
-}
-
-async function applyRating() {
-  if (!requireLogin() || !canApplyRating.value) return
-  applyingRating.value = true
-  try {
-    await api.guildApplyRating({
-      targetRating: profile.value.nextRating.rating,
-      note: ratingNote.value
-    })
-    ratingNote.value = ''
-    feedback.value = `已提交 ${profile.value.nextRating.rating} 评级申请，等待管理员审核。`
-    await loadGuild()
-  } catch (error) {
-    feedback.value = error.message || '评级申请失败'
-  } finally {
-    applyingRating.value = false
   }
 }
 
@@ -606,7 +735,7 @@ function redemptionLabel(status) {
     approved: '已批准',
     rejected: '已拒绝',
     cancelled: '已取消',
-    fulfilled: '已发放'
+    fulfilled: '已发放',
   }
   return map[status] || status
 }
@@ -623,35 +752,160 @@ function applyMock() {
     accessTier: 'observer_clearance',
     haruhiPersonalCount: 3,
     coins: { total: 1880, available: 1720, frozen: 160 },
-    nextRating: { rating: 'C', requiredReputation: 800, requiredHaruhiCount: 4, available: false }
+    nextRating: { rating: 'C', requiredReputation: 800, requiredHaruhiCount: 4, available: false },
+    pendingRatingApplication: null,
   }
   quests.value = [
-    { id: 1, title: '每日观测：浏览 3 个画廊作品', description: '接取后浏览任意 3 个公开画廊作品。', questType: 'daily', difficulty: 'normal', requiredRating: 'F', requiredAccessLabel: '1级观测员许可', conditionKind: 'browse_artworks', targetCount: 3, rewardReputation: 15, rewardCoins: 0, deadlineHours: null, autoClaim: true, unlocked: true, claim: { status: 'active', progress: 2, targetCount: 3 } },
-    { id: 2, title: '每日回声：评论 1 个作品', description: '接取后在任意作品详情留下 1 条评论。', questType: 'daily', difficulty: 'normal', requiredRating: 'F', requiredAccessLabel: '1级观测员许可', conditionKind: 'comment_artworks', targetCount: 1, rewardReputation: 20, rewardCoins: 0, deadlineHours: null, autoClaim: true, unlocked: true, claim: null },
-    { id: 3, title: 'SOS团特别委托：上传凉宫作品', description: '接取后投稿并通过审核 1 张凉宫个人作品。', questType: 'hard', difficulty: 'hard', requiredRating: 'E', requiredAccessLabel: '1级观测员许可', conditionKind: 'upload_personal_haruhi', targetCount: 1, rewardReputation: 180, rewardCoins: 30, deadlineHours: 72, autoClaim: false, unlocked: true, claim: null }
+    {
+      id: 1,
+      title: '每日观测：浏览 3 个画廊作品',
+      description: '接取后浏览任意 3 个公开画廊作品。',
+      questType: 'daily',
+      difficulty: 'normal',
+      requiredRating: 'F',
+      requiredAccessLabel: '1级观测员许可',
+      conditionKind: 'browse_artworks',
+      targetCount: 3,
+      rewardReputation: 15,
+      rewardCoins: 0,
+      deadlineDays: null,
+      cycleDays: 1,
+      cycleResetHour: 4,
+      deadlineAt: mockDeadline(10),
+      autoClaim: true,
+      unlocked: true,
+      claim: { status: 'active', progress: 2, targetCount: 3 },
+    },
+    {
+      id: 2,
+      title: '每日回声：评论 1 个作品',
+      description: '接取后在任意作品详情留下 1 条评论。',
+      questType: 'daily',
+      difficulty: 'normal',
+      requiredRating: 'F',
+      requiredAccessLabel: '1级观测员许可',
+      conditionKind: 'comment_artworks',
+      targetCount: 1,
+      rewardReputation: 20,
+      rewardCoins: 0,
+      deadlineDays: null,
+      cycleDays: 1,
+      cycleResetHour: 4,
+      deadlineAt: mockDeadline(10),
+      autoClaim: true,
+      unlocked: true,
+      claim: null,
+    },
+    {
+      id: 3,
+      title: 'SOS团特别委托：上传凉宫作品',
+      description: '接取后投稿并通过审核 1 张凉宫个人作品。',
+      questType: 'limited',
+      difficulty: 'hard',
+      requiredRating: 'E',
+      requiredAccessLabel: '1级观测员许可',
+      conditionKind: 'upload_personal_haruhi',
+      targetCount: 1,
+      rewardReputation: 180,
+      rewardCoins: 30,
+      deadlineDays: 3,
+      fixedDeadlineAt: '',
+      repeatOnComplete: true,
+      deadlineAt: mockDeadline(72),
+      autoClaim: false,
+      unlocked: true,
+      claim: null,
+    },
   ]
   rewards.value = [
-    { id: 1, name: 'SOS团电子徽章', description: '个人主页展示用的虚拟徽章。', rewardType: 'virtual', priceCoins: 80, stock: null, requiredRating: 'F', requiredAccessLabel: '1级观测员许可', imageUrl: '', unlocked: true },
-    { id: 2, name: '画廊应援明信片', description: '实体奖励，需在备注中填写联系方式或领取方式。', rewardType: 'physical', priceCoins: 300, stock: 20, requiredRating: 'E', requiredAccessLabel: '1级观测员许可', imageUrl: '', unlocked: true }
+    {
+      id: 1,
+      name: 'SOS团电子徽章',
+      description: '个人主页展示用的虚拟徽章。',
+      rewardType: 'virtual',
+      priceCoins: 80,
+      stock: null,
+      requiredRating: 'F',
+      requiredAccessLabel: '1级观测员许可',
+      imageUrl: '',
+      unlocked: true,
+    },
+    {
+      id: 2,
+      name: '画廊应援明信片',
+      description: '实体奖励，需在备注中填写联系方式或领取方式。',
+      rewardType: 'physical',
+      priceCoins: 300,
+      stock: 20,
+      requiredRating: 'E',
+      requiredAccessLabel: '1级观测员许可',
+      imageUrl: '',
+      unlocked: true,
+    },
   ]
   leaderboard.value = [
-    { uid: '橙海', name: '橙海', rank: 1, rating: 'A', coins: 1880, level: 19, reputation: 1880, avatar_url: '' },
-    { uid: 'Mizuhasi', name: 'Mizuhasi', rank: 2, rating: 'B', coins: 1570, level: 16, reputation: 1570, avatar_url: '' },
-    { uid: 'u12', name: 'Kyon', rank: 3, rating: 'D', coins: 1720, level: 8, reputation: 760, avatar_url: '' }
+    {
+      uid: '橙海',
+      name: '橙海',
+      rank: 1,
+      rating: 'A',
+      coins: 1880,
+      level: 19,
+      reputation: 1880,
+      avatar_url: '',
+    },
+    {
+      uid: 'Mizuhasi',
+      name: 'Mizuhasi',
+      rank: 2,
+      rating: 'B',
+      coins: 1570,
+      level: 16,
+      reputation: 1570,
+      avatar_url: '',
+    },
+    {
+      uid: 'u12',
+      name: 'Kyon',
+      rank: 3,
+      rating: 'D',
+      coins: 1720,
+      level: 8,
+      reputation: 760,
+      avatar_url: '',
+    },
   ]
-  currentLeader.value = { uid: 'u12', name: 'Kyon', rank: 3, rating: 'D', coins: 1720, level: 8, reputation: 760, avatar_url: '' }
-  redemptions.value = [
-    { id: 1, rewardName: 'SOS团电子徽章', status: 'pending' }
-  ]
+  currentLeader.value = {
+    uid: 'u12',
+    name: 'Kyon',
+    rank: 3,
+    rating: 'D',
+    coins: 1720,
+    level: 8,
+    reputation: 760,
+    avatar_url: '',
+  }
+  redemptions.value = [{ id: 1, rewardName: 'SOS团电子徽章', status: 'pending' }]
+}
+
+function mockDeadline(hours) {
+  return new Date(Date.now() + hours * 3600 * 1000).toISOString()
 }
 
 onMounted(async () => {
+  countdownTimer = window.setInterval(() => {
+    nowTick.value = Date.now()
+  }, 30000)
   if (!session.state.ready) {
     try {
       await session.refresh()
     } catch {}
   }
   await loadGuild()
+})
+
+onUnmounted(() => {
+  if (countdownTimer) window.clearInterval(countdownTimer)
 })
 </script>
 
@@ -682,10 +936,17 @@ onMounted(async () => {
   gap: var(--sos-space-4, 16px);
   color: var(--g-text);
 }
-.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
 
 /* ============ 左栏 指挥台 ============ */
-.g-deck { position: sticky; top: var(--sos-space-3, 12px); }
+.g-deck {
+  position: sticky;
+  top: var(--sos-space-3, 12px);
+}
 .g-deck__inner {
   display: flex;
   flex-direction: column;
@@ -694,10 +955,16 @@ onMounted(async () => {
   border-radius: 22px;
   color: var(--deck-text);
   background:
-    radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--deck-accent) 22%, transparent), transparent 60%),
+    radial-gradient(
+      120% 80% at 100% 0%,
+      color-mix(in srgb, var(--deck-accent) 22%, transparent),
+      transparent 60%
+    ),
     linear-gradient(165deg, var(--deck-2), var(--deck-1));
   border: 1px solid var(--deck-line);
-  box-shadow: 0 30px 60px -34px rgba(4, 32, 28, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 30px 60px -34px rgba(4, 32, 28, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   overflow: hidden;
 }
 .g-deck__inner::before {
@@ -707,14 +974,20 @@ onMounted(async () => {
   inset: 0;
   background-image:
     linear-gradient(color-mix(in srgb, var(--deck-accent) 8%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--deck-accent) 8%, transparent) 1px, transparent 1px);
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--deck-accent) 8%, transparent) 1px,
+      transparent 1px
+    );
   background-size: 26px 26px;
   -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, #000, transparent 75%);
   mask-image: radial-gradient(120% 90% at 50% 0%, #000, transparent 75%);
   opacity: 0.4;
   pointer-events: none;
 }
-.g-deck__inner > * { position: relative; }
+.g-deck__inner > * {
+  position: relative;
+}
 
 .g-deck__brand {
   margin: 0;
@@ -736,7 +1009,11 @@ onMounted(async () => {
 }
 
 /* 评级徽章 */
-.g-crest { display: flex; align-items: center; gap: 14px; }
+.g-crest {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
 .g-crest__badge {
   position: relative;
   display: grid;
@@ -745,9 +1022,15 @@ onMounted(async () => {
   height: 70px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--deck-accent) 34%, transparent), color-mix(in srgb, var(--deck-accent) 8%, transparent));
+  background: radial-gradient(
+    circle at 50% 35%,
+    color-mix(in srgb, var(--deck-accent) 34%, transparent),
+    color-mix(in srgb, var(--deck-accent) 8%, transparent)
+  );
   border: 1px solid color-mix(in srgb, var(--deck-accent) 50%, transparent);
-  box-shadow: inset 0 1px 6px color-mix(in srgb, var(--deck-accent) 30%, transparent), 0 0 24px -6px color-mix(in srgb, var(--deck-accent) 50%, transparent);
+  box-shadow:
+    inset 0 1px 6px color-mix(in srgb, var(--deck-accent) 30%, transparent),
+    0 0 24px -6px color-mix(in srgb, var(--deck-accent) 50%, transparent);
 }
 .g-crest__badge strong {
   font-size: 32px;
@@ -763,20 +1046,71 @@ onMounted(async () => {
   border: 1.5px dashed color-mix(in srgb, var(--deck-accent) 55%, transparent);
   animation: g-spin 26s linear infinite;
 }
-@keyframes g-spin { to { transform: rotate(360deg); } }
-.g-crest__meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.g-crest__eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--deck-muted); }
-.g-crest__meta b { font-size: 17px; font-weight: 800; }
+@keyframes g-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.g-crest__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.g-crest__eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--deck-muted);
+}
+.g-crest__meta b {
+  font-size: 17px;
+  font-weight: 800;
+}
 .g-crest.rating-S .g-crest__badge strong,
 .g-crest.rating-X .g-crest__badge strong,
-.g-crest.rating-A .g-crest__badge strong { color: hsl(44, 96%, 66%); text-shadow: 0 0 14px hsl(42, 92%, 52%); }
+.g-crest.rating-A .g-crest__badge strong {
+  color: hsl(44, 96%, 66%);
+  text-shadow: 0 0 14px hsl(42, 92%, 52%);
+}
 
 /* 下一评级进度 */
-.g-nextrank { display: flex; flex-direction: column; gap: 7px; }
-.g-nextrank__head { display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--deck-muted); }
-.g-nextrank__head b { color: var(--deck-accent); font-family: var(--mono); font-size: 12px; }
-.g-nextrank__bar { height: 6px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, #000 28%, transparent); }
-.g-nextrank__bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--deck-accent), color-mix(in srgb, var(--deck-accent) 50%, #bef7e7)); box-shadow: 0 0 12px -2px var(--deck-accent); transition: width 0.5s ease; }
+.g-nextrank {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.g-nextrank__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--deck-muted);
+}
+.g-nextrank__head b {
+  color: var(--deck-accent);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.g-nextrank__bar {
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, #000 28%, transparent);
+}
+.g-nextrank__bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--deck-accent),
+    color-mix(in srgb, var(--deck-accent) 50%, #bef7e7)
+  );
+  box-shadow: 0 0 12px -2px var(--deck-accent);
+  transition: width 0.5s ease;
+}
 
 /* 状态台账 */
 .g-ledger {
@@ -787,16 +1121,48 @@ onMounted(async () => {
   border-top: 1px solid var(--deck-line);
   border-bottom: 1px solid var(--deck-line);
 }
-.g-ledger__row, .g-ledger__sub { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 7px 0; }
-.g-ledger__row + .g-ledger__row { border-top: 1px dashed color-mix(in srgb, var(--deck-line) 60%, transparent); }
-.g-ledger dt { font-size: 12.5px; color: var(--deck-muted); font-weight: 600; }
-.g-ledger dd { margin: 0; font-size: 15px; font-weight: 800; color: var(--deck-text); }
-.g-ledger__row--coin dd { color: var(--deck-accent); font-size: 17px; }
-.g-ledger__sub { padding: 2px 0 7px; }
-.g-ledger__sub dt, .g-ledger__sub dd { font-size: 11.5px; color: var(--deck-muted); font-weight: 600; }
+.g-ledger__row,
+.g-ledger__sub {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+}
+.g-ledger__row + .g-ledger__row {
+  border-top: 1px dashed color-mix(in srgb, var(--deck-line) 60%, transparent);
+}
+.g-ledger dt {
+  font-size: 12.5px;
+  color: var(--deck-muted);
+  font-weight: 600;
+}
+.g-ledger dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--deck-text);
+}
+.g-ledger__row--coin dd {
+  color: var(--deck-accent);
+  font-size: 17px;
+}
+.g-ledger__sub {
+  padding: 2px 0 7px;
+}
+.g-ledger__sub dt,
+.g-ledger__sub dd {
+  font-size: 11.5px;
+  color: var(--deck-muted);
+  font-weight: 600;
+}
 
 /* 垂直导航 */
-.g-nav { display: flex; flex-direction: column; gap: 4px; }
+.g-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .g-nav__item {
   position: relative;
   display: flex;
@@ -809,32 +1175,101 @@ onMounted(async () => {
   color: var(--deck-muted);
   cursor: pointer;
   text-align: left;
-  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  transition:
+    background 0.18s,
+    color 0.18s,
+    border-color 0.18s;
 }
-.g-nav__bar { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 0; border-radius: 2px; background: var(--deck-accent); transition: height 0.2s; }
-.g-nav__label { flex: 1; font-size: 15px; font-weight: 700; color: inherit; }
-.g-nav__count { font-size: 11.5px; font-weight: 700; font-family: var(--mono); color: var(--deck-muted); }
-.g-nav__item:hover { background: color-mix(in srgb, #fff 7%, transparent); color: var(--deck-text); }
+.g-nav__bar {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  border-radius: 2px;
+  background: var(--deck-accent);
+  transition: height 0.2s;
+}
+.g-nav__label {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: inherit;
+}
+.g-nav__count {
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--deck-muted);
+}
+.g-nav__item:hover {
+  background: color-mix(in srgb, #fff 7%, transparent);
+  color: var(--deck-text);
+}
 .g-nav__item.is-active {
   background: color-mix(in srgb, var(--deck-accent) 16%, transparent);
   border-color: color-mix(in srgb, var(--deck-accent) 38%, transparent);
   color: var(--deck-text);
 }
-.g-nav__item.is-active .g-nav__bar { height: 60%; }
-.g-nav__item.is-active .g-nav__count { color: var(--deck-accent); }
+.g-nav__item.is-active .g-nav__bar {
+  height: 60%;
+}
+.g-nav__item.is-active .g-nav__count {
+  color: var(--deck-accent);
+}
 
 /* 规则书章节卡（右栏） */
-.g-rules-grid { display: grid; grid-template-columns: 1fr; gap: var(--sos-space-3); }
-@media (min-width: 760px) { .g-rules-grid { grid-template-columns: 1fr 1fr; } }
-.g-rulecard {
-  display: flex; flex-direction: column; gap: 12px; padding: 18px;
-  border-radius: 15px; border: 1px solid var(--g-line); background: color-mix(in srgb, #ffffff 54%, transparent);
+.g-rules-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sos-space-3);
 }
-.g-rulecard__head { display: flex; align-items: baseline; gap: 11px; padding-bottom: 11px; border-bottom: 1px solid var(--g-line); }
-.g-rulecard__no { font-family: var(--mono); font-size: 22px; font-weight: 800; line-height: 1; color: color-mix(in srgb, var(--g-accent) 44%, transparent); }
-.g-rulecard__head h3 { margin: 0; font-size: 16px; font-weight: 800; }
-.g-rulecard ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 9px; }
-.g-rulecard li { font-size: 13px; line-height: 1.6; color: var(--g-muted); }
+@media (min-width: 760px) {
+  .g-rules-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.g-rulecard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 15px;
+  border: 1px solid var(--g-line);
+  background: color-mix(in srgb, #ffffff 54%, transparent);
+}
+.g-rulecard__head {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--g-line);
+}
+.g-rulecard__no {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  color: color-mix(in srgb, var(--g-accent) 44%, transparent);
+}
+.g-rulecard__head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+.g-rulecard ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.g-rulecard li {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--g-muted);
+}
 
 /* ============ 右栏 终端 ============ */
 .g-stage {
@@ -853,7 +1288,9 @@ onMounted(async () => {
   background: color-mix(in srgb, #ffffff 70%, transparent);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
-  box-shadow: 0 22px 48px -32px rgba(16, 60, 56, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 22px 48px -32px rgba(16, 60, 56, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 .g-view__head {
   display: flex;
@@ -863,16 +1300,58 @@ onMounted(async () => {
   padding-bottom: var(--sos-space-2);
   border-bottom: 1px solid var(--g-line);
 }
-.g-view__eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--g-accent-strong); }
-.g-view__head h1 { margin: 5px 0 4px; font-size: clamp(20px, 2.6vw, 27px); font-weight: 850; letter-spacing: -0.01em; }
-.g-view__head p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--g-muted); max-width: 52ch; }
-.g-empty { padding: 36px; text-align: center; color: var(--g-muted); font-weight: 600; }
+.g-view__eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--g-accent-strong);
+}
+.g-view__head h1 {
+  margin: 5px 0 4px;
+  font-size: clamp(20px, 2.6vw, 27px);
+  font-weight: 850;
+  letter-spacing: -0.01em;
+}
+.g-view__head p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--g-muted);
+  max-width: 52ch;
+}
+.g-empty {
+  padding: 36px;
+  text-align: center;
+  color: var(--g-muted);
+  font-weight: 600;
+}
 
 /* 委托 */
-.g-questgroup { display: flex; flex-direction: column; gap: 10px; }
-.g-questgroup__title { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 800; color: var(--g-muted); letter-spacing: 0.05em; }
-.g-questgroup__title::before { content: ''; width: 4px; height: 14px; border-radius: 2px; background: var(--g-accent); }
-.g-questgroup__title b { color: var(--g-accent-strong); }
+.g-questgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.g-questgroup__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--g-muted);
+  letter-spacing: 0.05em;
+}
+.g-questgroup__title::before {
+  content: '';
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--g-accent);
+}
+.g-questgroup__title b {
+  color: var(--g-accent-strong);
+}
 
 .g-quest {
   display: grid;
@@ -883,61 +1362,244 @@ onMounted(async () => {
   border-radius: 15px;
   border: 1px solid var(--g-line);
   background: color-mix(in srgb, #ffffff 54%, transparent);
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
 }
-.g-quest:hover { transform: translateY(-1px); box-shadow: 0 16px 30px -22px rgba(16, 60, 56, 0.5); border-color: color-mix(in srgb, var(--g-accent) 32%, transparent); }
-.g-quest.is-locked { opacity: 0.62; }
-.g-quest.is-done { border-color: color-mix(in srgb, var(--g-accent) 42%, transparent); background: color-mix(in srgb, var(--g-accent) 8%, #ffffff); }
-.g-quest__body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.g-quest__top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.g-quest__top h3 { margin: 0; font-size: 15.5px; font-weight: 800; }
-.g-quest__status { font-size: 10.5px; font-weight: 800; padding: 2px 9px; border-radius: 999px; color: var(--g-muted); background: color-mix(in srgb, #000 6%, transparent); }
-.g-quest__status.active { color: var(--g-accent-strong); background: color-mix(in srgb, var(--g-accent) 14%, transparent); }
-.g-quest__status.completed { color: #fff; background: var(--g-accent); }
-.g-quest__status.locked { color: color-mix(in srgb, #b4690e 80%, #000); background: color-mix(in srgb, hsl(35, 90%, 55%) 16%, transparent); }
-.g-quest__body p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--g-muted); }
+.g-quest:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px -22px rgba(16, 60, 56, 0.5);
+  border-color: color-mix(in srgb, var(--g-accent) 32%, transparent);
+}
+.g-quest.is-locked {
+  opacity: 0.62;
+}
+.g-quest.is-done {
+  border-color: color-mix(in srgb, var(--g-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--g-accent) 8%, #ffffff);
+}
+.g-quest__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.g-quest__top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.g-quest__top h3 {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 800;
+}
+.g-quest__status {
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 9px;
+  border-radius: 999px;
+  color: var(--g-muted);
+  background: color-mix(in srgb, #000 6%, transparent);
+}
+.g-quest__status.active {
+  color: var(--g-accent-strong);
+  background: color-mix(in srgb, var(--g-accent) 14%, transparent);
+}
+.g-quest__status.completed {
+  color: #fff;
+  background: var(--g-accent);
+}
+.g-quest__status.locked {
+  color: color-mix(in srgb, #b4690e 80%, #000);
+  background: color-mix(in srgb, hsl(35, 90%, 55%) 16%, transparent);
+}
+.g-quest__status.expired {
+  color: color-mix(in srgb, #d2453a 82%, #000);
+  background: color-mix(in srgb, #ef5350 14%, transparent);
+}
+.g-quest__body p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--g-muted);
+}
 
-.g-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.g-chip { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 8px; color: var(--g-muted); background: color-mix(in srgb, #000 5%, transparent); }
-.g-chip--rep { color: var(--g-accent-strong); background: color-mix(in srgb, var(--g-accent) 13%, transparent); }
-.g-chip--coin { color: color-mix(in srgb, var(--g-gold) 72%, #5a3a08); background: color-mix(in srgb, var(--g-gold) 16%, transparent); }
-.g-chip--time { color: color-mix(in srgb, #d2453a 80%, #000); background: color-mix(in srgb, #ef5350 14%, transparent); }
+.g-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.g-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 8px;
+  color: var(--g-muted);
+  background: color-mix(in srgb, #000 5%, transparent);
+}
+.g-chip--rep {
+  color: var(--g-accent-strong);
+  background: color-mix(in srgb, var(--g-accent) 13%, transparent);
+}
+.g-chip--coin {
+  color: color-mix(in srgb, var(--g-gold) 72%, #5a3a08);
+  background: color-mix(in srgb, var(--g-gold) 16%, transparent);
+}
+.g-chip--time {
+  color: color-mix(in srgb, #d2453a 80%, #000);
+  background: color-mix(in srgb, #ef5350 14%, transparent);
+}
 
-.g-progress { display: flex; align-items: center; gap: 10px; margin-top: 2px; }
-.g-progress__track { position: relative; flex: 1; height: 8px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, #000 8%, transparent); }
-.g-progress__fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, var(--g-accent), color-mix(in srgb, var(--g-accent) 60%, #7bf0d8)); transition: width 0.4s ease; }
-.g-progress__num { flex-shrink: 0; min-width: 34px; text-align: right; font-size: 11px; font-weight: 800; color: var(--g-muted); font-family: var(--mono); }
+.g-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+.g-progress__track {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, #000 8%, transparent);
+}
+.g-progress__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--g-accent),
+    color-mix(in srgb, var(--g-accent) 60%, #7bf0d8)
+  );
+  transition: width 0.4s ease;
+}
+.g-progress__num {
+  flex-shrink: 0;
+  min-width: 34px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--g-muted);
+  font-family: var(--mono);
+}
 
 /* 兑换 */
-.g-rewards { display: grid; grid-template-columns: 1fr; gap: var(--sos-space-3); }
-@media (min-width: 780px) { .g-rewards { grid-template-columns: 1fr 1fr; } }
-.g-reward {
-  display: flex; flex-direction: column; gap: 12px; padding: 15px;
-  border-radius: 15px; border: 1px solid var(--g-line); background: color-mix(in srgb, #ffffff 54%, transparent);
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+.g-rewards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sos-space-3);
 }
-.g-reward:hover { transform: translateY(-2px); box-shadow: 0 18px 34px -24px rgba(16, 60, 56, 0.5); border-color: color-mix(in srgb, var(--g-accent) 30%, transparent); }
-.g-reward.is-locked { opacity: 0.6; }
+@media (min-width: 780px) {
+  .g-rewards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.g-reward {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 15px;
+  border-radius: 15px;
+  border: 1px solid var(--g-line);
+  background: color-mix(in srgb, #ffffff 54%, transparent);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+.g-reward:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px -24px rgba(16, 60, 56, 0.5);
+  border-color: color-mix(in srgb, var(--g-accent) 30%, transparent);
+}
+.g-reward.is-locked {
+  opacity: 0.6;
+}
 .g-reward__visual {
-  display: grid; place-items: center; aspect-ratio: 16/9; border-radius: 11px; overflow: hidden;
-  color: var(--g-accent-strong); font-weight: 800; font-size: 13.5px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--g-accent) 14%, #ffffff), color-mix(in srgb, var(--g-accent) 4%, #ffffff));
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16/9;
+  border-radius: 11px;
+  overflow: hidden;
+  color: var(--g-accent-strong);
+  font-weight: 800;
+  font-size: 13.5px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--g-accent) 14%, #ffffff),
+    color-mix(in srgb, var(--g-accent) 4%, #ffffff)
+  );
   border: 1px solid color-mix(in srgb, var(--g-accent) 18%, transparent);
 }
-.g-reward__visual img { width: 100%; height: 100%; object-fit: cover; }
-.g-reward__copy { display: flex; flex-direction: column; gap: 6px; flex: 1; }
-.g-reward__copy h3 { margin: 0; font-size: 15.5px; font-weight: 800; }
-.g-reward__copy p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--g-muted); }
+.g-reward__visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.g-reward__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+.g-reward__copy h3 {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 800;
+}
+.g-reward__copy p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--g-muted);
+}
 
-.g-redemptions { margin-top: 2px; padding: 13px 16px; border-radius: 13px; background: color-mix(in srgb, var(--g-accent) 7%, transparent); border: 1px solid color-mix(in srgb, var(--g-accent) 16%, transparent); }
-.g-redemptions__title { font-size: 12px; font-weight: 800; color: var(--g-accent-strong); }
-.g-redemptions__list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.g-redemptions__list b { font-size: 12px; font-weight: 700; padding: 4px 11px; border-radius: 999px; background: color-mix(in srgb, #ffffff 70%, transparent); color: var(--g-text); }
-.g-redemptions__list b.st-approved, .g-redemptions__list b.st-fulfilled { color: var(--g-accent-strong); }
-.g-redemptions__list b.st-rejected, .g-redemptions__list b.st-cancelled { color: color-mix(in srgb, #d2453a 80%, #000); }
+.g-redemptions {
+  margin-top: 2px;
+  padding: 13px 16px;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--g-accent) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--g-accent) 16%, transparent);
+}
+.g-redemptions__title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--g-accent-strong);
+}
+.g-redemptions__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.g-redemptions__list b {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #ffffff 70%, transparent);
+  color: var(--g-text);
+}
+.g-redemptions__list b.st-approved,
+.g-redemptions__list b.st-fulfilled {
+  color: var(--g-accent-strong);
+}
+.g-redemptions__list b.st-rejected,
+.g-redemptions__list b.st-cancelled {
+  color: color-mix(in srgb, #d2453a 80%, #000);
+}
 
 /* 排行 */
-.g-board { display: flex; flex-direction: column; gap: 8px; }
+.g-board {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .g-board-current {
   display: flex;
   flex-direction: column;
@@ -965,62 +1627,234 @@ onMounted(async () => {
   content: '';
 }
 .g-leader {
-  display: grid; grid-template-columns: 38px 38px minmax(0, 1fr) auto; align-items: center; gap: var(--sos-space-3);
-  padding: 11px 16px; border-radius: 13px; border: 1px solid transparent;
-  background: color-mix(in srgb, #ffffff 48%, transparent); color: inherit; text-decoration: none;
-  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+  display: grid;
+  grid-template-columns: 38px 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sos-space-3);
+  padding: 11px 16px;
+  border-radius: 13px;
+  border: 1px solid transparent;
+  background: color-mix(in srgb, #ffffff 48%, transparent);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    transform 0.2s;
 }
 .g-leader--current {
   border-color: color-mix(in srgb, var(--g-accent) 34%, transparent);
   background: color-mix(in srgb, var(--g-accent) 11%, #ffffff);
 }
-.g-leader:hover { background: color-mix(in srgb, #ffffff 80%, transparent); transform: translateX(2px); border-color: color-mix(in srgb, var(--g-accent) 26%, transparent); }
-.g-leader__no { font-size: 16px; font-weight: 850; color: var(--g-muted); text-align: center; font-family: var(--mono); }
-.g-leader--current .g-leader__no { color: var(--g-accent-strong); }
-.g-leader.is-top .g-leader__no { color: var(--g-gold); }
-.g-leader__rating { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; font-size: 14px; font-weight: 900; color: #fff; background: var(--g-accent); }
-.g-leader__rating.rating-S, .g-leader__rating.rating-X, .g-leader__rating.rating-A { background: var(--g-gold); color: #3a2606; }
-.g-leader__name { font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.g-leader__name i { font-style: normal; font-size: 11px; font-weight: 700; color: var(--g-muted); margin-left: 8px; }
-.g-leader b { font-weight: 850; color: var(--g-accent-strong); }
+.g-leader:hover {
+  background: color-mix(in srgb, #ffffff 80%, transparent);
+  transform: translateX(2px);
+  border-color: color-mix(in srgb, var(--g-accent) 26%, transparent);
+}
+.g-leader__no {
+  font-size: 16px;
+  font-weight: 850;
+  color: var(--g-muted);
+  text-align: center;
+  font-family: var(--mono);
+}
+.g-leader--current .g-leader__no {
+  color: var(--g-accent-strong);
+}
+.g-leader.is-top .g-leader__no {
+  color: var(--g-gold);
+}
+.g-leader__rating {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #fff;
+  background: var(--g-accent);
+}
+.g-leader__rating.rating-S,
+.g-leader__rating.rating-X,
+.g-leader__rating.rating-A {
+  background: var(--g-gold);
+  color: #3a2606;
+}
+.g-leader__name {
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.g-leader__name i {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--g-muted);
+  margin-left: 8px;
+}
+.g-leader b {
+  font-weight: 850;
+  color: var(--g-accent-strong);
+}
 
 /* 评级 */
-.g-rating-reqs { display: grid; gap: 14px; padding: 16px; border-radius: 13px; background: color-mix(in srgb, var(--g-accent) 6%, transparent); }
-.g-req__head { display: flex; align-items: baseline; justify-content: space-between; font-size: 12.5px; font-weight: 700; margin-bottom: 6px; }
-.g-req__head b { color: var(--g-accent-strong); }
-.g-req__bar { height: 8px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, #000 8%, transparent); }
-.g-req__bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--g-accent), color-mix(in srgb, var(--g-accent) 60%, #7bf0d8)); transition: width 0.5s ease; }
+.g-rating-reqs {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--g-accent) 6%, transparent);
+}
+.g-req__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.g-req__head b {
+  color: var(--g-accent-strong);
+}
+.g-req__bar {
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, #000 8%, transparent);
+}
+.g-req__bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--g-accent),
+    color-mix(in srgb, var(--g-accent) 60%, #7bf0d8)
+  );
+  transition: width 0.5s ease;
+}
 
 /* feedback */
 .g-feedback {
-  display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 14px;
-  font-size: 13px; font-weight: 600; color: var(--g-muted);
-  border: 1px solid var(--g-line); background: color-mix(in srgb, #ffffff 50%, transparent);
-  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--g-muted);
+  border: 1px solid var(--g-line);
+  background: color-mix(in srgb, #ffffff 50%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
-.g-feedback__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--g-accent) 20%, transparent); flex-shrink: 0; }
+.g-feedback__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--g-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--g-accent) 20%, transparent);
+  flex-shrink: 0;
+}
 
 /* 弹窗 */
-.g-modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 20px; background: color-mix(in srgb, #06201d 56%, transparent); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
-.g-dialog { position: relative; width: min(480px, 100%); max-height: 86vh; overflow: auto; padding: clamp(22px, 3vw, 30px); border-radius: 20px; border: 1px solid var(--g-line); background: #fff; box-shadow: 0 40px 80px -30px rgba(8, 40, 36, 0.5); }
-.g-dialog__close { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border: none; border-radius: 50%; background: color-mix(in srgb, #000 6%, transparent); font-size: 18px; line-height: 1; cursor: pointer; color: var(--g-muted); }
-.g-dialog__close:hover { background: color-mix(in srgb, #000 12%, transparent); }
-.g-dialog__eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--g-accent-strong); }
-.g-dialog h2 { margin: 6px 0 14px; font-size: 21px; font-weight: 850; }
-.g-dialog__lede { margin: 0 0 14px; font-size: 13.5px; line-height: 1.7; color: var(--g-muted); }
-.g-dialog__lede b { color: var(--g-accent-strong); }
-.g-dialog__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+.g-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, #06201d 56%, transparent);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.g-dialog {
+  position: relative;
+  width: min(480px, 100%);
+  max-height: 86vh;
+  overflow: auto;
+  padding: clamp(22px, 3vw, 30px);
+  border-radius: 20px;
+  border: 1px solid var(--g-line);
+  background: #fff;
+  box-shadow: 0 40px 80px -30px rgba(8, 40, 36, 0.5);
+}
+.g-dialog__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, #000 6%, transparent);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--g-muted);
+}
+.g-dialog__close:hover {
+  background: color-mix(in srgb, #000 12%, transparent);
+}
+.g-dialog__eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--g-accent-strong);
+}
+.g-dialog h2 {
+  margin: 6px 0 14px;
+  font-size: 21px;
+  font-weight: 850;
+}
+.g-dialog__lede {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--g-muted);
+}
+.g-dialog__lede b {
+  color: var(--g-accent-strong);
+}
+.g-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
 
-.g-fade-enter-active, .g-fade-leave-active { transition: opacity 0.2s ease; }
-.g-fade-enter-from, .g-fade-leave-to { opacity: 0; }
+.g-fade-enter-active,
+.g-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.g-fade-enter-from,
+.g-fade-leave-to {
+  opacity: 0;
+}
 
 /* ============ 响应式 ============ */
 @media (max-width: 880px) {
-  .guild-shell { grid-template-columns: 1fr; }
-  .g-deck { position: static; }
-  .g-nav { flex-direction: row; flex-wrap: wrap; }
-  .g-nav__item { flex: 1 1 calc(50% - 4px); }
-  .g-quest { grid-template-columns: 1fr; }
+  .guild-shell {
+    grid-template-columns: 1fr;
+  }
+  .g-deck {
+    position: static;
+  }
+  .g-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .g-nav__item {
+    flex: 1 1 calc(50% - 4px);
+  }
+  .g-quest {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ============ 关灯（暗色）适配 ============ */
@@ -1031,11 +1865,19 @@ onMounted(async () => {
   --g-line: rgba(120, 165, 220, 0.2);
   --g-accent-strong: color-mix(in srgb, var(--g-accent) 66%, #d6fff4);
 }
-:global(html.art-lights-out .g-view) { background: rgba(14, 24, 46, 0.6); }
+:global(html.art-lights-out .g-view) {
+  background: rgba(14, 24, 46, 0.6);
+}
 :global(html.art-lights-out .g-quest),
 :global(html.art-lights-out .g-reward),
 :global(html.art-lights-out .g-leader),
-:global(html.art-lights-out .g-rulecard) { background: rgba(12, 22, 44, 0.5); }
-:global(html.art-lights-out .g-feedback) { background: rgba(12, 22, 44, 0.45); }
-:global(html.art-lights-out .g-dialog) { background: #0f1a30; }
+:global(html.art-lights-out .g-rulecard) {
+  background: rgba(12, 22, 44, 0.5);
+}
+:global(html.art-lights-out .g-feedback) {
+  background: rgba(12, 22, 44, 0.45);
+}
+:global(html.art-lights-out .g-dialog) {
+  background: #0f1a30;
+}
 </style>
