@@ -194,14 +194,10 @@
               </div>
             </template>
 
-            <!-- 未登录用户：评论需登录，给出克制美观的登录引导 -->
+            <!-- 未登录用户：评论需登录，仅一句邀请 + 登录按钮 -->
             <div v-else class="comment-login">
-              <div class="comment-login__icon" aria-hidden="true">🔒</div>
-              <div class="comment-login__body">
-                <strong class="comment-login__title">登录后留下你的回音</strong>
-                <span class="comment-login__desc">评论将以账号昵称署名，一起为画廊添一句。</span>
-              </div>
-              <button class="btn btn--accent comment-login__btn" type="button" @click="goLogin" data-sfx="click">登录 / 注册</button>
+              <span class="comment-login__text">觉得好看？留下评论吧！</span>
+              <button class="btn btn--accent" type="button" @click="goLogin" data-sfx="click">登录 / 注册</button>
             </div>
           </div>
         </div>
@@ -1155,46 +1151,20 @@ onMounted(() => {
   font-weight: 800;
 }
 
-/* 未登录态：评论区登录引导卡，横向紧凑、贴合画廊青绿调 */
+/* 未登录态：评论区一句邀请 + 登录按钮，居中竖排，贴合画廊青绿调 */
 .comment-login {
   display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.comment-login__icon {
-  font-size: 20px;
-  line-height: 1;
-  flex: none;
-  filter: grayscale(0.2);
-}
-.comment-login__body {
-  display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 4px 0;
 }
-.comment-login__title {
+.comment-login__text {
+  color: var(--accent);
   font-weight: 800;
-  color: var(--text-deep);
   font-size: 14px;
-}
-.comment-login__desc {
-  font-size: 12px;
-  color: var(--text-main);
-  opacity: 0.8;
-  line-height: 1.5;
-}
-.comment-login__btn {
-  flex: none;
-}
-@media (max-width: 480px) {
-  .comment-login {
-    flex-wrap: wrap;
-  }
-  .comment-login__btn {
-    width: 100%;
-  }
+  letter-spacing: 0.5px;
 }
 
 .search {
