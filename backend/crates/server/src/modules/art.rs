@@ -7,6 +7,7 @@
 //! - 匿名身份签名 Cookie（haruhi_anon）行为忠实保留：HMAC-SHA256 签名校验/下发。
 
 use axum::body::Bytes;
+use axum::extract::multipart::Field;
 use axum::extract::{Multipart, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -17,6 +18,8 @@ use haruhi_core::{AppError, AppResult};
 use hmac::{Hmac, Mac};
 use serde_json::{json, Value};
 use sha2::Sha256;
+use std::path::{Path as FsPath, PathBuf};
+use tokio::io::AsyncWriteExt;
 
 use crate::state::AppState;
 
@@ -452,6 +455,165 @@ async fn map_artworks_with_names(state: &AppState, rows: &[ArtRow]) -> Vec<Value
         .collect()
 }
 
+async fn count_random_art_segment(
+    pool: &sqlx::SqlitePool,
+    where_sql: &str,
+    params: &[String],
+    after_pivot: bool,
+    pivot: i64,
+) -> AppResult<i64> {
+    let cmp = if after_pivot { ">=" } else { "<" };
+    let sql = format!("SELECT COUNT(1) FROM artworks a {where_sql} AND a.random_key {cmp} ?");
+    let mut q = sqlx::query_scalar::<_, i64>(&sql);
+    for p in params {
+        q = q.bind(p);
+    }
+    Ok(q.bind(pivot).fetch_one(pool).await?)
+}
+
+async fn fetch_random_art_segment(
+    pool: &sqlx::SqlitePool,
+    where_sql: &str,
+    params: &[String],
+    after_pivot: bool,
+    pivot: i64,
+    limit: i64,
+    offset: i64,
+) -> AppResult<Vec<ArtRow>> {
+    if limit <= 0 {
+        return Ok(vec![]);
+    }
+    let cmp = if after_pivot { ">=" } else { "<" };
+    let sql = format!(
+        "{SELECT_ART} {where_sql} AND a.random_key {cmp} ? \
+         ORDER BY a.random_key ASC, a.id ASC LIMIT ? OFFSET ?"
+    );
+    let mut q = sqlx::query_as::<_, ArtRow>(&sql);
+    for p in params {
+        q = q.bind(p);
+    }
+    Ok(q.bind(pivot)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await?)
+}
+
+async fn fetch_random_artworks(
+    pool: &sqlx::SqlitePool,
+    where_sql: &str,
+    params: &[String],
+    seed: i64,
+    page_size: i64,
+    offset: i64,
+) -> AppResult<Vec<ArtRow>> {
+    let pivot = seed.rem_euclid(2_147_483_647).max(1);
+    let after_count = count_random_art_segment(pool, where_sql, params, true, pivot).await?;
+    let mut rows = if offset < after_count {
+        fetch_random_art_segment(pool, where_sql, params, true, pivot, page_size, offset).await?
+    } else {
+        fetch_random_art_segment(
+            pool,
+            where_sql,
+            params,
+            false,
+            pivot,
+            page_size,
+            offset - after_count,
+        )
+        .await?
+    };
+
+    let remaining = page_size - rows.len() as i64;
+    if remaining > 0 && offset < after_count {
+        let mut wrapped =
+            fetch_random_art_segment(pool, where_sql, params, false, pivot, remaining, 0).await?;
+        rows.append(&mut wrapped);
+    }
+    Ok(rows)
+}
+
+#[derive(Clone)]
+struct SavedArtUpload {
+    ext: String,
+    rel: String,
+    path: PathBuf,
+}
+
+async fn save_art_upload_field(
+    mut field: Field<'_>,
+    month_dir: &FsPath,
+    folder: &str,
+    now_millis: i64,
+) -> AppResult<SavedArtUpload> {
+    let ext = haruhi_media::ext_of(field.file_name().unwrap_or("image.bin"), "");
+    if !haruhi_media::is_image_ext(&ext) {
+        return Err(AppError::bad_request(format!("不支持的文件类型: .{ext}")));
+    }
+
+    tokio::fs::create_dir_all(month_dir)
+        .await
+        .map_err(|e| AppError::internal(format!("创建上传目录失败: {e}")))?;
+    let stored_file = format!("{now_millis}-{:x}.{ext}", rand_hex());
+    let final_path = month_dir.join(&stored_file);
+    let tmp_path = month_dir.join(format!(".{stored_file}.{:x}.tmp", rand_hex()));
+    let mut out = tokio::fs::File::create(&tmp_path)
+        .await
+        .map_err(|e| AppError::internal(format!("创建上传临时文件失败: {e}")))?;
+    let mut written: usize = 0;
+
+    while let Some(chunk) = match field.chunk().await {
+        Ok(chunk) => chunk,
+        Err(e) => {
+            let _ = tokio::fs::remove_file(&tmp_path).await;
+            return Err(AppError::bad_request(format!("读取文件失败: {e}")));
+        }
+    } {
+        written = match written.checked_add(chunk.len()) {
+            Some(v) => v,
+            None => {
+                let _ = tokio::fs::remove_file(&tmp_path).await;
+                return Err(AppError::bad_request("文件过大"));
+            }
+        };
+        if written > haruhi_media::MAX_IMAGE_BYTES {
+            let _ = tokio::fs::remove_file(&tmp_path).await;
+            return Err(AppError::bad_request(
+                haruhi_media::UploadReject::TooLarge(written, haruhi_media::MAX_IMAGE_BYTES)
+                    .to_string(),
+            ));
+        }
+        if let Err(e) = out.write_all(&chunk).await {
+            let _ = tokio::fs::remove_file(&tmp_path).await;
+            return Err(AppError::internal(format!("写入上传文件失败: {e}")));
+        }
+    }
+    out.flush()
+        .await
+        .map_err(|e| AppError::internal(format!("刷新上传文件失败: {e}")))?;
+    drop(out);
+
+    haruhi_media::check_image(&ext, written).map_err(|r| AppError::bad_request(r.to_string()))?;
+    tokio::fs::rename(&tmp_path, &final_path)
+        .await
+        .map_err(|e| AppError::internal(format!("保存上传文件失败: {e}")))?;
+
+    Ok(SavedArtUpload {
+        ext,
+        rel: format!("art/{folder}/{stored_file}"),
+        path: final_path,
+    })
+}
+
+async fn cleanup_saved_art_uploads(
+    display_files: &[SavedArtUpload],
+    original_files: &[SavedArtUpload],
+) {
+    for file in display_files.iter().chain(original_files.iter()) {
+        let _ = tokio::fs::remove_file(&file.path).await;
+    }
+}
+
 // ============================================================
 // 公开接口
 // ============================================================
@@ -783,7 +945,6 @@ async fn list_artworks(
 
     // 排序
     let mut order_by = String::from("ORDER BY datetime(a.created_at) DESC, a.id DESC");
-    let mut order_params: Vec<i64> = Vec::new();
     let mut seed_used: Option<i64> = None;
 
     if sort == "likes" {
@@ -797,22 +958,27 @@ async fn list_artworks(
             _ => rand_int(0, 2147483647),
         };
         seed_used = Some(seed);
-        // 与旧实现位运算 XOR 混合一致
-        order_by = "ORDER BY (((a.id + ? - 2 * (a.id & ?)) * 2654435761) % 2147483647 + 1) * 1103515245 % 2147483647 ASC".into();
-        order_params.push(seed);
-        order_params.push(seed);
     }
 
-    let list_sql = format!("{SELECT_ART} {where_sql} {order_by} LIMIT ? OFFSET ?");
-    let mut list_q = sqlx::query_as::<_, ArtRow>(&list_sql);
-    for p in &params {
-        list_q = list_q.bind(p);
-    }
-    for p in &order_params {
-        list_q = list_q.bind(p);
-    }
-    list_q = list_q.bind(page_size).bind(offset);
-    let rows: Vec<ArtRow> = list_q.fetch_all(&state.pools.art).await?;
+    let rows: Vec<ArtRow> = if let Some(seed) = seed_used {
+        fetch_random_artworks(
+            &state.pools.art,
+            &where_sql,
+            &params,
+            seed,
+            page_size,
+            offset,
+        )
+        .await?
+    } else {
+        let list_sql = format!("{SELECT_ART} {where_sql} {order_by} LIMIT ? OFFSET ?");
+        let mut list_q = sqlx::query_as::<_, ArtRow>(&list_sql);
+        for p in &params {
+            list_q = list_q.bind(p);
+        }
+        list_q = list_q.bind(page_size).bind(offset);
+        list_q.fetch_all(&state.pools.art).await?
+    };
     // 批量取作者公会徽章，避免逐行 N+1（一次 IN 查询、不建档）。
     let uids: Vec<String> = rows.iter().filter_map(|r| r.uploader_uid.clone()).collect();
     let guild_map = super::art_guild::guild_summaries_for_uids(&state, &uids).await;
@@ -1040,9 +1206,17 @@ async fn create_artwork(
             "上传过于频繁，请 {secs} 秒后再试"
         )));
     }
+    // 落盘：uploads/art/<YYYY-MM>/<ts>-<rand>.<ext>，库存 art/<YYYY-MM>/<file>。
+    // 图片字段边读边写临时文件，避免多图上传时把展示图和原图同时压进内存。
+    let now = chrono::Utc::now();
+    let now_millis = now.timestamp_millis();
+    let folder = now.format("%Y-%m").to_string();
+    let art_root = state.cfg.uploads_subdir("art");
+    let month_dir = art_root.join(&folder);
+
     // 收集字段
-    let mut display_files: Vec<(String, Bytes)> = Vec::new(); // (orig_name, bytes)
-    let mut original_files: Vec<(String, Bytes)> = Vec::new();
+    let mut display_files: Vec<SavedArtUpload> = Vec::new();
+    let mut original_files: Vec<SavedArtUpload> = Vec::new();
     let mut fields: std::collections::HashMap<String, String> = std::collections::HashMap::new();
 
     while let Some(field) = mp
@@ -1052,28 +1226,21 @@ async fn create_artwork(
     {
         let name = field.name().unwrap_or("").to_string();
         match name.as_str() {
-            "images" => {
-                let fname = field.file_name().unwrap_or("image.bin").to_string();
-                let bytes = field
-                    .bytes()
-                    .await
-                    .map_err(|e| AppError::bad_request(format!("读取文件失败: {e}")))?;
-                // 类型/大小白名单：画廊为公开匿名上传口，仅接受图片，防任意文件滥用。
-                let ext = haruhi_media::ext_of(&fname, "");
-                haruhi_media::check_image(&ext, bytes.len())
-                    .map_err(|r| AppError::bad_request(r.to_string()))?;
-                display_files.push((fname, bytes));
-            }
+            "images" => match save_art_upload_field(field, &month_dir, &folder, now_millis).await {
+                Ok(file) => display_files.push(file),
+                Err(e) => {
+                    cleanup_saved_art_uploads(&display_files, &original_files).await;
+                    return Err(e);
+                }
+            },
             "originals" => {
-                let fname = field.file_name().unwrap_or("image.bin").to_string();
-                let bytes = field
-                    .bytes()
-                    .await
-                    .map_err(|e| AppError::bad_request(format!("读取文件失败: {e}")))?;
-                let ext = haruhi_media::ext_of(&fname, "");
-                haruhi_media::check_image(&ext, bytes.len())
-                    .map_err(|r| AppError::bad_request(r.to_string()))?;
-                original_files.push((fname, bytes));
+                match save_art_upload_field(field, &month_dir, &folder, now_millis).await {
+                    Ok(file) => original_files.push(file),
+                    Err(e) => {
+                        cleanup_saved_art_uploads(&display_files, &original_files).await;
+                        return Err(e);
+                    }
+                }
             }
             _ => {
                 let txt = field.text().await.unwrap_or_default();
@@ -1083,6 +1250,7 @@ async fn create_artwork(
     }
 
     if display_files.is_empty() {
+        cleanup_saved_art_uploads(&display_files, &original_files).await;
         return Ok((
             StatusCode::BAD_REQUEST,
             Json(json!({ "ok": false, "message": "缺少图片文件" })),
@@ -1090,53 +1258,30 @@ async fn create_artwork(
             .into_response());
     }
 
-    // 落盘：uploads/art/<YYYY-MM>/<ts>-<rand>.<ext>，库存 art/<YYYY-MM>/<file>
-    let now = chrono::Utc::now();
-    let folder = now.format("%Y-%m").to_string();
-    let art_root = state.cfg.uploads_subdir("art");
-    let month_dir = art_root.join(&folder);
-
     let mut images_list: Vec<Value> = Vec::new();
     let mut cover_disp_rel = String::new();
     let mut cover_orig_rel = String::new();
-    let mut cover_bytes: Option<Bytes> = None;
 
-    for (i, (disp_name, disp_bytes)) in display_files.iter().enumerate() {
-        let (orig_name, orig_bytes) = original_files
-            .get(i)
-            .map(|(n, b)| (n.as_str(), b))
-            .unwrap_or((disp_name.as_str(), disp_bytes));
-
-        let disp_ext = haruhi_media::ext_of(disp_name, "bin");
-        let orig_ext = haruhi_media::ext_of(orig_name, "bin");
-        let disp_file = format!("{}-{:x}.{}", now.timestamp_millis(), rand_hex(), disp_ext);
-        let orig_file = format!("{}-{:x}.{}", now.timestamp_millis(), rand_hex(), orig_ext);
-
-        haruhi_media::save_file(&month_dir, &disp_file, disp_bytes).await?;
-        let rel_disp = format!("art/{folder}/{disp_file}");
-
+    for (i, disp) in display_files.iter().enumerate() {
+        let rel_disp = disp.rel.clone();
         // 后台预热画廊缩略图：新作品过审后首个访客无需等待现场生成。
         // 失败无害（/thumb 端点按需兜底），gif/svg 本就不转码故跳过。
-        if disp_ext != "gif" && disp_ext != "svg" {
+        if disp.ext != "gif" && disp.ext != "svg" {
             // 文件已落盘，按磁盘路径让 vips 生成（不再持有整段字节）
-            let src = state.cfg.uploads_dir.join(&rel_disp);
+            let src = disp.path.clone();
             let cache = thumb_cache_path(&state, &rel_disp, 640);
             tokio::spawn(async move {
                 let _ = build_thumb(&src, 640, &cache).await;
             });
         }
-        let rel_orig = if std::ptr::eq(orig_bytes, disp_bytes) {
-            // originals 缺位时与 display 同文件（对齐旧 orig=disp）
-            rel_disp.clone()
-        } else {
-            haruhi_media::save_file(&month_dir, &orig_file, orig_bytes).await?;
-            format!("art/{folder}/{orig_file}")
-        };
+        let rel_orig = original_files
+            .get(i)
+            .map(|orig| orig.rel.clone())
+            .unwrap_or_else(|| rel_disp.clone());
 
         if i == 0 {
             cover_disp_rel = rel_disp.clone();
             cover_orig_rel = rel_orig.clone();
-            cover_bytes = Some(disp_bytes.clone());
         }
         images_list.push(json!({ "path": rel_disp, "original": rel_orig }));
     }
@@ -1168,6 +1313,7 @@ async fn create_artwork(
     let origin_url = safe_text(get("origin_url"));
 
     if title.is_empty() {
+        cleanup_saved_art_uploads(&display_files, &original_files).await;
         return Ok((
             StatusCode::BAD_REQUEST,
             Json(json!({ "ok": false, "message": "作品名称为必填" })),
@@ -1175,26 +1321,209 @@ async fn create_artwork(
             .into_response());
     }
 
-    // AI 审核
+    // AI 审核改为后台执行：上传请求只负责持久化文件和记录，避免外部 AI 抖动拖住响应。
     let ai = haruhi_ai::AiClient::from_config(&state.cfg);
-    let text_check = ai
-        .check_text(
-            haruhi_ai::ART_SYSTEM_PROMPT,
-            &format!("{title}\n{description}"),
-        )
-        .await;
-    let image_verdict = match &cover_bytes {
-        Some(b) => {
-            ai.check_image(haruhi_ai::ART_SYSTEM_PROMPT, b, "image/webp")
-                .await
+    let ai_online = ai.is_online();
+
+    let tags_arr = normalize_tags_to_array(get("tags"));
+    let tags_json = serde_json::to_string(&tags_arr).unwrap_or_else(|_| "[]".into());
+    let tags_norm = make_tags_norm(&tags_arr);
+    let licenses_arr = parse_licenses(get("licenses"));
+    let licenses_json = serde_json::to_string(&licenses_arr).unwrap_or_else(|_| "[]".into());
+
+    let created_at = now_iso();
+    let final_status = "pending".to_string();
+    let review_note = if ai_online {
+        "AI审核中".to_string()
+    } else {
+        "AI文本服务异常; AI视觉服务异常".to_string()
+    };
+    let reviewed_at: Option<String> = None;
+
+    let _ = (cover_disp_rel.is_empty(), cover_orig_rel.is_empty()); // 保留语义：封面=images[0]
+    let cover_path = images_list[0]["path"].as_str().unwrap_or("").to_string();
+    let cover_original = images_list[0]["original"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    let last_id: i64 = sqlx::query_scalar(
+        "INSERT INTO artworks \
+         (title, description, uploader_name, uploader_uid, author_user_id, source_type, content_type, tags_json, tags_norm, origin_url, \
+          file_path, file_path_original, status, review_note, reviewed_at, created_at, licenses_json, ai_reason, images_json, random_key) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+    )
+    .bind(&title)
+    .bind(&description)
+    .bind(opt(&uploader_name))
+    .bind(opt(&uploader_uid))
+    .bind(user.id)
+    .bind(&source_type)
+    .bind(&content_type)
+    .bind(&tags_json)
+    .bind(&tags_norm)
+    .bind(opt(&origin_url))
+    .bind(&cover_path)
+    .bind(&cover_original)
+    .bind(&final_status)
+    .bind(&review_note)
+    .bind(&reviewed_at)
+    .bind(&created_at)
+    .bind(&licenses_json)
+    .bind(&review_note)
+    .bind(&images_json)
+    .bind(rand_int(1, 2_147_483_647))
+    .fetch_one(&state.pools.art)
+    .await?;
+
+    let points_added = false;
+    if ai_online {
+        spawn_artwork_ai_review(
+            state.clone(),
+            ArtworkAiReviewJob {
+                artwork_id: last_id,
+                title: title.clone(),
+                description: description.clone(),
+                cover_path: cover_path.clone(),
+                source_type: source_type.clone(),
+                content_type: content_type.clone(),
+                uploader_uid: uploader_uid.clone(),
+                created_at: created_at.clone(),
+            },
+        );
+    }
+
+    let message = if final_status == "approved" {
+        "发布成功"
+    } else {
+        "提交成功，待审核"
+    };
+    Ok(Json(json!({
+        "ok": true,
+        "status": final_status,
+        "pointsAdded": points_added,
+        "aiReviewPending": ai_online,
+        "message": message,
+    }))
+    .into_response())
+}
+
+struct ArtworkAiReviewJob {
+    artwork_id: i64,
+    title: String,
+    description: String,
+    cover_path: String,
+    source_type: String,
+    content_type: String,
+    uploader_uid: String,
+    created_at: String,
+}
+
+fn spawn_artwork_ai_review(state: AppState, job: ArtworkAiReviewJob) {
+    tokio::spawn(async move {
+        let artwork_id = job.artwork_id;
+        if let Err(e) = run_artwork_ai_review(state, job).await {
+            tracing::error!(artwork_id, error = %e, "画廊作品后台 AI 审核失败");
         }
-        None => haruhi_ai::Verdict {
-            ok: true,
-            reason: "EMPTY".into(),
-        },
+    });
+}
+
+async fn run_artwork_ai_review(state: AppState, job: ArtworkAiReviewJob) -> AppResult<()> {
+    let artwork_id = job.artwork_id;
+    let ai = haruhi_ai::AiClient::from_config(&state.cfg);
+    let text_ai = ai.clone();
+    let text = format!("{}\n{}", job.title, job.description);
+    let text_check = async move {
+        text_ai
+            .check_text(haruhi_ai::ART_SYSTEM_PROMPT, &text)
+            .await
+    };
+    let image_check = async {
+        match tokio::fs::read(state.cfg.uploads_dir.join(&job.cover_path)).await {
+            Ok(bytes) => {
+                let mime = image_mime_for_path(&job.cover_path);
+                ai.check_image(haruhi_ai::ART_SYSTEM_PROMPT, &bytes, mime)
+                    .await
+            }
+            Err(e) => {
+                tracing::warn!(artwork_id, path = %job.cover_path, error = %e, "读取封面图用于 AI 审核失败");
+                haruhi_ai::Verdict {
+                    ok: true,
+                    reason: "AI_API_ERROR".into(),
+                }
+            }
+        }
+    };
+    let (text_verdict, image_verdict) = tokio::join!(text_check, image_check);
+    let (final_status, review_note) = artwork_ai_status(text_verdict, image_verdict);
+    let reviewed_at: Option<String> = if final_status == "approved" {
+        Some(now_iso())
+    } else {
+        None
     };
 
-    // 状态机（对齐旧 finalStatus 逻辑）
+    let affected = sqlx::query(
+        "UPDATE artworks
+         SET status=?, review_note=?, ai_reason=?, reviewed_at=?
+         WHERE id=? AND status='pending'",
+    )
+    .bind(&final_status)
+    .bind(&review_note)
+    .bind(&review_note)
+    .bind(&reviewed_at)
+    .bind(artwork_id)
+    .execute(&state.pools.art)
+    .await?
+    .rows_affected();
+
+    if affected == 0 {
+        tracing::info!(artwork_id, "作品已不处于 pending，跳过后台 AI 审核结果");
+        return Ok(());
+    }
+
+    if final_status == "flagged" {
+        crate::notify::ai_flagged(
+            &state,
+            "art",
+            "作品",
+            &job.title,
+            &artwork_id.to_string(),
+            &review_note,
+        );
+    } else if final_status == "approved" {
+        grant_artwork_upload_reward(
+            &state,
+            artwork_id,
+            &job.uploader_uid,
+            &job.content_type,
+            &job.source_type,
+            &job.created_at,
+            "",
+        )
+        .await?;
+    }
+
+    Ok(())
+}
+
+fn image_mime_for_path(path: &str) -> &'static str {
+    match haruhi_media::ext_of(path, "").as_str() {
+        "jpg" | "jpeg" => "image/jpeg",
+        "png" => "image/png",
+        "gif" => "image/gif",
+        "svg" => "image/svg+xml",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
+        "heic" | "heif" => "image/heic",
+        "tif" | "tiff" => "image/tiff",
+        _ => "application/octet-stream",
+    }
+}
+
+fn artwork_ai_status(
+    text_check: haruhi_ai::Verdict,
+    image_verdict: haruhi_ai::Verdict,
+) -> (String, String) {
     let mut final_status = "approved".to_string();
     let mut ai_reason: Vec<String> = Vec::new();
 
@@ -1218,116 +1547,63 @@ async fn create_artwork(
         }
     }
 
-    let tags_arr = normalize_tags_to_array(get("tags"));
-    let tags_json = serde_json::to_string(&tags_arr).unwrap_or_else(|_| "[]".into());
-    let tags_norm = make_tags_norm(&tags_arr);
-    let licenses_arr = parse_licenses(get("licenses"));
-    let licenses_json = serde_json::to_string(&licenses_arr).unwrap_or_else(|_| "[]".into());
+    (final_status, ai_reason.join("; "))
+}
 
-    let created_at = now_iso();
-    let review_note = ai_reason.join("; ");
-    let reviewed_at: Option<String> = if final_status == "approved" {
-        Some(created_at.clone())
+async fn grant_artwork_upload_reward(
+    state: &AppState,
+    artwork_id: i64,
+    uploader_uid: &str,
+    content_type: &str,
+    source_type: &str,
+    created_at: &str,
+    note_suffix: &str,
+) -> AppResult<bool> {
+    if source_type != "personal" || uploader_uid.is_empty() {
+        return Ok(false);
+    }
+    let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM points_ledger WHERE artwork_id=?")
+        .bind(artwork_id)
+        .fetch_optional(&state.pools.art)
+        .await?;
+    if exists.is_some() {
+        return Ok(false);
+    }
+
+    let (points, base_note) = if content_type == "haruhi" {
+        (120, "投稿凉宫个人作品奖励")
     } else {
-        None
+        (30, "投稿其他个人作品奖励")
     };
-
-    let _ = (cover_disp_rel.is_empty(), cover_orig_rel.is_empty()); // 保留语义：封面=images[0]
-    let cover_path = &images_list[0]["path"].as_str().unwrap_or("").to_string();
-    let cover_original = &images_list[0]["original"]
-        .as_str()
-        .unwrap_or("")
-        .to_string();
-
-    let last_id: i64 = sqlx::query_scalar(
-        "INSERT INTO artworks \
-         (title, description, uploader_name, uploader_uid, author_user_id, source_type, content_type, tags_json, tags_norm, origin_url, \
-          file_path, file_path_original, status, review_note, reviewed_at, created_at, licenses_json, ai_reason, images_json) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+    if points <= 0 {
+        return Ok(false);
+    }
+    let now = now_iso();
+    let note = format!("{base_note}{note_suffix}");
+    sqlx::query(
+        "INSERT INTO points_ledger(uid, artwork_id, points, note, created_at, granted_at)
+         VALUES(?,?,?,?,?,?)",
     )
-    .bind(&title)
-    .bind(&description)
-    .bind(opt(&uploader_name))
-    .bind(opt(&uploader_uid))
-    .bind(user.id)
-    .bind(&source_type)
-    .bind(&content_type)
-    .bind(&tags_json)
-    .bind(&tags_norm)
-    .bind(opt(&origin_url))
-    .bind(cover_path)
-    .bind(cover_original)
-    .bind(&final_status)
-    .bind(&review_note)
-    .bind(&reviewed_at)
-    .bind(&created_at)
-    .bind(&licenses_json)
-    .bind(&review_note)
-    .bind(&images_json)
-    .fetch_one(&state.pools.art)
+    .bind(uploader_uid)
+    .bind(artwork_id)
+    .bind(points)
+    .bind(&note)
+    .bind(created_at)
+    .bind(&now)
+    .execute(&state.pools.art)
     .await?;
 
-    // AI 拦截（flagged）→ 通知管理员（异步、不阻塞、失败仅记日志）
-    if final_status == "flagged" {
-        crate::notify::ai_flagged(
-            &state,
-            "art",
-            "作品",
-            &title,
-            &last_id.to_string(),
-            &review_note,
-        );
-    }
-
-    // 自动发积分（approved + personal + 有 uid）
-    let mut points_added = false;
-    if final_status == "approved" && source_type == "personal" && !uploader_uid.is_empty() {
-        let (points, note) = if content_type == "haruhi" {
-            (120, "投稿凉宫个人作品奖励")
-        } else {
-            (30, "投稿其他个人作品奖励")
-        };
-        if points > 0 {
-            let res = sqlx::query(
-                "INSERT INTO points_ledger(uid, artwork_id, points, note, created_at, granted_at) VALUES(?,?,?,?,?,?)",
-            )
-            .bind(&uploader_uid)
-            .bind(last_id)
-            .bind(points)
-            .bind(note)
-            .bind(&created_at)
-            .bind(&created_at)
-            .execute(&state.pools.art)
-            .await;
-            match res {
-                Ok(_) => points_added = true,
-                Err(e) => tracing::error!("Auto grant points failed: {e}"),
-            }
-        }
-        super::art_guild::grant_upload_progress(
-            &state,
-            &uploader_uid,
-            last_id,
-            &content_type,
-            &source_type,
-            &created_at,
-            "",
-        )
-        .await;
-    }
-
-    let message = if final_status == "approved" {
-        "发布成功"
-    } else {
-        "提交成功，待审核"
-    };
-    Ok(Json(json!({
-        "ok": true,
-        "status": final_status,
-        "pointsAdded": points_added,
-        "message": message,
-    }))
-    .into_response())
+    super::art_guild::grant_upload_progress(
+        state,
+        uploader_uid,
+        artwork_id,
+        content_type,
+        source_type,
+        created_at,
+        note_suffix,
+    )
+    .await;
+    Ok(true)
 }
 
 // 8. 评论列表

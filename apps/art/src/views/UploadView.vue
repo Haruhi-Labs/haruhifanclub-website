@@ -504,6 +504,8 @@ async function submit(){
         : '发布成功！✅（AI审核通过）'
     } else if (r.status === 'flagged') {
       msg.value = '提交成功，但内容需人工复核 🤖'
+    } else if (r.aiReviewPending) {
+      msg.value = '提交成功，AI 正在后台审核，通过后会自动发布'
     } else {
       msg.value = '提交成功，进入待审核队列'
     }
