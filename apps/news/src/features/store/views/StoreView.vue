@@ -270,7 +270,7 @@
 
                 <!-- 内容区 -->
                 <div class="points-modal-content">
-                    <div class="points-user-id">User ID: {{ searchId }}</div>
+                    <div class="points-user-id">用户：{{ pointsResult.nickname || searchId }}</div>
                     <div class="points-total">
                         {{ pointsResult.total }}
                     </div>
@@ -350,6 +350,7 @@ const isSearching = ref(false);
 const showPointsModal = ref(false);
 const pointsResult = reactive({
     total: 0,
+    nickname: '',
     history: []
 });
 
@@ -512,6 +513,7 @@ const handleSearch = async () => {
         const data = await store.fetchUserPoints(searchId.value);
         if (data) {
             pointsResult.total = data.total;
+            pointsResult.nickname = data.nickname || '';
             pointsResult.history = data.history;
             showPointsModal.value = true;
         } else {
