@@ -12,7 +12,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5210,
+    port: 5207,
     proxy: {
       '/api': { target: 'http://127.0.0.1:17777', changeOrigin: true },
       '/uploads': { target: 'http://127.0.0.1:17777', changeOrigin: true },

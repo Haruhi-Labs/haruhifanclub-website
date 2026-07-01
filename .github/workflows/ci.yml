@@ -66,7 +66,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint:js --quiet
 
-  # 前端构建：用 matrix 对 6 个 app 各自 build（fail-fast:false 便于定位单 app 失败）。
+  # 前端构建：用 matrix 对 7 个 app 各自 build（fail-fast:false 便于定位单 app 失败）。
   frontend:
     needs: changes
     if: ${{ needs.changes.outputs.frontend == 'true' }}
@@ -74,7 +74,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [news, art, exam, novel, shop, console]
+        app: [news, art, exam, novel, fiction, shop, console]
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6
