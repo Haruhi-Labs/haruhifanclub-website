@@ -3254,7 +3254,9 @@ async fn claims_for_uid(state: &AppState, uid: &str) -> AppResult<Vec<Value>> {
         sqlx::query_as(
             "SELECT c.id, q.id, q.title, c.status, c.progress, c.target_count, c.claimed_at, c.completed_at, c.rewarded_at
              FROM guild_quest_claims c JOIN guild_quests q ON q.id=c.quest_id
-             WHERE c.uid=? ORDER BY datetime(c.claimed_at) DESC",
+             WHERE c.uid=?
+             ORDER BY datetime(c.claimed_at) DESC, c.id DESC
+             LIMIT 10",
         )
         .bind(uid)
         .fetch_all(&state.pools.art)

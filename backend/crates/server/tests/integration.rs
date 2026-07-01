@@ -1304,6 +1304,72 @@ async fn guild_budget_recounts_redemptions_when_reward_becomes_physical() {
 }
 
 #[tokio::test]
+async fn guild_terminal_limits_claim_history_to_latest_ten() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let user_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username=?")
+        .bind(ADMIN_USER)
+        .fetch_one(&app.state.pools.core)
+        .await
+        .unwrap();
+    let uid = format!("u{user_id}");
+
+    for i in 0..12 {
+        let title = format!("历史委托 {i:02}");
+        let ts = format!("2099-01-{:02}T04:00:00Z", i + 1);
+        let quest_id: i64 = sqlx::query_scalar(
+            "INSERT INTO guild_quests(
+                title, description, quest_type, difficulty, required_rating, required_access,
+                condition_kind, target_count, reward_reputation, reward_coins,
+                deadline_days, cycle_days, status, sort_order, created_at, updated_at
+             ) VALUES(
+                ?, '历史记录测试', 'limited', 'normal', 'F', 'observer_clearance',
+                'browse_artworks', 1, 1, 0, NULL, NULL, 'active', ?, ?, ?
+             ) RETURNING id",
+        )
+        .bind(&title)
+        .bind(i)
+        .bind(&ts)
+        .bind(&ts)
+        .fetch_one(&art)
+        .await
+        .unwrap();
+
+        sqlx::query(
+            "INSERT INTO guild_quest_claims(
+                quest_id, uid, cycle_key, status, progress, target_count,
+                claimed_at, cycle_start_at, completed_at, rewarded_at
+             ) VALUES(?, ?, ?, 'completed', 1, 1, ?, ?, ?, ?)",
+        )
+        .bind(quest_id)
+        .bind(&uid)
+        .bind(format!("history-{i:02}"))
+        .bind(&ts)
+        .bind(&ts)
+        .bind(&ts)
+        .bind(&ts)
+        .execute(&art)
+        .await
+        .unwrap();
+    }
+
+    let (status, body) = send(&app.router, get("/api/art/guild/terminal", Some(&token))).await;
+    assert_eq!(status, StatusCode::OK);
+    let claims = body["claims"].as_array().unwrap();
+    assert_eq!(claims.len(), 10);
+
+    let titles: Vec<String> = claims
+        .iter()
+        .filter_map(|item| item["title"].as_str().map(str::to_string))
+        .collect();
+    assert_eq!(titles.first().map(String::as_str), Some("历史委托 11"));
+    assert_eq!(titles.last().map(String::as_str), Some("历史委托 02"));
+    assert!(!titles.iter().any(|title| title == "历史委托 00"));
+    assert!(!titles.iter().any(|title| title == "历史委托 01"));
+}
+
+#[tokio::test]
 async fn manual_guild_quest_accepts_artwork_submissions_before_admin_approval() {
     let app = setup().await;
     let art = app.state.pools.art.clone();
