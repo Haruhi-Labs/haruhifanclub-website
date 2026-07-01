@@ -1,0 +1,337 @@
+/* ============================================================
+   同人文库 —— 站点级样式
+   基调沿用设计系统 library 表达（奶油纸 + 衬线标题），
+   仅把强调色改为「书卷酒红」，与 EPUB 书架的琥珀区隔、又同属暖色家族。
+   ============================================================ */
+
+.fiction-app.sos-scope {
+  /* 书卷酒红强调（暖色，和奶油纸面协调；区别于书架琥珀、画廊青绿） */
+  --sos-accent: #a63d61;
+  --sos-accent-hover: #8c2f4f;
+  --sos-accent-soft: #f7e8ee;
+  --sos-accent-contrast: #fff;
+  --sos-link: #9c3a5c;
+  --sos-link-hover: #7c2b47;
+  --sos-focus: #a63d61;
+
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--sos-bg-page);
+  color: var(--sos-text-primary);
+}
+
+.fiction-main {
+  flex: 1 0 auto;
+  width: 100%;
+}
+
+/* ---- 页头导航 ---- */
+.sos-navlinks .sos-navlink.router-link-active {
+  color: var(--sos-accent);
+}
+.fiction-write-cta {
+  text-decoration: none;
+}
+
+/* ---- 页容器 ---- */
+.fiction-page {
+  width: min(1160px, 100% - 2 * var(--sos-space-5));
+  margin-inline: auto;
+  padding-block: var(--sos-space-8);
+}
+.fiction-page--narrow {
+  width: min(760px, 100% - 2 * var(--sos-space-5));
+}
+.fiction-page--wide {
+  width: min(1280px, 100% - 2 * var(--sos-space-5));
+}
+
+/* 区块标题 */
+.fiction-rail {
+  margin-block: var(--sos-space-9);
+}
+.fiction-rail__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+  margin-bottom: var(--sos-space-5);
+}
+.fiction-rail__title {
+  font-family: var(--sos-display-family, var(--sos-font-display));
+  font-size: var(--sos-text-2xl);
+  font-weight: 700;
+  color: var(--sos-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-3);
+}
+.fiction-rail__title::before {
+  content: '';
+  width: 6px;
+  height: 1.1em;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-accent);
+}
+.fiction-rail__more {
+  color: var(--sos-text-secondary);
+  text-decoration: none;
+  font-size: var(--sos-text-sm);
+}
+.fiction-rail__more:hover {
+  color: var(--sos-accent);
+}
+
+/* ---- 作品网格 ---- */
+.fiction-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--sos-space-6);
+}
+
+/* ---- 封面 ---- */
+.fiction-cover {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--sos-radius-md);
+  overflow: hidden;
+  background: var(--sos-bg-muted);
+  box-shadow: var(--sos-shadow-sm);
+}
+.fiction-cover img,
+.fiction-cover__ph {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.fiction-cover__ph {
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.92);
+}
+.fiction-cover__ph span {
+  font-family: var(--sos-font-reading);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 700;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* ---- 作品卡片 ---- */
+.fiction-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sos-space-3);
+  text-decoration: none;
+  color: inherit;
+}
+.fiction-card__cover {
+  position: relative;
+}
+.fiction-card__cover .fiction-cover {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.fiction-card:hover .fiction-cover {
+  transform: translateY(-3px);
+  box-shadow: var(--sos-shadow-float);
+}
+.fiction-card__flag {
+  position: absolute;
+  top: var(--sos-space-2);
+  left: var(--sos-space-2);
+  padding: 2px 8px;
+  border-radius: var(--sos-radius-full);
+  font-size: var(--sos-text-2xs);
+  font-weight: 600;
+  color: #fff;
+  background: rgba(60, 45, 40, 0.68);
+  backdrop-filter: blur(2px);
+}
+.fiction-card__flag--done {
+  background: var(--sos-accent);
+}
+.fiction-card__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+}
+.fiction-card__cat {
+  font-size: var(--sos-text-2xs);
+  color: var(--sos-accent);
+  font-weight: 600;
+}
+.fiction-card__r18 {
+  font-size: var(--sos-text-2xs);
+  color: #fff;
+  background: var(--sos-danger);
+  border-radius: var(--sos-radius-xs);
+  padding: 0 5px;
+  font-weight: 700;
+}
+.fiction-card__title {
+  font-family: var(--sos-display-family, var(--sos-font-display));
+  font-size: var(--sos-text-md);
+  font-weight: 600;
+  line-height: var(--sos-leading-snug);
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.fiction-card:hover .fiction-card__title {
+  color: var(--sos-accent);
+}
+.fiction-card__author {
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-secondary);
+  margin: 0;
+}
+.fiction-card__summary {
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-tertiary);
+  line-height: var(--sos-leading-body);
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.fiction-card__tags {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.fiction-card__tags li {
+  font-size: var(--sos-text-2xs);
+  color: var(--sos-text-secondary);
+  background: var(--sos-bg-subtle);
+  border-radius: var(--sos-radius-full);
+  padding: 1px 8px;
+}
+.fiction-card__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  font-size: var(--sos-text-2xs);
+  color: var(--sos-text-tertiary);
+  margin-top: auto;
+}
+
+/* 横向紧凑卡片（排行榜/侧栏） */
+.fiction-card--compact {
+  flex-direction: row;
+  gap: var(--sos-space-3);
+  align-items: stretch;
+}
+.fiction-card--compact .fiction-card__cover {
+  width: 62px;
+  flex: none;
+}
+.fiction-card--compact .fiction-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.fiction-card--compact .fiction-card__title {
+  font-size: var(--sos-text-sm);
+}
+
+/* ---- 排行榜（带名次） ---- */
+.fiction-rank {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sos-space-4);
+}
+.fiction-rank__item {
+  display: flex;
+  gap: var(--sos-space-3);
+  align-items: center;
+}
+.fiction-rank__no {
+  font-family: var(--sos-font-reading);
+  font-size: var(--sos-text-lg);
+  font-weight: 700;
+  color: var(--sos-text-tertiary);
+  width: 1.6em;
+  text-align: center;
+  flex: none;
+}
+.fiction-rank__item:nth-child(1) .fiction-rank__no,
+.fiction-rank__item:nth-child(2) .fiction-rank__no,
+.fiction-rank__item:nth-child(3) .fiction-rank__no {
+  color: var(--sos-accent);
+}
+.fiction-rank__item .fiction-card {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- 页脚 ---- */
+.fiction-footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--sos-border-subtle);
+  background: var(--sos-bg-surface);
+  margin-top: var(--sos-space-10);
+}
+.fiction-footer__inner {
+  width: min(1160px, 100% - 2 * var(--sos-space-5));
+  margin-inline: auto;
+  padding-block: var(--sos-space-7);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sos-space-5);
+}
+.fiction-footer__brand strong {
+  font-family: var(--sos-display-family, var(--sos-font-display));
+  font-size: var(--sos-text-lg);
+  color: var(--sos-text-primary);
+}
+.fiction-footer__brand p {
+  margin: 4px 0 0;
+  font-size: var(--sos-text-sm);
+  color: var(--sos-text-secondary);
+}
+.fiction-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sos-space-5);
+  align-items: center;
+}
+.fiction-footer__links a {
+  color: var(--sos-text-secondary);
+  text-decoration: none;
+  font-size: var(--sos-text-sm);
+}
+.fiction-footer__links a:hover {
+  color: var(--sos-accent);
+}
+.fiction-footer__legal {
+  border-top: 1px solid var(--sos-border-subtle);
+  padding-block: var(--sos-space-4);
+  width: min(1160px, 100% - 2 * var(--sos-space-5));
+  margin-inline: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sos-space-2);
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-tertiary);
+}
+
+@media (max-width: 640px) {
+  .fiction-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--sos-space-4);
+  }
+  .fiction-page {
+    padding-block: var(--sos-space-6);
+  }
+}
