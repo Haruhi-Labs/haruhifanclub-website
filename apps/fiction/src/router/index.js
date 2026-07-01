@@ -17,6 +17,7 @@ import { session } from '@/api'
 import HomeView from '@/views/HomeView.vue'
 const LibraryView = () => import('@/views/LibraryView.vue')
 const StoryView = () => import('@/views/StoryView.vue')
+const ReadView = () => import('@/views/ReadView.vue')
 const NotFoundView = () => import('@/views/NotFoundView.vue')
 
 const SITE = 'library'
@@ -33,6 +34,7 @@ const router = createRouter({
     { path: '/', name: 'home', component: HomeView },
     { path: '/library', name: 'library', component: LibraryView },
     { path: '/story/:id', name: 'story', component: StoryView },
+    { path: '/story/:id/chapter/:cid', name: 'read', component: ReadView },
 
     // 账号
     { path: '/login', name: 'login', component: LoginView, props: { site: SITE } },
