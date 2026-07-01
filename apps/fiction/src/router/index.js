@@ -18,6 +18,9 @@ import HomeView from '@/views/HomeView.vue'
 const LibraryView = () => import('@/views/LibraryView.vue')
 const StoryView = () => import('@/views/StoryView.vue')
 const ReadView = () => import('@/views/ReadView.vue')
+const WriteDashboardView = () => import('@/views/WriteDashboardView.vue')
+const StoryEditorView = () => import('@/views/StoryEditorView.vue')
+const ChapterEditorView = () => import('@/views/ChapterEditorView.vue')
 const NotFoundView = () => import('@/views/NotFoundView.vue')
 
 const SITE = 'library'
@@ -35,6 +38,11 @@ const router = createRouter({
     { path: '/library', name: 'library', component: LibraryView },
     { path: '/story/:id', name: 'story', component: StoryView },
     { path: '/story/:id/chapter/:cid', name: 'read', component: ReadView },
+
+    // 创作（需登录）
+    { path: '/write', name: 'write', component: WriteDashboardView, meta: { requiresAuth: true } },
+    { path: '/write/:id', name: 'write-story', component: StoryEditorView, meta: { requiresAuth: true } },
+    { path: '/write/:id/chapter/:cid', name: 'write-chapter', component: ChapterEditorView, meta: { requiresAuth: true } },
 
     // 账号
     { path: '/login', name: 'login', component: LoginView, props: { site: SITE } },

@@ -13,6 +13,13 @@
     "@haruhi/auth-ui": "workspace:*",
     "@haruhi/design-system": "workspace:*",
     "@haruhi/ui": "workspace:*",
+    "@tiptap/extension-image": "^2.11.5",
+    "@tiptap/extension-link": "^2.11.5",
+    "@tiptap/extension-placeholder": "^2.11.5",
+    "@tiptap/extension-underline": "^2.11.5",
+    "@tiptap/pm": "^2.11.5",
+    "@tiptap/starter-kit": "^2.11.5",
+    "@tiptap/vue-3": "^2.11.5",
     "dompurify": "^3.4.8",
     "vue": "^3.5.22",
     "vue-router": "^4.6.3"
