@@ -70,8 +70,8 @@ onMounted(async () => {
       </RouterLink>
     </nav>
 
-    <!-- 推荐其余 -->
-    <section v-if="featuredRest.length" class="fiction-rail">
+    <!-- 推荐其余（≥2 才成组展示，避免孤卡） -->
+    <section v-if="featuredRest.length >= 2" class="fiction-rail">
       <div class="fiction-rail__head">
         <h2 class="fiction-rail__title">精选佳作</h2>
       </div>
@@ -141,10 +141,16 @@ onMounted(async () => {
 <style scoped>
 .fic-hero {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: var(--sos-space-8);
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: clamp(24px, 4vw, 56px);
   align-items: center;
-  padding: var(--sos-space-8) 0 var(--sos-space-6);
+  padding: clamp(28px, 4.5vw, 56px);
+  margin-bottom: var(--sos-space-8);
+  border-radius: 24px;
+  border: 1px solid var(--sos-border-subtle);
+  background:
+    radial-gradient(90% 130% at 6% -12%, var(--sos-accent-soft), transparent 52%),
+    linear-gradient(135deg, color-mix(in srgb, var(--sos-accent-soft) 45%, var(--sos-bg-surface)), var(--sos-bg-surface));
 }
 .fic-hero__eyebrow {
   color: var(--sos-accent);
@@ -179,17 +185,17 @@ onMounted(async () => {
   background: var(--sos-bg-surface);
   border: 1px solid var(--sos-border-subtle);
   border-radius: var(--sos-radius-lg);
-  box-shadow: var(--sos-shadow-card);
+  box-shadow: var(--sos-shadow-float);
   text-decoration: none;
   color: inherit;
   transition: box-shadow 0.18s ease, transform 0.18s ease;
 }
 .fic-hero__feature:hover {
-  box-shadow: var(--sos-shadow-float);
-  transform: translateY(-2px);
+  box-shadow: var(--sos-shadow-lg, var(--sos-shadow-float));
+  transform: translateY(-3px);
 }
 .fic-hero__feature-cover {
-  width: 150px;
+  width: 162px;
   flex: none;
 }
 .fic-hero__feature-body {
