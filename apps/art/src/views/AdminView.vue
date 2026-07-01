@@ -1563,7 +1563,7 @@
 
           <div v-if="guildTab === 'questClaims'" class="guild-list single">
             <article v-for="item in guildQuestClaims" :key="item.id" class="guild-manage-row">
-              <div>
+              <div class="guild-row-main">
                 <div class="m-title">{{ item.questTitle }} · {{ item.name || item.uid }}</div>
                 <div class="m-info">
                   <span class="tag">{{ guildClaimStatusLabel(item.status) }}</span>
@@ -1581,6 +1581,31 @@
                   >
                   <span v-if="item.adminNote" class="tag">备注：{{ item.adminNote }}</span>
                 </div>
+                <div v-if="item.submittedArtworks?.length" class="guild-claim-artworks">
+                  <a
+                    v-for="artwork in item.submittedArtworks"
+                    :key="artwork.id"
+                    class="guild-claim-artwork"
+                    :href="`/gallery?artwork=${artwork.id}`"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <span class="guild-claim-artwork__thumb">
+                      <img
+                        v-if="artwork.image_url"
+                        :src="thumbUrl(artwork.image_url, 240)"
+                        :alt="artwork.title || '提交作品'"
+                      />
+                      <i v-else>ART</i>
+                    </span>
+                    <span class="guild-claim-artwork__copy">
+                      <b>{{ artwork.title || `作品 #${artwork.id}` }}</b>
+                      <small>{{ formatDateTime(artwork.publishedAt || artwork.created_at) }}</small>
+                      <em>{{ artwork.status }}</em>
+                    </span>
+                  </a>
+                </div>
+                <div v-else class="guild-claim-artworks-empty">尚未提交作品</div>
               </div>
               <div v-if="item.status === 'active'" class="guild-row-actions">
                 <button class="btn-ghost sm" @click="approveQuestClaim(item)">批准</button>
@@ -2042,7 +2067,7 @@
 <script setup>
 import { onMounted, ref, computed, watch } from 'vue'
 import { useAdminStore } from '../stores/adminStore.js'
-import { api } from '../services/api.js'
+import { api, thumbUrl } from '../services/api.js'
 import ArtworkModal from '../components/ArtworkModal.vue'
 import { createAdminAuth } from '@haruhi/api-client'
 
@@ -4680,6 +4705,78 @@ onMounted(async () => {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.guild-claim-artworks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.guild-claim-artwork {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-height: 66px;
+  padding: 7px;
+  border: 1px solid color-mix(in srgb, var(--sos-border-default) 78%, var(--sos-accent) 16%);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sos-bg-subtle) 68%, #fff);
+  color: var(--sos-text-primary);
+  text-decoration: none;
+}
+
+.guild-claim-artwork:hover {
+  border-color: color-mix(in srgb, var(--sos-accent) 46%, var(--sos-border-default));
+}
+
+.guild-claim-artwork__thumb {
+  width: 58px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--sos-accent) 10%, #eef2ff);
+}
+
+.guild-claim-artwork__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.guild-claim-artwork__thumb i {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--sos-text-secondary);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.guild-claim-artwork__copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.guild-claim-artwork__copy b {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guild-claim-artwork__copy small,
+.guild-claim-artwork__copy em,
+.guild-claim-artworks-empty {
+  color: var(--sos-text-secondary);
+  font-size: 12px;
+  font-style: normal;
 }
 
 .guild-row-desc {

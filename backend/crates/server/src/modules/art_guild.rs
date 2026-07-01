@@ -79,6 +79,20 @@ struct AdminQuestClaimRow {
     reward_coins: i64,
 }
 
+#[derive(sqlx::FromRow)]
+struct QuestSubmissionArtworkRow {
+    id: i64,
+    title: Option<String>,
+    source_type: Option<String>,
+    content_type: Option<String>,
+    file_path: Option<String>,
+    images_json: Option<String>,
+    status: Option<String>,
+    created_at: Option<String>,
+    reviewed_at: Option<String>,
+    submitted_at: Option<String>,
+}
+
 #[derive(Clone)]
 struct QuestWindow {
     cycle_key: String,
@@ -95,6 +109,14 @@ pub fn router() -> Router<AppState> {
         .route("/guild/profile/{uid}/artworks", get(guild_profile_artworks))
         .route("/guild/quests", get(guild_quests))
         .route("/guild/quests/{id}/claim", post(guild_claim_quest))
+        .route(
+            "/guild/quests/{id}/submission-artworks",
+            get(guild_quest_submission_artworks),
+        )
+        .route(
+            "/guild/quests/{id}/submit-artworks",
+            post(guild_submit_quest_artworks),
+        )
         .route("/guild/leaderboard", get(guild_leaderboard))
         .route("/guild/coins/history", get(guild_coin_history))
         .route("/guild/rating/apply", post(guild_apply_rating))
@@ -439,6 +461,7 @@ async fn guild_quests(
             None,
         );
         let claim: Option<(
+            i64,
             String,
             i64,
             i64,
@@ -447,7 +470,7 @@ async fn guild_quests(
             Option<String>,
         )> = match (&uid, repeat_on_complete) {
             (Some(uid), true) => sqlx::query_as(
-                "SELECT status, progress, target_count, cycle_start_at, cycle_end_at, rewarded_at
+                "SELECT id, status, progress, target_count, cycle_start_at, cycle_end_at, rewarded_at
                      FROM guild_quest_claims
                      WHERE quest_id=? AND uid=? AND status='active'
                      ORDER BY datetime(claimed_at) DESC, id DESC LIMIT 1",
@@ -457,7 +480,7 @@ async fn guild_quests(
             .fetch_optional(&state.pools.art)
             .await?,
             (Some(uid), false) => sqlx::query_as(
-                "SELECT status, progress, target_count, cycle_start_at, cycle_end_at, rewarded_at
+                "SELECT id, status, progress, target_count, cycle_start_at, cycle_end_at, rewarded_at
                      FROM guild_quest_claims
                      WHERE quest_id=? AND uid=? AND cycle_key=?",
             )
@@ -470,16 +493,46 @@ async fn guild_quests(
         };
         let claim_cycle_start = claim
             .as_ref()
-            .and_then(|(_, _, _, cycle_start, _, _)| cycle_start.as_deref())
+            .and_then(|(_, _, _, _, cycle_start, _, _)| cycle_start.as_deref())
             .and_then(parse_datetime_utc);
         let claim_cycle_end = claim
             .as_ref()
-            .and_then(|(_, _, _, _, cycle_end, _)| cycle_end.as_deref())
+            .and_then(|(_, _, _, _, _, cycle_end, _)| cycle_end.as_deref())
             .and_then(parse_datetime_utc);
         let display_start = claim_cycle_start.or(window.cycle_start_at);
         let display_end = claim_cycle_end.or(window.cycle_end_at);
         let display_deadline = claim_cycle_end.or(window.deadline_at);
         let required_access_label = access_label(&row.required_access);
+        let claim_value = if let Some((
+            claim_id,
+            status,
+            progress,
+            target_count,
+            cycle_start,
+            cycle_end,
+            rewarded_at,
+        )) = claim
+        {
+            let submitted_artworks = if row.condition_kind == "manual_admin_verify" {
+                submitted_artworks_for_claim(&state, claim_id).await?
+            } else {
+                Vec::new()
+            };
+            let submitted_count = submitted_artworks.len() as i64;
+            json!({
+                "id": claim_id,
+                "status": status,
+                "progress": progress,
+                "targetCount": target_count,
+                "cycleStartAt": cycle_start,
+                "cycleEndAt": cycle_end,
+                "rewarded": rewarded_at.is_some(),
+                "submittedCount": submitted_count,
+                "submittedArtworks": submitted_artworks
+            })
+        } else {
+            Value::Null
+        };
         data.push(json!({
             "id": row.id,
             "title": row.title,
@@ -508,14 +561,7 @@ async fn guild_quests(
             "status": row.status,
             "sortOrder": row.sort_order,
             "unlocked": unlocked,
-            "claim": claim.map(|(status, progress, target_count, cycle_start, cycle_end, rewarded_at)| json!({
-                "status": status,
-                "progress": progress,
-                "targetCount": target_count,
-                "cycleStartAt": cycle_start,
-                "cycleEndAt": cycle_end,
-                "rewarded": rewarded_at.is_some()
-            }))
+            "claim": claim_value
         }));
     }
 
@@ -635,6 +681,99 @@ async fn guild_claim_quest(
     .await?;
     refresh_claims_for_uid(&state, &uid).await?;
     Ok(Json(json!({ "ok": true })))
+}
+
+async fn guild_quest_submission_artworks(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+) -> AppResult<Json<Value>> {
+    let uid = ensure_profile_for_user(&state, &user).await?;
+    refresh_claims_for_uid(&state, &uid).await?;
+    let Some((claim_id, _, target_count, quest_created_at)) =
+        active_manual_claim_for_quest(&state, &uid, id).await?
+    else {
+        return Err(AppError::bad_request("请先接取委托"));
+    };
+    let eligible_from = quest_submission_start_at(&quest_created_at);
+    let artworks = eligible_submission_artworks(&state, &uid, &eligible_from, 200).await?;
+    let submitted_artwork_ids = submitted_artwork_ids_for_claim(&state, claim_id).await?;
+    Ok(Json(json!({
+        "ok": true,
+        "data": artworks,
+        "submittedArtworkIds": submitted_artwork_ids,
+        "targetCount": target_count,
+        "eligibleFrom": eligible_from
+    })))
+}
+
+async fn guild_submit_quest_artworks(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    let uid = ensure_profile_for_user(&state, &user).await?;
+    refresh_claims_for_uid(&state, &uid).await?;
+    let Some((claim_id, quest_id, target_count, quest_created_at)) =
+        active_manual_claim_for_quest(&state, &uid, id).await?
+    else {
+        return Err(AppError::bad_request("请先接取委托"));
+    };
+    let artwork_ids = i64_array_field(&body, "artworkIds");
+    if artwork_ids.is_empty() {
+        return Err(AppError::bad_request("请选择要提交的作品"));
+    }
+
+    let eligible_from = quest_submission_start_at(&quest_created_at);
+    let mut valid_ids = Vec::new();
+    for artwork_id in artwork_ids.into_iter().take(60) {
+        if valid_ids.contains(&artwork_id) {
+            continue;
+        }
+        if !eligible_submission_artwork_exists(&state, &uid, artwork_id, &eligible_from).await? {
+            return Err(AppError::bad_request(
+                "只能提交本委托发布当天及之后审核通过的本人作品",
+            ));
+        }
+        valid_ids.push(artwork_id);
+    }
+    if valid_ids.is_empty() {
+        return Err(AppError::bad_request("请选择要提交的作品"));
+    }
+
+    let now = now_iso();
+    let mut tx = state.pools.art.begin().await?;
+    sqlx::query("DELETE FROM guild_quest_claim_artworks WHERE claim_id=?")
+        .bind(claim_id)
+        .execute(&mut *tx)
+        .await?;
+    for artwork_id in &valid_ids {
+        sqlx::query(
+            "INSERT INTO guild_quest_claim_artworks(claim_id, quest_id, uid, artwork_id, submitted_at)
+             VALUES(?,?,?,?,?)",
+        )
+        .bind(claim_id)
+        .bind(quest_id)
+        .bind(&uid)
+        .bind(artwork_id)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await?;
+    }
+    let progress = (valid_ids.len() as i64).min(target_count);
+    sqlx::query("UPDATE guild_quest_claims SET progress=? WHERE id=? AND status='active'")
+        .bind(progress)
+        .bind(claim_id)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+
+    Ok(Json(json!({
+        "ok": true,
+        "submittedCount": valid_ids.len(),
+        "targetCount": target_count
+    })))
 }
 
 async fn guild_leaderboard(
@@ -1525,31 +1664,32 @@ async fn admin_guild_quest_claims(
     .await?;
     let uids: Vec<String> = rows.iter().map(|row| row.uid.clone()).collect();
     let names = super::art::member_display_names(&state.pools.core, &uids).await;
-    let data: Vec<Value> = rows
-        .into_iter()
-        .map(|row| {
-            let name = names.get(&row.uid).cloned();
-            json!({
-                "id": row.id,
-                "questId": row.quest_id,
-                "questTitle": row.title,
-                "uid": row.uid,
-                "name": name,
-                "status": row.status,
-                "progress": row.progress,
-                "targetCount": row.target_count,
-                "claimedAt": row.claimed_at,
-                "cycleStartAt": row.cycle_start_at,
-                "cycleEndAt": row.cycle_end_at,
-                "completedAt": row.completed_at,
-                "rewardedAt": row.rewarded_at,
-                "reviewedAt": row.reviewed_at,
-                "adminNote": row.admin_note,
-                "rewardReputation": row.reward_reputation,
-                "rewardCoins": row.reward_coins
-            })
-        })
-        .collect();
+    let mut data = Vec::with_capacity(rows.len());
+    for row in rows {
+        let name = names.get(&row.uid).cloned();
+        let submitted_artworks = submitted_artworks_for_claim(&state, row.id).await?;
+        data.push(json!({
+            "id": row.id,
+            "questId": row.quest_id,
+            "questTitle": row.title,
+            "uid": row.uid,
+            "name": name,
+            "status": row.status,
+            "progress": row.progress,
+            "targetCount": row.target_count,
+            "claimedAt": row.claimed_at,
+            "cycleStartAt": row.cycle_start_at,
+            "cycleEndAt": row.cycle_end_at,
+            "completedAt": row.completed_at,
+            "rewardedAt": row.rewarded_at,
+            "reviewedAt": row.reviewed_at,
+            "adminNote": row.admin_note,
+            "rewardReputation": row.reward_reputation,
+            "rewardCoins": row.reward_coins,
+            "submittedCount": submitted_artworks.len(),
+            "submittedArtworks": submitted_artworks
+        }));
+    }
     Ok(Json(json!({ "ok": true, "data": data })))
 }
 
@@ -1561,8 +1701,8 @@ async fn admin_approve_quest_claim(
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Manage).await?;
     expire_overdue_claims(&state, None).await?;
-    let row: Option<(String, i64, String, i64, i64, i64)> = sqlx::query_as(
-        "SELECT c.uid, q.id, q.title, q.reward_reputation, q.reward_coins, c.target_count
+    let row: Option<(String, i64, String, i64, i64, i64, String)> = sqlx::query_as(
+        "SELECT c.uid, q.id, q.title, q.reward_reputation, q.reward_coins, c.target_count, q.created_at
          FROM guild_quest_claims c
          JOIN guild_quests q ON q.id=c.quest_id
          WHERE c.id=? AND c.status='active' AND q.condition_kind='manual_admin_verify'",
@@ -1570,9 +1710,21 @@ async fn admin_approve_quest_claim(
     .bind(id)
     .fetch_optional(&state.pools.art)
     .await?;
-    let Some((uid, quest_id, title, reward_rep, reward_coins, target_count)) = row else {
+    let Some((uid, quest_id, title, reward_rep, reward_coins, target_count, quest_created_at)) =
+        row
+    else {
         return Err(AppError::bad_request("委托验收记录不存在或已处理"));
     };
+    let eligible_from = quest_submission_start_at(&quest_created_at);
+    let valid_count = valid_submitted_count_for_claim(&state, id, &uid, &eligible_from).await?;
+    if valid_count < target_count {
+        sqlx::query("UPDATE guild_quest_claims SET progress=? WHERE id=? AND status='active'")
+            .bind(valid_count.min(target_count))
+            .bind(id)
+            .execute(&state.pools.art)
+            .await?;
+        return Err(AppError::bad_request("提交作品数量不足或作品已失效"));
+    }
     let now = now_iso();
     let note = body
         .get("note")
@@ -2202,6 +2354,17 @@ async fn refresh_claims_for_uid(state: &AppState, uid: &str) -> AppResult<()> {
         title,
     ) in rows
     {
+        if condition_kind == "manual_admin_verify" {
+            let progress = submitted_count_for_claim(state, claim_id)
+                .await?
+                .min(target_count);
+            sqlx::query("UPDATE guild_quest_claims SET progress=? WHERE id=?")
+                .bind(progress)
+                .bind(claim_id)
+                .execute(&state.pools.art)
+                .await?;
+            continue;
+        }
         let progress = quest_progress(
             state,
             uid,
@@ -2545,6 +2708,147 @@ async fn artworks_for_uid(
             },
         )
         .collect())
+}
+
+async fn active_manual_claim_for_quest(
+    state: &AppState,
+    uid: &str,
+    quest_id: i64,
+) -> AppResult<Option<(i64, i64, i64, String)>> {
+    Ok(sqlx::query_as(
+        "SELECT c.id, q.id, c.target_count, q.created_at
+         FROM guild_quest_claims c
+         JOIN guild_quests q ON q.id=c.quest_id
+         WHERE c.quest_id=? AND c.uid=? AND c.status='active' AND q.condition_kind='manual_admin_verify'
+         ORDER BY datetime(c.claimed_at) DESC, c.id DESC LIMIT 1",
+    )
+    .bind(quest_id)
+    .bind(uid)
+    .fetch_optional(&state.pools.art)
+    .await?)
+}
+
+async fn eligible_submission_artworks(
+    state: &AppState,
+    uid: &str,
+    eligible_from: &str,
+    limit: i64,
+) -> AppResult<Vec<Value>> {
+    let rows: Vec<QuestSubmissionArtworkRow> = sqlx::query_as(
+        "SELECT id, title, source_type, content_type, file_path, images_json, status,
+                created_at, reviewed_at, NULL AS submitted_at
+         FROM artworks
+         WHERE uploader_uid=? AND status='approved'
+           AND datetime(COALESCE(reviewed_at, created_at)) >= datetime(?)
+         ORDER BY datetime(COALESCE(reviewed_at, created_at)) DESC, id DESC
+         LIMIT ?",
+    )
+    .bind(uid)
+    .bind(eligible_from)
+    .bind(limit)
+    .fetch_all(&state.pools.art)
+    .await?;
+    Ok(rows.into_iter().map(submission_artwork_value).collect())
+}
+
+async fn submitted_artworks_for_claim(state: &AppState, claim_id: i64) -> AppResult<Vec<Value>> {
+    let rows: Vec<QuestSubmissionArtworkRow> = sqlx::query_as(
+        "SELECT a.id, a.title, a.source_type, a.content_type, a.file_path, a.images_json,
+                a.status, a.created_at, a.reviewed_at, s.submitted_at
+         FROM guild_quest_claim_artworks s
+         JOIN artworks a ON a.id=s.artwork_id
+         WHERE s.claim_id=?
+         ORDER BY s.id ASC",
+    )
+    .bind(claim_id)
+    .fetch_all(&state.pools.art)
+    .await?;
+    Ok(rows.into_iter().map(submission_artwork_value).collect())
+}
+
+async fn submitted_artwork_ids_for_claim(state: &AppState, claim_id: i64) -> AppResult<Vec<i64>> {
+    Ok(sqlx::query_scalar(
+        "SELECT artwork_id FROM guild_quest_claim_artworks WHERE claim_id=? ORDER BY id ASC",
+    )
+    .bind(claim_id)
+    .fetch_all(&state.pools.art)
+    .await?)
+}
+
+async fn submitted_count_for_claim(state: &AppState, claim_id: i64) -> AppResult<i64> {
+    Ok(
+        sqlx::query_scalar("SELECT COUNT(*) FROM guild_quest_claim_artworks WHERE claim_id=?")
+            .bind(claim_id)
+            .fetch_one(&state.pools.art)
+            .await?,
+    )
+}
+
+async fn eligible_submission_artwork_exists(
+    state: &AppState,
+    uid: &str,
+    artwork_id: i64,
+    eligible_from: &str,
+) -> AppResult<bool> {
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*)
+         FROM artworks
+         WHERE id=? AND uploader_uid=? AND status='approved'
+           AND datetime(COALESCE(reviewed_at, created_at)) >= datetime(?)",
+    )
+    .bind(artwork_id)
+    .bind(uid)
+    .bind(eligible_from)
+    .fetch_one(&state.pools.art)
+    .await?;
+    Ok(count > 0)
+}
+
+async fn valid_submitted_count_for_claim(
+    state: &AppState,
+    claim_id: i64,
+    uid: &str,
+    eligible_from: &str,
+) -> AppResult<i64> {
+    Ok(sqlx::query_scalar(
+        "SELECT COUNT(*)
+         FROM guild_quest_claim_artworks s
+         JOIN artworks a ON a.id=s.artwork_id
+         WHERE s.claim_id=? AND s.uid=? AND a.uploader_uid=? AND a.status='approved'
+           AND datetime(COALESCE(a.reviewed_at, a.created_at)) >= datetime(?)",
+    )
+    .bind(claim_id)
+    .bind(uid)
+    .bind(uid)
+    .bind(eligible_from)
+    .fetch_one(&state.pools.art)
+    .await?)
+}
+
+fn submission_artwork_value(row: QuestSubmissionArtworkRow) -> Value {
+    let source_type = row.source_type.clone();
+    let content_type = row.content_type.clone();
+    let created_at = row.created_at.clone();
+    let published_at = row
+        .reviewed_at
+        .clone()
+        .or_else(|| created_at.clone())
+        .unwrap_or_default();
+    json!({
+        "id": row.id,
+        "title": row.title,
+        "source_type": source_type.clone(),
+        "sourceType": source_type,
+        "content_type": content_type.clone(),
+        "contentType": content_type,
+        "image_url": artwork_image_url(row.file_path.as_deref(), row.images_json.as_deref()),
+        "status": row.status,
+        "created_at": created_at.clone(),
+        "createdAt": created_at,
+        "reviewedAt": row.reviewed_at,
+        "publishedAt": published_at,
+        "submittedAt": row.submitted_at
+    })
 }
 
 async fn coin_history_for_uid(state: &AppState, uid: &str, limit: i64) -> AppResult<Vec<Value>> {
@@ -3626,6 +3930,16 @@ fn default_event_scope(now: DateTime<Utc>) -> String {
     format!("day-{}", anchor.format("%Y-%m-%d"))
 }
 
+fn quest_submission_start_at(quest_created_at: &str) -> String {
+    let created_at = parse_datetime_utc(quest_created_at).unwrap_or_else(Utc::now);
+    let local = beijing_now(created_at);
+    let start = beijing_offset()
+        .with_ymd_and_hms(local.year(), local.month(), local.day(), 0, 0, 0)
+        .single()
+        .unwrap_or(local);
+    iso_utc(start.with_timezone(&Utc))
+}
+
 fn parse_datetime_utc(value: &str) -> Option<DateTime<Utc>> {
     let value = value.trim();
     if value.is_empty() {
@@ -3705,6 +4019,22 @@ fn bool_field(body: &Value, key: &str, fallback: bool) -> bool {
 
 fn int_field(body: &Value, key: &str, fallback: i64) -> i64 {
     body.get(key).and_then(json_num_i64).unwrap_or(fallback)
+}
+
+fn i64_array_field(body: &Value, key: &str) -> Vec<i64> {
+    let Some(values) = body.get(key).and_then(|v| v.as_array()) else {
+        return Vec::new();
+    };
+    let mut result = Vec::new();
+    for value in values {
+        let Some(id) = json_num_i64(value).filter(|id| *id > 0) else {
+            continue;
+        };
+        if !result.contains(&id) {
+            result.push(id);
+        }
+    }
+    result
 }
 
 fn optional_positive_i64_field(body: &Value, key: &str) -> Option<i64> {

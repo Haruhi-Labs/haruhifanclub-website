@@ -247,6 +247,13 @@ export const api = {
   },
   guildQuests: () => request('GET', `${API_PREFIX}/guild/quests`),
   guildClaimQuest: (id) => request('POST', `${API_PREFIX}/guild/quests/${id}/claim`, { body: {} }),
+  guildQuestSubmissionArtworks: async (id) => {
+    const data = await request('GET', `${API_PREFIX}/guild/quests/${id}/submission-artworks`)
+    if (Array.isArray(data.data)) data.data = data.data.map(transformArtwork)
+    return data
+  },
+  guildSubmitQuestArtworks: (id, artworkIds) =>
+    request('POST', `${API_PREFIX}/guild/quests/${id}/submit-artworks`, { body: { artworkIds } }),
   guildLeaderboard: () => request('GET', `${API_PREFIX}/guild/leaderboard`),
   guildCoinHistory: () => request('GET', `${API_PREFIX}/guild/coins/history`),
   guildApplyRating: (body) => request('POST', `${API_PREFIX}/guild/rating/apply`, { body }),
@@ -264,7 +271,18 @@ export const api = {
   adminUpdateGuildQuest: (id, body) => request('PUT', `${API_PREFIX}/admin/guild/quests/${id}`, { body }),
   adminDeleteGuildQuest: (id) => request('DELETE', `${API_PREFIX}/admin/guild/quests/${id}`),
   adminUpdateGuildQuestStatus: (id, status) => request('POST', `${API_PREFIX}/admin/guild/quests/${id}/status`, { body: { status } }),
-  adminGuildQuestClaims: () => request('GET', `${API_PREFIX}/admin/guild/quest-claims`),
+  adminGuildQuestClaims: async () => {
+    const data = await request('GET', `${API_PREFIX}/admin/guild/quest-claims`)
+    if (Array.isArray(data.data)) {
+      data.data = data.data.map(item => ({
+        ...item,
+        submittedArtworks: Array.isArray(item.submittedArtworks)
+          ? item.submittedArtworks.map(transformArtwork)
+          : [],
+      }))
+    }
+    return data
+  },
   adminApproveGuildQuestClaim: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/quest-claims/${id}/approve`, { body: { note } }),
   adminRejectGuildQuestClaim: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/quest-claims/${id}/reject`, { body: { note } }),
   adminGuildCreatorProductionStats: (params) => request('GET', `${API_PREFIX}/admin/guild/creator-production-stats`, { params }),
