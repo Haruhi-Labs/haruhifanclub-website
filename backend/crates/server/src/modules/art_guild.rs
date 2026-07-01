@@ -181,6 +181,18 @@ pub fn router() -> Router<AppState> {
             get(admin_rewards).post(admin_create_reward),
         )
         .route(
+            "/admin/guild/reward-categories",
+            get(admin_reward_categories).post(admin_create_reward_category),
+        )
+        .route(
+            "/admin/guild/reward-categories/{id}",
+            put(admin_update_reward_category),
+        )
+        .route(
+            "/admin/guild/reward-categories/{id}/status",
+            post(admin_reward_category_status),
+        )
+        .route(
             "/admin/guild/rewards/image",
             post(admin_upload_reward_image),
         )
@@ -973,15 +985,20 @@ async fn guild_rewards(
         .and_then(|v| v.get("accessTier"))
         .and_then(|v| v.as_str())
         .unwrap_or("public_archive");
-    let rows = reward_rows(&state, "WHERE status='active'").await?;
+    let rows = reward_rows(&state, "WHERE r.status='active'").await?;
     let data: Vec<Value> = rows
         .into_iter()
         .map(|r| reward_value(r, uid.is_some(), rating, access))
         .collect();
     let budget = guild_supply_budget(&state).await?;
-    Ok(Json(
-        json!({ "ok": true, "profile": profile, "data": data, "budget": budget }),
-    ))
+    let categories = reward_category_rows(&state, Some("active")).await?;
+    Ok(Json(json!({
+        "ok": true,
+        "profile": profile,
+        "data": data,
+        "categories": categories,
+        "budget": budget
+    })))
 }
 
 async fn guild_redeem_reward(
@@ -1354,7 +1371,10 @@ async fn admin_rewards(State(state): State<AppState>, user: AuthUser) -> AppResu
         .into_iter()
         .map(|r| reward_value(r, true, "X", "closed_space"))
         .collect();
-    Ok(Json(json!({ "ok": true, "data": data })))
+    let categories = reward_category_rows(&state, None).await?;
+    Ok(Json(
+        json!({ "ok": true, "data": data, "categories": categories }),
+    ))
 }
 
 async fn admin_create_reward(
@@ -1364,10 +1384,11 @@ async fn admin_create_reward(
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Manage).await?;
     let now = now_iso();
+    let category_id = optional_category_id(&body);
     sqlx::query(
         "INSERT INTO guild_rewards(name, description, reward_type, price_coins, stock,
-         required_rating, required_access, image_url, status, sort_order, created_at, updated_at)
-         VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+         required_rating, required_access, image_url, status, sort_order, category_id, created_at, updated_at)
+         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
     )
     .bind(str_field(&body, "name", "未命名补给"))
     .bind(str_field(&body, "description", ""))
@@ -1379,6 +1400,7 @@ async fn admin_create_reward(
     .bind(str_field(&body, "imageUrl", ""))
     .bind(str_field(&body, "status", "active"))
     .bind(int_field(&body, "sortOrder", 100))
+    .bind(category_id)
     .bind(&now)
     .bind(&now)
     .execute(&state.pools.art)
@@ -1394,9 +1416,10 @@ async fn admin_update_reward(
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Manage).await?;
     let now = now_iso();
+    let category_id = optional_category_id(&body);
     sqlx::query(
         "UPDATE guild_rewards SET name=?, description=?, reward_type=?, price_coins=?, stock=?,
-         required_rating=?, required_access=?, image_url=?, status=?, sort_order=?, updated_at=?
+         required_rating=?, required_access=?, image_url=?, status=?, sort_order=?, category_id=?, updated_at=?
          WHERE id=?",
     )
     .bind(str_field(&body, "name", "未命名补给"))
@@ -1409,11 +1432,100 @@ async fn admin_update_reward(
     .bind(str_field(&body, "imageUrl", ""))
     .bind(str_field(&body, "status", "active"))
     .bind(int_field(&body, "sortOrder", 100))
+    .bind(category_id)
     .bind(&now)
     .bind(id)
     .execute(&state.pools.art)
     .await?;
     Ok(Json(json!({ "ok": true })))
+}
+
+async fn admin_reward_categories(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Read).await?;
+    Ok(Json(json!({
+        "ok": true,
+        "data": reward_category_rows(&state, None).await?
+    })))
+}
+
+async fn admin_create_reward_category(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+    let name = str_field(&body, "name", "").trim().to_string();
+    if name.is_empty() {
+        return Err(AppError::bad_request("分类名称不能为空"));
+    }
+    let status = normalize_reward_category_status(&str_field(&body, "status", "active"))?;
+    let now = now_iso();
+    let result = sqlx::query(
+        "INSERT INTO guild_reward_categories(name, sort_order, status, created_at, updated_at)
+         VALUES(?,?,?,?,?)",
+    )
+    .bind(name)
+    .bind(int_field(&body, "sortOrder", 100))
+    .bind(status)
+    .bind(&now)
+    .bind(&now)
+    .execute(&state.pools.art)
+    .await?;
+    Ok(Json(json!({
+        "ok": true,
+        "data": reward_category_by_id(&state, result.last_insert_rowid()).await?
+    })))
+}
+
+async fn admin_update_reward_category(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+    let name = str_field(&body, "name", "").trim().to_string();
+    if name.is_empty() {
+        return Err(AppError::bad_request("分类名称不能为空"));
+    }
+    let status = normalize_reward_category_status(&str_field(&body, "status", "active"))?;
+    sqlx::query(
+        "UPDATE guild_reward_categories SET name=?, sort_order=?, status=?, updated_at=? WHERE id=?",
+    )
+    .bind(name)
+    .bind(int_field(&body, "sortOrder", 100))
+    .bind(status)
+    .bind(now_iso())
+    .bind(id)
+    .execute(&state.pools.art)
+    .await?;
+    Ok(Json(json!({
+        "ok": true,
+        "data": reward_category_by_id(&state, id).await?
+    })))
+}
+
+async fn admin_reward_category_status(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+    let status = normalize_reward_category_status(&str_field(&body, "status", "active"))?;
+    sqlx::query("UPDATE guild_reward_categories SET status=?, updated_at=? WHERE id=?")
+        .bind(status)
+        .bind(now_iso())
+        .bind(id)
+        .execute(&state.pools.art)
+        .await?;
+    Ok(Json(json!({
+        "ok": true,
+        "data": reward_category_by_id(&state, id).await?
+    })))
 }
 
 async fn admin_delete_reward(
@@ -3642,14 +3754,19 @@ type RewardRow = (
     Option<String>,
     String,
     i64,
+    Option<i64>,
+    Option<String>,
 );
 
 async fn reward_rows(state: &AppState, where_sql: &str) -> AppResult<Vec<RewardRow>> {
     let sql = format!(
-        "SELECT id, name, description, reward_type, price_coins, stock, required_rating,
-                required_access, image_url, status, sort_order
-         FROM guild_rewards {where_sql}
-         ORDER BY sort_order ASC, id ASC"
+        "SELECT r.id, r.name, r.description, r.reward_type, r.price_coins, r.stock,
+                r.required_rating, r.required_access, r.image_url, r.status, r.sort_order,
+                r.category_id, c.name
+         FROM guild_rewards r
+         LEFT JOIN guild_reward_categories c ON c.id=r.category_id
+         {where_sql}
+         ORDER BY r.sort_order ASC, r.id ASC"
     );
     Ok(sqlx::query_as(&sql).fetch_all(&state.pools.art).await?)
 }
@@ -3667,6 +3784,8 @@ fn reward_value(row: RewardRow, logged_in: bool, rating: &str, access: &str) -> 
         image_url,
         status,
         sort_order,
+        category_id,
+        category_name,
     ) = row;
     let unlocked = logged_in
         && rating_rank(rating) >= rating_rank(&required_rating)
@@ -3684,7 +3803,55 @@ fn reward_value(row: RewardRow, logged_in: bool, rating: &str, access: &str) -> 
         "imageUrl": image_url,
         "status": status,
         "sortOrder": sort_order,
+        "categoryId": category_id,
+        "categoryName": category_name,
         "unlocked": unlocked
+    })
+}
+
+type RewardCategoryRow = (i64, String, i64, String);
+
+async fn reward_category_rows(state: &AppState, status: Option<&str>) -> AppResult<Vec<Value>> {
+    let rows: Vec<RewardCategoryRow> = if let Some(status) = status {
+        sqlx::query_as(
+            "SELECT id, name, sort_order, status
+             FROM guild_reward_categories
+             WHERE status=?
+             ORDER BY sort_order ASC, id ASC",
+        )
+        .bind(status)
+        .fetch_all(&state.pools.art)
+        .await?
+    } else {
+        sqlx::query_as(
+            "SELECT id, name, sort_order, status
+             FROM guild_reward_categories
+             WHERE status!='deleted'
+             ORDER BY sort_order ASC, id ASC",
+        )
+        .fetch_all(&state.pools.art)
+        .await?
+    };
+    Ok(rows.into_iter().map(reward_category_value).collect())
+}
+
+async fn reward_category_by_id(state: &AppState, id: i64) -> AppResult<Value> {
+    let row: RewardCategoryRow = sqlx::query_as(
+        "SELECT id, name, sort_order, status FROM guild_reward_categories WHERE id=?",
+    )
+    .bind(id)
+    .fetch_one(&state.pools.art)
+    .await?;
+    Ok(reward_category_value(row))
+}
+
+fn reward_category_value(row: RewardCategoryRow) -> Value {
+    let (id, name, sort_order, status) = row;
+    json!({
+        "id": id,
+        "name": name,
+        "sortOrder": sort_order,
+        "status": status,
     })
 }
 
@@ -3875,6 +4042,15 @@ fn normalize_budget_unit(value: &str) -> AppResult<&'static str> {
         "rmb" => Ok("rmb"),
         "coins" => Ok("coins"),
         _ => Err(AppError::bad_request("预算单位无效")),
+    }
+}
+
+fn normalize_reward_category_status(value: &str) -> AppResult<&'static str> {
+    match value.trim() {
+        "active" => Ok("active"),
+        "paused" => Ok("paused"),
+        "deleted" => Ok("deleted"),
+        _ => Err(AppError::bad_request("分类状态无效")),
     }
 }
 
@@ -4468,6 +4644,12 @@ fn i64_array_field(body: &Value, key: &str) -> Vec<i64> {
 
 fn optional_positive_i64_field(body: &Value, key: &str) -> Option<i64> {
     body.get(key)
+        .and_then(json_num_i64)
+        .filter(|value| *value > 0)
+}
+
+fn optional_category_id(body: &Value) -> Option<i64> {
+    body.get("categoryId")
         .and_then(json_num_i64)
         .filter(|value| *value > 0)
 }

@@ -1258,10 +1258,89 @@
                   <div class="ph-title">已有商品管理</div>
                   <div class="tip-text">查看、编辑、上架或下架当前兑换商品。</div>
                 </div>
-                <button class="btn sm" @click="openGuildRewardCreate">新增商品</button>
+                <div class="btns">
+                  <button class="btn sm" @click="openGuildRewardCategoryCreate">
+                    新增商品分类
+                  </button>
+                  <button class="btn sm" @click="openGuildRewardCreate">新增商品</button>
+                </div>
+              </div>
+              <div v-if="showGuildRewardCategoryForm" class="guild-category-editor">
+                <div class="guild-category-form">
+                  <label>
+                    <span>分类名称</span>
+                    <input
+                      v-model="guildRewardCategoryForm.name"
+                      class="input sm"
+                      placeholder="例如：游戏"
+                    />
+                  </label>
+                  <label>
+                    <span>排序权重</span>
+                    <input
+                      v-model.number="guildRewardCategoryForm.sortOrder"
+                      class="input sm"
+                      type="number"
+                      placeholder="100"
+                    />
+                  </label>
+                  <label>
+                    <span>状态</span>
+                    <select v-model="guildRewardCategoryForm.status" class="select sm">
+                      <option value="active">active</option>
+                      <option value="paused">paused</option>
+                    </select>
+                  </label>
+                  <div class="guild-category-actions">
+                    <button class="btn sm" :disabled="guildSaving" @click="saveGuildRewardCategory">
+                      {{ guildRewardCategoryEditingId ? '更新分类' : '新增分类' }}
+                    </button>
+                    <button class="btn-ghost sm" @click="closeGuildRewardCategoryForm">取消</button>
+                  </div>
+                </div>
+              </div>
+              <div v-if="guildRewardCategories.length" class="guild-category-list">
+                <article
+                  v-for="category in guildRewardCategories"
+                  :key="category.id"
+                  class="guild-category-item"
+                >
+                  <div>
+                    <b>{{ category.name }}</b>
+                    <span>排序 {{ category.sortOrder }} · {{ category.status }}</span>
+                  </div>
+                  <div class="guild-category-item-actions">
+                    <button class="btn-ghost sm" @click="editGuildRewardCategory(category)">
+                      编辑
+                    </button>
+                    <button
+                      class="btn-ghost warn sm"
+                      @click="
+                        setGuildRewardCategoryStatus(
+                          category,
+                          category.status === 'active' ? 'paused' : 'active'
+                        )
+                      "
+                    >
+                      {{ category.status === 'active' ? '停用' : '启用' }}
+                    </button>
+                  </div>
+                </article>
+              </div>
+              <div class="guild-category-tabs" role="tablist" aria-label="商品分类筛选">
+                <button
+                  v-for="category in guildRewardCategoryTabs"
+                  :key="category.id"
+                  type="button"
+                  class="guild-category-tab"
+                  :class="{ on: guildRewardCategoryFilter === category.id }"
+                  @click="guildRewardCategoryFilter = category.id"
+                >
+                  {{ category.name }}
+                </button>
               </div>
               <article
-                v-for="reward in guildRewards"
+                v-for="reward in filteredGuildRewards"
                 :key="reward.id"
                 class="guild-manage-row has-trash"
               >
@@ -1273,6 +1352,7 @@
                     <div class="m-title">{{ reward.name }}</div>
                     <p v-if="reward.description" class="guild-row-desc">{{ reward.description }}</p>
                     <div class="m-info">
+                      <span v-if="reward.categoryName" class="tag">{{ reward.categoryName }}</span>
                       <span class="tag">{{ reward.rewardType }}</span>
                       <span class="tag">{{ reward.priceCoins }}G</span>
                       <span class="tag">库存 {{ reward.stock ?? '不限' }}</span>
@@ -1302,7 +1382,9 @@
                   </button>
                 </div>
               </article>
-              <div v-if="!guildRewards.length" class="empty-ph">暂无商品，点击上方按钮新增。</div>
+              <div v-if="!filteredGuildRewards.length" class="empty-ph">
+                {{ guildRewards.length ? '当前分类暂无商品。' : '暂无商品，点击上方按钮新增。' }}
+              </div>
             </section>
 
             <section v-else class="guild-editor guild-form-panel">
@@ -1353,6 +1435,31 @@
                     class="textarea guild-textarea"
                     placeholder="写给用户看的兑换说明"
                   ></textarea>
+                </div>
+                <div class="guild-field guild-field--wide">
+                  <div class="guild-field-label-row">
+                    <label for="guild-reward-category">商品分类</label>
+                    <button class="help-tip" type="button" aria-label="商品分类说明">
+                      ?
+                      <span class="help-tip__bubble" role="tooltip">
+                        未设置分类的商品只会在“所有”分类中显示。
+                      </span>
+                    </button>
+                  </div>
+                  <select
+                    id="guild-reward-category"
+                    v-model="guildRewardForm.categoryId"
+                    class="select"
+                  >
+                    <option :value="null">不设分类</option>
+                    <option
+                      v-for="category in guildRewardCategories"
+                      :key="category.id"
+                      :value="category.id"
+                    >
+                      {{ category.name }}{{ category.status !== 'active' ? '（停用）' : '' }}
+                    </option>
+                  </select>
                 </div>
                 <div class="guild-form-grid three">
                   <div class="guild-field">
@@ -2446,6 +2553,11 @@ const guildSaving = ref(false)
 const guildQuests = ref([])
 const guildQuestClaims = ref([])
 const guildRewards = ref([])
+const guildRewardCategories = ref([])
+const guildRewardCategoryFilter = ref('all')
+const showGuildRewardCategoryForm = ref(false)
+const guildRewardCategoryEditingId = ref(null)
+const guildRewardCategoryForm = ref({ name: '', sortOrder: 100, status: 'active' })
 const guildRedemptions = ref([])
 const selectedRedemption = ref(null)
 const guildBudget = ref({
@@ -2522,6 +2634,7 @@ const defaultRewardForm = () => ({
   rewardType: 'virtual',
   priceCoins: 0,
   stock: -1,
+  categoryId: null,
   requiredRating: 'F',
   requiredAccess: 'observer_clearance',
   imageUrl: '',
@@ -2604,6 +2717,21 @@ const rewardSettingsPreview = computed(() => ({
     ),
   },
 }))
+
+const guildRewardCategoryTabs = computed(() => [
+  { id: 'all', name: '所有' },
+  ...guildRewardCategories.value.map((category) => ({
+    id: Number(category.id),
+    name: category.name,
+  })),
+])
+
+const filteredGuildRewards = computed(() => {
+  if (guildRewardCategoryFilter.value === 'all') return guildRewards.value
+  return guildRewards.value.filter(
+    (reward) => Number(reward.categoryId || 0) === Number(guildRewardCategoryFilter.value)
+  )
+})
 
 // 计算是否有修改
 const isCreatorModified = computed(() => {
@@ -3097,6 +3225,15 @@ async function loadGuildAdmin() {
   } else if (guildTab.value === 'rewards') {
     const res = await api.adminGuildRewards()
     guildRewards.value = res.data || []
+    guildRewardCategories.value = res.categories || []
+    if (
+      guildRewardCategoryFilter.value !== 'all' &&
+      !guildRewardCategories.value.some(
+        (category) => Number(category.id) === Number(guildRewardCategoryFilter.value)
+      )
+    ) {
+      guildRewardCategoryFilter.value = 'all'
+    }
   } else if (guildTab.value === 'redemptions') {
     const res = await api.adminGuildRedemptions()
     guildRedemptions.value = res.data || []
@@ -3131,6 +3268,7 @@ async function switchGuildTab(tab) {
     guildQuestPage.value = 'list'
   } else if (tab === 'rewards') {
     guildRewardPage.value = 'list'
+    closeGuildRewardCategoryForm()
   } else if (tab === 'budget') {
     showBudgetSupplyForm.value = false
   }
@@ -3230,6 +3368,69 @@ async function deleteGuildQuest(quest) {
   await loadGuildAdmin()
 }
 
+function resetGuildRewardCategoryForm() {
+  guildRewardCategoryEditingId.value = null
+  guildRewardCategoryForm.value = { name: '', sortOrder: 100, status: 'active' }
+}
+
+function openGuildRewardCategoryCreate() {
+  resetGuildRewardCategoryForm()
+  guildRewardPage.value = 'list'
+  showGuildRewardCategoryForm.value = true
+}
+
+function closeGuildRewardCategoryForm() {
+  showGuildRewardCategoryForm.value = false
+  resetGuildRewardCategoryForm()
+}
+
+function editGuildRewardCategory(category) {
+  guildRewardCategoryEditingId.value = category.id
+  guildRewardCategoryForm.value = {
+    name: category.name || '',
+    sortOrder: Number(category.sortOrder || 100),
+    status: category.status || 'active',
+  }
+  guildRewardPage.value = 'list'
+  showGuildRewardCategoryForm.value = true
+}
+
+async function saveGuildRewardCategory() {
+  const name = guildRewardCategoryForm.value.name.trim()
+  if (!name) {
+    guildMsg.value = '请填写商品分类名称'
+    clearGuildMsgSoon()
+    return
+  }
+  guildSaving.value = true
+  try {
+    const payload = {
+      name,
+      sortOrder: Number(guildRewardCategoryForm.value.sortOrder || 100),
+      status: guildRewardCategoryForm.value.status || 'active',
+    }
+    if (guildRewardCategoryEditingId.value) {
+      await api.adminUpdateGuildRewardCategory(guildRewardCategoryEditingId.value, payload)
+      guildMsg.value = '商品分类已更新'
+    } else {
+      await api.adminCreateGuildRewardCategory(payload)
+      guildMsg.value = '商品分类已新增'
+    }
+    closeGuildRewardCategoryForm()
+    await loadGuildAdmin()
+    clearGuildMsgSoon()
+  } finally {
+    guildSaving.value = false
+  }
+}
+
+async function setGuildRewardCategoryStatus(category, status) {
+  await api.adminUpdateGuildRewardCategoryStatus(category.id, status)
+  guildMsg.value = `商品分类已${status === 'active' ? '启用' : '停用'}`
+  await loadGuildAdmin()
+  clearGuildMsgSoon()
+}
+
 function resetGuildRewardForm() {
   guildRewardEditingId.value = null
   guildRewardForm.value = defaultRewardForm()
@@ -3239,6 +3440,7 @@ function resetGuildRewardForm() {
 
 function openGuildRewardCreate() {
   resetGuildRewardForm()
+  closeGuildRewardCategoryForm()
   guildRewardPage.value = 'form'
 }
 
@@ -3255,6 +3457,7 @@ function editGuildReward(reward) {
     rewardType: reward.rewardType || 'virtual',
     priceCoins: Number(reward.priceCoins || 0),
     stock: reward.stock ?? -1,
+    categoryId: reward.categoryId ? Number(reward.categoryId) : null,
     requiredRating: reward.requiredRating || 'F',
     requiredAccess: reward.requiredAccess || 'observer_clearance',
     imageUrl: reward.imageUrl || '',
@@ -3300,6 +3503,7 @@ async function saveGuildReward() {
     const payload = {
       ...guildRewardForm.value,
       stock: cleanNullableNumber(guildRewardForm.value.stock),
+      categoryId: cleanNullableNumber(guildRewardForm.value.categoryId),
     }
     if (guildRewardEditingId.value) {
       await api.adminUpdateGuildReward(guildRewardEditingId.value, payload)
@@ -5370,6 +5574,106 @@ onMounted(async () => {
   gap: 6px;
 }
 
+.guild-category-editor,
+.guild-category-list,
+.guild-category-tabs {
+  margin: 12px 16px 0;
+}
+
+.guild-category-editor {
+  padding: 12px;
+  border: 1px solid var(--sos-border-default);
+  border-radius: 8px;
+  background: var(--sos-bg-subtle);
+}
+
+.guild-category-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(120px, 0.6fr) minmax(120px, 0.6fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.guild-category-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.guild-category-form label > span {
+  color: var(--sos-text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.guild-category-actions,
+.guild-category-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.guild-category-list {
+  display: grid;
+  gap: 8px;
+}
+
+.guild-category-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--sos-border-default);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.guild-category-item > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.guild-category-item b {
+  color: var(--sos-text-primary);
+  font-size: 13px;
+}
+
+.guild-category-item span {
+  color: var(--sos-text-tertiary);
+  font-size: 12px;
+}
+
+.guild-category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 3px;
+  border: 1px solid var(--sos-border-default);
+  border-radius: 8px;
+  background: var(--sos-bg-subtle);
+}
+
+.guild-category-tab {
+  min-height: 30px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sos-text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.guild-category-tab.on {
+  background: var(--panel);
+  color: var(--sos-text-primary);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
 .guild-reward-row-main {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
@@ -5941,6 +6245,16 @@ onMounted(async () => {
   .guild-reward-row-main,
   .reward-image-uploader {
     grid-template-columns: 1fr;
+  }
+  .guild-category-form {
+    grid-template-columns: 1fr;
+  }
+  .guild-category-actions {
+    grid-column: 1 / -1;
+  }
+  .guild-category-item {
+    align-items: stretch;
+    flex-direction: column;
   }
   .guild-reward-thumb {
     width: min(140px, 100%);

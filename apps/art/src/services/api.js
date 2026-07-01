@@ -106,7 +106,17 @@ function transformArtwork(a) {
 function transformGuildReward(reward) {
   if (!reward) return reward
   reward.imageUrl = fixPath(reward.imageUrl)
+  reward.categoryId = reward.categoryId ? Number(reward.categoryId) : null
   return reward
+}
+
+function transformGuildRewardCategory(category) {
+  if (!category) return category
+  return {
+    ...category,
+    id: Number(category.id),
+    sortOrder: Number(category.sortOrder || 0),
+  }
 }
 
 export const api = {
@@ -260,6 +270,8 @@ export const api = {
   guildRewards: async () => {
     const data = await request('GET', `${API_PREFIX}/guild/rewards`)
     if (Array.isArray(data.data)) data.data = data.data.map(transformGuildReward)
+    if (Array.isArray(data.categories))
+      data.categories = data.categories.map(transformGuildRewardCategory)
     return data
   },
   guildRedeemReward: (id, body = {}) => request('POST', `${API_PREFIX}/guild/rewards/${id}/redeem`, { body }),
@@ -293,6 +305,8 @@ export const api = {
   adminGuildRewards: async () => {
     const data = await request('GET', `${API_PREFIX}/admin/guild/rewards`)
     if (Array.isArray(data.data)) data.data = data.data.map(transformGuildReward)
+    if (Array.isArray(data.categories))
+      data.categories = data.categories.map(transformGuildRewardCategory)
     return data
   },
   adminCreateGuildReward: (body) => request('POST', `${API_PREFIX}/admin/guild/rewards`, { body }),
@@ -300,6 +314,19 @@ export const api = {
   adminDeleteGuildReward: (id) => request('DELETE', `${API_PREFIX}/admin/guild/rewards/${id}`),
   adminUpdateGuildRewardStatus: (id, status) => request('POST', `${API_PREFIX}/admin/guild/rewards/${id}/status`, { body: { status } }),
   adminUpdateGuildRewardStock: (id, stock) => request('POST', `${API_PREFIX}/admin/guild/rewards/${id}/stock`, { body: { stock } }),
+  adminGuildRewardCategories: async () => {
+    const data = await request('GET', `${API_PREFIX}/admin/guild/reward-categories`)
+    if (Array.isArray(data.data)) data.data = data.data.map(transformGuildRewardCategory)
+    return data
+  },
+  adminCreateGuildRewardCategory: (body) =>
+    request('POST', `${API_PREFIX}/admin/guild/reward-categories`, { body }),
+  adminUpdateGuildRewardCategory: (id, body) =>
+    request('PUT', `${API_PREFIX}/admin/guild/reward-categories/${id}`, { body }),
+  adminUpdateGuildRewardCategoryStatus: (id, status) =>
+    request('POST', `${API_PREFIX}/admin/guild/reward-categories/${id}/status`, {
+      body: { status },
+    }),
   adminUploadGuildRewardImage: async (file) => {
     const formData = new FormData()
     formData.append('image', file)
