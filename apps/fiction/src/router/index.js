@@ -24,7 +24,7 @@ const StoryEditorView = () => import('@/views/StoryEditorView.vue')
 const ChapterEditorView = () => import('@/views/ChapterEditorView.vue')
 const NotFoundView = () => import('@/views/NotFoundView.vue')
 
-const SITE = 'library'
+const SITE = 'shop'
 const ACCOUNT_SECTIONS = ['overview', 'artworks', 'articles', 'comments', 'points', 'profile', 'settings']
 
 const router = createRouter({

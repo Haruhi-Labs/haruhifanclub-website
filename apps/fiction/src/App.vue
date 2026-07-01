@@ -15,7 +15,7 @@ onMounted(() => session.ensureReady())
 </script>
 
 <template>
-  <div class="fiction-app sos-scope" data-sos-site="library">
+  <div class="fiction-app sos-scope" data-sos-site="shop">
     <SosAppbar v-if="!immersive">
       <template #brand>
         <RouterLink to="/" class="sos-brand-lockup">

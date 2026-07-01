@@ -227,8 +227,10 @@ watch(id, load, { immediate: true })
   flex-direction: column;
 }
 .story__stats b {
-  font-family: var(--sos-font-reading);
+  font-family: var(--sos-font-sans);
+  font-variant-numeric: var(--sos-numeric-tabular);
   font-size: var(--sos-text-lg);
+  font-weight: 700;
   color: var(--sos-text-primary);
 }
 .story__stats span {

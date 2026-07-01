@@ -137,7 +137,8 @@ onMounted(load)
   gap: 4px;
 }
 .wd__stat b {
-  font-family: var(--sos-font-reading);
+  font-family: var(--sos-font-sans);
+  font-variant-numeric: var(--sos-numeric-tabular);
   font-size: var(--sos-text-xl);
   color: var(--sos-text-primary);
 }

@@ -1,22 +1,9 @@
 /* ============================================================
    同人文库 —— 站点级样式
-   基调沿用设计系统 library 表达（奶油纸 + 衬线标题），
-   仅把强调色改为「书卷酒红」，与 EPUB 书架的琥珀区隔、又同属暖色家族。
+   基调采用设计系统 shop 表达（晴空蓝 · 浅蓝白底 · 无衬线 · 大圆角 · 柔蓝阴影），
+   清爽轻快，契合二次元同人文站气质；与商城同属蓝色系、和全站协调。
    ============================================================ */
 
-/* 书卷酒红强调（暖色，和奶油纸面协调；区别于书架琥珀、画廊青绿）。
-   同时覆盖 auth-ui 等内部重新声明 data-sos-site=library 的区块，保证账号中心/登录页
-   与全站一致用酒红——只作用于 fiction，不影响其它 app 复用的共享组件。 */
-.fiction-app.sos-scope,
-.fiction-app [data-sos-site='library'] {
-  --sos-accent: #a63d61;
-  --sos-accent-hover: #8c2f4f;
-  --sos-accent-soft: #f7e8ee;
-  --sos-accent-contrast: #fff;
-  --sos-link: #9c3a5c;
-  --sos-link-hover: #7c2b47;
-  --sos-focus: #a63d61;
-}
 .fiction-app.sos-scope {
   min-height: 100vh;
   display: flex;
@@ -94,17 +81,14 @@
   gap: var(--sos-space-6);
 }
 
-/* ---- 封面 ---- */
+/* ---- 封面（扁平海报式） ---- */
 .fiction-cover {
   position: relative;
   container-type: inline-size;
   aspect-ratio: 3 / 4;
-  border-radius: var(--sos-radius-md);
+  border-radius: var(--sos-media-radius, 12px);
   overflow: hidden;
   background: var(--sos-bg-muted);
-  box-shadow:
-    var(--sos-shadow-sm),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 .fiction-cover img {
   position: absolute;
@@ -113,85 +97,41 @@
   height: 100%;
   object-fit: cover;
 }
-/* 无封面：设计过的「书封」——渐变纸 + 书脊 + 书名牌 + 印记 */
+/* 无封面：明快扁平渐变 + 分类小标 + 底部书名 */
 .fiction-cover__ph {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
-  padding: 12cqw 10cqw 10cqw 15cqw;
+  padding: 11cqw;
   color: #fff;
   overflow: hidden;
   background:
-    radial-gradient(120% 78% at 76% 6%, rgba(255, 255, 255, 0.24), transparent 58%),
-    linear-gradient(155deg, hsl(var(--cover-h1) 45% 57%), hsl(var(--cover-h2) 49% 39%));
-}
-/* 书脊：左侧竖条 + 高光棱线 */
-.fiction-cover__spine {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 8.5cqw;
-  min-width: 5px;
-  background: linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0.3),
-    rgba(0, 0, 0, 0.08) 60%,
-    rgba(255, 255, 255, 0.18)
-  );
-}
-/* 内描边（烫框感） */
-.fiction-cover__ph::after {
-  content: '';
-  position: absolute;
-  inset: 6cqw 6cqw 6cqw 11cqw;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 2px;
-  pointer-events: none;
-}
-.fiction-cover__cat {
-  font-size: clamp(0.5rem, 5.5cqw, 0.72rem);
-  letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.82);
-  font-weight: 600;
-  margin-bottom: 5cqw;
+    radial-gradient(90% 62% at 84% 4%, rgba(255, 255, 255, 0.3), transparent 60%),
+    linear-gradient(150deg, hsl(var(--cover-h1) 88% 66%), hsl(var(--cover-h2) 80% 53%));
 }
 .fiction-cover__name {
-  font-family: var(--sos-display-family, var(--sos-font-display));
-  font-size: clamp(0.72rem, 13cqw, 1.5rem);
+  margin-top: auto;
+  font-size: clamp(0.78rem, 13cqw, 1.4rem);
   font-weight: 700;
-  line-height: 1.28;
-  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.28);
+  line-height: 1.24;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.18);
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-break: break-word;
 }
-.fiction-cover__seal {
-  margin-top: auto;
-  align-self: flex-start;
-  font-size: clamp(0.44rem, 4.6cqw, 0.6rem);
-  letter-spacing: 0.16em;
-  color: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  border-radius: var(--sos-radius-full);
-  padding: 2px 8px;
-}
-/* 紧凑封面（排行/侧栏 62px）：只保留书脊与书名 */
-.fiction-card--compact .fiction-cover__cat,
-.fiction-card--compact .fiction-cover__seal,
-.fiction-card--compact .fiction-cover__ph::after {
-  display: none;
-}
+/* 紧凑封面（排行/侧栏）：书名居中缩小 */
 .fiction-card--compact .fiction-cover__ph {
-  padding: 8cqw 7cqw 8cqw 16cqw;
+  padding: 8cqw;
   justify-content: center;
 }
 .fiction-card--compact .fiction-cover__name {
+  margin-top: 0;
   -webkit-line-clamp: 3;
-  font-size: clamp(0.6rem, 17cqw, 0.9rem);
+  font-size: clamp(0.6rem, 16cqw, 0.9rem);
 }
 
 /* ---- 作品卡片 ---- */
@@ -221,7 +161,7 @@
   font-size: var(--sos-text-2xs);
   font-weight: 600;
   color: #fff;
-  background: rgba(60, 45, 40, 0.68);
+  background: rgba(17, 28, 45, 0.5);
   backdrop-filter: blur(2px);
 }
 .fiction-card__flag--done {
@@ -330,9 +270,10 @@
   align-items: center;
 }
 .fiction-rank__no {
-  font-family: var(--sos-font-reading);
+  font-family: var(--sos-font-sans);
+  font-variant-numeric: var(--sos-numeric-tabular);
   font-size: var(--sos-text-lg);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--sos-text-tertiary);
   width: 1.6em;
   text-align: center;
