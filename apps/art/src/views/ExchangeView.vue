@@ -265,9 +265,16 @@
         <div v-if="redemptions.length" class="g-redemptions">
           <span class="g-redemptions__title">我的兑换申请</span>
           <div class="g-redemptions__list">
-            <b v-for="item in redemptions.slice(0, 5)" :key="item.id" :class="`st-${item.status}`">
+            <button
+              v-for="item in redemptions.slice(0, 5)"
+              :key="item.id"
+              type="button"
+              class="g-redemption-chip"
+              :class="`st-${item.status}`"
+              @click="openRedemptionDetail(item)"
+            >
               {{ item.rewardName }} · {{ redemptionLabel(item.status) }}
-            </b>
+            </button>
           </div>
         </div>
       </section>
@@ -465,6 +472,46 @@
     </transition>
 
     <transition name="g-fade">
+      <div v-if="selectedRedemption" class="g-modal" @click.self="closeRedemptionDetail">
+        <article class="g-dialog g-dialog--redemption" role="dialog" aria-modal="true">
+          <button
+            class="g-dialog__close"
+            type="button"
+            @click="closeRedemptionDetail"
+            aria-label="关闭"
+          >
+            ×
+          </button>
+          <span class="g-dialog__eyebrow">Redemption</span>
+          <h2>{{ selectedRedemption.rewardName }}</h2>
+          <p class="g-dialog__lede">
+            {{ redemptionLabel(selectedRedemption.status) }} ·
+            {{ formatCoins(selectedRedemption.frozenCoins) }} ·
+            {{ redemptionTypeLabel(selectedRedemption.rewardType) }}
+          </p>
+          <div v-if="selectedRedemption.userNote" class="g-redemption-note">
+            <span>申请备注</span>
+            <p>{{ selectedRedemption.userNote }}</p>
+          </div>
+          <div class="g-redemption-history">
+            <div
+              v-for="entry in redemptionHistory(selectedRedemption)"
+              :key="`${entry.kind}-${entry.at}`"
+              class="g-redemption-history__item"
+            >
+              <i></i>
+              <div>
+                <b>{{ entry.label }}</b>
+                <time>{{ formatShortDateTime(entry.at) }}</time>
+                <p v-if="entry.note">{{ entry.note }}</p>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </transition>
+
+    <transition name="g-fade">
       <div v-if="submissionTarget" class="g-modal" @click.self="closeQuestSubmission">
         <article class="g-dialog g-dialog--submission" role="dialog" aria-modal="true">
           <button
@@ -584,6 +631,7 @@ const showBudgetRecords = ref(false)
 const leaderboard = ref([])
 const currentLeader = ref(null)
 const redemptions = ref([])
+const selectedRedemption = ref(null)
 const profile = ref({
   uid: '',
   rating: 'F',
@@ -1104,6 +1152,59 @@ function redemptionLabel(status) {
   return map[status] || status
 }
 
+function redemptionTypeLabel(type) {
+  const map = {
+    physical: '实体补给',
+    virtual: '虚拟补给',
+    badge: '虚拟徽章',
+  }
+  return map[type] || type || '未知类型'
+}
+
+function openRedemptionDetail(item) {
+  selectedRedemption.value = item
+}
+
+function closeRedemptionDetail() {
+  selectedRedemption.value = null
+}
+
+function redemptionHistory(item) {
+  if (!item) return []
+  if (Array.isArray(item.history) && item.history.length) return item.history
+  const history = []
+  if (item.createdAt) {
+    history.push({
+      kind: 'applied',
+      label: '提交申请',
+      at: item.createdAt,
+      note: item.userNote,
+    })
+  }
+  if (item.reviewedAt) {
+    history.push({
+      kind: 'reviewed',
+      label:
+        item.status === 'rejected'
+          ? '审核拒绝'
+          : item.status === 'cancelled'
+            ? '取消兑换'
+            : '审核批准',
+      at: item.reviewedAt,
+      note: item.reviewNote || (item.status !== 'fulfilled' ? item.adminNote : ''),
+    })
+  }
+  if (item.fulfilledAt) {
+    history.push({
+      kind: 'fulfilled',
+      label: '发放完成',
+      at: item.fulfilledAt,
+      note: item.fulfilledNote || (item.status === 'fulfilled' ? item.adminNote : ''),
+    })
+  }
+  return history
+}
+
 // ---- 本地开发预览用 mock（仅 DEV，结构对齐后端字段）----
 function applyMock() {
   profile.value = {
@@ -1284,7 +1385,23 @@ function applyMock() {
     reputation: 760,
     avatar_url: '',
   }
-  redemptions.value = [{ id: 1, rewardName: 'SOS团电子徽章', status: 'pending' }]
+  redemptions.value = [
+    {
+      id: 1,
+      rewardName: 'SOS团电子徽章',
+      rewardType: 'badge',
+      frozenCoins: 80,
+      status: 'approved',
+      userNote: '用于个人主页展示',
+      reviewNote: '审核通过，等待发放',
+      createdAt: mockDeadline(-12),
+      reviewedAt: mockDeadline(-8),
+      history: [
+        { kind: 'applied', label: '提交申请', at: mockDeadline(-12), note: '用于个人主页展示' },
+        { kind: 'reviewed', label: '审核批准', at: mockDeadline(-8), note: '审核通过，等待发放' },
+      ],
+    },
+  ]
 }
 
 function mockDeadline(hours) {
@@ -2159,21 +2276,71 @@ onUnmounted(() => {
   gap: 8px;
   margin-top: 8px;
 }
-.g-redemptions__list b {
+.g-redemption-chip {
   font-size: 12px;
   font-weight: 700;
   padding: 4px 11px;
+  border: 0;
   border-radius: 999px;
   background: color-mix(in srgb, #ffffff 70%, transparent);
   color: var(--g-text);
+  cursor: pointer;
 }
-.g-redemptions__list b.st-approved,
-.g-redemptions__list b.st-fulfilled {
+.g-redemption-chip.st-approved,
+.g-redemption-chip.st-fulfilled {
   color: var(--g-accent-strong);
 }
-.g-redemptions__list b.st-rejected,
-.g-redemptions__list b.st-cancelled {
+.g-redemption-chip.st-rejected,
+.g-redemption-chip.st-cancelled {
   color: color-mix(in srgb, #d2453a 80%, #000);
+}
+
+.g-redemption-note {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--g-accent) 18%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--g-accent) 7%, transparent);
+}
+
+.g-redemption-note span,
+.g-redemption-history__item time,
+.g-redemption-history__item p {
+  color: var(--g-muted);
+  font-size: 12px;
+}
+
+.g-redemption-note p,
+.g-redemption-history__item p {
+  margin: 0;
+}
+
+.g-redemption-history {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.g-redemption-history__item {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.g-redemption-history__item i {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--g-accent);
+}
+
+.g-redemption-history__item div {
+  display: grid;
+  gap: 3px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--g-accent) 14%, transparent);
 }
 
 /* 排行 */
