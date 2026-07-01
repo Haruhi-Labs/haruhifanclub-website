@@ -1622,20 +1622,44 @@
           </div>
 
           <div v-if="guildTab === 'redemptions'" class="guild-list single">
-            <article v-for="item in guildRedemptions" :key="item.id" class="guild-manage-row">
+            <article
+              v-for="item in guildRedemptions"
+              :key="item.id"
+              class="guild-manage-row is-clickable"
+              @click="openRedemptionDetail(item)"
+            >
               <div>
                 <div class="m-title">{{ item.rewardName }} · {{ item.name || item.uid }}</div>
                 <div class="m-info">
-                  <span class="tag">{{ item.rewardType }}</span>
+                  <span class="tag">{{ redemptionTypeLabel(item.rewardType) }}</span>
                   <span class="tag">{{ item.frozenCoins }}G</span>
-                  <span class="tag">{{ item.status }}</span>
+                  <span class="tag">{{ redemptionStatusLabel(item.status) }}</span>
                   <span v-if="item.userNote" class="tag">备注：{{ item.userNote }}</span>
                 </div>
               </div>
-              <div class="guild-row-actions">
-                <button class="btn-ghost sm" @click="approveRedemption(item)">批准</button>
-                <button class="btn-ghost sm" @click="fulfillRedemption(item)">发放</button>
-                <button class="btn-ghost danger sm" @click="rejectRedemption(item)">拒绝</button>
+              <div class="guild-row-actions" @click.stop>
+                <button class="btn-ghost sm" @click="openRedemptionDetail(item)">详情</button>
+                <button
+                  v-if="item.status === 'pending'"
+                  class="btn-ghost sm"
+                  @click="approveRedemption(item)"
+                >
+                  批准
+                </button>
+                <button
+                  v-if="item.status === 'approved'"
+                  class="btn-ghost sm"
+                  @click="fulfillRedemption(item)"
+                >
+                  发放
+                </button>
+                <button
+                  v-if="item.status === 'pending'"
+                  class="btn-ghost danger sm"
+                  @click="rejectRedemption(item)"
+                >
+                  拒绝
+                </button>
               </div>
             </article>
             <div v-if="!guildRedemptions.length" class="empty-ph">暂无兑换申请</div>
@@ -2252,6 +2276,76 @@
       </main>
     </div>
 
+    <transition name="modal">
+      <div
+        v-if="selectedRedemption"
+        class="admin-modal"
+        @click.self="closeRedemptionDetail"
+      >
+        <article class="admin-dialog redemption-detail" role="dialog" aria-modal="true">
+          <button
+            class="dialog-close"
+            type="button"
+            aria-label="关闭"
+            @click="closeRedemptionDetail"
+          >
+            ×
+          </button>
+          <span class="dialog-eyebrow">Redemption</span>
+          <h2>{{ selectedRedemption.rewardName }}</h2>
+          <div class="redemption-detail-grid">
+            <span>用户</span>
+            <b>{{ selectedRedemption.name || selectedRedemption.uid }}</b>
+            <span>类型</span>
+            <b>{{ redemptionTypeLabel(selectedRedemption.rewardType) }}</b>
+            <span>金币</span>
+            <b>{{ selectedRedemption.frozenCoins }}G</b>
+            <span>状态</span>
+            <b>{{ redemptionStatusLabel(selectedRedemption.status) }}</b>
+            <span v-if="selectedRedemption.userNote">用户备注</span>
+            <p v-if="selectedRedemption.userNote">{{ selectedRedemption.userNote }}</p>
+          </div>
+          <div class="redemption-history">
+            <div
+              v-for="entry in redemptionHistory(selectedRedemption)"
+              :key="`${entry.kind}-${entry.at}`"
+              class="redemption-history-item"
+            >
+              <i></i>
+              <div>
+                <b>{{ entry.label }}</b>
+                <time>{{ formatDateTime(entry.at) }}</time>
+                <p v-if="entry.note">{{ entry.note }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="guild-row-actions">
+            <button
+              v-if="selectedRedemption.status === 'pending'"
+              class="btn-ghost sm"
+              @click="approveRedemption(selectedRedemption)"
+            >
+              批准
+            </button>
+            <button
+              v-if="selectedRedemption.status === 'approved'"
+              class="btn-ghost sm"
+              @click="fulfillRedemption(selectedRedemption)"
+            >
+              发放
+            </button>
+            <button
+              v-if="selectedRedemption.status === 'pending'"
+              class="btn-ghost danger sm"
+              @click="rejectRedemption(selectedRedemption)"
+            >
+              拒绝
+            </button>
+          </div>
+        </article>
+      </div>
+    </transition>
+
     <!-- 作品预览弹窗 -->
     <ArtworkModal v-model="showPreview" :item="previewItem" />
   </section>
@@ -2353,6 +2447,7 @@ const guildQuests = ref([])
 const guildQuestClaims = ref([])
 const guildRewards = ref([])
 const guildRedemptions = ref([])
+const selectedRedemption = ref(null)
 const guildBudget = ref({
   summary: { currentBudgetCoins: 0, totalSupplyCoins: 0, spentPhysicalCoins: 0, coinPerRmb: 15 },
   supplies: [],
@@ -3286,6 +3381,70 @@ function guildClaimStatusLabel(status) {
   return map[status] || status
 }
 
+function redemptionStatusLabel(status) {
+  const map = {
+    pending: '待审核',
+    approved: '已批准',
+    rejected: '已拒绝',
+    cancelled: '已取消',
+    fulfilled: '已发放',
+  }
+  return map[status] || status || '未知'
+}
+
+function redemptionTypeLabel(type) {
+  const map = {
+    physical: '实体补给',
+    virtual: '虚拟补给',
+    badge: '虚拟徽章',
+  }
+  return map[type] || type || '未知类型'
+}
+
+function openRedemptionDetail(item) {
+  selectedRedemption.value = item
+}
+
+function closeRedemptionDetail() {
+  selectedRedemption.value = null
+}
+
+function redemptionHistory(item) {
+  if (!item) return []
+  if (Array.isArray(item.history) && item.history.length) return item.history
+  const history = []
+  if (item.createdAt) {
+    history.push({
+      kind: 'applied',
+      label: '提交申请',
+      at: item.createdAt,
+      note: item.userNote,
+    })
+  }
+  if (item.reviewedAt) {
+    history.push({
+      kind: 'reviewed',
+      label:
+        item.status === 'rejected'
+          ? '审核拒绝'
+          : item.status === 'cancelled'
+            ? '取消兑换'
+            : '审核批准',
+      at: item.reviewedAt,
+      note: item.reviewNote || (item.status !== 'fulfilled' ? item.adminNote : ''),
+    })
+  }
+  if (item.fulfilledAt) {
+    history.push({
+      kind: 'fulfilled',
+      label: '发放完成',
+      at: item.fulfilledAt,
+      note: item.fulfilledNote || (item.status === 'fulfilled' ? item.adminNote : ''),
+    })
+  }
+  return history
+}
+
 async function approveQuestClaim(item) {
   const note = adminNote('委托验收通过')
   if (note === null) return
@@ -3304,6 +3463,7 @@ async function approveRedemption(item) {
   const note = adminNote('审核通过，等待发放')
   if (note === null) return
   await api.adminApproveGuildRedemption(item.id, note)
+  closeRedemptionDetail()
   await loadGuildAdmin()
 }
 
@@ -3311,6 +3471,7 @@ async function rejectRedemption(item) {
   const note = adminNote('不满足兑换条件')
   if (note === null) return
   await api.adminRejectGuildRedemption(item.id, note)
+  closeRedemptionDetail()
   await loadGuildAdmin()
 }
 
@@ -3318,6 +3479,7 @@ async function fulfillRedemption(item) {
   const note = adminNote('奖励已发放')
   if (note === null) return
   await api.adminFulfillGuildRedemption(item.id, note)
+  closeRedemptionDetail()
   await loadGuildAdmin()
 }
 
@@ -5085,6 +5247,121 @@ onMounted(async () => {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.guild-manage-row.is-clickable {
+  cursor: pointer;
+}
+
+.guild-manage-row.is-clickable:hover {
+  border-color: color-mix(in srgb, var(--sos-accent) 42%, #e5e7eb);
+}
+
+.admin-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.admin-dialog {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: min(720px, calc(100vh - 44px));
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--sos-border-default);
+  border-radius: 10px;
+  background: var(--sos-bg-panel);
+  color: var(--sos-text-primary);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+}
+
+.dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--sos-border-default);
+  border-radius: 8px;
+  background: var(--sos-bg-subtle);
+  color: var(--sos-text-primary);
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.dialog-eyebrow {
+  display: block;
+  color: var(--sos-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.redemption-detail h2 {
+  margin: 6px 42px 16px 0;
+  font-size: 22px;
+}
+
+.redemption-detail-grid {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 9px 12px;
+  padding: 12px;
+  border: 1px solid var(--sos-border-default);
+  border-radius: 8px;
+  background: var(--sos-bg-subtle);
+}
+
+.redemption-detail-grid span {
+  color: var(--sos-text-secondary);
+  font-size: 12px;
+}
+
+.redemption-detail-grid b,
+.redemption-detail-grid p {
+  min-width: 0;
+  margin: 0;
+}
+
+.redemption-history {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.redemption-history-item {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.redemption-history-item i {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--sos-accent);
+}
+
+.redemption-history-item div {
+  display: grid;
+  gap: 3px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--sos-border-default);
+}
+
+.redemption-history-item time,
+.redemption-history-item p {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: 12px;
 }
 
 .guild-row-main {

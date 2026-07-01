@@ -1140,6 +1140,170 @@ async fn guild_budget_uses_manual_supplies_and_physical_spends() {
 }
 
 #[tokio::test]
+async fn guild_redemption_records_review_and_fulfillment_history() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let user_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username=?")
+        .bind(ADMIN_USER)
+        .fetch_one(&app.state.pools.core)
+        .await
+        .unwrap();
+    let uid = format!("u{user_id}");
+    let ts = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+
+    let redemption_id: i64 = sqlx::query_scalar(
+        "INSERT INTO guild_reward_redemptions(reward_id, uid, frozen_coins, status, user_note, created_at)
+         VALUES(1, ?, 80, 'pending', '用于主页展示', ?) RETURNING id",
+    )
+    .bind(&uid)
+    .bind(&ts)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/redemptions/{redemption_id}/fulfilled"),
+            json!({ "note": "不能跳过审核" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/redemptions/{redemption_id}/approve"),
+            json!({ "note": "审核通过，等待发放" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "approve failed: {body:?}");
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/guild/redemptions/me", Some(&token)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let redemption = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["id"] == redemption_id)
+        .unwrap();
+    assert_eq!(redemption["status"], "approved");
+    assert_eq!(redemption["reviewNote"], "审核通过，等待发放");
+    assert_eq!(redemption["history"].as_array().unwrap().len(), 2);
+    assert!(redemption["history"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["label"] == "审核批准" && item["note"] == "审核通过，等待发放"));
+
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/redemptions/{redemption_id}/fulfilled"),
+            json!({ "note": "奖励已发放" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "fulfill failed: {body:?}");
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/admin/guild/redemptions", Some(&token)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let redemption = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["id"] == redemption_id)
+        .unwrap();
+    assert_eq!(redemption["status"], "fulfilled");
+    assert_eq!(redemption["reviewNote"], "审核通过，等待发放");
+    assert_eq!(redemption["fulfilledNote"], "奖励已发放");
+    assert!(redemption["history"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["label"] == "发放完成" && item["note"] == "奖励已发放"));
+}
+
+#[tokio::test]
+async fn guild_budget_recounts_redemptions_when_reward_becomes_physical() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let ts = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            "/api/art/admin/guild/budget/supplies",
+            json!({ "budgetType": "activity", "amountUnit": "coins", "amount": 1000 }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "budget supply failed: {body:?}");
+
+    sqlx::query(
+        "INSERT INTO guild_reward_redemptions(reward_id, uid, frozen_coins, status, created_at, reviewed_at) \
+         VALUES(1, 'u_budget_retro', 80, 'approved', ?, ?)",
+    )
+    .bind(&ts)
+    .bind(&ts)
+    .execute(&art)
+    .await
+    .unwrap();
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/admin/guild/budget", Some(&token)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["summary"]["spentPhysicalCoins"], 0);
+    assert_eq!(body["summary"]["currentBudgetCoins"], 1000);
+    assert_eq!(body["spends"].as_array().unwrap().len(), 0);
+
+    sqlx::query("UPDATE guild_rewards SET reward_type='physical', updated_at=? WHERE id=1")
+        .bind(&ts)
+        .execute(&art)
+        .await
+        .unwrap();
+
+    let (status, body) = send(&app.router, get("/api/art/guild/rewards", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["budget"]["spentPhysicalCoins"], 80);
+    assert_eq!(body["budget"]["currentBudgetCoins"], 920);
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/admin/guild/budget", Some(&token)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["summary"]["spentPhysicalCoins"], 80);
+    assert_eq!(body["summary"]["currentBudgetCoins"], 920);
+    assert!(body["spends"].as_array().unwrap().iter().any(|item| {
+        item["rewardId"] == 1
+            && item["uid"] == "u_budget_retro"
+            && item["spentCoins"] == 80
+            && item["rewardType"] == "physical"
+    }));
+}
+
+#[tokio::test]
 async fn guild_terminal_limits_claim_history_to_latest_ten() {
     let app = setup().await;
     let art = app.state.pools.art.clone();
