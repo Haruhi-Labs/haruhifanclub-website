@@ -267,6 +267,9 @@ export const api = {
   adminGuildQuestClaims: () => request('GET', `${API_PREFIX}/admin/guild/quest-claims`),
   adminApproveGuildQuestClaim: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/quest-claims/${id}/approve`, { body: { note } }),
   adminRejectGuildQuestClaim: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/quest-claims/${id}/reject`, { body: { note } }),
+  adminGuildCreatorProductionStats: (params) => request('GET', `${API_PREFIX}/admin/guild/creator-production-stats`, { params }),
+  adminGuildBudget: () => request('GET', `${API_PREFIX}/admin/guild/budget`),
+  adminCreateGuildBudgetSupply: (body) => request('POST', `${API_PREFIX}/admin/guild/budget/supplies`, { body }),
   adminGuildRewards: async () => {
     const data = await request('GET', `${API_PREFIX}/admin/guild/rewards`)
     if (Array.isArray(data.data)) data.data = data.data.map(transformGuildReward)

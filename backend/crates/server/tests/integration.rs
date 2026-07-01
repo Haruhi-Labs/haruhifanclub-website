@@ -621,6 +621,8 @@ async fn admin_lists_enforce_rbac_across_modules() {
 
     for path in [
         "/api/art/admin/pending-artworks",
+        "/api/art/admin/guild/creator-production-stats",
+        "/api/art/admin/guild/budget",
         "/api/exam/admin/list",
         "/api/shop/admin/coupons",
     ] {
@@ -918,6 +920,253 @@ async fn guild_leaderboard_hides_zero_earned_coins_by_default() {
         !uids.contains(&"u_lb_withdrawn".to_string()),
         "获得后撤回导致历史累计获得金币为 0 的用户不应默认显示"
     );
+}
+
+#[tokio::test]
+async fn guild_budget_uses_manual_supplies_and_physical_spends() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let ts = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+
+    for body in [
+        json!({ "budgetType": "quarterly", "amountUnit": "rmb", "amount": 600 }),
+        json!({ "budgetType": "activity", "amountUnit": "coins", "amount": 1500 }),
+    ] {
+        let (status, body) = send(
+            &app.router,
+            post_json("/api/art/admin/guild/budget/supplies", body, Some(&token)),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "budget supply should be created: {body:?}"
+        );
+        assert_eq!(body["ok"], true);
+    }
+
+    for (reward_id, uid, frozen, status) in [
+        (2_i64, "u_budget_pending", 100_i64, "pending"),
+        (2_i64, "u_budget_approved", 300_i64, "approved"),
+        (2_i64, "u_budget_fulfilled", 200_i64, "fulfilled"),
+        (1_i64, "u_budget_virtual", 80_i64, "approved"),
+    ] {
+        sqlx::query(
+            "INSERT INTO guild_reward_redemptions(reward_id, uid, frozen_coins, status, created_at) \
+             VALUES(?,?,?,?,?)",
+        )
+        .bind(reward_id)
+        .bind(uid)
+        .bind(frozen)
+        .bind(status)
+        .bind(&ts)
+        .execute(&art)
+        .await
+        .unwrap();
+    }
+
+    let (status, body) = send(&app.router, get("/api/art/guild/rewards", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    let budget = &body["budget"];
+    assert_eq!(budget["coinPerRmb"], 15);
+    assert_eq!(budget["totalSupplyCoins"], 10500);
+    assert_eq!(budget["spentPhysicalCoins"], 500);
+    assert_eq!(budget["currentBudgetCoins"], 10000);
+    assert!(
+        budget["recentSupplies"].as_array().unwrap().len() == 2,
+        "public rewards should expose recent manual supplies"
+    );
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/admin/guild/budget", Some(&token)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["summary"]["totalSupplyCoins"], 10500);
+    assert_eq!(body["summary"]["spentPhysicalCoins"], 500);
+    assert_eq!(body["summary"]["currentBudgetCoins"], 10000);
+
+    let supplies = body["supplies"].as_array().unwrap();
+    assert_eq!(supplies.len(), 2);
+    assert!(supplies.iter().any(|item| {
+        item["budgetType"] == "quarterly"
+            && item["amountUnit"] == "rmb"
+            && item["amountInput"] == 600
+            && item["amountCoins"] == 9000
+    }));
+    assert!(supplies.iter().any(|item| {
+        item["budgetType"] == "activity"
+            && item["amountUnit"] == "coins"
+            && item["amountInput"] == 1500
+            && item["amountCoins"] == 1500
+    }));
+
+    let spends = body["spends"].as_array().unwrap();
+    assert_eq!(spends.len(), 2);
+    assert_eq!(
+        spends
+            .iter()
+            .map(|item| item["spentCoins"].as_i64().unwrap())
+            .sum::<i64>(),
+        500
+    );
+    assert!(
+        spends.iter().all(|item| item["rewardType"] == "physical"
+            && matches!(item["status"].as_str(), Some("approved" | "fulfilled"))),
+        "budget spends should only include approved or fulfilled physical redemptions"
+    );
+}
+
+#[tokio::test]
+async fn admin_creator_production_stats_use_recent_approved_art_and_positive_coins() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    let old = "2000-01-01T00:00:00Z";
+
+    for uid in ["u_stats_a", "u_stats_b"] {
+        sqlx::query("INSERT INTO creators(uid, avatar_url, created_at) VALUES(?,'',?)")
+            .bind(uid)
+            .bind(&now)
+            .execute(&art)
+            .await
+            .unwrap();
+    }
+
+    for (title, uid, status, created_at, reviewed_at) in [
+        (
+            "近期作品 A1",
+            "u_stats_a",
+            "approved",
+            now.as_str(),
+            now.as_str(),
+        ),
+        (
+            "近期作品 A2",
+            "u_stats_a",
+            "approved",
+            now.as_str(),
+            now.as_str(),
+        ),
+        (
+            "待审作品 A3",
+            "u_stats_a",
+            "pending",
+            now.as_str(),
+            now.as_str(),
+        ),
+        (
+            "近期作品 B1",
+            "u_stats_b",
+            "approved",
+            now.as_str(),
+            now.as_str(),
+        ),
+        ("历史作品 B2", "u_stats_b", "approved", old, old),
+    ] {
+        sqlx::query(
+            "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at, reviewed_at) \
+             VALUES(?, ?, 'personal', 'haruhi', ?, ?, ?)",
+        )
+        .bind(title)
+        .bind(uid)
+        .bind(status)
+        .bind(created_at)
+        .bind(reviewed_at)
+        .execute(&art)
+        .await
+        .unwrap();
+    }
+
+    for (uid, points, source_type, created_at) in [
+        ("u_stats_a", 90_i64, "upload", now.as_str()),
+        ("u_stats_a", 30_i64, "quest", now.as_str()),
+        ("u_stats_a", -10_i64, "redemption", now.as_str()),
+        ("u_stats_b", 45_i64, "upload", now.as_str()),
+        ("u_stats_b", 100_i64, "upload", old),
+    ] {
+        sqlx::query(
+            "INSERT INTO points_ledger(uid, artwork_id, points, note, source_type, created_at, granted_at) \
+             VALUES(?, NULL, ?, '统计测试', ?, ?, ?)",
+        )
+        .bind(uid)
+        .bind(points)
+        .bind(source_type)
+        .bind(created_at)
+        .bind(created_at)
+        .execute(&art)
+        .await
+        .unwrap();
+    }
+
+    let (status, body) = send(
+        &app.router,
+        get(
+            "/api/art/admin/guild/creator-production-stats?months=3",
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["months"], 3);
+    assert_eq!(body["overall"]["artworksTotal"], 3);
+    assert_eq!(body["overall"]["coinsTotal"], 165);
+
+    let rows = body["data"].as_array().unwrap();
+    let find = |uid: &str| {
+        rows.iter()
+            .find(|row| row["uid"].as_str() == Some(uid))
+            .unwrap()
+    };
+    let a = find("u_stats_a");
+    assert_eq!(a["artworksTotal"], 2);
+    assert_eq!(a["coinsTotal"], 120);
+    assert!((a["avgArtworksPerMonth"].as_f64().unwrap() - 0.7).abs() < 0.01);
+    assert_eq!(a["avgCoinsPerMonth"], 40.0);
+
+    let b = find("u_stats_b");
+    assert_eq!(b["artworksTotal"], 1);
+    assert_eq!(b["coinsTotal"], 45);
+    assert_eq!(b["avgCoinsPerMonth"], 15.0);
+
+    let ten_days_ago = (chrono::Utc::now() - chrono::Duration::days(10))
+        .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    sqlx::query(
+        "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at, reviewed_at) \
+         VALUES('十天前作品', 'u_stats_a', 'personal', 'haruhi', 'approved', ?, ?)",
+    )
+    .bind(&ten_days_ago)
+    .bind(&ten_days_ago)
+    .execute(&art)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO points_ledger(uid, artwork_id, points, note, source_type, created_at, granted_at) \
+         VALUES('u_stats_a', NULL, 60, '统计测试', 'upload', ?, ?)",
+    )
+    .bind(&ten_days_ago)
+    .bind(&ten_days_ago)
+    .execute(&art)
+    .await
+    .unwrap();
+
+    let (status, body) = send(
+        &app.router,
+        get(
+            "/api/art/admin/guild/creator-production-stats?window=week",
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["window"], "week");
+    assert_eq!(body["windowLabel"], "近1周");
+    assert_eq!(body["days"], 7);
+    assert_eq!(body["overall"]["artworksTotal"], 3);
+    assert_eq!(body["overall"]["coinsTotal"], 165);
 }
 
 // 评论署名：登录用户自动用账号昵称署名（忽略前端自报、归属 author_user_id）；
