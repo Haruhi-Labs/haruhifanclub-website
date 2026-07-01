@@ -636,7 +636,8 @@ async fn guild_leaderboard(
         None => None,
     };
 
-    // 历史累计获得积分：排除兑换等正常消耗(redemption)，但包含撤稿扣回(withdraw, 负值)。
+    // 历史累计获得金币（画廊积分）：排除兑换等正常消耗(redemption)，但包含撤稿扣回(withdraw, 负值)。
+    // 默认排行榜只展示累计获得金币大于 0 的用户。
     // 排序以该值为唯一依据（不再按评级/等级），声望与 uid 仅作并列时的兜底。
     let rows: Vec<GuildLeaderboardRow> = sqlx::query_as(
         "SELECT gp.uid, gp.reputation, gp.rating, gp.access_tier,
@@ -646,6 +647,7 @@ async fn guild_leaderboard(
          LEFT JOIN points_ledger pl ON pl.uid=gp.uid
          LEFT JOIN creators c ON c.uid=gp.uid
          GROUP BY gp.uid
+         HAVING COALESCE(SUM(CASE WHEN pl.source_type='redemption' THEN 0 ELSE pl.points END), 0) > 0
          ORDER BY
            earned DESC,
            gp.reputation DESC,

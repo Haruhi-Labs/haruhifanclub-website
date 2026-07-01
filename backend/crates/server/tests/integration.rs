@@ -832,6 +832,94 @@ async fn artwork_points_follow_public_state() {
     );
 }
 
+#[tokio::test]
+async fn guild_leaderboard_hides_zero_earned_coins_by_default() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let ts = "2026-01-01T00:00:00Z";
+
+    for uid in [
+        "u_lb_positive",
+        "u_lb_zero",
+        "u_lb_redemption_only",
+        "u_lb_withdrawn",
+    ] {
+        sqlx::query(
+            "INSERT INTO guild_profiles(uid, reputation, rating, access_tier, created_at, updated_at) \
+             VALUES(?, 0, 'F', 'observer_clearance', ?, ?)",
+        )
+        .bind(uid)
+        .bind(ts)
+        .bind(ts)
+        .execute(&art)
+        .await
+        .unwrap();
+    }
+
+    sqlx::query(
+        "INSERT INTO points_ledger(uid, artwork_id, points, note, source_type, created_at, granted_at) \
+         VALUES(?, NULL, 10, '测试获得金币', 'quest', ?, ?)",
+    )
+    .bind("u_lb_positive")
+    .bind(ts)
+    .bind(ts)
+    .execute(&art)
+    .await
+    .unwrap();
+
+    sqlx::query(
+        "INSERT INTO points_ledger(uid, artwork_id, points, note, source_type, created_at, granted_at) \
+         VALUES(?, NULL, -10, '兑换「徽章」扣除金币', 'redemption', ?, ?)",
+    )
+    .bind("u_lb_redemption_only")
+    .bind(ts)
+    .bind(ts)
+    .execute(&art)
+    .await
+    .unwrap();
+
+    for (points, source_type) in [(10_i64, "quest"), (-10_i64, "withdraw")] {
+        sqlx::query(
+            "INSERT INTO points_ledger(uid, artwork_id, points, note, source_type, created_at, granted_at) \
+             VALUES(?, NULL, ?, '获得后撤回', ?, ?, ?)",
+        )
+        .bind("u_lb_withdrawn")
+        .bind(points)
+        .bind(source_type)
+        .bind(ts)
+        .bind(ts)
+        .execute(&art)
+        .await
+        .unwrap();
+    }
+
+    let (status, body) = send(&app.router, get("/api/art/guild/leaderboard", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    let uids: Vec<String> = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["uid"].as_str().map(str::to_string))
+        .collect();
+
+    assert!(
+        uids.contains(&"u_lb_positive".to_string()),
+        "历史累计获得金币大于 0 的用户应显示"
+    );
+    assert!(
+        !uids.contains(&"u_lb_zero".to_string()),
+        "没有获得过金币的用户不应默认显示"
+    );
+    assert!(
+        !uids.contains(&"u_lb_redemption_only".to_string()),
+        "只有兑换消耗、历史累计获得金币为 0 的用户不应默认显示"
+    );
+    assert!(
+        !uids.contains(&"u_lb_withdrawn".to_string()),
+        "获得后撤回导致历史累计获得金币为 0 的用户不应默认显示"
+    );
+}
+
 // 评论署名：登录用户自动用账号昵称署名（忽略前端自报、归属 author_user_id）；
 // 未登录用户不允许评论（强制登录，返回 401）——前端在评论区改为展示登录提示。
 #[tokio::test]
