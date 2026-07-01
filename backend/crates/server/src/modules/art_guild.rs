@@ -3654,6 +3654,7 @@ async fn budget_totals(state: &AppState) -> AppResult<(i64, i64)> {
         sqlx::query_scalar("SELECT COALESCE(SUM(amount_coins), 0) FROM guild_budget_supplies")
             .fetch_one(&state.pools.art)
             .await?;
+    // 预算消耗按商品当前类型回溯计算；商品后来改为实体后，已批准/已发放兑换也会计入。
     let spent_physical: i64 = sqlx::query_scalar(
         "SELECT COALESCE(SUM(r.frozen_coins), 0)
          FROM guild_reward_redemptions r
