@@ -348,59 +348,6 @@
   min-width: 0;
 }
 
-/* ---- 页脚 ---- */
-.fiction-footer {
-  flex-shrink: 0;
-  border-top: 1px solid var(--sos-border-subtle);
-  background: var(--sos-bg-surface);
-  margin-top: var(--sos-space-10);
-}
-.fiction-footer__inner {
-  width: min(1160px, 100% - 2 * var(--sos-space-5));
-  margin-inline: auto;
-  padding-block: var(--sos-space-7);
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--sos-space-5);
-}
-.fiction-footer__brand strong {
-  font-family: var(--sos-display-family, var(--sos-font-display));
-  font-size: var(--sos-text-lg);
-  color: var(--sos-text-primary);
-}
-.fiction-footer__brand p {
-  margin: 4px 0 0;
-  font-size: var(--sos-text-sm);
-  color: var(--sos-text-secondary);
-}
-.fiction-footer__links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sos-space-5);
-  align-items: center;
-}
-.fiction-footer__links a {
-  color: var(--sos-text-secondary);
-  text-decoration: none;
-  font-size: var(--sos-text-sm);
-}
-.fiction-footer__links a:hover {
-  color: var(--sos-accent);
-}
-.fiction-footer__legal {
-  border-top: 1px solid var(--sos-border-subtle);
-  padding-block: var(--sos-space-4);
-  width: min(1160px, 100% - 2 * var(--sos-space-5));
-  margin-inline: auto;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--sos-space-2);
-  font-size: var(--sos-text-xs);
-  color: var(--sos-text-tertiary);
-}
-
 @media (max-width: 640px) {
   .fiction-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
