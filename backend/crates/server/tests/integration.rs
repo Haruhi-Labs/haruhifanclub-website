@@ -1140,6 +1140,107 @@ async fn guild_budget_uses_manual_supplies_and_physical_spends() {
 }
 
 #[tokio::test]
+async fn guild_reward_categories_are_managed_and_returned_with_rewards() {
+    let app = setup().await;
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+
+    let (status, body) = send(&app.router, get("/api/art/guild/rewards", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body["categories"].as_array().unwrap().is_empty(),
+        "fresh database should not seed reward categories"
+    );
+
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            "/api/art/admin/guild/reward-categories",
+            json!({ "name": "游戏", "sortOrder": 5 }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "category create failed: {body:?}");
+    let category_id = body["data"]["id"].as_i64().unwrap();
+
+    for body in [
+        json!({
+            "name": "游戏兑换券",
+            "description": "可兑换游戏相关补给",
+            "rewardType": "virtual",
+            "priceCoins": 150,
+            "stock": -1,
+            "requiredRating": "F",
+            "requiredAccess": "observer_clearance",
+            "status": "active",
+            "sortOrder": 30,
+            "categoryId": category_id
+        }),
+        json!({
+            "name": "未分类补给",
+            "description": "只在所有分类展示",
+            "rewardType": "physical",
+            "priceCoins": 220,
+            "stock": 3,
+            "requiredRating": "F",
+            "requiredAccess": "observer_clearance",
+            "status": "active",
+            "sortOrder": 31
+        }),
+    ] {
+        let (status, body) = send(
+            &app.router,
+            post_json("/api/art/admin/guild/rewards", body, Some(&token)),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "reward create failed: {body:?}");
+    }
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/admin/guild/rewards", Some(&token)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["categories"][0]["id"], category_id);
+    let admin_rewards = body["data"].as_array().unwrap();
+    let categorized = admin_rewards
+        .iter()
+        .find(|item| item["name"] == "游戏兑换券")
+        .expect("categorized reward should be returned to admin");
+    assert_eq!(categorized["categoryId"], category_id);
+    assert_eq!(categorized["categoryName"], "游戏");
+
+    let (status, body) = send(&app.router, get("/api/art/guild/rewards", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["categories"][0]["name"], "游戏");
+    let public_rewards = body["data"].as_array().unwrap();
+    let uncategorized = public_rewards
+        .iter()
+        .find(|item| item["name"] == "未分类补给")
+        .expect("uncategorized reward should still be visible");
+    assert!(uncategorized["categoryId"].is_null());
+
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/reward-categories/{category_id}/status"),
+            json!({ "status": "paused" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "category pause failed: {body:?}");
+
+    let (status, body) = send(&app.router, get("/api/art/guild/rewards", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body["categories"].as_array().unwrap().is_empty(),
+        "paused categories should not create public category tabs"
+    );
+}
+
+#[tokio::test]
 async fn manual_guild_quest_accepts_artwork_submissions_before_admin_approval() {
     let app = setup().await;
     let art = app.state.pools.art.clone();

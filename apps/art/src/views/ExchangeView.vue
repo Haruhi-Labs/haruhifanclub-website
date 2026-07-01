@@ -205,9 +205,28 @@
           </div>
         </div>
 
+        <div class="g-reward-tools">
+          <div class="g-reward-cats" role="tablist" aria-label="补给分类">
+            <button
+              v-for="category in rewardCategoryTabs"
+              :key="category.id"
+              type="button"
+              class="g-reward-cat"
+              :class="{ on: activeRewardCategoryId === category.id }"
+              @click="activeRewardCategoryId = category.id"
+            >
+              {{ category.name }}
+            </button>
+          </div>
+          <label class="g-reward-search">
+            <span>搜索补给</span>
+            <input v-model.trim="rewardSearch" type="search" placeholder="按名称或说明搜索" />
+          </label>
+        </div>
+
         <div class="g-rewards">
           <article
-            v-for="reward in rewards"
+            v-for="reward in filteredRewards"
             :key="reward.id"
             class="g-reward"
             :class="{ 'is-locked': !reward.unlocked }"
@@ -220,6 +239,7 @@
               <h3>{{ reward.name }}</h3>
               <p>{{ reward.description || '管理员发放的公会补给。' }}</p>
               <div class="g-chips">
+                <span v-if="reward.categoryName" class="g-chip">{{ reward.categoryName }}</span>
                 <span class="g-chip g-chip--coin">{{ reward.priceCoins }}G</span>
                 <span class="g-chip">评级 {{ reward.requiredRating }}</span>
                 <span class="g-chip">{{ reward.requiredAccessLabel }}</span>
@@ -238,7 +258,9 @@
             </button>
           </article>
         </div>
-        <div v-if="!rewards.length" class="g-empty">暂无可查看的补给项目</div>
+        <div v-if="!filteredRewards.length" class="g-empty">
+          {{ rewards.length ? '没有符合条件的补给项目' : '暂无可查看的补给项目' }}
+        </div>
 
         <div v-if="redemptions.length" class="g-redemptions">
           <span class="g-redemptions__title">我的兑换申请</span>
@@ -468,7 +490,11 @@
               @click="toggleSubmissionArtwork(artwork.id)"
             >
               <span class="g-submission-item__thumb">
-                <img v-if="artwork.image_url" :src="thumbUrl(artwork.image_url, 320)" :alt="artwork.title || '作品'" />
+                <img
+                  v-if="artwork.image_url"
+                  :src="thumbUrl(artwork.image_url, 320)"
+                  :alt="artwork.title || '作品'"
+                />
                 <i v-else>ART</i>
               </span>
               <span class="g-submission-item__copy">
@@ -483,7 +509,11 @@
             </div>
           </div>
           <div class="g-dialog__actions">
-            <button type="button" class="sos-button sos-button--ghost" @click="closeQuestSubmission">
+            <button
+              type="button"
+              class="sos-button sos-button--ghost"
+              @click="closeQuestSubmission"
+            >
               取消
             </button>
             <button
@@ -546,6 +576,9 @@ const session = useSession('/api')
 
 const quests = ref([])
 const rewards = ref([])
+const rewardCategories = ref([])
+const rewardSearch = ref('')
+const activeRewardCategoryId = ref('all')
 const rewardBudget = ref(null)
 const showBudgetRecords = ref(false)
 const leaderboard = ref([])
@@ -665,6 +698,28 @@ const coinText = computed(() => {
 
 const recentBudgetSupplies = computed(() => rewardBudget.value?.recentSupplies || [])
 const submissionRequiredCount = computed(() => questTarget(submissionTarget.value || {}))
+const rewardCategoryTabs = computed(() => [
+  { id: 'all', name: '所有' },
+  ...rewardCategories.value.map((category) => ({
+    id: Number(category.id),
+    name: category.name,
+  })),
+])
+const filteredRewards = computed(() => {
+  const keyword = rewardSearch.value.trim().toLowerCase()
+  return rewards.value.filter((reward) => {
+    const matchesCategory =
+      activeRewardCategoryId.value === 'all' ||
+      Number(reward.categoryId || 0) === Number(activeRewardCategoryId.value)
+    if (!matchesCategory) return false
+    if (!keyword) return true
+    return [reward.name, reward.description]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(keyword)
+  })
+})
 
 const guildTabs = computed(() => [
   { id: 'quests', eyebrow: 'Bounty', label: '委托', summary: `${quests.value.length} 项` },
@@ -752,6 +807,15 @@ async function loadGuild() {
     ])
     quests.value = questRes.data || []
     rewards.value = rewardRes.data || []
+    rewardCategories.value = rewardRes.categories || []
+    if (
+      activeRewardCategoryId.value !== 'all' &&
+      !rewardCategories.value.some(
+        (category) => Number(category.id) === Number(activeRewardCategoryId.value)
+      )
+    ) {
+      activeRewardCategoryId.value = 'all'
+    }
     rewardBudget.value = rewardRes.budget || null
     leaderboard.value = rankRes.data || []
     currentLeader.value = rankRes.me || null
@@ -967,7 +1031,9 @@ function closeQuestSubmission() {
 
 function toggleSubmissionArtwork(artworkId) {
   if (selectedSubmissionArtworkIds.value.includes(artworkId)) {
-    selectedSubmissionArtworkIds.value = selectedSubmissionArtworkIds.value.filter((id) => id !== artworkId)
+    selectedSubmissionArtworkIds.value = selectedSubmissionArtworkIds.value.filter(
+      (id) => id !== artworkId
+    )
   } else {
     selectedSubmissionArtworkIds.value = [...selectedSubmissionArtworkIds.value, artworkId]
   }
@@ -1115,6 +1181,10 @@ function applyMock() {
       claim: null,
     },
   ]
+  rewardCategories.value = [
+    { id: 1, name: '游戏', sortOrder: 10, status: 'active' },
+    { id: 2, name: '实体书', sortOrder: 20, status: 'active' },
+  ]
   rewards.value = [
     {
       id: 1,
@@ -1123,6 +1193,8 @@ function applyMock() {
       rewardType: 'virtual',
       priceCoins: 80,
       stock: null,
+      categoryId: 1,
+      categoryName: '游戏',
       requiredRating: 'F',
       requiredAccessLabel: '1级观测员许可',
       imageUrl: '',
@@ -1135,6 +1207,8 @@ function applyMock() {
       rewardType: 'physical',
       priceCoins: 300,
       stock: 20,
+      categoryId: 2,
+      categoryName: '实体书',
       requiredRating: 'E',
       requiredAccessLabel: '1级观测员许可',
       imageUrl: '',
@@ -1937,6 +2011,66 @@ onUnmounted(() => {
 .g-budget-record--empty {
   display: block;
 }
+.g-reward-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--g-line);
+  border-radius: 13px;
+  background: color-mix(in srgb, #ffffff 42%, transparent);
+}
+.g-reward-cats {
+  display: flex;
+  flex: 1 1 280px;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.g-reward-cat {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--g-line) 78%, var(--g-accent) 14%);
+  border-radius: 999px;
+  background: color-mix(in srgb, #ffffff 58%, transparent);
+  color: var(--g-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 850;
+}
+.g-reward-cat.on {
+  border-color: color-mix(in srgb, var(--g-accent) 38%, transparent);
+  background: color-mix(in srgb, var(--g-accent) 13%, transparent);
+  color: var(--g-accent-strong);
+}
+.g-reward-search {
+  display: grid;
+  flex: 0 1 260px;
+  gap: 5px;
+  min-width: min(100%, 220px);
+}
+.g-reward-search span {
+  color: var(--g-muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+.g-reward-search input {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--g-line);
+  border-radius: 9px;
+  outline: none;
+  background: color-mix(in srgb, #ffffff 72%, transparent);
+  color: var(--g-text);
+  font-size: 13px;
+}
+.g-reward-search input:focus {
+  border-color: color-mix(in srgb, var(--g-accent) 46%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--g-accent) 12%, transparent);
+}
 .g-rewards {
   display: grid;
   grid-template-columns: 1fr;
@@ -2431,6 +2565,17 @@ onUnmounted(() => {
 }
 :global(html.art-lights-out .g-view) {
   background: rgba(14, 24, 46, 0.6);
+}
+:global(html.art-lights-out .g-reward-tools) {
+  background: rgba(12, 22, 44, 0.42);
+}
+:global(html.art-lights-out .g-reward-cat),
+:global(html.art-lights-out .g-reward-search input) {
+  background: rgba(18, 31, 55, 0.76);
+  border-color: rgba(136, 166, 220, 0.22);
+}
+:global(html.art-lights-out .g-reward-cat.on) {
+  background: color-mix(in srgb, var(--g-accent) 16%, rgba(18, 31, 55, 0.76));
 }
 :global(html.art-lights-out .g-quest),
 :global(html.art-lights-out .g-budget),
