@@ -477,6 +477,12 @@
               兑换审核
             </button>
             <button
+              :class="['sub-tab', guildTab === 'budget' && 'on']"
+              @click="switchGuildTab('budget')"
+            >
+              预算管理
+            </button>
+            <button
               :class="['sub-tab', guildTab === 'ratings' && 'on']"
               @click="switchGuildTab('ratings')"
             >
@@ -499,6 +505,41 @@
           <div v-if="guildMsg" class="guild-msg">{{ guildMsg }}</div>
 
           <div v-if="guildTab === 'creators'" class="guild-creator-page">
+            <div class="creator-production-overview">
+              <div class="creator-production-card creator-production-card--window">
+                <span>统计窗口</span>
+                <b>{{ creatorStatsWindowLabel }}</b>
+                <div class="creator-window-switch" role="group" aria-label="统计窗口">
+                  <button
+                    v-for="option in creatorStatsWindowOptions"
+                    :key="option.value"
+                    type="button"
+                    :class="['creator-window-btn', creatorStatsWindow === option.value && 'on']"
+                    @click="setCreatorStatsWindow(option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                </div>
+                <em>生产端真实数据</em>
+              </div>
+              <div class="creator-production-card">
+                <span>画作合计</span>
+                <b>{{ formatWhole(creatorStatsOverall.artworksTotal) }} 张</b>
+                <em
+                  >{{ creatorStatsAverageLabel }}
+                  {{ formatAverage(creatorStatsOverall.avgArtworksPerMonth) }} 张/月</em
+                >
+              </div>
+              <div class="creator-production-card">
+                <span>金币合计</span>
+                <b>{{ formatWhole(creatorStatsOverall.coinsTotal) }}G</b>
+                <em
+                  >{{ creatorStatsAverageLabel }}
+                  {{ formatAverage(creatorStatsOverall.avgCoinsPerMonth) }}G/月</em
+                >
+              </div>
+            </div>
+
             <div class="two-col-layout guild-creator-layout">
               <div class="col-left" :class="{ 'mobile-hidden': selectedCreator }">
                 <div class="toolbar tight">
@@ -568,7 +609,9 @@
                     </div>
                     <div class="creator-guild-card">
                       <span>评级</span>
-                      <b>{{ selectedCreator.ratingLabel || `${selectedCreator.rating || 'F'}级冒险者` }}</b>
+                      <b>{{
+                        selectedCreator.ratingLabel || `${selectedCreator.rating || 'F'}级冒险者`
+                      }}</b>
                       <em>等级 Lv{{ selectedCreator.level || 1 }}</em>
                     </div>
                     <div class="creator-guild-card">
@@ -582,6 +625,24 @@
                       <em>
                         通过 {{ selectedCreator.approvedArtworks || 0 }} / 待审
                         {{ selectedCreator.pendingArtworks || 0 }}
+                      </em>
+                    </div>
+                    <div class="creator-guild-card">
+                      <span>窗口画作</span>
+                      <b>{{ formatWhole(selectedCreatorProduction.artworksTotal) }} 张</b>
+                      <em>
+                        {{ creatorStatsWindowLabel }} ·
+                        {{ creatorStatsAverageLabel }}
+                        {{ formatAverage(selectedCreatorProduction.avgArtworksPerMonth) }} 张/月
+                      </em>
+                    </div>
+                    <div class="creator-guild-card">
+                      <span>窗口金币</span>
+                      <b>{{ formatWhole(selectedCreatorProduction.coinsTotal) }}G</b>
+                      <em>
+                        {{ creatorStatsWindowLabel }} ·
+                        {{ creatorStatsAverageLabel }}
+                        {{ formatAverage(selectedCreatorProduction.avgCoinsPerMonth) }}G/月
                       </em>
                     </div>
                     <div class="creator-guild-card">
@@ -656,7 +717,8 @@
                         placeholder="输入关联的 QQ 号码"
                       />
                       <div class="tip-text">
-                        当前页面联系方式：{{ creatorContact(selectedCreator) || '暂无' }}。QQ 为空时使用邮箱。
+                        当前页面联系方式：{{ creatorContact(selectedCreator) || '暂无' }}。QQ
+                        为空时使用邮箱。
                       </div>
                     </div>
 
@@ -1502,17 +1564,21 @@
           <div v-if="guildTab === 'questClaims'" class="guild-list single">
             <article v-for="item in guildQuestClaims" :key="item.id" class="guild-manage-row">
               <div>
-                <div class="m-title">
-                  {{ item.questTitle }} · {{ item.name || item.uid }}
-                </div>
+                <div class="m-title">{{ item.questTitle }} · {{ item.name || item.uid }}</div>
                 <div class="m-info">
                   <span class="tag">{{ guildClaimStatusLabel(item.status) }}</span>
                   <span class="tag">进度 {{ item.progress }}/{{ item.targetCount }}</span>
                   <span class="tag">声望 +{{ item.rewardReputation }}</span>
                   <span v-if="item.rewardCoins > 0" class="tag">金币 +{{ item.rewardCoins }}</span>
-                  <span v-if="item.claimedAt" class="tag">接取 {{ formatDateTime(item.claimedAt) }}</span>
-                  <span v-if="item.cycleEndAt" class="tag">截止 {{ formatDateTime(item.cycleEndAt) }}</span>
-                  <span v-if="item.reviewedAt" class="tag">处理 {{ formatDateTime(item.reviewedAt) }}</span>
+                  <span v-if="item.claimedAt" class="tag"
+                    >接取 {{ formatDateTime(item.claimedAt) }}</span
+                  >
+                  <span v-if="item.cycleEndAt" class="tag"
+                    >截止 {{ formatDateTime(item.cycleEndAt) }}</span
+                  >
+                  <span v-if="item.reviewedAt" class="tag"
+                    >处理 {{ formatDateTime(item.reviewedAt) }}</span
+                  >
                   <span v-if="item.adminNote" class="tag">备注：{{ item.adminNote }}</span>
                 </div>
               </div>
@@ -1542,6 +1608,158 @@
               </div>
             </article>
             <div v-if="!guildRedemptions.length" class="empty-ph">暂无兑换申请</div>
+          </div>
+
+          <div v-if="guildTab === 'budget'" class="guild-budget-page">
+            <div class="guild-budget-summary">
+              <div class="guild-budget-card">
+                <span>当前可用预算</span>
+                <b>{{ formatWhole(guildBudget.summary.currentBudgetCoins) }}G</b>
+                <em>同步到补给兑换柜台</em>
+              </div>
+              <div class="guild-budget-card">
+                <span>累计补给</span>
+                <b>{{ formatWhole(guildBudget.summary.totalSupplyCoins) }}G</b>
+                <em>按 {{ guildBudget.summary.coinPerRmb || 15 }}G≈1元折算</em>
+              </div>
+              <div class="guild-budget-card">
+                <span>累计消耗</span>
+                <b>{{ formatWhole(guildBudget.summary.spentPhysicalCoins) }}G</b>
+                <em>已批准/已发放实体兑换</em>
+              </div>
+            </div>
+
+            <section class="guild-list single guild-budget-list">
+              <div class="panel-header compact guild-list-toolbar">
+                <div>
+                  <div class="ph-title">预算列表</div>
+                  <div class="tip-text">查看补给台账与实体兑换消耗。</div>
+                </div>
+                <div class="guild-budget-toolbar">
+                  <div class="guild-budget-switch" role="group" aria-label="预算列表类型">
+                    <button
+                      :class="['guild-budget-switch-btn', guildBudgetTab === 'supplies' && 'on']"
+                      type="button"
+                      @click="guildBudgetTab = 'supplies'"
+                    >
+                      补给
+                    </button>
+                    <button
+                      :class="['guild-budget-switch-btn', guildBudgetTab === 'spends' && 'on']"
+                      type="button"
+                      @click="guildBudgetTab = 'spends'"
+                    >
+                      消耗
+                    </button>
+                  </div>
+                  <button
+                    v-if="guildBudgetTab === 'supplies'"
+                    class="btn sm"
+                    type="button"
+                    @click="showBudgetSupplyForm = !showBudgetSupplyForm"
+                  >
+                    新增预算补给
+                  </button>
+                </div>
+              </div>
+
+              <div
+                v-if="showBudgetSupplyForm && guildBudgetTab === 'supplies'"
+                class="guild-budget-form"
+              >
+                <label>
+                  <span>预算类型</span>
+                  <select v-model="guildBudgetSupplyForm.budgetType" class="input sm">
+                    <option value="quarterly">季度预算</option>
+                    <option value="activity">活动预算</option>
+                    <option value="other">其他预算</option>
+                  </select>
+                </label>
+                <label>
+                  <span>预算额度</span>
+                  <div class="guild-budget-amount-field">
+                    <div class="guild-budget-unit-switch" role="group" aria-label="预算单位">
+                      <button
+                        :class="[
+                          'guild-budget-switch-btn',
+                          guildBudgetSupplyForm.amountUnit === 'rmb' && 'on',
+                        ]"
+                        type="button"
+                        @click="guildBudgetSupplyForm.amountUnit = 'rmb'"
+                      >
+                        元
+                      </button>
+                      <button
+                        :class="[
+                          'guild-budget-switch-btn',
+                          guildBudgetSupplyForm.amountUnit === 'coins' && 'on',
+                        ]"
+                        type="button"
+                        @click="guildBudgetSupplyForm.amountUnit = 'coins'"
+                      >
+                        金币
+                      </button>
+                    </div>
+                    <input
+                      v-model.number="guildBudgetSupplyForm.amount"
+                      class="input sm"
+                      min="1"
+                      step="1"
+                      type="number"
+                      placeholder="填写数量"
+                    />
+                  </div>
+                </label>
+                <div class="guild-budget-form-actions">
+                  <span>将增加 {{ formatWhole(budgetSupplyPreviewCoins) }}G 库存预算</span>
+                  <button
+                    class="btn sm"
+                    type="button"
+                    :disabled="guildSaving"
+                    @click="createBudgetSupply"
+                  >
+                    新增补给
+                  </button>
+                </div>
+              </div>
+
+              <template v-if="guildBudgetTab === 'supplies'">
+                <article
+                  v-for="item in guildBudget.supplies"
+                  :key="item.id"
+                  class="guild-manage-row"
+                >
+                  <div>
+                    <div class="m-title">
+                      {{ item.budgetTypeLabel }} · {{ formatWhole(item.amountCoins) }}G
+                    </div>
+                    <div class="m-info">
+                      <span class="tag">{{ item.amountInput }}{{ item.amountUnitLabel }}</span>
+                      <span class="tag">{{ formatDateTime(item.createdAt) }}</span>
+                    </div>
+                  </div>
+                </article>
+                <div v-if="!guildBudget.supplies.length" class="empty-ph">暂无预算补给记录</div>
+              </template>
+
+              <template v-else>
+                <article v-for="item in guildBudget.spends" :key="item.id" class="guild-manage-row">
+                  <div>
+                    <div class="m-title">{{ item.rewardName }} · {{ item.name || item.uid }}</div>
+                    <div class="m-info">
+                      <span class="tag"
+                        >{{ formatWhole(item.spentCoins || item.frozenCoins) }}G</span
+                      >
+                      <span class="tag">{{ item.status }}</span>
+                      <span class="tag">{{
+                        formatDateTime(item.fulfilledAt || item.reviewedAt || item.createdAt)
+                      }}</span>
+                    </div>
+                  </div>
+                </article>
+                <div v-if="!guildBudget.spends.length" class="empty-ph">暂无实体补给消耗</div>
+              </template>
+            </section>
           </div>
 
           <div v-if="guildTab === 'ratings'" class="guild-list single">
@@ -1889,6 +2107,22 @@ const editCreatorForm = ref({ uid: '', qq: '', file: null })
 const previewAvatar = ref(null)
 const saveMsg = ref('')
 const creatorLogs = ref([])
+const creatorStatsWindowOptions = [
+  { value: 'week', label: '近1周' },
+  { value: '3m', label: '近3个月' },
+  { value: '6m', label: '近半年' },
+  { value: '1y', label: '近一年' },
+]
+const creatorStatsWindow = ref('3m')
+const creatorProductionStats = ref({
+  window: '3m',
+  windowLabel: '近3个月',
+  days: 90,
+  months: 3,
+  averageMonths: 3,
+  overall: { artworksTotal: 0, avgArtworksPerMonth: 0, coinsTotal: 0, avgCoinsPerMonth: 0 },
+  data: [],
+})
 const pointsForm = ref({ amount: 10, reason: '' })
 
 // --- 公会系统管理数据 ---
@@ -1901,6 +2135,14 @@ const guildQuests = ref([])
 const guildQuestClaims = ref([])
 const guildRewards = ref([])
 const guildRedemptions = ref([])
+const guildBudget = ref({
+  summary: { currentBudgetCoins: 0, totalSupplyCoins: 0, spentPhysicalCoins: 0, coinPerRmb: 15 },
+  supplies: [],
+  spends: [],
+})
+const guildBudgetTab = ref('supplies')
+const showBudgetSupplyForm = ref(false)
+const guildBudgetSupplyForm = ref({ budgetType: 'quarterly', amountUnit: 'rmb', amount: 600 })
 const guildRatings = ref([])
 const guildProfiles = ref([])
 const guildQuestEditingId = ref(null)
@@ -1967,21 +2209,50 @@ const filteredCreators = computed(() => {
   if (!creatorSearch.value) return creators.value
   const q = creatorSearch.value.toLowerCase()
   return creators.value.filter((c) =>
-    [
-      c.uid,
-      c.name,
-      c.qq,
-      c.email,
-      c.contactValue,
-      c.rating,
-      c.accessLabel,
-      c.accessShortLabel,
-    ]
+    [c.uid, c.name, c.qq, c.email, c.contactValue, c.rating, c.accessLabel, c.accessShortLabel]
       .filter(Boolean)
       .join(' ')
       .toLowerCase()
       .includes(q)
   )
+})
+
+const creatorProductionByUid = computed(() => {
+  const map = new Map()
+  for (const item of creatorProductionStats.value.data || []) {
+    map.set(item.uid, item)
+  }
+  return map
+})
+
+const creatorStatsOverall = computed(
+  () =>
+    creatorProductionStats.value.overall || {
+      artworksTotal: 0,
+      avgArtworksPerMonth: 0,
+      coinsTotal: 0,
+      avgCoinsPerMonth: 0,
+    }
+)
+
+const creatorStatsWindowLabel = computed(
+  () =>
+    creatorProductionStats.value.windowLabel || creatorStatsOptionLabel(creatorStatsWindow.value)
+)
+
+const creatorStatsAverageLabel = computed(() =>
+  creatorStatsWindow.value === 'week' ? '折算月均' : '月均'
+)
+
+const selectedCreatorProduction = computed(() => {
+  if (!selectedCreator.value) return emptyCreatorProduction()
+  return creatorProductionByUid.value.get(selectedCreator.value.uid) || emptyCreatorProduction()
+})
+
+const budgetSupplyPreviewCoins = computed(() => {
+  const amount = Number(guildBudgetSupplyForm.value.amount || 0)
+  const coinPerRmb = Number(guildBudget.value.summary?.coinPerRmb || 15)
+  return guildBudgetSupplyForm.value.amountUnit === 'rmb' ? amount * coinPerRmb : amount
 })
 
 // 计算是否有修改
@@ -2164,11 +2435,58 @@ async function loadCreators() {
   }
 }
 
+async function loadCreatorProductionStats() {
+  const res = await api.adminGuildCreatorProductionStats({ window: creatorStatsWindow.value })
+  creatorStatsWindow.value = res.window || creatorStatsWindow.value
+  creatorProductionStats.value = {
+    window: creatorStatsWindow.value,
+    windowLabel: res.windowLabel || creatorStatsOptionLabel(creatorStatsWindow.value),
+    days: Number(res.days || 90),
+    months: Number(res.months || 3),
+    averageMonths: Number(res.averageMonths || res.months || 3),
+    overall: res.overall || {
+      artworksTotal: 0,
+      avgArtworksPerMonth: 0,
+      coinsTotal: 0,
+      avgCoinsPerMonth: 0,
+    },
+    data: res.data || [],
+  }
+}
+
+async function setCreatorStatsWindow(value) {
+  if (creatorStatsWindow.value === value) return
+  creatorStatsWindow.value = value
+  try {
+    await loadCreatorProductionStats()
+  } catch (e) {
+    guildMsg.value = `生产统计加载失败：${e.message || '未知错误'}`
+    clearGuildMsgSoon()
+  }
+}
+
+function creatorStatsOptionLabel(value) {
+  return creatorStatsWindowOptions.find((option) => option.value === value)?.label || '近3个月'
+}
+
+function emptyCreatorProduction() {
+  return { artworksTotal: 0, avgArtworksPerMonth: 0, coinsTotal: 0, avgCoinsPerMonth: 0 }
+}
+
+function formatAverage(value) {
+  return Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 1 })
+}
+
+function formatWhole(value) {
+  return Number(value || 0).toLocaleString('zh-CN')
+}
+
 async function addCreator() {
   if (!newCreatorUid.value) return
   await api.adminAddCreator(newCreatorUid.value)
   newCreatorUid.value = ''
   await loadCreators()
+  await loadCreatorProductionStats()
 }
 
 async function selectCreator(c) {
@@ -2242,6 +2560,7 @@ async function deleteCreator() {
     await api.adminDeleteCreator(uid)
     selectedCreator.value = null
     await loadCreators()
+    await loadCreatorProductionStats()
   } catch (e) {
     alert('删除失败')
   }
@@ -2260,6 +2579,8 @@ async function grantPoints() {
     const res = await api.adminPointsLedger({ uid: selectedCreator.value.uid })
     creatorLogs.value = res.data || []
     pointsForm.value.reason = ''
+    await loadCreators()
+    await loadCreatorProductionStats()
   } catch (e) {
     alert('操作失败')
   }
@@ -2323,11 +2644,23 @@ async function loadGuildAdmin() {
   } else if (guildTab.value === 'redemptions') {
     const res = await api.adminGuildRedemptions()
     guildRedemptions.value = res.data || []
+  } else if (guildTab.value === 'budget') {
+    const res = await api.adminGuildBudget()
+    guildBudget.value = {
+      summary: res.summary || {
+        currentBudgetCoins: 0,
+        totalSupplyCoins: 0,
+        spentPhysicalCoins: 0,
+        coinPerRmb: 15,
+      },
+      supplies: res.supplies || [],
+      spends: res.spends || [],
+    }
   } else if (guildTab.value === 'ratings') {
     const res = await api.adminGuildRatingApplications()
     guildRatings.value = res.data || []
   } else if (guildTab.value === 'creators') {
-    await loadCreators()
+    await Promise.all([loadCreators(), loadCreatorProductionStats()])
   } else if (guildTab.value === 'profiles') {
     const res = await api.adminGuildProfiles()
     guildProfiles.value = res.data || []
@@ -2340,6 +2673,8 @@ async function switchGuildTab(tab) {
     guildQuestPage.value = 'list'
   } else if (tab === 'rewards') {
     guildRewardPage.value = 'list'
+  } else if (tab === 'budget') {
+    showBudgetSupplyForm.value = false
   }
   await loadGuildAdmin()
 }
@@ -2380,7 +2715,10 @@ function editGuildQuest(quest) {
     deadlineDays: timeLimitMode === 'days' ? deadlineDays : null,
     fixedDeadlineAt: timeLimitMode === 'fixed' ? fixedDeadlineAt : '',
     repeatOnComplete: timeLimitMode === 'days' ? Boolean(quest.repeatOnComplete) : false,
-    cycleDays: timeLimitMode === 'none' ? quest.cycleDays ?? (quest.questType === 'daily' ? 1 : null) : null,
+    cycleDays:
+      timeLimitMode === 'none'
+        ? (quest.cycleDays ?? (quest.questType === 'daily' ? 1 : null))
+        : null,
     cycleResetHour: Number(quest.cycleResetHour ?? 4),
     autoClaim: Boolean(quest.autoClaim),
     status: quest.status || 'active',
@@ -2401,7 +2739,8 @@ async function saveGuildQuest() {
       deadlineDays: timeLimitMode === 'days' ? cleanNullableNumber(form.deadlineDays) : null,
       repeatOnComplete: timeLimitMode === 'days' ? Boolean(form.repeatOnComplete) : false,
       cycleDays: timeLimitMode === 'none' ? cleanNullableNumber(form.cycleDays) : null,
-      cycleResetHour: timeLimitMode === 'none' ? cleanNullableNumber(form.cycleResetHour) ?? 4 : 4,
+      cycleResetHour:
+        timeLimitMode === 'none' ? (cleanNullableNumber(form.cycleResetHour) ?? 4) : 4,
       fixedDeadlineAt: timeLimitMode === 'fixed' ? form.fixedDeadlineAt || '' : '',
     }
     if (guildQuestEditingId.value) {
@@ -2514,6 +2853,29 @@ async function saveGuildReward() {
     resetGuildRewardForm()
     await loadGuildAdmin()
     guildRewardPage.value = 'list'
+    clearGuildMsgSoon()
+  } finally {
+    guildSaving.value = false
+  }
+}
+
+async function createBudgetSupply() {
+  if (!guildBudgetSupplyForm.value.amount || guildBudgetSupplyForm.value.amount <= 0) {
+    guildMsg.value = '请填写大于 0 的预算额度'
+    clearGuildMsgSoon()
+    return
+  }
+  guildSaving.value = true
+  try {
+    await api.adminCreateGuildBudgetSupply({
+      budgetType: guildBudgetSupplyForm.value.budgetType,
+      amountUnit: guildBudgetSupplyForm.value.amountUnit,
+      amount: guildBudgetSupplyForm.value.amount,
+    })
+    guildMsg.value = '预算补给已新增'
+    guildBudgetSupplyForm.value = { budgetType: 'quarterly', amountUnit: 'rmb', amount: 600 }
+    showBudgetSupplyForm.value = false
+    await loadGuildAdmin()
     clearGuildMsgSoon()
   } finally {
     guildSaving.value = false
@@ -3007,6 +3369,56 @@ onMounted(async () => {
 }
 .creator-guild-layout {
   min-height: 620px;
+}
+.creator-production-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 0 14px;
+}
+.creator-production-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.creator-production-card--window {
+  gap: 8px;
+}
+.creator-production-card span,
+.creator-production-card em {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: normal;
+}
+.creator-production-card b {
+  font-size: 18px;
+  color: var(--ink);
+}
+.creator-window-switch {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.creator-window-btn {
+  min-width: 0;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.creator-window-btn.on {
+  border-color: var(--sos-accent);
+  background: color-mix(in srgb, var(--sos-accent) 14%, var(--panel));
+  color: var(--sos-accent);
 }
 .creator-guild-summary {
   display: grid;
@@ -4117,6 +4529,113 @@ onMounted(async () => {
   border-radius: 8px;
 }
 
+.guild-budget-page {
+  display: grid;
+  gap: 16px;
+}
+
+.guild-budget-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.guild-budget-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--sos-border-default);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.guild-budget-card span,
+.guild-budget-card em {
+  color: var(--sos-text-tertiary);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.guild-budget-card b {
+  color: var(--sos-text-primary);
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.guild-budget-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.guild-budget-switch,
+.guild-budget-unit-switch {
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--sos-border-default);
+  border-radius: 8px;
+  background: var(--sos-bg-subtle);
+}
+
+.guild-budget-switch-btn {
+  min-height: 30px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sos-text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.guild-budget-switch-btn.on {
+  background: var(--panel);
+  color: var(--sos-text-primary);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.guild-budget-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--sos-border-default);
+  background: var(--sos-bg-subtle);
+}
+
+.guild-budget-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.guild-budget-form label > span,
+.guild-budget-form-actions span {
+  color: var(--sos-text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.guild-budget-amount-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+}
+
+.guild-budget-form-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
 .guild-manage-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -4279,9 +4798,25 @@ onMounted(async () => {
   .guild-form-grid.three {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .guild-budget-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .guild-budget-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .guild-budget-form-actions {
+    grid-column: 1 / -1;
+    justify-items: start;
+  }
   .creator-guild-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: 12px 16px 0;
+  }
+  .creator-production-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .creator-window-switch {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .ann-meta-grid,
   .ann-form-footer {
@@ -4514,6 +5049,10 @@ onMounted(async () => {
     grid-template-columns: 1fr;
     padding: 12px;
   }
+  .creator-production-overview {
+    grid-template-columns: 1fr;
+    padding: 0 12px 12px;
+  }
   .creator-access-row {
     grid-template-columns: 1fr;
   }
@@ -4620,6 +5159,16 @@ onMounted(async () => {
   }
   .reward-image-tools .btn-ghost {
     flex: 1 1 120px;
+  }
+  .guild-budget-summary,
+  .guild-budget-form {
+    grid-template-columns: 1fr;
+  }
+  .guild-budget-toolbar {
+    justify-content: flex-start;
+  }
+  .guild-budget-amount-field {
+    grid-template-columns: 1fr;
   }
 }
 </style>

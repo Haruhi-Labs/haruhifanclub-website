@@ -177,6 +177,34 @@
           >
         </header>
 
+        <div v-if="rewardBudget" class="g-budget">
+          <div class="g-budget__main">
+            <div class="g-budget__copy">
+              <span>柜台预算库存</span>
+              <p>
+                每个季度会固定补给预算，此外根据活动可能会另行补给额外预算。按
+                {{ rewardBudget.coinPerRmb || 15 }}G≈1元折算。
+              </p>
+            </div>
+            <div class="g-budget__amount">
+              <b class="mono">{{ formatCoins(rewardBudget.currentBudgetCoins) }}</b>
+              <button type="button" @click="showBudgetRecords = !showBudgetRecords">
+                补给记录
+              </button>
+            </div>
+          </div>
+          <div v-if="showBudgetRecords" class="g-budget-records">
+            <div v-for="item in recentBudgetSupplies" :key="item.id" class="g-budget-record">
+              <span>{{ item.budgetTypeLabel || '补给预算' }}</span>
+              <b>{{ formatCoins(item.amountCoins) }}</b>
+              <time>{{ formatShortDateTime(item.createdAt) }}</time>
+            </div>
+            <div v-if="!recentBudgetSupplies.length" class="g-budget-record g-budget-record--empty">
+              暂无补给记录
+            </div>
+          </div>
+        </div>
+
         <div class="g-rewards">
           <article
             v-for="reward in rewards"
@@ -461,6 +489,8 @@ const session = useSession('/api')
 
 const quests = ref([])
 const rewards = ref([])
+const rewardBudget = ref(null)
+const showBudgetRecords = ref(false)
 const leaderboard = ref([])
 const currentLeader = ref(null)
 const redemptions = ref([])
@@ -527,6 +557,9 @@ const ruleBooks = [
       '原积分按 1:1 等量迁移为金币，金币可用于兑换虚拟或实体奖励。',
       '上传作品可以获得金币与声望；浏览、评论、点赞等委托只增加声望。',
       '兑换会先冻结对应金币，管理员审核通过后正式扣除，拒绝则解除冻结。',
+      '实体补给每个季度会固定补给预算，此外根据活动可能会另行补给额外预算。',
+      '金币对人民币（元）的比例约为 15:1；实体补给预算没用完会持续留存，用于兑换柜台的实体补给发放。',
+      '金币与人民币比例仅用于活动激励和库存预算估算，不代表现金兑付承诺。',
     ],
     tables: [levelReputationTable],
   },
@@ -567,6 +600,8 @@ const coinText = computed(() => {
   const coins = profile.value.coins || {}
   return `${Number(coins.available || 0)}G`
 })
+
+const recentBudgetSupplies = computed(() => rewardBudget.value?.recentSupplies || [])
 
 const guildTabs = computed(() => [
   { id: 'quests', eyebrow: 'Bounty', label: '委托', summary: `${quests.value.length} 项` },
@@ -654,13 +689,18 @@ async function loadGuild() {
     ])
     quests.value = questRes.data || []
     rewards.value = rewardRes.data || []
+    rewardBudget.value = rewardRes.budget || null
     leaderboard.value = rankRes.data || []
     currentLeader.value = rankRes.me || null
     profile.value = questRes.profile || rewardRes.profile || profile.value
 
     if (session.state.user) {
-      const redRes = await api.guildMyRedemptions()
-      redemptions.value = redRes.data || []
+      try {
+        const redRes = await api.guildMyRedemptions()
+        redemptions.value = redRes.data || []
+      } catch {
+        redemptions.value = []
+      }
     } else {
       redemptions.value = []
     }
@@ -759,6 +799,23 @@ function formatRemaining(ms) {
   if (days > 0) return `${days}天${hours}小时`
   if (hours > 0) return `${hours}小时${minutes}分`
   return `${minutes}分`
+}
+
+function formatCoins(value) {
+  return `${Number(value || 0).toLocaleString('zh-CN')}G`
+}
+
+function formatShortDateTime(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
 }
 
 function conditionLabel(kind) {
@@ -936,6 +993,32 @@ function applyMock() {
       unlocked: true,
     },
   ]
+  rewardBudget.value = {
+    coinPerRmb: 15,
+    currentBudgetCoins: 12600,
+    totalSupplyCoins: 15000,
+    spentPhysicalCoins: 2400,
+    recentSupplies: [
+      {
+        id: 3,
+        budgetTypeLabel: '活动预算',
+        amountCoins: 3000,
+        createdAt: mockDeadline(-24),
+      },
+      {
+        id: 2,
+        budgetTypeLabel: '季度预算',
+        amountCoins: 9000,
+        createdAt: mockDeadline(-24 * 20),
+      },
+      {
+        id: 1,
+        budgetTypeLabel: '其他预算',
+        amountCoins: 3000,
+        createdAt: mockDeadline(-24 * 35),
+      },
+    ],
+  }
   // 排序依据为「历史累计获得积分(earned)」而非评级：低评级但获得多者可排在前。
   leaderboard.value = [
     {
@@ -1621,6 +1704,91 @@ onUnmounted(() => {
 }
 
 /* 兑换 */
+.g-budget {
+  --g-budget-gap: 8px;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--g-budget-gap);
+  padding: 16px 18px;
+  border-radius: 15px;
+  border: 1px solid color-mix(in srgb, var(--g-accent) 26%, transparent);
+  background: color-mix(in srgb, var(--g-accent) 8%, #ffffff);
+  box-shadow: 0 18px 34px -28px rgba(16, 60, 56, 0.46);
+}
+.g-budget__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  row-gap: var(--g-budget-gap);
+  align-items: start;
+}
+.g-budget__copy {
+  display: contents;
+  min-width: 0;
+}
+.g-budget__copy span {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--g-text);
+}
+.g-budget__copy p {
+  grid-column: 1;
+  grid-row: 2;
+}
+.g-budget__amount {
+  display: contents;
+}
+.g-budget__amount b {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  font-size: 22px;
+  color: var(--g-accent-strong);
+}
+.g-budget__amount button {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  border: 1px solid color-mix(in srgb, var(--g-accent) 28%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--g-accent) 8%, var(--g-card));
+  color: var(--g-accent-strong);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.g-budget p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--g-muted);
+}
+.g-budget-records {
+  display: grid;
+  gap: var(--g-budget-gap);
+  padding-top: 2px;
+}
+.g-budget-record {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--g-muted);
+}
+.g-budget-record b {
+  color: var(--g-text);
+}
+.g-budget-record time {
+  color: var(--g-muted);
+}
+.g-budget-record--empty {
+  display: block;
+}
 .g-rewards {
   display: grid;
   grid-template-columns: 1fr;
@@ -2036,6 +2204,7 @@ onUnmounted(() => {
   background: rgba(14, 24, 46, 0.6);
 }
 :global(html.art-lights-out .g-quest),
+:global(html.art-lights-out .g-budget),
 :global(html.art-lights-out .g-reward),
 :global(html.art-lights-out .g-leader),
 :global(html.art-lights-out .g-rulecard) {

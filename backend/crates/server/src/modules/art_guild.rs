@@ -13,6 +13,7 @@ use crate::state::AppState;
 
 const DEFAULT_CYCLE_RESET_HOUR: i64 = 4;
 const BEIJING_OFFSET_SECONDS: i32 = 8 * 60 * 60;
+const SUPPLY_COIN_PER_RMB: i64 = 15;
 
 const RATINGS: &[(&str, i64, i64)] = &[
     ("F", 0, 0),
@@ -117,6 +118,15 @@ pub fn router() -> Router<AppState> {
         .route(
             "/admin/guild/quest-claims/{id}/reject",
             post(admin_reject_quest_claim),
+        )
+        .route(
+            "/admin/guild/creator-production-stats",
+            get(admin_creator_production_stats),
+        )
+        .route("/admin/guild/budget", get(admin_budget))
+        .route(
+            "/admin/guild/budget/supplies",
+            post(admin_create_budget_supply),
         )
         .route(
             "/admin/guild/rewards",
@@ -793,8 +803,9 @@ async fn guild_rewards(
         .into_iter()
         .map(|r| reward_value(r, uid.is_some(), rating, access))
         .collect();
+    let budget = guild_supply_budget(&state).await?;
     Ok(Json(
-        json!({ "ok": true, "profile": profile, "data": data }),
+        json!({ "ok": true, "profile": profile, "data": data, "budget": budget }),
     ))
 }
 
@@ -2952,6 +2963,334 @@ fn reward_value(row: RewardRow, logged_in: bool, rating: &str, access: &str) -> 
     })
 }
 
+async fn guild_supply_budget(state: &AppState) -> AppResult<Value> {
+    let (total_supply, spent_physical) = budget_totals(state).await?;
+    Ok(json!({
+        "coinPerRmb": SUPPLY_COIN_PER_RMB,
+        "currentBudgetCoins": total_supply - spent_physical,
+        "totalSupplyCoins": total_supply,
+        "spentPhysicalCoins": spent_physical,
+        "recentSupplies": budget_supply_rows(state, Some(3)).await?,
+    }))
+}
+
+async fn admin_budget(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Read).await?;
+    Ok(Json(json!({
+        "ok": true,
+        "summary": guild_supply_budget(&state).await?,
+        "supplies": budget_supply_rows(&state, None).await?,
+        "spends": budget_spend_rows(&state).await?,
+    })))
+}
+
+async fn admin_create_budget_supply(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+    let budget_type = normalize_budget_type(&str_field(&body, "budgetType", "quarterly"))?;
+    let amount_unit = normalize_budget_unit(&str_field(&body, "amountUnit", "coins"))?;
+    let amount_input = int_field(&body, "amount", 0);
+    if amount_input <= 0 {
+        return Err(AppError::bad_request("预算额度必须大于 0"));
+    }
+    let amount_coins = match amount_unit {
+        "rmb" => amount_input * SUPPLY_COIN_PER_RMB,
+        "coins" => amount_input,
+        _ => amount_input,
+    };
+    let now = now_iso();
+    let result = sqlx::query(
+        "INSERT INTO guild_budget_supplies(budget_type, amount_coins, amount_input, input_unit, created_by, created_at)
+         VALUES(?,?,?,?,?,?)",
+    )
+    .bind(budget_type)
+    .bind(amount_coins)
+    .bind(amount_input)
+    .bind(amount_unit)
+    .bind(user.id)
+    .bind(&now)
+    .execute(&state.pools.art)
+    .await?;
+    Ok(Json(json!({
+        "ok": true,
+        "data": budget_supply_by_id(&state, result.last_insert_rowid()).await?,
+        "summary": guild_supply_budget(&state).await?,
+    })))
+}
+
+async fn budget_totals(state: &AppState) -> AppResult<(i64, i64)> {
+    let total_supply: i64 =
+        sqlx::query_scalar("SELECT COALESCE(SUM(amount_coins), 0) FROM guild_budget_supplies")
+            .fetch_one(&state.pools.art)
+            .await?;
+    let spent_physical: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(SUM(r.frozen_coins), 0)
+         FROM guild_reward_redemptions r
+         JOIN guild_rewards gr ON gr.id=r.reward_id
+         WHERE gr.reward_type='physical' AND r.status IN ('approved','fulfilled')",
+    )
+    .fetch_one(&state.pools.art)
+    .await?;
+    Ok((total_supply, spent_physical))
+}
+
+async fn budget_supply_by_id(state: &AppState, id: i64) -> AppResult<Value> {
+    let row: BudgetSupplyRow = sqlx::query_as(
+        "SELECT id, budget_type, amount_coins, amount_input, input_unit, created_by, created_at
+         FROM guild_budget_supplies WHERE id=?",
+    )
+    .bind(id)
+    .fetch_one(&state.pools.art)
+    .await?;
+    Ok(budget_supply_value(row))
+}
+
+type BudgetSupplyRow = (i64, String, i64, i64, String, Option<i64>, String);
+
+async fn budget_supply_rows(state: &AppState, limit: Option<i64>) -> AppResult<Vec<Value>> {
+    let rows: Vec<BudgetSupplyRow> = if let Some(limit) = limit {
+        sqlx::query_as(
+            "SELECT id, budget_type, amount_coins, amount_input, input_unit, created_by, created_at
+             FROM guild_budget_supplies
+             ORDER BY datetime(created_at) DESC, id DESC
+             LIMIT ?",
+        )
+        .bind(limit)
+        .fetch_all(&state.pools.art)
+        .await?
+    } else {
+        sqlx::query_as(
+            "SELECT id, budget_type, amount_coins, amount_input, input_unit, created_by, created_at
+             FROM guild_budget_supplies
+             ORDER BY datetime(created_at) DESC, id DESC",
+        )
+        .fetch_all(&state.pools.art)
+        .await?
+    };
+    Ok(rows.into_iter().map(budget_supply_value).collect())
+}
+
+fn budget_supply_value(row: BudgetSupplyRow) -> Value {
+    let (id, budget_type, amount_coins, amount_input, input_unit, created_by, created_at) = row;
+    let budget_type_label = budget_type_label(&budget_type);
+    let amount_unit_label = budget_unit_label(&input_unit);
+    json!({
+        "id": id,
+        "budgetType": budget_type,
+        "budgetTypeLabel": budget_type_label,
+        "amountCoins": amount_coins,
+        "amountInput": amount_input,
+        "amountUnit": input_unit,
+        "amountUnitLabel": amount_unit_label,
+        "createdBy": created_by,
+        "createdAt": created_at,
+    })
+}
+
+async fn budget_spend_rows(state: &AppState) -> AppResult<Vec<Value>> {
+    let rows: Vec<(
+        i64,
+        i64,
+        String,
+        String,
+        String,
+        i64,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT r.id, r.reward_id, r.uid, gr.name, gr.reward_type, r.frozen_coins, r.status,
+                r.user_note, r.admin_note, r.created_at, r.reviewed_at, r.fulfilled_at
+         FROM guild_reward_redemptions r JOIN guild_rewards gr ON gr.id=r.reward_id
+         WHERE gr.reward_type='physical' AND r.status IN ('approved','fulfilled')
+         ORDER BY datetime(COALESCE(r.fulfilled_at, r.reviewed_at, r.created_at)) DESC, r.id DESC",
+    )
+    .fetch_all(&state.pools.art)
+    .await?;
+    let uids: Vec<String> = rows.iter().map(|r| r.2.clone()).collect();
+    let names = super::art::member_display_names(&state.pools.core, &uids).await;
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            let uid = row.2.clone();
+            let mut v = redemption_value(row);
+            let spent_coins = v.get("frozenCoins").cloned().unwrap_or_else(|| json!(0));
+            if let Some(obj) = v.as_object_mut() {
+                obj.insert("spentCoins".to_string(), spent_coins);
+                if let Some(n) = names.get(&uid) {
+                    obj.insert("name".to_string(), json!(n));
+                }
+            }
+            v
+        })
+        .collect())
+}
+
+fn normalize_budget_type(value: &str) -> AppResult<&'static str> {
+    match value.trim() {
+        "quarterly" => Ok("quarterly"),
+        "activity" => Ok("activity"),
+        "other" => Ok("other"),
+        _ => Err(AppError::bad_request("预算类型无效")),
+    }
+}
+
+fn normalize_budget_unit(value: &str) -> AppResult<&'static str> {
+    match value.trim() {
+        "rmb" => Ok("rmb"),
+        "coins" => Ok("coins"),
+        _ => Err(AppError::bad_request("预算单位无效")),
+    }
+}
+
+fn budget_type_label(value: &str) -> &'static str {
+    match value {
+        "quarterly" => "季度预算",
+        "activity" => "活动预算",
+        "other" => "其他预算",
+        _ => "其他预算",
+    }
+}
+
+fn budget_unit_label(value: &str) -> &'static str {
+    match value {
+        "rmb" => "元",
+        "coins" => "金币",
+        _ => "金币",
+    }
+}
+
+async fn admin_creator_production_stats(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<std::collections::HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Read).await?;
+    let window = creator_stats_window(&q);
+    let period_end = Utc::now();
+    let period_start = period_end - Duration::days(window.days);
+    let period_start_iso = iso_utc(period_start);
+
+    let rows: Vec<(String, i64, i64)> = sqlx::query_as(
+        "SELECT c.uid,
+                COALESCE(a.artworks_total, 0) AS artworks_total,
+                COALESCE(p.coins_total, 0) AS coins_total
+         FROM creators c
+         LEFT JOIN (
+             SELECT uploader_uid, COUNT(1) AS artworks_total
+             FROM artworks
+             WHERE uploader_uid IS NOT NULL
+               AND status='approved'
+               AND datetime(COALESCE(reviewed_at, created_at)) >= datetime(?)
+             GROUP BY uploader_uid
+         ) a ON a.uploader_uid=c.uid
+         LEFT JOIN (
+             SELECT uid,
+                    COALESCE(SUM(CAST(NULLIF(TRIM(points), '') AS INTEGER)), 0) AS coins_total
+             FROM points_ledger
+             WHERE uid IS NOT NULL
+               AND CAST(NULLIF(TRIM(points), '') AS INTEGER) > 0
+               AND COALESCE(source_type, '') <> 'redemption'
+               AND datetime(COALESCE(granted_at, created_at)) >= datetime(?)
+             GROUP BY uid
+         ) p ON p.uid=c.uid
+         ORDER BY artworks_total DESC, coins_total DESC, c.uid ASC",
+    )
+    .bind(&period_start_iso)
+    .bind(&period_start_iso)
+    .fetch_all(&state.pools.art)
+    .await?;
+
+    let total_artworks: i64 = rows.iter().map(|(_, artworks, _)| *artworks).sum();
+    let total_coins: i64 = rows.iter().map(|(_, _, coins)| *coins).sum();
+    let creators: Vec<Value> = rows
+        .into_iter()
+        .map(|(uid, artworks, coins)| {
+            json!({
+                "uid": uid,
+                "artworksTotal": artworks,
+                "avgArtworksPerMonth": avg_per_month(artworks, window.average_months),
+                "coinsTotal": coins,
+                "avgCoinsPerMonth": avg_per_month(coins, window.average_months),
+            })
+        })
+        .collect();
+
+    Ok(Json(json!({
+        "ok": true,
+        "window": window.key,
+        "windowLabel": window.label,
+        "days": window.days,
+        "months": window.months,
+        "averageMonths": window.average_months,
+        "periodStartAt": period_start_iso,
+        "periodEndAt": iso_utc(period_end),
+        "overall": {
+            "artworksTotal": total_artworks,
+            "avgArtworksPerMonth": avg_per_month(total_artworks, window.average_months),
+            "coinsTotal": total_coins,
+            "avgCoinsPerMonth": avg_per_month(total_coins, window.average_months),
+        },
+        "data": creators,
+    })))
+}
+
+struct CreatorStatsWindow {
+    key: String,
+    label: String,
+    days: i64,
+    months: i64,
+    average_months: f64,
+}
+
+fn creator_stats_window(q: &std::collections::HashMap<String, String>) -> CreatorStatsWindow {
+    match q.get("window").map(|s| s.trim()) {
+        Some("week" | "1w" | "7d") => fixed_creator_stats_window("week", "近1周", 7, 0, 7.0 / 30.0),
+        Some("3m") => fixed_creator_stats_window("3m", "近3个月", 90, 3, 3.0),
+        Some("6m" | "half-year") => fixed_creator_stats_window("6m", "近半年", 180, 6, 6.0),
+        Some("1y" | "12m" | "year") => fixed_creator_stats_window("1y", "近一年", 365, 12, 12.0),
+        _ => {
+            let months = clamp_query_i64(q.get("months"), 1, 24, 3);
+            CreatorStatsWindow {
+                key: format!("{months}m"),
+                label: format!("近{months}个月"),
+                days: months * 30,
+                months,
+                average_months: months as f64,
+            }
+        }
+    }
+}
+
+fn fixed_creator_stats_window(
+    key: &str,
+    label: &str,
+    days: i64,
+    months: i64,
+    average_months: f64,
+) -> CreatorStatsWindow {
+    CreatorStatsWindow {
+        key: key.to_string(),
+        label: label.to_string(),
+        days,
+        months,
+        average_months,
+    }
+}
+
+fn avg_per_month(total: i64, months: f64) -> f64 {
+    if months <= 0.0 {
+        return 0.0;
+    }
+    ((total as f64 / months) * 10.0).round() / 10.0
+}
+
 async fn admin_quest_rows(state: &AppState) -> AppResult<Vec<Value>> {
     let rows: Vec<GuildQuestListRow> = sqlx::query_as(
         "SELECT id, title, description, quest_type, difficulty, required_rating,
@@ -3295,6 +3634,11 @@ fn parse_datetime_utc(value: &str) -> Option<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(value)
         .map(|dt| dt.with_timezone(&Utc))
         .ok()
+        .or_else(|| {
+            chrono::NaiveDateTime::parse_from_str(value, "%Y-%m-%d %H:%M:%S")
+                .ok()
+                .map(|dt| Utc.from_utc_datetime(&dt))
+        })
         .or_else(|| {
             chrono::NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M")
                 .ok()
