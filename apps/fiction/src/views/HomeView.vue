@@ -40,17 +40,18 @@ onMounted(async () => {
       <div class="fiction-rail__head">
         <h2 class="fiction-rail__title">精选佳作</h2>
       </div>
-      <div class="fiction-grid">
+      <div class="fic-list">
         <StoryCard v-for="s in data.featured.slice(0, 10)" :key="s.id" :story="s" />
       </div>
     </section>
 
     <!-- 加载骨架 -->
     <section v-if="loading" class="fiction-rail">
-      <div class="fiction-grid">
-        <div v-for="i in 6" :key="i">
-          <SosSkeleton variant="block" style="aspect-ratio: 3/4" />
-          <SosSkeleton variant="text" style="margin-top: 8px" />
+      <div class="fic-list">
+        <div v-for="i in 6" :key="i" class="fic-skel">
+          <SosSkeleton variant="title" />
+          <SosSkeleton variant="text" />
+          <SosSkeleton variant="text" style="width: 60%" />
         </div>
       </div>
     </section>
@@ -62,7 +63,7 @@ onMounted(async () => {
           <h2 class="fiction-rail__title">最近更新</h2>
           <RouterLink to="/library?sort=updated" class="fiction-rail__more">查看全部 →</RouterLink>
         </div>
-        <div class="fiction-grid">
+        <div class="fic-list">
           <StoryCard v-for="s in data.updated.slice(0, 6)" :key="s.id" :story="s" />
         </div>
       </section>
@@ -87,7 +88,7 @@ onMounted(async () => {
             <h2 class="fiction-rail__title">新作上架</h2>
             <RouterLink to="/library" class="fiction-rail__more">查看全部 →</RouterLink>
           </div>
-          <div class="fiction-grid">
+          <div class="fic-list">
             <StoryCard v-for="s in data.latest.slice(0, 6)" :key="s.id" :story="s" />
           </div>
         </section>

@@ -186,15 +186,16 @@ onMounted(async () => {
         </button>
       </div>
 
-      <div v-if="loading" class="fiction-grid">
-        <div v-for="i in 12" :key="i">
-          <SosSkeleton variant="block" style="aspect-ratio: 3/4" />
-          <SosSkeleton variant="text" style="margin-top: 8px" />
+      <div v-if="loading" class="fic-list">
+        <div v-for="i in 12" :key="i" class="fic-skel">
+          <SosSkeleton variant="title" />
+          <SosSkeleton variant="text" />
+          <SosSkeleton variant="text" style="width: 60%" />
         </div>
       </div>
 
       <template v-else-if="stories.length">
-        <div class="fiction-grid">
+        <div class="fic-list">
           <StoryCard v-for="s in stories" :key="s.id" :story="s" />
         </div>
         <div v-if="pagination.totalPages > 1" class="lib__pager">
