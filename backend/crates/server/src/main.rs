@@ -53,6 +53,7 @@ async fn main() -> anyhow::Result<()> {
         &pools.exam,
         &pools.novel,
         &pools.shop,
+        &pools.fiction,
     ] {
         let _ = sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
             .execute(pool)
