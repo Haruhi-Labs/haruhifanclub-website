@@ -14,6 +14,10 @@ use crate::state::AppState;
 const DEFAULT_CYCLE_RESET_HOUR: i64 = 4;
 const BEIJING_OFFSET_SECONDS: i32 = 8 * 60 * 60;
 const SUPPLY_COIN_PER_RMB: i64 = 15;
+const DEFAULT_PERSONAL_HARUHI_REWARD: i64 = 120;
+const DEFAULT_PERSONAL_OTHER_REWARD: i64 = 30;
+const DEFAULT_REWARD_MULTIPLIER_BPS: i64 = 10_000;
+const MAX_REWARD_MULTIPLIER_BPS: i64 = 200_000;
 
 const RATINGS: &[(&str, i64, i64)] = &[
     ("F", 0, 0),
@@ -87,6 +91,24 @@ struct QuestWindow {
     deadline_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Clone)]
+struct ArtRewardSettings {
+    personal_haruhi_points: i64,
+    personal_other_points: i64,
+    personal_haruhi_reputation: i64,
+    personal_other_reputation: i64,
+    points_multiplier_bps: i64,
+    reputation_multiplier_bps: i64,
+    updated_at: Option<String>,
+}
+
+struct ArtworkRewardSnapshot {
+    source_type: String,
+    content_type: String,
+    points_award: i64,
+    reputation_award: i64,
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/guild/me", get(guild_me))
@@ -101,6 +123,10 @@ pub fn router() -> Router<AppState> {
         .route("/guild/rewards", get(guild_rewards))
         .route("/guild/rewards/{id}/redeem", post(guild_redeem_reward))
         .route("/guild/redemptions/me", get(guild_my_redemptions))
+        .route(
+            "/admin/reward-settings",
+            get(admin_reward_settings).put(admin_update_reward_settings),
+        )
         .route(
             "/admin/guild/quests",
             get(admin_guild_quests).post(admin_create_quest),
@@ -228,8 +254,18 @@ pub async fn grant_upload_progress(
 
     // 金币即画廊积分：投稿积分已由 art.rs 主流程写入 points_ledger，此处不再重复发放金币，
     // 仅发放公会声望（评级体系的等级分，与积分相互独立）。
-    let reputation = if content_type == "haruhi" { 120 } else { 30 };
-    let note = if content_type == "haruhi" {
+    let ctx = ArtworkPointsCtx {
+        uid: uid.to_string(),
+        source_type: source_type.to_string(),
+        content_type: content_type.to_string(),
+        created_at: created_at.to_string(),
+    };
+    let snapshot = match ensure_artwork_reward_snapshot(state, artwork_id, &ctx).await {
+        Ok(snapshot) => snapshot,
+        Err(_) => return,
+    };
+    let reputation = snapshot.reputation_award;
+    let note = if snapshot.content_type == "haruhi" {
         format!("投稿凉宫个人作品奖励{manual_note_suffix}")
     } else {
         format!("投稿其他个人作品奖励{manual_note_suffix}")
@@ -929,6 +965,91 @@ async fn guild_my_redemptions(
     Ok(Json(
         json!({ "ok": true, "data": redemptions_for_uid(&state, &uid).await? }),
     ))
+}
+
+async fn admin_reward_settings(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Read).await?;
+    let settings = load_reward_settings(&state).await?;
+    Ok(Json(json!({
+        "ok": true,
+        "data": reward_settings_value(&settings),
+    })))
+}
+
+async fn admin_update_reward_settings(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+    let current = load_reward_settings(&state).await?;
+    let settings = ArtRewardSettings {
+        personal_haruhi_points: non_negative_i64_field(
+            &body,
+            "personalHaruhiPoints",
+            current.personal_haruhi_points,
+        )?,
+        personal_other_points: non_negative_i64_field(
+            &body,
+            "personalOtherPoints",
+            current.personal_other_points,
+        )?,
+        personal_haruhi_reputation: non_negative_i64_field(
+            &body,
+            "personalHaruhiReputation",
+            current.personal_haruhi_reputation,
+        )?,
+        personal_other_reputation: non_negative_i64_field(
+            &body,
+            "personalOtherReputation",
+            current.personal_other_reputation,
+        )?,
+        points_multiplier_bps: multiplier_bps_field(
+            &body,
+            "pointsMultiplierBps",
+            "pointsMultiplier",
+            current.points_multiplier_bps,
+        )?,
+        reputation_multiplier_bps: multiplier_bps_field(
+            &body,
+            "reputationMultiplierBps",
+            "reputationMultiplier",
+            current.reputation_multiplier_bps,
+        )?,
+        updated_at: Some(now_iso()),
+    };
+    let updated_at = settings.updated_at.clone().unwrap_or_else(now_iso);
+    sqlx::query(
+        "INSERT INTO art_reward_settings(
+            id, personal_haruhi_points, personal_other_points,
+            personal_haruhi_reputation, personal_other_reputation,
+            points_multiplier_bps, reputation_multiplier_bps, updated_at
+         ) VALUES(1,?,?,?,?,?,?,?)
+         ON CONFLICT(id) DO UPDATE SET
+            personal_haruhi_points=excluded.personal_haruhi_points,
+            personal_other_points=excluded.personal_other_points,
+            personal_haruhi_reputation=excluded.personal_haruhi_reputation,
+            personal_other_reputation=excluded.personal_other_reputation,
+            points_multiplier_bps=excluded.points_multiplier_bps,
+            reputation_multiplier_bps=excluded.reputation_multiplier_bps,
+            updated_at=excluded.updated_at",
+    )
+    .bind(settings.personal_haruhi_points)
+    .bind(settings.personal_other_points)
+    .bind(settings.personal_haruhi_reputation)
+    .bind(settings.personal_other_reputation)
+    .bind(settings.points_multiplier_bps)
+    .bind(settings.reputation_multiplier_bps)
+    .bind(&updated_at)
+    .execute(&state.pools.art)
+    .await?;
+    Ok(Json(json!({
+        "ok": true,
+        "data": reward_settings_value(&settings),
+    })))
 }
 
 async fn admin_guild_quests(
@@ -1945,18 +2066,6 @@ async fn grant_coins(
     Ok(())
 }
 
-/// 投稿作品「应得画廊积分」：仅个人作品计分，凉宫个人 120、其他个人 30，非个人 0。
-fn upload_award(source_type: &str, content_type: &str) -> i64 {
-    if source_type != "personal" {
-        return 0;
-    }
-    if content_type == "haruhi" {
-        120
-    } else {
-        30
-    }
-}
-
 struct ArtworkPointsCtx {
     uid: String,
     source_type: String,
@@ -1989,7 +2098,219 @@ async fn load_artwork_points_ctx(
     ))
 }
 
-/// 把某作品已发放的画廊积分对齐到「目标值」：公开(approved)时应得 upload_award，否则 0。
+fn default_reward_settings() -> ArtRewardSettings {
+    ArtRewardSettings {
+        personal_haruhi_points: DEFAULT_PERSONAL_HARUHI_REWARD,
+        personal_other_points: DEFAULT_PERSONAL_OTHER_REWARD,
+        personal_haruhi_reputation: DEFAULT_PERSONAL_HARUHI_REWARD,
+        personal_other_reputation: DEFAULT_PERSONAL_OTHER_REWARD,
+        points_multiplier_bps: DEFAULT_REWARD_MULTIPLIER_BPS,
+        reputation_multiplier_bps: DEFAULT_REWARD_MULTIPLIER_BPS,
+        updated_at: None,
+    }
+}
+
+async fn load_reward_settings(state: &AppState) -> AppResult<ArtRewardSettings> {
+    let row: Option<(i64, i64, i64, i64, i64, i64, Option<String>)> = sqlx::query_as(
+        "SELECT personal_haruhi_points, personal_other_points,
+                personal_haruhi_reputation, personal_other_reputation,
+                points_multiplier_bps, reputation_multiplier_bps, updated_at
+         FROM art_reward_settings WHERE id=1",
+    )
+    .fetch_optional(&state.pools.art)
+    .await?;
+    Ok(row
+        .map(
+            |(
+                personal_haruhi_points,
+                personal_other_points,
+                personal_haruhi_reputation,
+                personal_other_reputation,
+                points_multiplier_bps,
+                reputation_multiplier_bps,
+                updated_at,
+            )| ArtRewardSettings {
+                personal_haruhi_points,
+                personal_other_points,
+                personal_haruhi_reputation,
+                personal_other_reputation,
+                points_multiplier_bps,
+                reputation_multiplier_bps,
+                updated_at,
+            },
+        )
+        .unwrap_or_else(default_reward_settings))
+}
+
+fn scaled_reward(base: i64, multiplier_bps: i64) -> i64 {
+    let base = base.max(0) as i128;
+    let multiplier_bps = multiplier_bps.max(0) as i128;
+    ((base * multiplier_bps + 5_000) / 10_000) as i64
+}
+
+fn upload_reward_bases(
+    settings: &ArtRewardSettings,
+    source_type: &str,
+    content_type: &str,
+) -> (i64, i64) {
+    if source_type != "personal" {
+        return (0, 0);
+    }
+    if content_type == "haruhi" {
+        (
+            settings.personal_haruhi_points,
+            settings.personal_haruhi_reputation,
+        )
+    } else {
+        (
+            settings.personal_other_points,
+            settings.personal_other_reputation,
+        )
+    }
+}
+
+fn reward_settings_value(settings: &ArtRewardSettings) -> Value {
+    let (haruhi_points_base, haruhi_reputation_base) =
+        upload_reward_bases(settings, "personal", "haruhi");
+    let (other_points_base, other_reputation_base) =
+        upload_reward_bases(settings, "personal", "other");
+    json!({
+        "personalHaruhiPoints": settings.personal_haruhi_points,
+        "personalOtherPoints": settings.personal_other_points,
+        "personalHaruhiReputation": settings.personal_haruhi_reputation,
+        "personalOtherReputation": settings.personal_other_reputation,
+        "pointsMultiplierBps": settings.points_multiplier_bps,
+        "pointsMultiplier": multiplier_from_bps(settings.points_multiplier_bps),
+        "reputationMultiplierBps": settings.reputation_multiplier_bps,
+        "reputationMultiplier": multiplier_from_bps(settings.reputation_multiplier_bps),
+        "updatedAt": settings.updated_at,
+        "preview": {
+            "haruhi": {
+                "points": scaled_reward(haruhi_points_base, settings.points_multiplier_bps),
+                "reputation": scaled_reward(haruhi_reputation_base, settings.reputation_multiplier_bps)
+            },
+            "other": {
+                "points": scaled_reward(other_points_base, settings.points_multiplier_bps),
+                "reputation": scaled_reward(other_reputation_base, settings.reputation_multiplier_bps)
+            }
+        }
+    })
+}
+
+fn multiplier_from_bps(value: i64) -> f64 {
+    value as f64 / DEFAULT_REWARD_MULTIPLIER_BPS as f64
+}
+
+fn non_negative_i64_field(body: &Value, key: &str, fallback: i64) -> AppResult<i64> {
+    let value = body.get(key).and_then(json_num_i64).unwrap_or(fallback);
+    if value < 0 {
+        return Err(AppError::bad_request(format!("{key} 不能小于 0")));
+    }
+    Ok(value)
+}
+
+fn multiplier_bps_field(
+    body: &Value,
+    bps_key: &str,
+    multiplier_key: &str,
+    fallback: i64,
+) -> AppResult<i64> {
+    let value = if let Some(value) = body.get(bps_key).and_then(json_num_i64) {
+        value
+    } else if let Some(value) = body.get(multiplier_key).and_then(json_num_f64) {
+        if !value.is_finite() {
+            return Err(AppError::bad_request(format!("{multiplier_key} 无效")));
+        }
+        (value * DEFAULT_REWARD_MULTIPLIER_BPS as f64).round() as i64
+    } else {
+        fallback
+    };
+    if value < 0 {
+        return Err(AppError::bad_request(format!(
+            "{multiplier_key} 不能小于 0"
+        )));
+    }
+    if value > MAX_REWARD_MULTIPLIER_BPS {
+        return Err(AppError::bad_request(format!(
+            "{multiplier_key} 不能超过 20 倍"
+        )));
+    }
+    Ok(value)
+}
+
+fn json_num_f64(v: &Value) -> Option<f64> {
+    if let Some(n) = v.as_f64() {
+        Some(n)
+    } else {
+        v.as_str()?.trim().parse::<f64>().ok()
+    }
+}
+
+async fn load_artwork_reward_snapshot(
+    state: &AppState,
+    artwork_id: i64,
+) -> AppResult<Option<ArtworkRewardSnapshot>> {
+    let row: Option<(String, String, i64, i64)> = sqlx::query_as(
+        "SELECT source_type, content_type, points_award, reputation_award
+         FROM artwork_reward_snapshots WHERE artwork_id=?",
+    )
+    .bind(artwork_id)
+    .fetch_optional(&state.pools.art)
+    .await?;
+    Ok(row.map(
+        |(source_type, content_type, points_award, reputation_award)| ArtworkRewardSnapshot {
+            source_type,
+            content_type,
+            points_award,
+            reputation_award,
+        },
+    ))
+}
+
+async fn ensure_artwork_reward_snapshot(
+    state: &AppState,
+    artwork_id: i64,
+    ctx: &ArtworkPointsCtx,
+) -> AppResult<ArtworkRewardSnapshot> {
+    if let Some(snapshot) = load_artwork_reward_snapshot(state, artwork_id).await? {
+        return Ok(snapshot);
+    }
+
+    let settings = load_reward_settings(state).await?;
+    let (points_base, reputation_base) =
+        upload_reward_bases(&settings, &ctx.source_type, &ctx.content_type);
+    let points_award = scaled_reward(points_base, settings.points_multiplier_bps);
+    let reputation_award = scaled_reward(reputation_base, settings.reputation_multiplier_bps);
+    let now = now_iso();
+    sqlx::query(
+        "INSERT OR IGNORE INTO artwork_reward_snapshots(
+            artwork_id, uid, source_type, content_type,
+            points_base, points_multiplier_bps, points_award,
+            reputation_base, reputation_multiplier_bps, reputation_award,
+            created_at, updated_at
+         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+    )
+    .bind(artwork_id)
+    .bind(&ctx.uid)
+    .bind(&ctx.source_type)
+    .bind(&ctx.content_type)
+    .bind(points_base)
+    .bind(settings.points_multiplier_bps)
+    .bind(points_award)
+    .bind(reputation_base)
+    .bind(settings.reputation_multiplier_bps)
+    .bind(reputation_award)
+    .bind(&now)
+    .bind(&now)
+    .execute(&state.pools.art)
+    .await?;
+
+    load_artwork_reward_snapshot(state, artwork_id)
+        .await?
+        .ok_or_else(|| AppError::internal("作品奖励快照创建失败"))
+}
+
+/// 把某作品已发放的画廊积分对齐到「目标值」：公开(approved)时按首次通过快照，否则 0。
 /// 以该作品在 points_ledger 的净额为基准补一笔差值，因而幂等且可逆：
 /// 首发→+奖励(upload)；撤稿/隐藏/拒绝/删除→扣回(withdraw, 负值)；隐藏后再公开→重新补发。
 /// 撤稿扣回计入「历史获得积分」（被扣减），兑换消耗(redemption)不在此函数范围、不受影响。
@@ -2005,7 +2326,9 @@ pub async fn reconcile_artwork_points(
         return Ok(());
     }
     let desired = if public {
-        upload_award(&ctx.source_type, &ctx.content_type)
+        ensure_artwork_reward_snapshot(state, artwork_id, &ctx)
+            .await?
+            .points_award
     } else {
         0
     };
@@ -2019,7 +2342,8 @@ pub async fn reconcile_artwork_points(
         return Ok(());
     }
     let (note, src) = if delta > 0 {
-        let note = if ctx.content_type == "haruhi" {
+        let snapshot = ensure_artwork_reward_snapshot(state, artwork_id, &ctx).await?;
+        let note = if snapshot.source_type == "personal" && snapshot.content_type == "haruhi" {
             "投稿凉宫个人作品奖励"
         } else {
             "投稿其他个人作品奖励"
