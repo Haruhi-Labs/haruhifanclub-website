@@ -152,21 +152,7 @@ onMounted(async () => {
     </aside>
 
     <main class="lib__main">
-      <header class="lib__head">
-        <div>
-          <h1 class="lib__title">书库</h1>
-          <p class="lib__count">共 {{ pagination.total }} 部作品</p>
-        </div>
-        <SosSearch
-          v-model="searchInput"
-          placeholder="搜索书名 / 作者"
-          submit
-          @search="apply({ q: searchInput })"
-          @clear="apply({ q: '' })"
-        />
-      </header>
-
-      <div class="lib__toolbar">
+      <div class="lib__bar">
         <div class="lib__sorts">
           <button
             v-for="s in SORTS"
@@ -178,6 +164,23 @@ onMounted(async () => {
             {{ s.label }}
           </button>
         </div>
+        <div class="lib__bar-end">
+          <span class="lib__count">{{ pagination.total }} 部</span>
+          <SosSearch
+            class="lib__search"
+            v-model="searchInput"
+            placeholder="搜索书名 / 作者"
+            submit
+            @search="apply({ q: searchInput })"
+            @clear="apply({ q: '' })"
+          />
+        </div>
+      </div>
+
+      <div v-if="f.q || f.tag" class="lib__active">
+        <button v-if="f.q" class="lib__activetag" @click="apply({ q: '' })">
+          搜索：{{ f.q }} ✕
+        </button>
         <button v-if="f.tag" class="lib__activetag" @click="apply({ tag: '' })">
           标签：{{ f.tag }} ✕
         </button>
@@ -282,40 +285,26 @@ onMounted(async () => {
   background: var(--sos-accent-soft);
   color: var(--sos-accent);
 }
-.lib__head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--sos-space-4);
-  flex-wrap: wrap;
-  margin-bottom: var(--sos-space-4);
-}
-.lib__title {
-  font-family: var(--sos-display-family, var(--sos-font-display));
-  font-size: var(--sos-text-2xl);
-  margin: 0;
-}
-.lib__count {
-  color: var(--sos-text-secondary);
-  font-size: var(--sos-text-sm);
-  margin: 4px 0 0;
-}
-.lib__head :deep(.sos-search) {
-  min-width: 240px;
-}
-.lib__toolbar {
+/* 精炼工具条：吸顶，排序在左、结果计数 + 搜索在右 */
+.lib__bar {
+  position: sticky;
+  top: var(--sos-appbar-height, 64px);
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sos-space-3);
+  gap: var(--sos-space-4);
   flex-wrap: wrap;
-  padding-bottom: var(--sos-space-5);
+  padding-block: var(--sos-space-3);
+  margin-bottom: var(--sos-space-5);
+  background: color-mix(in srgb, var(--sos-bg-page) 86%, transparent);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--sos-border-subtle);
-  margin-bottom: var(--sos-space-6);
 }
 .lib__sorts {
   display: flex;
   gap: 4px;
+  flex-wrap: wrap;
 }
 .lib__sort {
   border: none;
@@ -325,11 +314,35 @@ onMounted(async () => {
   border-radius: var(--sos-radius-full);
   font-size: var(--sos-text-sm);
   color: var(--sos-text-secondary);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.lib__sort:hover {
+  color: var(--sos-accent);
+  background: var(--sos-accent-soft);
 }
 .lib__sort.on {
   background: var(--sos-accent);
   color: var(--sos-accent-contrast);
   font-weight: 600;
+}
+.lib__bar-end {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-3);
+}
+.lib__count {
+  font-size: var(--sos-text-sm);
+  color: var(--sos-text-tertiary);
+  white-space: nowrap;
+}
+.lib__search {
+  width: clamp(160px, 22vw, 248px);
+}
+.lib__active {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sos-space-2);
+  margin-bottom: var(--sos-space-5);
 }
 .lib__activetag {
   border: 1px solid var(--sos-accent);
