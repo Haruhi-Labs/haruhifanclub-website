@@ -1140,6 +1140,71 @@ async fn guild_budget_uses_manual_supplies_and_physical_spends() {
 }
 
 #[tokio::test]
+async fn guild_budget_recounts_redemptions_when_reward_becomes_physical() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let ts = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            "/api/art/admin/guild/budget/supplies",
+            json!({ "budgetType": "activity", "amountUnit": "coins", "amount": 1000 }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "budget supply failed: {body:?}");
+
+    sqlx::query(
+        "INSERT INTO guild_reward_redemptions(reward_id, uid, frozen_coins, status, created_at, reviewed_at) \
+         VALUES(1, 'u_budget_retro', 80, 'approved', ?, ?)",
+    )
+    .bind(&ts)
+    .bind(&ts)
+    .execute(&art)
+    .await
+    .unwrap();
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/admin/guild/budget", Some(&token)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["summary"]["spentPhysicalCoins"], 0);
+    assert_eq!(body["summary"]["currentBudgetCoins"], 1000);
+    assert_eq!(body["spends"].as_array().unwrap().len(), 0);
+
+    sqlx::query("UPDATE guild_rewards SET reward_type='physical', updated_at=? WHERE id=1")
+        .bind(&ts)
+        .execute(&art)
+        .await
+        .unwrap();
+
+    let (status, body) = send(&app.router, get("/api/art/guild/rewards", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["budget"]["spentPhysicalCoins"], 80);
+    assert_eq!(body["budget"]["currentBudgetCoins"], 920);
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/admin/guild/budget", Some(&token)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["summary"]["spentPhysicalCoins"], 80);
+    assert_eq!(body["summary"]["currentBudgetCoins"], 920);
+    assert!(body["spends"].as_array().unwrap().iter().any(|item| {
+        item["rewardId"] == 1
+            && item["uid"] == "u_budget_retro"
+            && item["spentCoins"] == 80
+            && item["rewardType"] == "physical"
+    }));
+}
+
+#[tokio::test]
 async fn manual_guild_quest_accepts_artwork_submissions_before_admin_approval() {
     let app = setup().await;
     let art = app.state.pools.art.clone();
