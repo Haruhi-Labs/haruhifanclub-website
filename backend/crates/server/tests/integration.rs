@@ -1140,6 +1140,211 @@ async fn guild_budget_uses_manual_supplies_and_physical_spends() {
 }
 
 #[tokio::test]
+async fn manual_guild_quest_accepts_artwork_submissions_before_admin_approval() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let user_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username=?")
+        .bind(ADMIN_USER)
+        .fetch_one(&app.state.pools.core)
+        .await
+        .unwrap();
+    let uid = format!("u{user_id}");
+    let quest_created_at = "2026-06-30T20:30:00.000Z";
+
+    let quest_id: i64 = sqlx::query_scalar(
+        "INSERT INTO guild_quests(
+            title, description, quest_type, difficulty, required_rating, required_access,
+            condition_kind, target_count, reward_reputation, reward_coins,
+            deadline_days, cycle_days, status, sort_order, created_at, updated_at
+         ) VALUES(
+            '指定画作委托', '提交委托发布日后的作品。', 'limited', 'hard', 'F', 'observer_clearance',
+            'manual_admin_verify', 2, 80, 45, NULL, NULL, 'active', 1, ?, ?
+         ) RETURNING id",
+    )
+    .bind(quest_created_at)
+    .bind(quest_created_at)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+
+    let eligible_a: i64 = sqlx::query_scalar(
+        "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at, reviewed_at)
+         VALUES('合格作品 A', ?, 'personal', 'haruhi', 'approved', '2026-06-30T16:00:00.000Z', '2026-06-30T16:00:00.000Z')
+         RETURNING id",
+    )
+    .bind(&uid)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    let eligible_b: i64 = sqlx::query_scalar(
+        "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at, reviewed_at)
+         VALUES('合格作品 B', ?, 'personal', 'other', 'approved', '2026-07-01T01:00:00.000Z', '2026-07-01T01:00:00.000Z')
+         RETURNING id",
+    )
+    .bind(&uid)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    let too_old: i64 = sqlx::query_scalar(
+        "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at, reviewed_at)
+         VALUES('过早作品', ?, 'personal', 'haruhi', 'approved', '2026-06-30T15:59:59.000Z', '2026-06-30T15:59:59.000Z')
+         RETURNING id",
+    )
+    .bind(&uid)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at, reviewed_at)
+         VALUES('待审作品', ?, 'personal', 'haruhi', 'pending', '2026-07-01T02:00:00.000Z', NULL)",
+    )
+    .bind(&uid)
+    .execute(&art)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at, reviewed_at)
+         VALUES('他人作品', 'u_other', 'personal', 'haruhi', 'approved', '2026-07-01T02:00:00.000Z', '2026-07-01T02:00:00.000Z')",
+    )
+    .execute(&art)
+    .await
+    .unwrap();
+
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/guild/quests/{quest_id}/claim"),
+            json!({}),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "manual quest should be claimable: {body:?}"
+    );
+
+    let (status, body) = send(
+        &app.router,
+        get(
+            &format!("/api/art/guild/quests/{quest_id}/submission-artworks"),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let artwork_ids: Vec<i64> = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["id"].as_i64())
+        .collect();
+    assert_eq!(artwork_ids, vec![eligible_b, eligible_a]);
+    assert!(
+        !artwork_ids.contains(&too_old),
+        "委托发布当天北京时间 00:00 之前的作品不应可提交"
+    );
+
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/guild/quests/{quest_id}/submit-artworks"),
+            json!({ "artworkIds": [too_old] }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/guild/quests/{quest_id}/submit-artworks"),
+            json!({ "artworkIds": [eligible_a] }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["submittedCount"], 1);
+
+    let claim_id: i64 = sqlx::query_scalar(
+        "SELECT id FROM guild_quest_claims WHERE quest_id=? AND uid=? AND status='active'",
+    )
+    .bind(quest_id)
+    .bind(&uid)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/quest-claims/{claim_id}/approve"),
+            json!({ "note": "验收通过" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "提交数量不足时不能批准");
+
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/guild/quests/{quest_id}/submit-artworks"),
+            json!({ "artworkIds": [eligible_a, eligible_b] }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["submittedCount"], 2);
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/admin/guild/quest-claims", Some(&token)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let claim = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["id"].as_i64() == Some(claim_id))
+        .unwrap();
+    assert_eq!(claim["submittedCount"], 2);
+    assert_eq!(claim["submittedArtworks"].as_array().unwrap().len(), 2);
+
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/quest-claims/{claim_id}/approve"),
+            json!({ "note": "验收通过" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "补齐作品后应可批准: {body:?}");
+    let (claim_status, progress): (String, i64) =
+        sqlx::query_as("SELECT status, progress FROM guild_quest_claims WHERE id=?")
+            .bind(claim_id)
+            .fetch_one(&art)
+            .await
+            .unwrap();
+    assert_eq!(claim_status, "completed");
+    assert_eq!(progress, 2);
+    let reward_coins: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(SUM(points), 0) FROM points_ledger WHERE uid=? AND source_type='quest'",
+    )
+    .bind(&uid)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    assert_eq!(reward_coins, 45);
+}
+
+#[tokio::test]
 async fn admin_creator_production_stats_use_recent_approved_art_and_positive_coins() {
     let app = setup().await;
     let art = app.state.pools.art.clone();

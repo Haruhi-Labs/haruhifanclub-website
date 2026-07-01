@@ -152,7 +152,7 @@
               type="button"
               class="sos-button sos-button--primary"
               :disabled="questButtonDisabled(quest) || busyQuestId === quest.id"
-              @click="claimQuest(quest)"
+              @click="handleQuestAction(quest)"
             >
               {{ questButtonLabel(quest) }}
             </button>
@@ -443,6 +443,63 @@
     </transition>
 
     <transition name="g-fade">
+      <div v-if="submissionTarget" class="g-modal" @click.self="closeQuestSubmission">
+        <article class="g-dialog g-dialog--submission" role="dialog" aria-modal="true">
+          <button
+            class="g-dialog__close"
+            type="button"
+            @click="closeQuestSubmission"
+            aria-label="关闭"
+          >
+            ×
+          </button>
+          <span class="g-dialog__eyebrow">Quest Submit</span>
+          <h2>提交「{{ submissionTarget.title }}」</h2>
+          <p class="g-dialog__lede">
+            需要提交 <b>{{ submissionRequiredCount }}</b> 个作品，提交后等待管理员验收。
+          </p>
+          <div class="g-submission-list">
+            <button
+              v-for="artwork in submissionArtworks"
+              :key="artwork.id"
+              type="button"
+              class="g-submission-item"
+              :class="{ 'is-selected': selectedSubmissionArtworkIds.includes(artwork.id) }"
+              @click="toggleSubmissionArtwork(artwork.id)"
+            >
+              <span class="g-submission-item__thumb">
+                <img v-if="artwork.image_url" :src="thumbUrl(artwork.image_url, 320)" :alt="artwork.title || '作品'" />
+                <i v-else>ART</i>
+              </span>
+              <span class="g-submission-item__copy">
+                <b>{{ artwork.title || `作品 #${artwork.id}` }}</b>
+                <small>{{ formatShortDateTime(artwork.publishedAt || artwork.created_at) }}</small>
+              </span>
+              <span class="g-submission-item__check" aria-hidden="true"></span>
+            </button>
+            <div v-if="submissionLoading" class="g-empty compact">正在读取可提交作品</div>
+            <div v-else-if="!submissionArtworks.length" class="g-empty compact">
+              暂无符合条件的已通过作品
+            </div>
+          </div>
+          <div class="g-dialog__actions">
+            <button type="button" class="sos-button sos-button--ghost" @click="closeQuestSubmission">
+              取消
+            </button>
+            <button
+              type="button"
+              class="sos-button sos-button--primary"
+              :disabled="submissionSaving || !selectedSubmissionArtworkIds.length"
+              @click="submitQuestArtworks"
+            >
+              提交验收
+            </button>
+          </div>
+        </article>
+      </div>
+    </transition>
+
+    <transition name="g-fade">
       <div v-if="activeRuleTable" class="g-modal" @click.self="closeRuleTable">
         <article class="g-dialog g-dialog--table" role="dialog" aria-modal="true">
           <button class="g-dialog__close" type="button" @click="closeRuleTable" aria-label="关闭">
@@ -481,7 +538,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSession } from '@haruhi/auth-ui'
-import { api } from '../services/api.js'
+import { api, thumbUrl } from '../services/api.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -515,6 +572,11 @@ let countdownTimer = null
 const redeemTarget = ref(null)
 const redeemNote = ref('')
 const activeRuleTable = ref(null)
+const submissionTarget = ref(null)
+const submissionArtworks = ref([])
+const selectedSubmissionArtworkIds = ref([])
+const submissionLoading = ref(false)
+const submissionSaving = ref(false)
 
 const ratingApplicationTable = {
   title: '评级申请条件',
@@ -602,6 +664,7 @@ const coinText = computed(() => {
 })
 
 const recentBudgetSupplies = computed(() => rewardBudget.value?.recentSupplies || [])
+const submissionRequiredCount = computed(() => questTarget(submissionTarget.value || {}))
 
 const guildTabs = computed(() => [
   { id: 'quests', eyebrow: 'Bounty', label: '委托', summary: `${quests.value.length} 项` },
@@ -733,7 +796,9 @@ function questStatusLabel(quest) {
   const status = questStatus(quest)
   if (status === 'completed') return '已完成'
   if (status === 'rejected') return '未通过'
-  if (status === 'active' && quest.conditionKind === 'manual_admin_verify') return '待验收'
+  if (status === 'active' && isManualQuest(quest)) {
+    return manualQuestSubmitted(quest) >= questTarget(quest) ? '待验收' : '待提交'
+  }
   if (status === 'active') return '进行中'
   if (status === 'locked') return '未解锁'
   if (status === 'expired') return '已截止'
@@ -741,10 +806,17 @@ function questStatusLabel(quest) {
   return '可接取'
 }
 function questProgress(quest) {
+  if (isManualQuest(quest)) return Number(quest.claim?.submittedCount ?? quest.claim?.progress ?? 0)
   return Number(quest.claim?.progress || 0)
 }
 function questTarget(quest) {
   return Number(quest.claim?.targetCount || quest.targetCount || 1)
+}
+function isManualQuest(quest) {
+  return quest?.conditionKind === 'manual_admin_verify'
+}
+function manualQuestSubmitted(quest) {
+  return Number(quest?.claim?.submittedCount ?? quest?.claim?.progress ?? 0)
 }
 function questProgressPercent(quest) {
   const target = questTarget(quest)
@@ -755,7 +827,10 @@ function questButtonDisabled(quest) {
   return (
     !quest.unlocked ||
     ['completed', 'expired', 'rejected'].includes(questStatus(quest)) ||
-    (quest.autoClaim && !!session.state.user)
+    (quest.autoClaim && !!session.state.user) ||
+    (questStatus(quest) === 'active' &&
+      isManualQuest(quest) &&
+      manualQuestSubmitted(quest) >= questTarget(quest))
   )
 }
 function questButtonLabel(quest) {
@@ -765,7 +840,9 @@ function questButtonLabel(quest) {
   if (status === 'completed') return '已结算'
   if (status === 'rejected') return '未通过'
   if (status === 'expired') return '已截止'
-  if (status === 'active' && quest.conditionKind === 'manual_admin_verify') return '等待验收'
+  if (status === 'active' && isManualQuest(quest)) {
+    return manualQuestSubmitted(quest) >= questTarget(quest) ? '等待验收' : '提交委托'
+  }
   if (quest.autoClaim) return status === 'active' ? '自动进行' : '自动接取'
   if (status === 'active') return `${questProgress(quest)}/${questTarget(quest)}`
   return '接取委托'
@@ -831,6 +908,14 @@ function conditionLabel(kind) {
   return map[kind] || '完成公会指定动作'
 }
 
+async function handleQuestAction(quest) {
+  if (questStatus(quest) === 'active' && isManualQuest(quest)) {
+    await openQuestSubmission(quest)
+    return
+  }
+  await claimQuest(quest)
+}
+
 async function claimQuest(quest) {
   if (!requireLogin()) return
   if (quest.autoClaim) return
@@ -844,6 +929,69 @@ async function claimQuest(quest) {
   } catch (error) {
     feedback.value = error.message || '接取委托失败'
   } finally {
+    busyQuestId.value = null
+  }
+}
+
+async function openQuestSubmission(quest) {
+  if (!requireLogin()) return
+  submissionTarget.value = quest
+  submissionArtworks.value = []
+  selectedSubmissionArtworkIds.value = (quest.claim?.submittedArtworks || [])
+    .map((artwork) => artwork.id)
+    .filter(Boolean)
+  submissionLoading.value = true
+  busyQuestId.value = quest.id
+  try {
+    const res = await api.guildQuestSubmissionArtworks(quest.id)
+    submissionArtworks.value = res.data || []
+    selectedSubmissionArtworkIds.value = (
+      res.submittedArtworkIds?.length ? res.submittedArtworkIds : selectedSubmissionArtworkIds.value
+    ).filter((id) => submissionArtworks.value.some((artwork) => artwork.id === id))
+  } catch (error) {
+    feedback.value = error.message || '读取可提交作品失败'
+    closeQuestSubmission()
+  } finally {
+    submissionLoading.value = false
+    busyQuestId.value = null
+  }
+}
+
+function closeQuestSubmission() {
+  submissionTarget.value = null
+  submissionArtworks.value = []
+  selectedSubmissionArtworkIds.value = []
+  submissionLoading.value = false
+  submissionSaving.value = false
+}
+
+function toggleSubmissionArtwork(artworkId) {
+  if (selectedSubmissionArtworkIds.value.includes(artworkId)) {
+    selectedSubmissionArtworkIds.value = selectedSubmissionArtworkIds.value.filter((id) => id !== artworkId)
+  } else {
+    selectedSubmissionArtworkIds.value = [...selectedSubmissionArtworkIds.value, artworkId]
+  }
+}
+
+async function submitQuestArtworks() {
+  const quest = submissionTarget.value
+  if (!quest) return
+  submissionSaving.value = true
+  busyQuestId.value = quest.id
+  try {
+    const res = await api.guildSubmitQuestArtworks(quest.id, selectedSubmissionArtworkIds.value)
+    const submitted = Number(res.submittedCount || selectedSubmissionArtworkIds.value.length)
+    const target = Number(res.targetCount || questTarget(quest))
+    feedback.value =
+      submitted >= target
+        ? `已提交「${quest.title}」，等待管理员验收。`
+        : `已提交 ${submitted}/${target} 个作品，可继续补充提交。`
+    closeQuestSubmission()
+    await loadGuild()
+  } catch (error) {
+    feedback.value = error.message || '提交委托失败'
+  } finally {
+    submissionSaving.value = false
     busyQuestId.value = null
   }
 }
@@ -2103,6 +2251,9 @@ onUnmounted(() => {
 .g-dialog--table {
   width: min(680px, 100%);
 }
+.g-dialog--submission {
+  width: min(760px, 100%);
+}
 .g-dialog__eyebrow {
   font-size: 11px;
   font-weight: 800;
@@ -2123,6 +2274,84 @@ onUnmounted(() => {
 }
 .g-dialog__lede b {
   color: var(--g-accent-strong);
+}
+.g-submission-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.g-submission-item {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) 18px;
+  gap: 10px;
+  align-items: center;
+  min-height: 76px;
+  padding: 8px;
+  border: 1px solid var(--g-line);
+  border-radius: 10px;
+  background: color-mix(in srgb, #fff 88%, var(--g-accent) 12%);
+  color: var(--g-text);
+  text-align: left;
+  cursor: pointer;
+}
+.g-submission-item.is-selected {
+  border-color: color-mix(in srgb, var(--g-accent) 74%, var(--g-line));
+  background: color-mix(in srgb, var(--g-accent) 16%, #fff);
+}
+.g-submission-item__thumb {
+  width: 68px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--g-accent) 12%, #eef6f5);
+}
+.g-submission-item__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.g-submission-item__thumb i {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--g-muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+.g-submission-item__copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+.g-submission-item__copy b {
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.g-submission-item__copy small {
+  color: var(--g-muted);
+  font-size: 12px;
+}
+.g-submission-item__check {
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in srgb, var(--g-muted) 48%, transparent);
+  border-radius: 50%;
+}
+.g-submission-item.is-selected .g-submission-item__check {
+  border-color: var(--g-accent-strong);
+  background: radial-gradient(circle at center, var(--g-accent-strong) 0 48%, transparent 52%);
+}
+.g-empty.compact {
+  grid-column: 1 / -1;
+  padding: 16px;
 }
 .g-rule-modal-table {
   overflow-x: auto;
@@ -2236,5 +2465,11 @@ onUnmounted(() => {
 }
 :global(html.art-lights-out .g-dialog) {
   background: #0f1a30;
+}
+:global(html.art-lights-out .g-submission-item) {
+  background: rgba(20, 32, 56, 0.88);
+}
+:global(html.art-lights-out .g-submission-item.is-selected) {
+  background: color-mix(in srgb, var(--g-accent) 18%, rgba(20, 32, 56, 0.88));
 }
 </style>
