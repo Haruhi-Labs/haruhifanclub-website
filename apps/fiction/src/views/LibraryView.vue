@@ -205,7 +205,7 @@ onMounted(async () => {
 
       <SosEmptyState v-else title="没有找到相关作品" copy="换个筛选条件，或成为第一个在此创作的人。">
         <template #actions>
-          <RouterLink to="/write" class="sos-btn sos-btn--primary">去创作</RouterLink>
+          <RouterLink to="/write" class="sos-button sos-button--primary">去创作</RouterLink>
         </template>
       </SosEmptyState>
     </main>

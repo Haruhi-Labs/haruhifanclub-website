@@ -164,7 +164,7 @@ watch(id, load, { immediate: true })
           <SosBadge v-if="story.status === 'published'" variant="success">已发布</SosBadge>
           <SosBadge v-else-if="story.status === 'hidden'" variant="danger">已下架</SosBadge>
           <SosBadge v-else variant="outline">草稿</SosBadge>
-          <RouterLink v-if="story.status === 'published'" :to="`/story/${story.id}`" class="sos-btn sos-btn--ghost sos-btn--sm">查看</RouterLink>
+          <RouterLink v-if="story.status === 'published'" :to="`/story/${story.id}`" class="sos-button sos-button--ghost sos-button--sm">查看</RouterLink>
         </div>
       </div>
 
@@ -174,7 +174,7 @@ watch(id, load, { immediate: true })
           <h2 class="se__section-title">作品信息</h2>
           <div class="se__cover">
             <CoverImage :path="form.coverPath" :title="form.title" :category="form.category" />
-            <label class="sos-btn sos-btn--secondary sos-btn--sm">
+            <label class="sos-button sos-button--secondary sos-button--sm">
               上传封面
               <input type="file" accept="image/*" hidden @change="onCover" />
             </label>

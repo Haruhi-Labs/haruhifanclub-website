@@ -4,8 +4,11 @@
    仅把强调色改为「书卷酒红」，与 EPUB 书架的琥珀区隔、又同属暖色家族。
    ============================================================ */
 
-.fiction-app.sos-scope {
-  /* 书卷酒红强调（暖色，和奶油纸面协调；区别于书架琥珀、画廊青绿） */
+/* 书卷酒红强调（暖色，和奶油纸面协调；区别于书架琥珀、画廊青绿）。
+   同时覆盖 auth-ui 等内部重新声明 data-sos-site=library 的区块，保证账号中心/登录页
+   与全站一致用酒红——只作用于 fiction，不影响其它 app 复用的共享组件。 */
+.fiction-app.sos-scope,
+.fiction-app [data-sos-site='library'] {
   --sos-accent: #a63d61;
   --sos-accent-hover: #8c2f4f;
   --sos-accent-soft: #f7e8ee;
@@ -13,7 +16,8 @@
   --sos-link: #9c3a5c;
   --sos-link-hover: #7c2b47;
   --sos-focus: #a63d61;
-
+}
+.fiction-app.sos-scope {
   min-height: 100vh;
   display: flex;
   flex-direction: column;

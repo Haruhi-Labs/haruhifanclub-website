@@ -94,7 +94,7 @@ watch(id, load, { immediate: true })
 
     <div v-else-if="notFound" class="story__missing">
       <h2>作品不存在或已下架</h2>
-      <RouterLink to="/library" class="sos-btn sos-btn--primary">返回书库</RouterLink>
+      <RouterLink to="/library" class="sos-button sos-button--primary">返回书库</RouterLink>
     </div>
 
     <template v-else-if="story">
@@ -147,7 +147,7 @@ watch(id, load, { immediate: true })
             <SosButton :variant="bookmarked ? 'primary' : 'secondary'" @click="onBookmark">
               {{ bookmarked ? '★ 已收藏' : '☆ 收藏' }}
             </SosButton>
-            <RouterLink v-if="isAuthor" :to="`/write/${story.id}`" class="sos-btn sos-btn--ghost">
+            <RouterLink v-if="isAuthor" :to="`/write/${story.id}`" class="sos-button sos-button--ghost">
               管理作品
             </RouterLink>
           </div>

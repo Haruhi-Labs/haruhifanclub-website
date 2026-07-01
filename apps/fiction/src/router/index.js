@@ -18,6 +18,7 @@ import HomeView from '@/views/HomeView.vue'
 const LibraryView = () => import('@/views/LibraryView.vue')
 const StoryView = () => import('@/views/StoryView.vue')
 const ReadView = () => import('@/views/ReadView.vue')
+const BookmarksView = () => import('@/views/BookmarksView.vue')
 const WriteDashboardView = () => import('@/views/WriteDashboardView.vue')
 const StoryEditorView = () => import('@/views/StoryEditorView.vue')
 const ChapterEditorView = () => import('@/views/ChapterEditorView.vue')
@@ -38,6 +39,8 @@ const router = createRouter({
     { path: '/library', name: 'library', component: LibraryView },
     { path: '/story/:id', name: 'story', component: StoryView },
     { path: '/story/:id/chapter/:cid', name: 'read', component: ReadView },
+
+    { path: '/bookmarks', name: 'bookmarks', component: BookmarksView, meta: { requiresAuth: true } },
 
     // 创作（需登录）
     { path: '/write', name: 'write', component: WriteDashboardView, meta: { requiresAuth: true } },

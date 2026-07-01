@@ -113,7 +113,7 @@ watch([storyId, chapterId], load, { immediate: true })
     <div v-if="loading" class="reader__loading">正在翻开书页…</div>
     <div v-else-if="notFound" class="reader__missing">
       <p>章节不存在或未发布。</p>
-      <RouterLink :to="`/story/${storyId}`" class="sos-btn sos-btn--primary">返回作品</RouterLink>
+      <RouterLink :to="`/story/${storyId}`" class="sos-button sos-button--primary">返回作品</RouterLink>
     </div>
 
     <template v-else-if="chapter">

@@ -30,11 +30,12 @@ onMounted(() => session.ensureReady())
       <nav class="sos-navlinks">
         <RouterLink to="/" class="sos-navlink">首页</RouterLink>
         <RouterLink to="/library" class="sos-navlink">书库</RouterLink>
+        <RouterLink v-if="session.isLoggedIn" to="/bookmarks" class="sos-navlink">书架</RouterLink>
         <RouterLink to="/write" class="sos-navlink">创作</RouterLink>
       </nav>
 
       <template #actions>
-        <RouterLink to="/write" class="sos-btn sos-btn--primary sos-btn--sm fiction-write-cta">
+        <RouterLink to="/write" class="sos-button sos-button--primary sos-button--sm fiction-write-cta">
           ✎ 写小说
         </RouterLink>
         <AccountMenu login-path="/login" profile-path="/account" settings-path="/account/settings" home="/" />
