@@ -1558,10 +1558,14 @@ async fn admin_approve_redemption(
     };
     let now = now_iso();
     // 先原子置为 approved（条件更新），只有抢到的请求才扣积分、减库存，防并发双批准导致双扣。
+    let note = body.get("note").and_then(|v| v.as_str()).unwrap_or("");
     let affected = sqlx::query(
-        "UPDATE guild_reward_redemptions SET status='approved', admin_note=?, reviewed_at=? WHERE id=? AND status='pending'",
+        "UPDATE guild_reward_redemptions
+         SET status='approved', admin_note=?, review_note=?, reviewed_at=?
+         WHERE id=? AND status='pending'",
     )
-    .bind(body.get("note").and_then(|v| v.as_str()).unwrap_or(""))
+    .bind(note)
+    .bind(note)
     .bind(&now)
     .bind(id)
     .execute(&state.pools.art)
@@ -1617,14 +1621,22 @@ async fn admin_fulfill_redemption(
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Manage).await?;
     let now = now_iso();
-    sqlx::query(
-        "UPDATE guild_reward_redemptions SET status='fulfilled', admin_note=?, fulfilled_at=? WHERE id=? AND status IN ('approved','fulfilled')",
+    let note = body.get("note").and_then(|v| v.as_str()).unwrap_or("");
+    let affected = sqlx::query(
+        "UPDATE guild_reward_redemptions
+         SET status='fulfilled', admin_note=?, fulfilled_note=?, fulfilled_at=?
+         WHERE id=? AND status IN ('approved','fulfilled')",
     )
-    .bind(body.get("note").and_then(|v| v.as_str()).unwrap_or(""))
+    .bind(note)
+    .bind(note)
     .bind(&now)
     .bind(id)
     .execute(&state.pools.art)
-    .await?;
+    .await?
+    .rows_affected();
+    if affected == 0 {
+        return Err(AppError::bad_request("兑换申请不存在或状态不可发放"));
+    }
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -3291,9 +3303,12 @@ async fn redemptions_for_uid(state: &AppState, uid: &str) -> AppResult<Vec<Value
         Option<String>,
         Option<String>,
         Option<String>,
+        Option<String>,
+        Option<String>,
     )> = sqlx::query_as(
         "SELECT r.id, r.reward_id, r.uid, gr.name, gr.reward_type, r.frozen_coins, r.status,
-                    r.user_note, r.admin_note, r.created_at, r.reviewed_at, r.fulfilled_at
+                    r.user_note, r.admin_note, r.review_note, r.fulfilled_note,
+                    r.created_at, r.reviewed_at, r.fulfilled_at
              FROM guild_reward_redemptions r JOIN guild_rewards gr ON gr.id=r.reward_id
              WHERE r.uid=? ORDER BY datetime(r.created_at) DESC",
     )
@@ -3317,9 +3332,12 @@ async fn all_redemptions(state: &AppState) -> AppResult<Vec<Value>> {
         Option<String>,
         Option<String>,
         Option<String>,
+        Option<String>,
+        Option<String>,
     )> = sqlx::query_as(
         "SELECT r.id, r.reward_id, r.uid, gr.name, gr.reward_type, r.frozen_coins, r.status,
-                    r.user_note, r.admin_note, r.created_at, r.reviewed_at, r.fulfilled_at
+                    r.user_note, r.admin_note, r.review_note, r.fulfilled_note,
+                    r.created_at, r.reviewed_at, r.fulfilled_at
              FROM guild_reward_redemptions r JOIN guild_rewards gr ON gr.id=r.reward_id
              ORDER BY datetime(r.created_at) DESC",
     )
@@ -3354,6 +3372,8 @@ fn redemption_value(
         Option<String>,
         Option<String>,
         Option<String>,
+        Option<String>,
+        Option<String>,
     ),
 ) -> Value {
     let (
@@ -3366,10 +3386,21 @@ fn redemption_value(
         status,
         user_note,
         admin_note,
+        review_note,
+        fulfilled_note,
         created_at,
         reviewed_at,
         fulfilled_at,
     ) = row;
+    let history = redemption_history_value(
+        status.as_str(),
+        created_at.as_deref(),
+        user_note.as_deref(),
+        reviewed_at.as_deref(),
+        review_note.as_deref(),
+        fulfilled_at.as_deref(),
+        fulfilled_note.as_deref(),
+    );
     json!({
         "id": id,
         "rewardId": reward_id,
@@ -3380,9 +3411,73 @@ fn redemption_value(
         "status": status,
         "userNote": user_note,
         "adminNote": admin_note,
+        "reviewNote": review_note,
+        "fulfilledNote": fulfilled_note,
         "createdAt": created_at,
         "reviewedAt": reviewed_at,
-        "fulfilledAt": fulfilled_at
+        "fulfilledAt": fulfilled_at,
+        "history": history
+    })
+}
+
+fn redemption_history_value(
+    status: &str,
+    created_at: Option<&str>,
+    user_note: Option<&str>,
+    reviewed_at: Option<&str>,
+    review_note: Option<&str>,
+    fulfilled_at: Option<&str>,
+    fulfilled_note: Option<&str>,
+) -> Vec<Value> {
+    let mut history = Vec::new();
+    if let Some(at) = created_at.filter(|value| !value.trim().is_empty()) {
+        history.push(redemption_history_event(
+            "applied",
+            "提交申请",
+            "user",
+            at,
+            user_note,
+        ));
+    }
+    if let Some(at) = reviewed_at.filter(|value| !value.trim().is_empty()) {
+        let label = match status {
+            "rejected" => "审核拒绝",
+            "cancelled" => "取消兑换",
+            _ => "审核批准",
+        };
+        history.push(redemption_history_event(
+            "reviewed",
+            label,
+            "admin",
+            at,
+            review_note,
+        ));
+    }
+    if let Some(at) = fulfilled_at.filter(|value| !value.trim().is_empty()) {
+        history.push(redemption_history_event(
+            "fulfilled",
+            "发放完成",
+            "admin",
+            at,
+            fulfilled_note,
+        ));
+    }
+    history
+}
+
+fn redemption_history_event(
+    kind: &str,
+    label: &str,
+    actor: &str,
+    at: &str,
+    note: Option<&str>,
+) -> Value {
+    json!({
+        "kind": kind,
+        "label": label,
+        "actor": actor,
+        "at": at,
+        "note": note.filter(|value| !value.trim().is_empty()),
     })
 }
 
@@ -3732,9 +3827,12 @@ async fn budget_spend_rows(state: &AppState) -> AppResult<Vec<Value>> {
         Option<String>,
         Option<String>,
         Option<String>,
+        Option<String>,
+        Option<String>,
     )> = sqlx::query_as(
         "SELECT r.id, r.reward_id, r.uid, gr.name, gr.reward_type, r.frozen_coins, r.status,
-                r.user_note, r.admin_note, r.created_at, r.reviewed_at, r.fulfilled_at
+                r.user_note, r.admin_note, r.review_note, r.fulfilled_note,
+                r.created_at, r.reviewed_at, r.fulfilled_at
          FROM guild_reward_redemptions r JOIN guild_rewards gr ON gr.id=r.reward_id
          WHERE gr.reward_type='physical' AND r.status IN ('approved','fulfilled')
          ORDER BY datetime(COALESCE(r.fulfilled_at, r.reviewed_at, r.created_at)) DESC, r.id DESC",
@@ -3968,11 +4066,15 @@ async fn set_redemption_status(
     body: Value,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, user, "art", Action::Manage).await?;
+    let note = body.get("note").and_then(|v| v.as_str()).unwrap_or("");
     sqlx::query(
-        "UPDATE guild_reward_redemptions SET status=?, admin_note=?, reviewed_at=? WHERE id=? AND status='pending'",
+        "UPDATE guild_reward_redemptions
+         SET status=?, admin_note=?, review_note=?, reviewed_at=?
+         WHERE id=? AND status='pending'",
     )
     .bind(status)
-    .bind(body.get("note").and_then(|v| v.as_str()).unwrap_or(""))
+    .bind(note)
+    .bind(note)
     .bind(now_iso())
     .bind(id)
     .execute(&state.pools.art)
