@@ -6,9 +6,9 @@
 use std::collections::HashMap;
 
 use axum::extract::{Multipart, Path, Query, State};
-use axum::routing::{get, post};
+use axum::routing::{delete, get, patch, post};
 use axum::{Json, Router};
-use haruhi_auth::AuthUser;
+use haruhi_auth::{authorize, Action, AuthUser};
 use haruhi_core::parse::{clamp_int, clamp_len};
 use haruhi_core::{AppError, AppResult};
 use serde_json::{json, Value};
@@ -73,10 +73,29 @@ pub fn router() -> Router<AppState> {
         .route("/stories/{id}", get(get_story))
         .route("/stories/{id}/chapters/{cid}", get(get_chapter))
         .route("/stories/{id}/views", post(bump_view))
-        .route("/stories/{id}/comments", get(list_comments))
+        .route(
+            "/stories/{id}/comments",
+            get(list_comments).post(create_comment),
+        )
+        .route("/stories/{id}/like", post(toggle_like))
+        .route("/stories/{id}/bookmark", post(toggle_bookmark))
         .route("/categories", get(list_categories))
         .route("/tags", get(list_tags))
         .route("/spotlight", get(spotlight))
+        // ---- 互动 / 个人中心（需登录）----
+        .route("/me/comments", get(my_comments))
+        .route("/me/comments/{id}", delete(delete_my_comment))
+        .route("/me/bookmarks", get(my_bookmarks))
+        .route("/me/stats", get(my_stats))
+        .route("/me/progress/{sid}", get(get_progress).put(put_progress))
+        // ---- 后台审核（需 fiction 角色）----
+        .route("/admin/stories", get(admin_list_stories))
+        .route(
+            "/admin/stories/{id}",
+            patch(admin_update_story).delete(admin_delete_story),
+        )
+        .route("/admin/comments", get(admin_list_comments))
+        .route("/admin/comments/{id}", patch(admin_update_comment))
         // ---- 创作（需登录 + 作者本人）----
         .route("/me/stories", get(my_stories).post(create_story))
         .route(
@@ -1318,4 +1337,670 @@ async fn upload_cover(
     };
 
     Ok(Json(json!({ "ok": true, "path": rel })))
+}
+
+// ================= 互动 / 个人中心 =================
+
+/// 作品必须存在且已发布，否则 404（互动/评论只针对公开作品）。
+async fn ensure_published(pool: &SqlitePool, id: i64) -> AppResult<()> {
+    let ok: Option<i64> =
+        sqlx::query_scalar("SELECT id FROM stories WHERE id = ? AND status = 'published'")
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
+    ok.map(|_| ())
+        .ok_or_else(|| AppError::not_found("作品不存在"))
+}
+
+/// 按 reactions 表实际值回写作品计数（避免自增漂移）。
+async fn sync_reaction_count(pool: &SqlitePool, id: i64, kind: &str) -> AppResult<i64> {
+    let col = if kind == "like" {
+        "like_count"
+    } else {
+        "bookmark_count"
+    };
+    let cnt: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM reactions WHERE story_id = ? AND kind = ?")
+            .bind(id)
+            .bind(kind)
+            .fetch_one(pool)
+            .await?;
+    sqlx::query(&format!("UPDATE stories SET {col} = ? WHERE id = ?"))
+        .bind(cnt)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(cnt)
+}
+
+/// 切换点赞 / 收藏（幂等：已存在则取消）。
+async fn toggle_reaction(
+    state: &AppState,
+    id: i64,
+    user: &AuthUser,
+    kind: &str,
+) -> AppResult<(bool, i64)> {
+    let pool = &state.pools.fiction;
+    ensure_published(pool, id).await?;
+    let exists: Option<i64> = sqlx::query_scalar(
+        "SELECT 1 FROM reactions WHERE user_id = ? AND story_id = ? AND kind = ?",
+    )
+    .bind(user.id)
+    .bind(id)
+    .bind(kind)
+    .fetch_optional(pool)
+    .await?;
+
+    let active = if exists.is_some() {
+        sqlx::query("DELETE FROM reactions WHERE user_id = ? AND story_id = ? AND kind = ?")
+            .bind(user.id)
+            .bind(id)
+            .bind(kind)
+            .execute(pool)
+            .await?;
+        false
+    } else {
+        sqlx::query(
+            "INSERT OR IGNORE INTO reactions (user_id, story_id, kind, created_at) VALUES (?, ?, ?, ?)",
+        )
+        .bind(user.id)
+        .bind(id)
+        .bind(kind)
+        .bind(now_iso())
+        .execute(pool)
+        .await?;
+        true
+    };
+    let count = sync_reaction_count(pool, id, kind).await?;
+    Ok((active, count))
+}
+
+/// POST /api/fiction/stories/{id}/like —— 点赞/取消点赞。
+async fn toggle_like(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    let (liked, count) = toggle_reaction(&state, id, &user, "like").await?;
+    Ok(Json(
+        json!({ "ok": true, "liked": liked, "likeCount": count }),
+    ))
+}
+
+/// POST /api/fiction/stories/{id}/bookmark —— 收藏/取消收藏。
+async fn toggle_bookmark(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    let (marked, count) = toggle_reaction(&state, id, &user, "bookmark").await?;
+    Ok(Json(
+        json!({ "ok": true, "bookmarked": marked, "bookmarkCount": count }),
+    ))
+}
+
+/// 按 comments 表回写作品评论数（仅计 visible）。
+async fn sync_comment_count(pool: &SqlitePool, story_id: i64) -> AppResult<()> {
+    sqlx::query(
+        "UPDATE stories SET comment_count = \
+         (SELECT COUNT(*) FROM comments WHERE story_id = ? AND status = 'visible') WHERE id = ?",
+    )
+    .bind(story_id)
+    .bind(story_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// POST /api/fiction/stories/{id}/comments —— 发表评论（作品级或章节级，支持楼中楼）。
+async fn create_comment(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    user: AuthUser,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    let author_name = require_verified_member(&state.pools.core, &user).await?;
+    let pool = &state.pools.fiction;
+    ensure_published(pool, id).await?;
+
+    let text = clamp_len(body.get("body").and_then(|v| v.as_str()), 2000);
+    if text.trim().is_empty() {
+        return Err(AppError::bad_request("评论内容不能为空"));
+    }
+
+    // 章节级评论：校验章节属于该作品且已发布
+    let chapter_id = body.get("chapterId").and_then(|v| v.as_i64());
+    if let Some(c) = chapter_id {
+        let ok: Option<i64> = sqlx::query_scalar(
+            "SELECT id FROM chapters WHERE id = ? AND story_id = ? AND status = 'published'",
+        )
+        .bind(c)
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
+        if ok.is_none() {
+            return Err(AppError::bad_request("章节不存在"));
+        }
+    }
+    // 回复：校验父评论属于该作品且可见
+    let parent_id = body.get("parentId").and_then(|v| v.as_i64());
+    if let Some(p) = parent_id {
+        let ok: Option<i64> = sqlx::query_scalar(
+            "SELECT id FROM comments WHERE id = ? AND story_id = ? AND status = 'visible'",
+        )
+        .bind(p)
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
+        if ok.is_none() {
+            return Err(AppError::bad_request("回复的评论不存在"));
+        }
+    }
+
+    let now = now_iso();
+    let uid = member_uid(user.id);
+    let cid: i64 = sqlx::query_scalar(
+        "INSERT INTO comments \
+         (story_id, chapter_id, parent_id, author_user_id, author_uid, author_name, body, status, created_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'visible', ?) RETURNING id",
+    )
+    .bind(id)
+    .bind(chapter_id)
+    .bind(parent_id)
+    .bind(user.id)
+    .bind(&uid)
+    .bind(&author_name)
+    .bind(&text)
+    .bind(&now)
+    .fetch_one(pool)
+    .await?;
+    sync_comment_count(pool, id).await?;
+
+    Ok(Json(json!({
+        "ok": true,
+        "comment": {
+            "id": cid,
+            "chapterId": chapter_id,
+            "parentId": parent_id,
+            "authorUserId": user.id,
+            "authorUid": uid,
+            "authorName": author_name,
+            "body": text,
+            "createdAt": now,
+        }
+    })))
+}
+
+/// DELETE /api/fiction/me/comments/{id} —— 删除本人评论（软删为 hidden）。
+async fn delete_my_comment(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    let pool = &state.pools.fiction;
+    let row: Option<(i64, i64)> =
+        sqlx::query_as("SELECT story_id, author_user_id FROM comments WHERE id = ?")
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
+    let (story_id, author) = row.ok_or_else(|| AppError::not_found("评论不存在"))?;
+    if author != user.id {
+        return Err(AppError::Forbidden);
+    }
+    sqlx::query("UPDATE comments SET status = 'hidden' WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
+    sync_comment_count(pool, story_id).await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+/// GET /api/fiction/me/comments —— 我的评论（含所属作品标题）。
+async fn my_comments(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    let page = clamp_int(q.get("page").map(|s| s.as_str()), 1, 9999, 1);
+    let page_size = clamp_int(q.get("pageSize").map(|s| s.as_str()), 1, 60, 20);
+    let offset = (page - 1) * page_size;
+
+    let total: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM comments WHERE author_user_id = ? AND status = 'visible'",
+    )
+    .bind(user.id)
+    .fetch_one(&state.pools.fiction)
+    .await?;
+
+    let rows: Vec<(i64, i64, Option<i64>, String, String, String)> = sqlx::query_as(
+        "SELECT c.id, c.story_id, c.chapter_id, c.body, c.created_at, s.title \
+         FROM comments c JOIN stories s ON s.id = c.story_id \
+         WHERE c.author_user_id = ? AND c.status = 'visible' \
+         ORDER BY datetime(c.created_at) DESC, c.id DESC LIMIT ? OFFSET ?",
+    )
+    .bind(user.id)
+    .bind(page_size)
+    .bind(offset)
+    .fetch_all(&state.pools.fiction)
+    .await?;
+
+    let comments: Vec<Value> = rows
+        .into_iter()
+        .map(|(cid, sid, ch, body, created, title)| {
+            json!({
+                "id": cid,
+                "storyId": sid,
+                "storyTitle": title,
+                "chapterId": ch,
+                "body": body,
+                "createdAt": created,
+            })
+        })
+        .collect();
+
+    Ok(Json(json!({
+        "ok": true,
+        "comments": comments,
+        "pagination": crate::pagination::page_meta(page, page_size, total),
+    })))
+}
+
+/// GET /api/fiction/me/bookmarks —— 我的收藏（按收藏时间倒序）。
+async fn my_bookmarks(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    let page = clamp_int(q.get("page").map(|s| s.as_str()), 1, 9999, 1);
+    let page_size = clamp_int(q.get("pageSize").map(|s| s.as_str()), 1, 48, 12);
+    let offset = (page - 1) * page_size;
+
+    let total: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM stories WHERE status = 'published' \
+         AND id IN (SELECT story_id FROM reactions WHERE user_id = ? AND kind = 'bookmark')",
+    )
+    .bind(user.id)
+    .fetch_one(&state.pools.fiction)
+    .await?;
+
+    let rows: Vec<StoryRow> = sqlx::query_as(&format!(
+        "SELECT {STORY_COLS} FROM stories WHERE status = 'published' \
+         AND id IN (SELECT story_id FROM reactions WHERE user_id = ? AND kind = 'bookmark') \
+         ORDER BY datetime((SELECT created_at FROM reactions WHERE user_id = ? \
+         AND story_id = stories.id AND kind = 'bookmark')) DESC, id DESC LIMIT ? OFFSET ?"
+    ))
+    .bind(user.id)
+    .bind(user.id)
+    .bind(page_size)
+    .bind(offset)
+    .fetch_all(&state.pools.fiction)
+    .await?;
+
+    let stories = rows_to_cards(&state.pools.fiction, rows).await?;
+    Ok(Json(json!({
+        "ok": true,
+        "stories": stories,
+        "pagination": crate::pagination::page_meta(page, page_size, total),
+    })))
+}
+
+/// GET /api/fiction/me/stats —— 我的创作数据总览。
+async fn my_stats(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+    let pool = &state.pools.fiction;
+    let status_rows: Vec<(String, i64)> = sqlx::query_as(
+        "SELECT status, COUNT(*) FROM stories WHERE author_user_id = ? GROUP BY status",
+    )
+    .bind(user.id)
+    .fetch_all(pool)
+    .await?;
+    let (mut total, mut published, mut draft, mut hidden) = (0i64, 0i64, 0i64, 0i64);
+    for (st, c) in &status_rows {
+        total += c;
+        match st.as_str() {
+            "published" => published += c,
+            "draft" => draft += c,
+            "hidden" => hidden += c,
+            _ => {}
+        }
+    }
+
+    // 仅统计公开作品的对外数据
+    let agg: (Option<i64>, Option<i64>, Option<i64>, Option<i64>) = sqlx::query_as(
+        "SELECT SUM(word_count), SUM(view_count), SUM(like_count), SUM(bookmark_count) \
+         FROM stories WHERE author_user_id = ? AND status = 'published'",
+    )
+    .bind(user.id)
+    .fetch_one(pool)
+    .await?;
+    let chapters: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM chapters WHERE story_id IN \
+         (SELECT id FROM stories WHERE author_user_id = ?) AND status = 'published'",
+    )
+    .bind(user.id)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(Json(json!({
+        "ok": true,
+        "works": { "total": total, "published": published, "draft": draft, "hidden": hidden },
+        "publishedChapters": chapters,
+        "totalWords": agg.0.unwrap_or(0),
+        "totalViews": agg.1.unwrap_or(0),
+        "totalLikes": agg.2.unwrap_or(0),
+        "totalBookmarks": agg.3.unwrap_or(0),
+    })))
+}
+
+/// GET /api/fiction/me/progress/{sid} —— 读取阅读进度。
+async fn get_progress(
+    State(state): State<AppState>,
+    Path(sid): Path<i64>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    let row: Option<(Option<i64>, f64)> = sqlx::query_as(
+        "SELECT chapter_id, progress FROM reading_progress WHERE user_id = ? AND story_id = ?",
+    )
+    .bind(user.id)
+    .bind(sid)
+    .fetch_optional(&state.pools.fiction)
+    .await?;
+    Ok(Json(json!({
+        "ok": true,
+        "progress": row.map(|(ch, p)| json!({ "chapterId": ch, "progress": p })),
+    })))
+}
+
+/// PUT /api/fiction/me/progress/{sid} —— 保存阅读进度（每人每作品一行 upsert）。
+async fn put_progress(
+    State(state): State<AppState>,
+    Path(sid): Path<i64>,
+    user: AuthUser,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    let chapter_id = body.get("chapterId").and_then(|v| v.as_i64());
+    let progress = body
+        .get("progress")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0)
+        .clamp(0.0, 1.0);
+    sqlx::query(
+        "INSERT INTO reading_progress (user_id, story_id, chapter_id, progress, updated_at) \
+         VALUES (?, ?, ?, ?, ?) \
+         ON CONFLICT(user_id, story_id) DO UPDATE SET \
+         chapter_id = excluded.chapter_id, progress = excluded.progress, updated_at = excluded.updated_at",
+    )
+    .bind(user.id)
+    .bind(sid)
+    .bind(chapter_id)
+    .bind(progress)
+    .bind(now_iso())
+    .execute(&state.pools.fiction)
+    .await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+// ================= 后台审核（需 fiction 角色）=================
+
+/// GET /api/fiction/admin/stories —— 全部作品（可按状态/关键词过滤）。
+async fn admin_list_stories(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "fiction", Action::Moderate).await?;
+    let getq = |k: &str| q.get(k).map(|s| s.as_str());
+    let page = clamp_int(getq("page"), 1, 9999, 1);
+    let page_size = clamp_int(getq("pageSize"), 1, 60, 20);
+    let offset = (page - 1) * page_size;
+
+    let mut where_sql = String::from("WHERE 1 = 1");
+    let mut params: Vec<String> = Vec::new();
+    if let Some(s) = getq("status") {
+        let s = s.trim();
+        if !s.is_empty() && s != "all" {
+            where_sql.push_str(" AND status = ?");
+            params.push(s.to_string());
+        }
+    }
+    if let Some(kw) = getq("q") {
+        let kw = kw.trim();
+        if !kw.is_empty() {
+            let like = format!("%{}%", kw.replace(['%', '_'], ""));
+            where_sql.push_str(" AND (title LIKE ? OR author_name LIKE ?)");
+            params.push(like.clone());
+            params.push(like);
+        }
+    }
+
+    let count_sql = format!("SELECT COUNT(*) FROM stories {where_sql}");
+    let mut count_q = sqlx::query_scalar::<_, i64>(&count_sql);
+    for p in &params {
+        count_q = count_q.bind(p);
+    }
+    let total: i64 = count_q.fetch_one(&state.pools.fiction).await?;
+
+    let list_sql = format!(
+        "SELECT {STORY_COLS} FROM stories {where_sql} ORDER BY datetime(updated_at) DESC, id DESC LIMIT ? OFFSET ?"
+    );
+    let mut list_q = sqlx::query_as::<_, StoryRow>(&list_sql);
+    for p in &params {
+        list_q = list_q.bind(p);
+    }
+    let rows = list_q
+        .bind(page_size)
+        .bind(offset)
+        .fetch_all(&state.pools.fiction)
+        .await?;
+    let stories = rows_to_cards(&state.pools.fiction, rows).await?;
+
+    Ok(Json(json!({
+        "ok": true,
+        "stories": stories,
+        "pagination": crate::pagination::page_meta(page, page_size, total),
+    })))
+}
+
+/// PATCH /api/fiction/admin/stories/{id} —— 精选 / 上下架。
+async fn admin_update_story(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    user: AuthUser,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "fiction", Action::Moderate).await?;
+    let pool = &state.pools.fiction;
+    let exists: Option<i64> = sqlx::query_scalar("SELECT id FROM stories WHERE id = ?")
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
+    if exists.is_none() {
+        return Err(AppError::not_found("作品不存在"));
+    }
+
+    if let Some(f) = body.get("featured").and_then(|v| v.as_bool()) {
+        sqlx::query("UPDATE stories SET featured = ? WHERE id = ?")
+            .bind(f as i64)
+            .bind(id)
+            .execute(pool)
+            .await?;
+    }
+    if let Some(s) = body.get("status").and_then(|v| v.as_str()) {
+        if !matches!(s, "draft" | "published" | "hidden") {
+            return Err(AppError::bad_request("状态非法"));
+        }
+        let now = now_iso();
+        if s == "published" {
+            sqlx::query(
+                "UPDATE stories SET status = 'published', published_at = COALESCE(published_at, ?) WHERE id = ?",
+            )
+            .bind(&now)
+            .bind(id)
+            .execute(pool)
+            .await?;
+        } else {
+            sqlx::query("UPDATE stories SET status = ? WHERE id = ?")
+                .bind(s)
+                .bind(id)
+                .execute(pool)
+                .await?;
+        }
+    }
+    sqlx::query("UPDATE stories SET updated_at = ? WHERE id = ?")
+        .bind(now_iso())
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+/// DELETE /api/fiction/admin/stories/{id} —— 物理删除作品及其从属数据（需 Manage）。
+async fn admin_delete_story(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "fiction", Action::Manage).await?;
+    let pool = &state.pools.fiction;
+    let cover: Option<Option<String>> =
+        sqlx::query_scalar("SELECT cover_path FROM stories WHERE id = ?")
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
+    let cover = match cover {
+        Some(c) => c,
+        None => return Err(AppError::not_found("作品不存在")),
+    };
+
+    for sql in [
+        "DELETE FROM chapters WHERE story_id = ?",
+        "DELETE FROM story_tags WHERE story_id = ?",
+        "DELETE FROM comments WHERE story_id = ?",
+        "DELETE FROM reactions WHERE story_id = ?",
+        "DELETE FROM reading_progress WHERE story_id = ?",
+        "DELETE FROM stories WHERE id = ?",
+    ] {
+        sqlx::query(sql).bind(id).execute(pool).await?;
+    }
+
+    if let Some(rel) = cover.filter(|c| !c.is_empty()) {
+        let _ = tokio::fs::remove_file(state.cfg.uploads_dir.join(&rel)).await;
+    }
+    Ok(Json(json!({ "ok": true })))
+}
+
+/// GET /api/fiction/admin/comments —— 评论审核列表（含作品标题）。
+async fn admin_list_comments(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "fiction", Action::Moderate).await?;
+    let getq = |k: &str| q.get(k).map(|s| s.as_str());
+    let page = clamp_int(getq("page"), 1, 9999, 1);
+    let page_size = clamp_int(getq("pageSize"), 1, 100, 30);
+    let offset = (page - 1) * page_size;
+
+    let mut where_sql = String::from("WHERE 1 = 1");
+    let mut params: Vec<String> = Vec::new();
+    if let Some(s) = getq("status") {
+        let s = s.trim();
+        if !s.is_empty() && s != "all" {
+            where_sql.push_str(" AND c.status = ?");
+            params.push(s.to_string());
+        }
+    }
+    if let Some(kw) = getq("q") {
+        let kw = kw.trim();
+        if !kw.is_empty() {
+            let like = format!("%{}%", kw.replace(['%', '_'], ""));
+            where_sql.push_str(" AND (c.body LIKE ? OR c.author_name LIKE ?)");
+            params.push(like.clone());
+            params.push(like);
+        }
+    }
+
+    let count_sql = format!("SELECT COUNT(*) FROM comments c {where_sql}");
+    let mut count_q = sqlx::query_scalar::<_, i64>(&count_sql);
+    for p in &params {
+        count_q = count_q.bind(p);
+    }
+    let total: i64 = count_q.fetch_one(&state.pools.fiction).await?;
+
+    let list_sql = format!(
+        "SELECT c.id, c.story_id, c.chapter_id, c.author_user_id, c.author_name, c.body, \
+         c.status, c.created_at, s.title FROM comments c JOIN stories s ON s.id = c.story_id \
+         {where_sql} ORDER BY datetime(c.created_at) DESC, c.id DESC LIMIT ? OFFSET ?"
+    );
+    let mut list_q = sqlx::query_as::<
+        _,
+        (
+            i64,
+            i64,
+            Option<i64>,
+            i64,
+            String,
+            String,
+            String,
+            String,
+            String,
+        ),
+    >(&list_sql);
+    for p in &params {
+        list_q = list_q.bind(p);
+    }
+    let rows = list_q
+        .bind(page_size)
+        .bind(offset)
+        .fetch_all(&state.pools.fiction)
+        .await?;
+
+    let comments: Vec<Value> = rows
+        .into_iter()
+        .map(|(cid, sid, ch, uid, name, body, status, created, title)| {
+            json!({
+                "id": cid,
+                "storyId": sid,
+                "storyTitle": title,
+                "chapterId": ch,
+                "authorUserId": uid,
+                "authorName": name,
+                "body": body,
+                "status": status,
+                "createdAt": created,
+            })
+        })
+        .collect();
+
+    Ok(Json(json!({
+        "ok": true,
+        "comments": comments,
+        "pagination": crate::pagination::page_meta(page, page_size, total),
+    })))
+}
+
+/// PATCH /api/fiction/admin/comments/{id} —— 隐藏 / 恢复评论。
+async fn admin_update_comment(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    user: AuthUser,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "fiction", Action::Moderate).await?;
+    let status = body.get("status").and_then(|v| v.as_str()).unwrap_or("");
+    if !matches!(status, "visible" | "hidden") {
+        return Err(AppError::bad_request("状态非法"));
+    }
+    let pool = &state.pools.fiction;
+    let story_id: Option<i64> = sqlx::query_scalar("SELECT story_id FROM comments WHERE id = ?")
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
+    let story_id = story_id.ok_or_else(|| AppError::not_found("评论不存在"))?;
+    sqlx::query("UPDATE comments SET status = ? WHERE id = ?")
+        .bind(status)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    sync_comment_count(pool, story_id).await?;
+    Ok(Json(json!({ "ok": true })))
 }
