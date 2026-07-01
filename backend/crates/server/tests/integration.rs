@@ -780,27 +780,51 @@ async fn artwork_points_follow_public_state() {
         .await
         .unwrap()
     }
+    async fn reputation_for_artwork(pool: &sqlx::SqlitePool, aid: i64) -> i64 {
+        sqlx::query_scalar(
+            "SELECT COALESCE(SUM(reputation), 0) FROM reputation_ledger WHERE artwork_id=?",
+        )
+        .bind(aid)
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
 
     // pending：无积分
     assert_eq!(net(&art, aid).await, 0);
 
-    // 公开 → +120
+    // 公开 → +120 积分 / +120 声望
     art_guild::on_artwork_published(&app.state, aid, "")
         .await
         .unwrap();
     assert_eq!(net(&art, aid).await, 120, "首次公开应发放 120");
+    assert_eq!(
+        reputation_for_artwork(&art, aid).await,
+        120,
+        "首次公开应发放投稿声望"
+    );
 
-    // 幂等：重复公开不重复发放
+    // 幂等：重复公开不重复发放积分或声望
     art_guild::on_artwork_published(&app.state, aid, "")
         .await
         .unwrap();
     assert_eq!(net(&art, aid).await, 120, "重复公开应幂等");
+    assert_eq!(
+        reputation_for_artwork(&art, aid).await,
+        120,
+        "重复公开不应重复发放声望"
+    );
 
     // 撤稿 → 扣回到 0
     art_guild::on_artwork_withdrawn(&app.state, aid)
         .await
         .unwrap();
     assert_eq!(net(&art, aid).await, 0, "撤稿应扣回全部投稿积分");
+    assert_eq!(
+        reputation_for_artwork(&art, aid).await,
+        120,
+        "撤稿不回收投稿声望"
+    );
 
     // 复审再公开 → 重新发放（隐藏后再公开理应有积分）
     art_guild::on_artwork_published(&app.state, aid, "")
@@ -832,6 +856,102 @@ async fn artwork_points_follow_public_state() {
         -50,
         "撤稿扣回叠加既有兑换消耗，余额可为负"
     );
+}
+
+#[tokio::test]
+async fn artwork_reward_settings_apply_to_new_snapshots_only() {
+    use haruhi_server::modules::art_guild;
+
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let uid = "u9010";
+    let ts = "2026-01-01T00:00:00Z";
+
+    sqlx::query(
+        "INSERT INTO guild_profiles(uid, reputation, rating, access_tier, created_at, updated_at) \
+         VALUES(?, 0, 'F', 'observer_clearance', ?, ?)",
+    )
+    .bind(uid)
+    .bind(ts)
+    .bind(ts)
+    .execute(&art)
+    .await
+    .unwrap();
+
+    let old_aid: i64 = sqlx::query_scalar(
+        "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at) \
+         VALUES('旧规则作品', ?, 'personal', 'haruhi', 'pending', ?) RETURNING id",
+    )
+    .bind(uid)
+    .bind(ts)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    art_guild::on_artwork_published(&app.state, old_aid, "")
+        .await
+        .unwrap();
+
+    sqlx::query(
+        "UPDATE art_reward_settings
+         SET points_multiplier_bps=30000, reputation_multiplier_bps=50000, updated_at=?
+         WHERE id=1",
+    )
+    .bind(ts)
+    .execute(&art)
+    .await
+    .unwrap();
+
+    art_guild::on_artwork_withdrawn(&app.state, old_aid)
+        .await
+        .unwrap();
+    art_guild::on_artwork_published(&app.state, old_aid, "")
+        .await
+        .unwrap();
+
+    let old_points: i64 =
+        sqlx::query_scalar("SELECT COALESCE(SUM(points), 0) FROM points_ledger WHERE artwork_id=?")
+            .bind(old_aid)
+            .fetch_one(&art)
+            .await
+            .unwrap();
+    let old_reputation: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(SUM(reputation), 0) FROM reputation_ledger WHERE artwork_id=?",
+    )
+    .bind(old_aid)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    assert_eq!(old_points, 120, "旧作品应按首次通过快照恢复积分");
+    assert_eq!(old_reputation, 120, "旧作品不应被新声望倍率追溯");
+
+    let new_aid: i64 = sqlx::query_scalar(
+        "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at) \
+         VALUES('活动作品', ?, 'personal', 'haruhi', 'pending', ?) RETURNING id",
+    )
+    .bind(uid)
+    .bind(ts)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    art_guild::on_artwork_published(&app.state, new_aid, "")
+        .await
+        .unwrap();
+
+    let new_points: i64 =
+        sqlx::query_scalar("SELECT COALESCE(SUM(points), 0) FROM points_ledger WHERE artwork_id=?")
+            .bind(new_aid)
+            .fetch_one(&art)
+            .await
+            .unwrap();
+    let new_reputation: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(SUM(reputation), 0) FROM reputation_ledger WHERE artwork_id=?",
+    )
+    .bind(new_aid)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    assert_eq!(new_points, 360, "新作品应使用当前积分倍率");
+    assert_eq!(new_reputation, 600, "新作品应使用独立声望倍率");
 }
 
 #[tokio::test]

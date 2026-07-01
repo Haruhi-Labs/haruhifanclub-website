@@ -259,6 +259,8 @@ export const api = {
   guildMyRedemptions: () => request('GET', `${API_PREFIX}/guild/redemptions/me`),
 
   // Admin - Guild
+  adminRewardSettings: () => request('GET', `${API_PREFIX}/admin/reward-settings`),
+  adminUpdateRewardSettings: (body) => request('PUT', `${API_PREFIX}/admin/reward-settings`, { body }),
   adminGuildQuests: () => request('GET', `${API_PREFIX}/admin/guild/quests`),
   adminCreateGuildQuest: (body) => request('POST', `${API_PREFIX}/admin/guild/quests`, { body }),
   adminUpdateGuildQuest: (id, body) => request('PUT', `${API_PREFIX}/admin/guild/quests/${id}`, { body }),

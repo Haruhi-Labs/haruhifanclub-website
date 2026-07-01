@@ -483,6 +483,12 @@
               预算管理
             </button>
             <button
+              :class="['sub-tab', guildTab === 'rewardSettings' && 'on']"
+              @click="switchGuildTab('rewardSettings')"
+            >
+              奖励规则
+            </button>
+            <button
               :class="['sub-tab', guildTab === 'ratings' && 'on']"
               @click="switchGuildTab('ratings')"
             >
@@ -1762,6 +1768,193 @@
             </section>
           </div>
 
+          <div v-if="guildTab === 'rewardSettings'" class="guild-reward-settings-page">
+            <section class="guild-editor guild-reward-settings-panel">
+              <div class="panel-header compact">
+                <div>
+                  <div class="ph-title">投稿奖励规则</div>
+                  <div class="tip-text">控制作品审核通过后发放的金币与公会声望。</div>
+                </div>
+                <button
+                  class="btn-ghost sm"
+                  type="button"
+                  :disabled="rewardSettingsLoading"
+                  @click="loadRewardSettings"
+                >
+                  刷新配置
+                </button>
+              </div>
+
+              <div class="reward-settings-body">
+                <div class="reward-settings-note">
+                  <div class="guild-field-label-row">
+                    <span>快照规则</span>
+                    <button class="help-tip" type="button" aria-label="奖励快照说明">
+                      ?
+                      <span class="help-tip__bubble" role="tooltip">
+                        作品首次通过时会锁定当时奖励；之后改倍率不会追溯旧作品。
+                      </span>
+                    </button>
+                  </div>
+                  <p>
+                    倍率只影响之后首次审核通过的作品。撤稿会扣回金币，但不会扣回已获得的公会声望。
+                  </p>
+                </div>
+
+                <div class="guild-form-grid two reward-settings-grid">
+                  <div class="guild-field">
+                    <div class="guild-field-label-row">
+                      <label for="reward-haruhi-points">凉宫个人作品基础金币</label>
+                      <button class="help-tip" type="button" aria-label="基础金币说明">
+                        ?
+                        <span class="help-tip__bubble" role="tooltip">
+                          审核通过后发放的画廊积分，也就是兑换柜台使用的金币。
+                        </span>
+                      </button>
+                    </div>
+                    <input
+                      id="reward-haruhi-points"
+                      v-model.number="rewardSettingsForm.personalHaruhiPoints"
+                      class="input"
+                      min="0"
+                      step="1"
+                      type="number"
+                    />
+                  </div>
+                  <div class="guild-field">
+                    <div class="guild-field-label-row">
+                      <label for="reward-haruhi-reputation">凉宫个人作品基础声望</label>
+                      <button class="help-tip" type="button" aria-label="基础声望说明">
+                        ?
+                        <span class="help-tip__bubble" role="tooltip">
+                          审核通过后增加的公会声望，用于等级与评级条件，不等同于金币。
+                        </span>
+                      </button>
+                    </div>
+                    <input
+                      id="reward-haruhi-reputation"
+                      v-model.number="rewardSettingsForm.personalHaruhiReputation"
+                      class="input"
+                      min="0"
+                      step="1"
+                      type="number"
+                    />
+                  </div>
+                  <div class="guild-field">
+                    <div class="guild-field-label-row">
+                      <label for="reward-other-points">其他个人作品基础金币</label>
+                      <button class="help-tip" type="button" aria-label="其他作品金币说明">
+                        ?
+                        <span class="help-tip__bubble" role="tooltip">
+                          非凉宫个人作品通过审核时使用此基础金币；非个人作品默认不发投稿金币。
+                        </span>
+                      </button>
+                    </div>
+                    <input
+                      id="reward-other-points"
+                      v-model.number="rewardSettingsForm.personalOtherPoints"
+                      class="input"
+                      min="0"
+                      step="1"
+                      type="number"
+                    />
+                  </div>
+                  <div class="guild-field">
+                    <div class="guild-field-label-row">
+                      <label for="reward-other-reputation">其他个人作品基础声望</label>
+                      <button class="help-tip" type="button" aria-label="其他作品声望说明">
+                        ?
+                        <span class="help-tip__bubble" role="tooltip">
+                          非凉宫个人作品通过审核时使用此基础声望；非个人作品默认不发投稿声望。
+                        </span>
+                      </button>
+                    </div>
+                    <input
+                      id="reward-other-reputation"
+                      v-model.number="rewardSettingsForm.personalOtherReputation"
+                      class="input"
+                      min="0"
+                      step="1"
+                      type="number"
+                    />
+                  </div>
+                  <div class="guild-field">
+                    <div class="guild-field-label-row">
+                      <label for="reward-points-multiplier">当前金币倍率</label>
+                      <button class="help-tip" type="button" aria-label="金币倍率说明">
+                        ?
+                        <span class="help-tip__bubble" role="tooltip">
+                          节假日可手动改成 3-5 倍；结束后需要手动改回 1 倍。
+                        </span>
+                      </button>
+                    </div>
+                    <input
+                      id="reward-points-multiplier"
+                      v-model.number="rewardSettingsForm.pointsMultiplier"
+                      class="input"
+                      min="0"
+                      max="20"
+                      step="0.1"
+                      type="number"
+                    />
+                  </div>
+                  <div class="guild-field">
+                    <div class="guild-field-label-row">
+                      <label for="reward-reputation-multiplier">当前声望倍率</label>
+                      <button class="help-tip" type="button" aria-label="声望倍率说明">
+                        ?
+                        <span class="help-tip__bubble" role="tooltip">
+                          只影响投稿审核通过带来的声望，不影响委托配置里的声望奖励。
+                        </span>
+                      </button>
+                    </div>
+                    <input
+                      id="reward-reputation-multiplier"
+                      v-model.number="rewardSettingsForm.reputationMultiplier"
+                      class="input"
+                      min="0"
+                      max="20"
+                      step="0.1"
+                      type="number"
+                    />
+                  </div>
+                </div>
+
+                <div class="reward-preview-grid">
+                  <div class="reward-preview-card">
+                    <span>凉宫个人作品</span>
+                    <b>{{ formatWhole(rewardSettingsPreview.haruhi.points) }}G</b>
+                    <em>声望 +{{ formatWhole(rewardSettingsPreview.haruhi.reputation) }}</em>
+                  </div>
+                  <div class="reward-preview-card">
+                    <span>其他个人作品</span>
+                    <b>{{ formatWhole(rewardSettingsPreview.other.points) }}G</b>
+                    <em>声望 +{{ formatWhole(rewardSettingsPreview.other.reputation) }}</em>
+                  </div>
+                  <div class="reward-preview-card reward-preview-card--muted">
+                    <span>非个人作品</span>
+                    <b>0G</b>
+                    <em>默认不发投稿奖励</em>
+                  </div>
+                </div>
+
+                <div class="guild-form-actions reward-settings-actions">
+                  <span v-if="rewardSettingsForm.updatedAt" class="tip-text">
+                    上次更新：{{ formatDateTime(rewardSettingsForm.updatedAt) }}
+                  </span>
+                  <button
+                    class="btn"
+                    type="button"
+                    :disabled="rewardSettingsSaving"
+                    @click="saveRewardSettings"
+                  >
+                    {{ rewardSettingsSaving ? '保存中...' : '保存奖励规则' }}
+                  </button>
+                </div>
+              </div>
+            </section>
+          </div>
+
           <div v-if="guildTab === 'ratings'" class="guild-list single">
             <article v-for="item in guildRatings" :key="item.id" class="guild-manage-row">
               <div>
@@ -2143,6 +2336,20 @@ const guildBudget = ref({
 const guildBudgetTab = ref('supplies')
 const showBudgetSupplyForm = ref(false)
 const guildBudgetSupplyForm = ref({ budgetType: 'quarterly', amountUnit: 'rmb', amount: 600 })
+const defaultRewardSettingsForm = () => ({
+  personalHaruhiPoints: 120,
+  personalOtherPoints: 30,
+  personalHaruhiReputation: 120,
+  personalOtherReputation: 30,
+  pointsMultiplier: 1,
+  reputationMultiplier: 1,
+  pointsMultiplierBps: 10000,
+  reputationMultiplierBps: 10000,
+  updatedAt: '',
+})
+const rewardSettingsForm = ref(defaultRewardSettingsForm())
+const rewardSettingsLoading = ref(false)
+const rewardSettingsSaving = ref(false)
 const guildRatings = ref([])
 const guildProfiles = ref([])
 const guildQuestEditingId = ref(null)
@@ -2254,6 +2461,29 @@ const budgetSupplyPreviewCoins = computed(() => {
   const coinPerRmb = Number(guildBudget.value.summary?.coinPerRmb || 15)
   return guildBudgetSupplyForm.value.amountUnit === 'rmb' ? amount * coinPerRmb : amount
 })
+
+const rewardSettingsPreview = computed(() => ({
+  haruhi: {
+    points: scaledReward(
+      rewardSettingsForm.value.personalHaruhiPoints,
+      rewardSettingsForm.value.pointsMultiplier
+    ),
+    reputation: scaledReward(
+      rewardSettingsForm.value.personalHaruhiReputation,
+      rewardSettingsForm.value.reputationMultiplier
+    ),
+  },
+  other: {
+    points: scaledReward(
+      rewardSettingsForm.value.personalOtherPoints,
+      rewardSettingsForm.value.pointsMultiplier
+    ),
+    reputation: scaledReward(
+      rewardSettingsForm.value.personalOtherReputation,
+      rewardSettingsForm.value.reputationMultiplier
+    ),
+  },
+}))
 
 // 计算是否有修改
 const isCreatorModified = computed(() => {
@@ -2601,6 +2831,112 @@ function cleanNullableNumber(value) {
   return Number.isFinite(n) ? n : null
 }
 
+function cleanNonNegativeNumber(value, fallback = 0) {
+  const n = Number(value)
+  return Number.isFinite(n) && n >= 0 ? n : fallback
+}
+
+function scaledReward(base, multiplier) {
+  return Math.round(cleanNonNegativeNumber(base) * cleanNonNegativeNumber(multiplier, 1))
+}
+
+function bpsToMultiplier(value) {
+  return cleanNonNegativeNumber(value, 10000) / 10000
+}
+
+function multiplierToBps(value) {
+  return Math.round(cleanNonNegativeNumber(value, 1) * 10000)
+}
+
+function normalizeRewardSettings(data = {}) {
+  return {
+    ...defaultRewardSettingsForm(),
+    personalHaruhiPoints: Number(data.personalHaruhiPoints ?? 120),
+    personalOtherPoints: Number(data.personalOtherPoints ?? 30),
+    personalHaruhiReputation: Number(data.personalHaruhiReputation ?? 120),
+    personalOtherReputation: Number(data.personalOtherReputation ?? 30),
+    pointsMultiplierBps: Number(data.pointsMultiplierBps ?? 10000),
+    reputationMultiplierBps: Number(data.reputationMultiplierBps ?? 10000),
+    pointsMultiplier:
+      data.pointsMultiplier !== undefined
+        ? Number(data.pointsMultiplier)
+        : bpsToMultiplier(data.pointsMultiplierBps),
+    reputationMultiplier:
+      data.reputationMultiplier !== undefined
+        ? Number(data.reputationMultiplier)
+        : bpsToMultiplier(data.reputationMultiplierBps),
+    updatedAt: data.updatedAt || '',
+  }
+}
+
+function validateRewardSettingsForm() {
+  const fields = [
+    ['凉宫个人作品基础金币', rewardSettingsForm.value.personalHaruhiPoints],
+    ['其他个人作品基础金币', rewardSettingsForm.value.personalOtherPoints],
+    ['凉宫个人作品基础声望', rewardSettingsForm.value.personalHaruhiReputation],
+    ['其他个人作品基础声望', rewardSettingsForm.value.personalOtherReputation],
+  ]
+  for (const [label, value] of fields) {
+    if (!Number.isFinite(Number(value)) || Number(value) < 0) {
+      return `${label}必须是 0 或正数`
+    }
+  }
+  for (const [label, value] of [
+    ['金币倍率', rewardSettingsForm.value.pointsMultiplier],
+    ['声望倍率', rewardSettingsForm.value.reputationMultiplier],
+  ]) {
+    const n = Number(value)
+    if (!Number.isFinite(n) || n < 0 || n > 20) {
+      return `${label}必须在 0 到 20 倍之间`
+    }
+  }
+  return ''
+}
+
+async function loadRewardSettings() {
+  rewardSettingsLoading.value = true
+  try {
+    const res = await api.adminRewardSettings()
+    rewardSettingsForm.value = normalizeRewardSettings(res.data || res)
+  } finally {
+    rewardSettingsLoading.value = false
+  }
+}
+
+async function saveRewardSettings() {
+  const error = validateRewardSettingsForm()
+  if (error) {
+    guildMsg.value = error
+    clearGuildMsgSoon()
+    return
+  }
+  rewardSettingsSaving.value = true
+  try {
+    const payload = {
+      personalHaruhiPoints: Math.round(
+        cleanNonNegativeNumber(rewardSettingsForm.value.personalHaruhiPoints)
+      ),
+      personalOtherPoints: Math.round(
+        cleanNonNegativeNumber(rewardSettingsForm.value.personalOtherPoints)
+      ),
+      personalHaruhiReputation: Math.round(
+        cleanNonNegativeNumber(rewardSettingsForm.value.personalHaruhiReputation)
+      ),
+      personalOtherReputation: Math.round(
+        cleanNonNegativeNumber(rewardSettingsForm.value.personalOtherReputation)
+      ),
+      pointsMultiplierBps: multiplierToBps(rewardSettingsForm.value.pointsMultiplier),
+      reputationMultiplierBps: multiplierToBps(rewardSettingsForm.value.reputationMultiplier),
+    }
+    const res = await api.adminUpdateRewardSettings(payload)
+    rewardSettingsForm.value = normalizeRewardSettings(res.data || res)
+    guildMsg.value = '投稿奖励规则已保存'
+    clearGuildMsgSoon()
+  } finally {
+    rewardSettingsSaving.value = false
+  }
+}
+
 function toDateTimeLocal(value) {
   if (!value) return ''
   const date = new Date(value)
@@ -2656,6 +2992,8 @@ async function loadGuildAdmin() {
       supplies: res.supplies || [],
       spends: res.spends || [],
     }
+  } else if (guildTab.value === 'rewardSettings') {
+    await loadRewardSettings()
   } else if (guildTab.value === 'ratings') {
     const res = await api.adminGuildRatingApplications()
     guildRatings.value = res.data || []
@@ -4634,6 +4972,82 @@ onMounted(async () => {
   display: grid;
   gap: 6px;
   justify-items: end;
+}
+
+.guild-reward-settings-page {
+  display: grid;
+  gap: 16px;
+}
+
+.guild-reward-settings-panel {
+  overflow: visible;
+}
+
+.reward-settings-body {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.reward-settings-note {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--sos-border-default) 78%, var(--sos-accent) 14%);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sos-bg-subtle) 86%, var(--sos-accent) 5%);
+}
+
+.reward-settings-note p {
+  margin: 0;
+  color: var(--sos-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.reward-settings-grid {
+  align-items: start;
+}
+
+.reward-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.reward-preview-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--sos-border-default);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.reward-preview-card span,
+.reward-preview-card em {
+  color: var(--sos-text-tertiary);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.reward-preview-card b {
+  color: var(--sos-text-primary);
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.reward-preview-card--muted b {
+  color: var(--sos-text-tertiary);
+}
+
+.reward-settings-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .guild-manage-row {
