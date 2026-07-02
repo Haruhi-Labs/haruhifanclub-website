@@ -32,6 +32,8 @@ let loaded = false
 async function load() {
   loading.value = true
   loaded = false
+  // 切换章节时取消上一章残留的防抖保存，否则它可能以「新章 id + 旧章内容」触发，覆盖新章
+  clearTimeout(timer)
   try {
     const r = await myChapter(storyId.value, chapterId.value)
     title.value = r.chapter.title

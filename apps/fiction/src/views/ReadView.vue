@@ -44,12 +44,15 @@ const rootStyle = computed(() => ({
   '--r-font': s.fontFamily === 'serif' ? 'var(--sos-font-reading)' : 'var(--sos-font-sans)',
 }))
 
+let reqSeq = 0
 async function load() {
+  const seq = ++reqSeq
   loading.value = true
   notFound.value = false
   showToc.value = false
   try {
     const r = await getChapter(storyId.value, chapterId.value)
+    if (seq !== reqSeq) return // 已被更晚的切章请求取代，丢弃本次结果，避免错位内容
     story.value = r.story
     chapter.value = r.chapter
     prev.value = r.prev
@@ -58,9 +61,10 @@ async function load() {
     await nextTick()
     window.scrollTo({ top: 0 })
   } catch (e) {
+    if (seq !== reqSeq) return
     if (e.status === 404) notFound.value = true
   } finally {
-    loading.value = false
+    if (seq === reqSeq) loading.value = false
   }
 }
 
@@ -70,15 +74,18 @@ function go(target) {
 
 // 阅读进度 + 保存（登录时，节流 4s）
 let saveTimer = null
+let latestFrac = 0
 function onScroll() {
   const doc = document.documentElement
   const max = doc.scrollHeight - doc.clientHeight
   const frac = max > 0 ? Math.min(1, doc.scrollTop / max) : 0
+  latestFrac = frac
   progress.value = Math.round(frac * 100)
   if (session.state.user && !saveTimer) {
     saveTimer = setTimeout(() => {
       saveTimer = null
-      saveProgress(storyId.value, { chapterId: chapterId.value, progress: frac }).catch(() => {})
+      // 用节流窗口内的最新滚动比例，避免保存值滞后于实际位置
+      saveProgress(storyId.value, { chapterId: chapterId.value, progress: latestFrac }).catch(() => {})
     }, 4000)
   }
 }

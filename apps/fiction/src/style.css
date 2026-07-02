@@ -182,7 +182,7 @@ body {
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 /* ---- 作品文本条目（纯文本卡） ---- */
 .fic-item {

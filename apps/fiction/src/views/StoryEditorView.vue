@@ -145,14 +145,22 @@ async function onPublish() {
   }
 }
 async function onUnpublish() {
-  await unpublishStory(id.value)
-  await load()
+  try {
+    await unpublishStory(id.value)
+    await load()
+  } catch (e) {
+    toast.danger(e.message || '撤回失败')
+  }
 }
 async function onDelete() {
   if (!window.confirm('确定下架并删除该作品？读者将无法再看到。')) return
-  await deleteStory(id.value)
-  toast.success('已下架')
-  router.push('/write')
+  try {
+    await deleteStory(id.value)
+    toast.success('已下架')
+    router.push('/write')
+  } catch (e) {
+    toast.danger(e.message || '删除失败')
+  }
 }
 
 watch(id, load, { immediate: true })

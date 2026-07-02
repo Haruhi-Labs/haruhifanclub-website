@@ -12,16 +12,22 @@
 
 ## 本地运行
 
+联调（前端 dev 会把 `/api`、`/uploads` 代理到后端 17777）：
+
 ```bash
 bash deploy/gen-secrets.sh
 pnpm dev:backend
-
 pnpm --filter @haruhi/fiction dev
-pnpm --filter @haruhi/fiction build
-pnpm --filter @haruhi/fiction preview
 ```
 
 访问 `http://localhost:5207/fiction/`。
+
+构建与静态预览（`preview` 仅做产物静态预览，**不含 `/api`、`/uploads` 代理，不能用于联调**）：
+
+```bash
+pnpm --filter @haruhi/fiction build
+pnpm --filter @haruhi/fiction preview
+```
 
 ## 路由
 

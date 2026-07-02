@@ -1268,6 +1268,8 @@ async fn reorder_chapters(
         .and_then(|v| v.as_array())
         .ok_or_else(|| AppError::bad_request("order 须为章节 id 数组"))?;
     let pool = &state.pools.fiction;
+    // 整批重排放进事务：中途任一条失败即回滚，避免章节顺序部分更新错乱
+    let mut tx = pool.begin().await?;
     for (idx, item) in order.iter().enumerate() {
         let cid = item
             .as_i64()
@@ -1276,14 +1278,15 @@ async fn reorder_chapters(
             .bind((idx as i64) + 1)
             .bind(cid)
             .bind(id)
-            .execute(pool)
+            .execute(&mut *tx)
             .await?;
     }
     sqlx::query("UPDATE stories SET updated_at = ? WHERE id = ?")
         .bind(now_iso())
         .bind(id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await?;
+    tx.commit().await?;
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -1873,6 +1876,8 @@ async fn admin_delete_story(
         None => return Err(AppError::not_found("作品不存在")),
     };
 
+    // 六张表整体删除放进事务：部分失败即回滚，避免残留孤儿数据
+    let mut tx = pool.begin().await?;
     for sql in [
         "DELETE FROM chapters WHERE story_id = ?",
         "DELETE FROM story_tags WHERE story_id = ?",
@@ -1881,9 +1886,11 @@ async fn admin_delete_story(
         "DELETE FROM reading_progress WHERE story_id = ?",
         "DELETE FROM stories WHERE id = ?",
     ] {
-        sqlx::query(sql).bind(id).execute(pool).await?;
+        sqlx::query(sql).bind(id).execute(&mut *tx).await?;
     }
+    tx.commit().await?;
 
+    // 数据删除成功后再清理封面文件（文件删除失败不影响一致性）
     if let Some(rel) = cover.filter(|c| !c.is_empty()) {
         let _ = tokio::fs::remove_file(state.cfg.uploads_dir.join(&rel)).await;
     }

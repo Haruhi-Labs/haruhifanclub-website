@@ -9,14 +9,20 @@ import { CATEGORIES } from '@/lib/format'
 const loading = ref(true)
 const data = ref({ featured: [], latest: [], popular: [], updated: [] })
 
-const hasAny = computed(
-  () => (data.value.latest || []).length > 0 || (data.value.updated || []).length > 0,
+const hasAny = computed(() =>
+  ['featured', 'latest', 'popular', 'updated'].some((k) => (data.value[k] || []).length > 0),
 )
 
 onMounted(async () => {
   try {
     const r = await getSpotlight()
-    data.value = { featured: r.featured, latest: r.latest, popular: r.popular, updated: r.updated }
+    // 字段兜底：接口若缺某段，退化为空数组，避免模板取 .length 报错
+    data.value = {
+      featured: r.featured || [],
+      latest: r.latest || [],
+      popular: r.popular || [],
+      updated: r.updated || [],
+    }
   } catch {
     /* 首屏容错：接口异常时退化为空态 */
   } finally {

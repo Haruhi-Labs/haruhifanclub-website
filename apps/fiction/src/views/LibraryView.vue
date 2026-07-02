@@ -41,7 +41,9 @@ function readQuery() {
   searchInput.value = f.q
 }
 
+let listSeq = 0
 async function fetchList() {
+  const seq = ++listSeq
   loading.value = true
   try {
     const params = { sort: f.sort, page: f.page, pageSize: 24 }
@@ -51,12 +53,13 @@ async function fetchList() {
     if (f.tag) params.tag = f.tag
     if (f.q) params.q = f.q
     const r = await listStories(params)
+    if (seq !== listSeq) return // 快速切换筛选时丢弃过期结果，避免乱序覆盖
     stories.value = r.stories
     pagination.value = r.pagination
   } catch {
-    stories.value = []
+    if (seq === listSeq) stories.value = []
   } finally {
-    loading.value = false
+    if (seq === listSeq) loading.value = false
   }
 }
 

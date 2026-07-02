@@ -9,8 +9,11 @@ import Highlight from '@tiptap/extension-highlight'
 import Typography from '@tiptap/extension-typography'
 import CharacterCount from '@tiptap/extension-character-count'
 import Placeholder from '@tiptap/extension-placeholder'
+import { useToast } from '@haruhi/ui'
 import { Figure } from '@/lib/tiptap/figure'
 import { uploadCover, coverUrl } from '@/api'
+
+const toast = useToast()
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -102,8 +105,8 @@ async function uploadAndInsert(file) {
   try {
     const r = await uploadCover(file)
     editor.value.chain().focus().setFigure({ src: coverUrl(r.path), alt: file.name || '' }).run()
-  } catch {
-    /* 上传失败静默，保持编辑不中断 */
+  } catch (e) {
+    toast.danger(e.message || '插图上传失败')
   } finally {
     uploading.value = false
   }
