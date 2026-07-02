@@ -5,6 +5,7 @@ import { SosButton, SosSelect, SosSwitch, SosBadge, useToast } from '@haruhi/ui'
 import CoverImage from '@/components/CoverImage.vue'
 import {
   myStory,
+  createStory,
   updateStory,
   deleteStory,
   publishStory,
@@ -21,7 +22,9 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
-const id = computed(() => Number(route.params.id))
+// 新建态（/write/new）：先不落库，填写并保存后才真正创建作品
+const isNew = computed(() => route.name === 'write-new')
+const id = computed(() => (isNew.value ? null : Number(route.params.id)))
 const loading = ref(true)
 const saving = ref(false)
 const story = ref(null)
@@ -30,6 +33,14 @@ const form = ref({ title: '', summary: '', category: 'daily', isCompleted: false
 const tagInput = ref('')
 
 async function load() {
+  // 新建态：仅呈现空白作品信息表单，不请求后端、不创建草稿
+  if (isNew.value) {
+    story.value = null
+    chapters.value = []
+    form.value = { title: '', summary: '', category: 'daily', isCompleted: false, coverPath: null, tags: [] }
+    loading.value = false
+    return
+  }
   loading.value = true
   try {
     const r = await myStory(id.value)
@@ -58,9 +69,15 @@ async function saveMeta() {
   }
   saving.value = true
   try {
-    await updateStory(id.value, { ...form.value })
-    toast.success('已保存')
-    await load()
+    if (isNew.value) {
+      const r = await createStory({ ...form.value })
+      toast.success('作品已创建')
+      router.replace(`/write/${r.id}`) // 转入编辑态，watch(id) 触发加载
+    } else {
+      await updateStory(id.value, { ...form.value })
+      toast.success('已保存')
+      await load()
+    }
   } catch (e) {
     toast.danger(e.message || '保存失败')
   } finally {
@@ -169,14 +186,17 @@ watch(id, load, { immediate: true })
   <div class="fiction-page se">
     <div v-if="loading" class="se__loading">加载中…</div>
 
-    <template v-else-if="story">
+    <template v-else-if="story || isNew">
       <div class="se__head">
         <RouterLink to="/write" class="se__back">‹ 创作中心</RouterLink>
         <div class="se__head-right">
-          <SosBadge v-if="story.status === 'published'" variant="success">已发布</SosBadge>
-          <SosBadge v-else-if="story.status === 'hidden'" variant="danger">已下架</SosBadge>
-          <SosBadge v-else variant="outline">草稿</SosBadge>
-          <RouterLink v-if="story.status === 'published'" :to="`/story/${story.id}`" class="sos-button sos-button--ghost sos-button--sm">查看</RouterLink>
+          <template v-if="story">
+            <SosBadge v-if="story.status === 'published'" variant="success">已发布</SosBadge>
+            <SosBadge v-else-if="story.status === 'hidden'" variant="danger">已下架</SosBadge>
+            <SosBadge v-else variant="outline">草稿</SosBadge>
+            <RouterLink v-if="story.status === 'published'" :to="`/story/${story.id}`" class="sos-button sos-button--ghost sos-button--sm">查看</RouterLink>
+          </template>
+          <SosBadge v-else variant="outline">新建作品</SosBadge>
         </div>
       </div>
 
@@ -229,13 +249,13 @@ watch(id, load, { immediate: true })
               <span>已完结</span>
             </label>
             <div class="se__meta-actions">
-              <SosButton variant="primary" :loading="saving" @click="saveMeta">保存作品信息</SosButton>
+              <SosButton variant="primary" :loading="saving" @click="saveMeta">{{ story ? '保存作品信息' : '创建作品' }}</SosButton>
             </div>
           </div>
         </section>
 
-        <!-- 章节 -->
-        <section class="se__chapters">
+        <!-- 章节（新建态下需先创建作品才能添加） -->
+        <section v-if="story" class="se__chapters">
           <div class="se__section-head">
             <h2 class="se__section-title">章节（{{ chapters.length }}）</h2>
             <SosButton variant="primary" size="sm" @click="newChapter">＋ 新建章节</SosButton>
@@ -272,6 +292,12 @@ watch(id, load, { immediate: true })
             <SosButton v-else variant="secondary" @click="onUnpublish">撤回作品</SosButton>
             <SosButton variant="danger" @click="onDelete">删除作品</SosButton>
           </div>
+        </section>
+
+        <!-- 新建态占位：先创建作品，再管理章节与发布 -->
+        <section v-else class="se__chapters">
+          <h2 class="se__section-title">章节</h2>
+          <p class="se__empty">填写作品信息并「创建作品」后，即可添加章节与发布。</p>
         </section>
       </div>
     </template>
