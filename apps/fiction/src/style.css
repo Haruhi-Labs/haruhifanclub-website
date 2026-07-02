@@ -40,7 +40,7 @@
 
 /* 区块标题 */
 .fiction-rail {
-  margin-block: var(--sos-space-9);
+  margin-block: var(--sos-space-10);
 }
 .fiction-rail__head {
   display: flex;

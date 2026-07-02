@@ -270,7 +270,7 @@ watch(id, load, { immediate: true })
   align-items: center;
 }
 .story__toc {
-  margin-top: var(--sos-space-9);
+  margin-top: var(--sos-space-10);
 }
 .story__toc-head {
   display: flex;
@@ -329,7 +329,7 @@ watch(id, load, { immediate: true })
 }
 .story__missing {
   text-align: center;
-  padding: var(--sos-space-11) 0;
+  padding: var(--sos-space-12) 0;
 }
 .story__missing h2 {
   font-family: var(--sos-display-family, var(--sos-font-display));

@@ -28,6 +28,11 @@ const showSettings = ref(false)
 const safeHtml = computed(() =>
   chapter.value ? DOMPurify.sanitize(chapter.value.contentHtml || '') : '',
 )
+// 当前章在目录中的序号（供顶栏「第 N/总 章」显示）
+const chapterIndex = computed(() => {
+  const i = toc.value.findIndex((c) => c.id === chapterId.value)
+  return i >= 0 ? i + 1 : 0
+})
 const theme = computed(() => themeOf(s.theme))
 const rootStyle = computed(() => ({
   '--r-bg': theme.value.bg,
@@ -102,11 +107,25 @@ watch([storyId, chapterId], load, { immediate: true })
     <div class="reader__progress" :style="{ width: progress + '%' }"></div>
 
     <header class="reader__bar">
-      <RouterLink :to="`/story/${storyId}`" class="reader__iconbtn" title="返回作品">‹ 作品</RouterLink>
-      <span class="reader__crumb">{{ story?.title }}</span>
+      <RouterLink :to="`/story/${storyId}`" class="reader__iconbtn" title="返回作品">‹ 返回</RouterLink>
+      <div class="reader__crumb">
+        <span class="reader__crumb-title">{{ story?.title }}</span>
+        <span v-if="chapterIndex" class="reader__crumb-sub">
+          第 {{ chapterIndex }}/{{ toc.length }} 章 · 已读 {{ progress }}%
+        </span>
+      </div>
       <div class="reader__bar-right">
-        <button class="reader__iconbtn" @click="showToc = true">目录</button>
-        <button class="reader__iconbtn" @click="showSettings = !showSettings">Aa</button>
+        <button class="reader__barbtn" title="章节目录" @click="showToc = true">
+          <span class="reader__barbtn-ico">☰</span><span class="reader__barbtn-txt">目录</span>
+        </button>
+        <button
+          class="reader__barbtn"
+          :class="{ on: showSettings }"
+          title="阅读设置"
+          @click="showSettings = !showSettings"
+        >
+          <span class="reader__barbtn-ico">Aa</span><span class="reader__barbtn-txt">设置</span>
+        </button>
       </div>
     </header>
 
@@ -247,16 +266,61 @@ watch([storyId, chapterId], load, { immediate: true })
 .reader__crumb {
   flex: 1;
   min-width: 0;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  line-height: 1.25;
+}
+.reader__crumb-title {
+  max-width: 100%;
   font-size: var(--sos-text-sm);
-  opacity: 0.7;
+  font-weight: 600;
+  opacity: 0.85;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reader__crumb-sub {
+  font-size: var(--sos-text-xs);
+  opacity: 0.55;
+  font-variant-numeric: var(--sos-numeric-tabular);
   white-space: nowrap;
 }
 .reader__bar-right {
   display: flex;
   gap: var(--sos-space-2);
+}
+.reader__barbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(120, 100, 80, 0.22);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--sos-radius-full);
+  padding: 5px 13px;
+  font-size: var(--sos-text-sm);
+}
+.reader__barbtn-ico {
+  font-size: 0.95em;
+  font-weight: 700;
+  line-height: 1;
+}
+.reader__barbtn:hover {
+  border-color: var(--sos-accent);
+  color: var(--sos-accent);
+}
+.reader__barbtn.on {
+  background: var(--sos-accent);
+  border-color: var(--sos-accent);
+  color: #fff;
+}
+@media (max-width: 560px) {
+  .reader__barbtn-txt {
+    display: none;
+  }
 }
 .reader__iconbtn {
   border: 1px solid rgba(120, 100, 80, 0.22);
@@ -275,12 +339,12 @@ watch([storyId, chapterId], load, { immediate: true })
 .reader__loading,
 .reader__missing {
   text-align: center;
-  padding: var(--sos-space-11) var(--sos-space-5);
+  padding: var(--sos-space-12) var(--sos-space-5);
   opacity: 0.8;
 }
 .reader__content {
   width: min(var(--r-width), 100% - 2 * var(--sos-space-5));
-  margin: var(--sos-space-9) auto 0;
+  margin: var(--sos-space-10) auto 0;
 }
 .reader__eyebrow {
   text-align: center;
@@ -400,7 +464,7 @@ watch([storyId, chapterId], load, { immediate: true })
 }
 .reader__pager {
   width: min(var(--r-width), 100% - 2 * var(--sos-space-5));
-  margin: var(--sos-space-9) auto 0;
+  margin: var(--sos-space-10) auto 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -433,7 +497,7 @@ watch([storyId, chapterId], load, { immediate: true })
 /* 评论区脱离阅读主题，回到设计系统中性表面，保证任意背景（含夜间）下都清晰可读 */
 .reader__comments {
   width: min(48rem, 100% - 2 * var(--sos-space-5));
-  margin: var(--sos-space-9) auto 0;
+  margin: var(--sos-space-10) auto 0;
   background: var(--sos-bg-surface);
   color: var(--sos-text-primary);
   border: 1px solid var(--sos-border-subtle);

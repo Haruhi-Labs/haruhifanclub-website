@@ -207,7 +207,7 @@ onMounted(load)
 }
 .wd__empty {
   text-align: center;
-  padding: var(--sos-space-11) 0;
+  padding: var(--sos-space-12) 0;
 }
 .wd__empty h2 {
   font-family: var(--sos-display-family, var(--sos-font-display));
