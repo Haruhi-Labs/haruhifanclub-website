@@ -4,6 +4,17 @@
    清爽轻快，契合二次元同人文站气质；与商城同属蓝色系、和全站协调。
    ============================================================ */
 
+/* 全局 reset：去掉浏览器默认的 body 8px 外边距（否则整站四周会有一圈微小空白，
+   与其它站点不一致）；底色对齐页面色，抹平下拉回弹的溢出区 */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100dvh;
+  background-color: var(--sos-bg-page);
+}
+
 .fiction-app.sos-scope {
   min-height: 100vh;
   display: flex;
