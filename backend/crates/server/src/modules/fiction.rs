@@ -21,19 +21,15 @@ use crate::state::AppState;
 pub const CATEGORIES: &[(&str, &str)] = &[
     ("daily", "日常"),
     ("romance", "恋爱"),
-    ("school", "校园"),
-    ("supernatural", "超自然"),
-    ("scifi", "科幻幻想"),
     ("adventure", "冒险"),
     ("parallel", "平行世界"),
+    ("fantasy", "幻想"),
+    ("mystery", "推理"),
     ("comedy", "欢乐向"),
-    ("drama", "剧情"),
-    ("healing", "治愈"),
-    ("other", "其它"),
 ];
 
 /// 列表/详情统一选取的作品列（顺序与 `StoryRow` 字段一一对应由 sqlx 按列名匹配，无需对齐）。
-const STORY_COLS: &str = "id, title, summary, cover_path, category, content_rating, status, \
+const STORY_COLS: &str = "id, title, summary, cover_path, category, status, \
      is_completed, featured, author_user_id, author_uid, author_name, word_count, chapter_count, \
      view_count, like_count, bookmark_count, comment_count, created_at, updated_at, published_at, \
      last_chapter_at";
@@ -45,7 +41,6 @@ struct StoryRow {
     summary: String,
     cover_path: Option<String>,
     category: String,
-    content_rating: String,
     status: String,
     is_completed: i64,
     featured: i64,
@@ -120,7 +115,7 @@ fn category_label(slug: &str) -> &'static str {
         .iter()
         .find(|(s, _)| *s == slug)
         .map(|(_, l)| *l)
-        .unwrap_or("其它")
+        .unwrap_or("日常")
 }
 
 fn story_to_json(s: &StoryRow, tags: Vec<String>) -> Value {
@@ -131,7 +126,6 @@ fn story_to_json(s: &StoryRow, tags: Vec<String>) -> Value {
         "coverPath": s.cover_path,
         "category": s.category,
         "categoryLabel": category_label(&s.category),
-        "contentRating": s.content_rating,
         "status": s.status,
         "isCompleted": s.is_completed != 0,
         "featured": s.featured != 0,
@@ -214,13 +208,6 @@ async fn list_stories(
         if !c.is_empty() && c != "all" {
             where_sql.push_str(" AND category = ?");
             params.push(c.to_string());
-        }
-    }
-    if let Some(r) = getq("rating") {
-        let r = r.trim();
-        if !r.is_empty() && r != "all" {
-            where_sql.push_str(" AND content_rating = ?");
-            params.push(r.to_string());
         }
     }
     match getq("completed") {
@@ -621,16 +608,7 @@ fn now_iso() -> String {
 fn normalize_category(v: Option<&str>) -> String {
     match v.map(str::trim) {
         Some(s) if CATEGORIES.iter().any(|(slug, _)| *slug == s) => s.to_string(),
-        _ => "other".to_string(),
-    }
-}
-
-/// 分级归一：general / teen / mature，其余落 general。
-fn normalize_rating(v: Option<&str>) -> String {
-    match v.map(str::trim) {
-        Some("teen") => "teen".to_string(),
-        Some("mature") => "mature".to_string(),
-        _ => "general".to_string(),
+        _ => "daily".to_string(),
     }
 }
 
@@ -847,7 +825,6 @@ async fn create_story(
     }
     let summary = clamp_len(obj.get("summary").and_then(|v| v.as_str()), 2000);
     let category = normalize_category(obj.get("category").and_then(|v| v.as_str()));
-    let rating = normalize_rating(obj.get("contentRating").and_then(|v| v.as_str()));
     let is_completed = obj
         .get("isCompleted")
         .and_then(|v| v.as_bool())
@@ -863,15 +840,14 @@ async fn create_story(
     let now = now_iso();
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO stories \
-         (title, summary, cover_path, category, content_rating, status, is_completed, \
+         (title, summary, cover_path, category, status, is_completed, \
           author_user_id, author_uid, author_name, created_at, updated_at) \
-         VALUES (?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?) RETURNING id",
+         VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?) RETURNING id",
     )
     .bind(&title)
     .bind(&summary)
     .bind(&cover)
     .bind(&category)
-    .bind(&rating)
     .bind(is_completed as i64)
     .bind(user.id)
     .bind(member_uid(user.id))
@@ -958,13 +934,6 @@ async fn update_story(
     if let Some(c) = obj.get("category").and_then(|v| v.as_str()) {
         sqlx::query("UPDATE stories SET category = ? WHERE id = ?")
             .bind(normalize_category(Some(c)))
-            .bind(id)
-            .execute(pool)
-            .await?;
-    }
-    if let Some(r) = obj.get("contentRating").and_then(|v| v.as_str()) {
-        sqlx::query("UPDATE stories SET content_rating = ? WHERE id = ?")
-            .bind(normalize_rating(Some(r)))
             .bind(id)
             .execute(pool)
             .await?;

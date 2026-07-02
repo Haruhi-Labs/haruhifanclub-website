@@ -1,10 +1,10 @@
 <script setup>
 import { ref, reactive, watch, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { SosSearch, SosPagination, SosSelect, SosSkeleton, SosEmptyState } from '@haruhi/ui'
+import { SosSearch, SosPagination, SosSkeleton, SosEmptyState } from '@haruhi/ui'
 import StoryCard from '@/components/StoryCard.vue'
 import { listStories, getTags } from '@/api'
-import { CATEGORIES, RATINGS } from '@/lib/format'
+import { CATEGORIES } from '@/lib/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,13 +28,12 @@ const COMPLETED = [
   { key: '1', label: '已完结' },
 ]
 
-const f = reactive({ category: '', sort: 'latest', completed: '', rating: '', tag: '', q: '', page: 1 })
+const f = reactive({ category: '', sort: 'latest', completed: '', tag: '', q: '', page: 1 })
 
 function readQuery() {
   f.category = route.query.category || ''
   f.sort = route.query.sort || 'latest'
   f.completed = route.query.completed || ''
-  f.rating = route.query.rating || ''
   f.tag = route.query.tag || ''
   f.q = route.query.q || ''
   f.page = Number(route.query.page) || 1
@@ -49,7 +48,6 @@ async function fetchList() {
     const params = { sort: f.sort, page: f.page, pageSize: 24 }
     if (f.category) params.category = f.category
     if (f.completed) params.completed = f.completed
-    if (f.rating) params.rating = f.rating
     if (f.tag) params.tag = f.tag
     if (f.q) params.q = f.q
     const r = await listStories(params)
@@ -70,7 +68,6 @@ function apply(patch, keepPage = false) {
   if (f.category) q.category = f.category
   if (f.sort !== 'latest') q.sort = f.sort
   if (f.completed) q.completed = f.completed
-  if (f.rating) q.rating = f.rating
   if (f.tag) q.tag = f.tag
   if (f.q) q.q = f.q
   if (f.page > 1) q.page = f.page
@@ -125,17 +122,6 @@ onMounted(async () => {
             {{ c.label }}
           </button>
         </div>
-      </div>
-
-      <div class="lib__block">
-        <h3 class="lib__block-title">分级</h3>
-        <SosSelect
-          :model-value="f.rating"
-          @update:model-value="apply({ rating: $event })"
-        >
-          <option value="">全部分级</option>
-          <option v-for="r in RATINGS" :key="r.slug" :value="r.slug">{{ r.label }}</option>
-        </SosSelect>
       </div>
 
       <div v-if="tags.length" class="lib__block">

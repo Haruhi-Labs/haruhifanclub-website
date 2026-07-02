@@ -26,7 +26,6 @@ const isCompact = computed(() => props.layout === 'compact')
       <span class="fic-item__cat">{{ categoryLabel(s.category) }}</span>
       <span class="fic-item__dot">·</span>
       <span>{{ s.authorName || '佚名' }}</span>
-      <span v-if="s.contentRating === 'mature'" class="fic-item__r18">限</span>
     </div>
 
     <p v-if="!isCompact" class="fic-item__summary">{{ s.summary || '暂无简介' }}</p>
