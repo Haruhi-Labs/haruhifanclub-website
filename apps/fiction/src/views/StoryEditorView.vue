@@ -91,6 +91,11 @@ async function onCover(e) {
   e.target.value = ''
 }
 
+function removeCover() {
+  form.value.coverPath = null
+  toast.success('已移除封面，保存后生效')
+}
+
 async function newChapter() {
   try {
     const r = await createChapter(id.value, { title: `第${chapters.value.length + 1}章` })
@@ -174,10 +179,21 @@ watch(id, load, { immediate: true })
           <h2 class="se__section-title">作品信息</h2>
           <div class="se__cover">
             <CoverImage :path="form.coverPath" :title="form.title" :category="form.category" />
-            <label class="sos-button sos-button--secondary sos-button--sm">
-              上传封面
-              <input type="file" accept="image/*" hidden @change="onCover" />
-            </label>
+            <div class="se__cover-actions">
+              <label class="sos-button sos-button--secondary sos-button--sm">
+                {{ form.coverPath ? '更换封面' : '上传封面' }}
+                <input type="file" accept="image/*" hidden @change="onCover" />
+              </label>
+              <button
+                v-if="form.coverPath"
+                type="button"
+                class="se__cover-remove"
+                @click="removeCover"
+              >
+                移除封面
+              </button>
+            </div>
+            <p class="se__cover-hint">不上传将使用按分类自动生成的封面</p>
           </div>
           <div class="se__fields">
             <label class="se__field">
@@ -306,6 +322,27 @@ watch(id, load, { immediate: true })
 }
 .se__cover > .fiction-cover {
   width: 160px;
+}
+.se__cover-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-3);
+}
+.se__cover-remove {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: var(--sos-text-sm);
+  color: var(--sos-text-tertiary);
+}
+.se__cover-remove:hover {
+  color: var(--sos-danger);
+}
+.se__cover-hint {
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-tertiary);
+  margin: 0;
+  text-align: center;
 }
 .se__fields {
   margin-top: var(--sos-space-5);

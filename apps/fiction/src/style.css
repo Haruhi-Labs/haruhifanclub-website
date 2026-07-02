@@ -107,26 +107,66 @@
   height: 100%;
   object-fit: cover;
 }
-/* 无封面：明快扁平渐变 + 分类小标 + 底部书名 */
+/* 无封面：明快扁平渐变海报（三色同系渐变 + 柔光 + 抽象几何 + 分类标 + 底部书名） */
 .fiction-cover__ph {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
-  padding: 11cqw;
+  justify-content: space-between;
+  padding: 9cqw;
   color: #fff;
   overflow: hidden;
   background:
-    radial-gradient(90% 62% at 84% 4%, rgba(255, 255, 255, 0.3), transparent 60%),
-    linear-gradient(150deg, hsl(var(--cover-h1) 88% 66%), hsl(var(--cover-h2) 80% 53%));
+    radial-gradient(66% 52% at 80% 16%, rgba(255, 255, 255, 0.34), transparent 62%),
+    linear-gradient(
+      152deg,
+      hsl(var(--cover-h1) 90% 68%),
+      hsl(var(--cover-h2) 82% 54%) 62%,
+      hsl(var(--cover-h3) 78% 47%)
+    );
+}
+/* 抽象几何：右下柔光大圆 + 左中描边圆环 */
+.fiction-cover__ph::before {
+  content: '';
+  position: absolute;
+  right: -18cqw;
+  bottom: -22cqw;
+  width: 64cqw;
+  height: 64cqw;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.24), transparent 70%);
+}
+.fiction-cover__ph::after {
+  content: '';
+  position: absolute;
+  left: -9cqw;
+  top: 24cqw;
+  width: 34cqw;
+  height: 34cqw;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.24);
+}
+.fiction-cover__cat {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+  font-size: clamp(0.5rem, 5cqw, 0.74rem);
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--sos-radius-full);
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(2px);
 }
 .fiction-cover__name {
-  margin-top: auto;
-  font-size: clamp(0.78rem, 13cqw, 1.4rem);
-  font-weight: 700;
+  position: relative;
+  z-index: 1;
+  font-size: clamp(0.9rem, 12.5cqw, 1.55rem);
+  font-weight: 800;
   line-height: 1.24;
   letter-spacing: -0.01em;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.18);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
