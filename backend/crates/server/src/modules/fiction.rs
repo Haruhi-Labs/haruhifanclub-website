@@ -689,6 +689,8 @@ fn sanitize_html(raw: &str) -> String {
         "hr",
         "a",
         "img",
+        "figure",
+        "figcaption",
         "code",
         "pre",
         "mark",

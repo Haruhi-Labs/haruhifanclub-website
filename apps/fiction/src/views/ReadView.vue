@@ -336,9 +336,52 @@ watch([storyId, chapterId], load, { immediate: true })
 .reader__prose :deep(img) {
   max-width: 100%;
   height: auto;
-  border-radius: var(--sos-radius-sm);
+  border-radius: var(--sos-radius-md);
   display: block;
   margin: 1.2em auto;
+}
+.reader__prose :deep(figure) {
+  margin: 1.8em 0;
+  text-align: center;
+}
+.reader__prose :deep(figure img) {
+  margin: 0 auto;
+}
+.reader__prose :deep(figcaption) {
+  margin-top: 0.7em;
+  font-size: 0.85em;
+  opacity: 0.6;
+  text-indent: 0;
+}
+.reader__prose :deep(mark) {
+  background: color-mix(in srgb, var(--sos-signal, #ffd666) 72%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+.reader__prose :deep(pre) {
+  text-indent: 0;
+  text-align: left;
+  background: color-mix(in srgb, var(--r-text) 7%, transparent);
+  border-radius: var(--sos-radius-md);
+  padding: 1em 1.2em;
+  overflow-x: auto;
+  font-family: var(--sos-font-mono);
+  font-size: 0.9em;
+  line-height: 1.6;
+  margin: 1.3em 0;
+}
+.reader__prose :deep(:not(pre) > code) {
+  font-family: var(--sos-font-mono);
+  font-size: 0.9em;
+  background: color-mix(in srgb, var(--r-text) 8%, transparent);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+.reader__prose :deep(pre code) {
+  background: none;
+  padding: 0;
+  font: inherit;
 }
 .reader__note {
   margin-top: var(--sos-space-8);
