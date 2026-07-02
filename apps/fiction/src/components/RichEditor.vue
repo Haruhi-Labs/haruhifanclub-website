@@ -164,6 +164,11 @@ function onPickImage(e) {
   background: var(--sos-bg-surface);
   overflow: hidden;
 }
+/* 焦点由外层容器统一用边框表达，内部编辑区不再出环，
+   避免与外框叠成双重边框 / 内发光（设计系统 .sos-scope :focus-visible 出的 box-shadow 环） */
+.rte:focus-within {
+  border-color: var(--sos-focus, var(--sos-accent));
+}
 .rte__bar {
   display: flex;
   flex-wrap: wrap;
@@ -232,8 +237,13 @@ function onPickImage(e) {
   line-height: 1.9;
   color: var(--sos-text-primary);
 }
-.rte__body :deep(.ProseMirror) {
+.rte__body :deep(.ProseMirror),
+.rte__body :deep(.ProseMirror:focus),
+.rte__body :deep(.ProseMirror:focus-visible) {
   outline: none;
+  box-shadow: none; /* 抵消 .sos-scope 全局焦点环，改由 .rte:focus-within 出单层边框 */
+}
+.rte__body :deep(.ProseMirror) {
   min-height: 400px;
 }
 .rte__body :deep(.ProseMirror > * + *) {
