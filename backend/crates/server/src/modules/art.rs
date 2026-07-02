@@ -95,6 +95,7 @@ pub fn router() -> Router<AppState> {
         )
         .route("/admin/points-ledger", get(admin_points_ledger))
         .route("/admin/points/grant", post(admin_points_grant))
+        .route("/admin/points/penalize", post(admin_points_penalize))
         .merge(super::art_guild::router())
 }
 
@@ -3095,6 +3096,102 @@ async fn admin_points_grant(
     .execute(&state.pools.art)
     .await?;
     Ok(Json(json!({ "ok": true })))
+}
+
+async fn admin_points_penalize(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+    let uid = body
+        .get("uid")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| AppError::bad_request("UID 不能为空"))?
+        .to_string();
+    let divisor = body
+        .get("divisor")
+        .and_then(json_num_i64)
+        .ok_or_else(|| AppError::bad_request("惩罚倍率不能为空"))?;
+    if !matches!(divisor, 5 | 10) {
+        return Err(AppError::bad_request("惩罚倍率只支持 5 或 10"));
+    }
+    let note = body
+        .get("note")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| AppError::bad_request("惩罚原因不能为空"))?
+        .to_string();
+
+    let now = now_iso();
+    let mut tx = state.pools.art.begin().await?;
+    let uid_exists: Option<i64> = sqlx::query_scalar(
+        "SELECT 1 WHERE EXISTS(SELECT 1 FROM guild_profiles WHERE uid=?)
+            OR EXISTS(SELECT 1 FROM creators WHERE uid=?)
+            OR EXISTS(SELECT 1 FROM points_ledger WHERE uid=?)",
+    )
+    .bind(&uid)
+    .bind(&uid)
+    .bind(&uid)
+    .fetch_optional(&mut *tx)
+    .await?;
+    if uid_exists.is_none() {
+        return Err(AppError::bad_request("UID 不存在"));
+    }
+    let previous_total: i64 =
+        sqlx::query_scalar("SELECT COALESCE(SUM(points), 0) FROM points_ledger WHERE uid=?")
+            .bind(&uid)
+            .fetch_one(&mut *tx)
+            .await?;
+    let target_total = if previous_total > 0 {
+        previous_total / divisor
+    } else {
+        previous_total
+    };
+    let deducted_points = (previous_total - target_total).max(0);
+    let auto_note = format!("积分惩罚自动取消：{note}");
+    let cancelled_redemptions = sqlx::query(
+        "UPDATE guild_reward_redemptions
+         SET status='cancelled', admin_note=?, review_note=?, reviewed_at=?
+         WHERE uid=? AND status='pending'",
+    )
+    .bind(&auto_note)
+    .bind(&auto_note)
+    .bind(&now)
+    .bind(&uid)
+    .execute(&mut *tx)
+    .await?
+    .rows_affected();
+
+    if deducted_points > 0 {
+        let ledger_note =
+            format!("积分惩罚：{note}（当前金币按 1/{divisor} 折算，扣除 {deducted_points}G）");
+        sqlx::query(
+            "INSERT INTO points_ledger(uid, artwork_id, points, note, source_type, created_at, granted_at)
+             VALUES(?,?,?,?,?,?,?)",
+        )
+        .bind(&uid)
+        .bind(None::<i64>)
+        .bind(-deducted_points)
+        .bind(&ledger_note)
+        .bind("penalty")
+        .bind(&now)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+    Ok(Json(json!({
+        "ok": true,
+        "previousTotal": previous_total,
+        "targetTotal": target_total,
+        "deductedPoints": deducted_points,
+        "cancelledRedemptions": cancelled_redemptions
+    })))
 }
 
 // ============================================================

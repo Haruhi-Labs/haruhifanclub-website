@@ -462,6 +462,10 @@ async fn guild_quests(
         Some(uid) => Some(profile_value(&state, uid, true).await?),
         None => None,
     };
+    let rating_applications = match &uid {
+        Some(uid) => applications_for_uid(&state, uid).await?,
+        None => Vec::new(),
+    };
 
     let rows: Vec<GuildQuestListRow> = sqlx::query_as(
         "SELECT q.id, q.title, q.description, q.quest_type, q.difficulty,
@@ -613,9 +617,12 @@ async fn guild_quests(
         }));
     }
 
-    Ok(Json(
-        json!({ "ok": true, "profile": profile, "data": data }),
-    ))
+    Ok(Json(json!({
+        "ok": true,
+        "profile": profile,
+        "ratingApplications": rating_applications,
+        "data": data
+    })))
 }
 
 async fn guild_claim_quest(
@@ -1869,14 +1876,23 @@ async fn admin_reject_rating(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "art", Action::Manage).await?;
-    sqlx::query(
+    let note = body
+        .get("note")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| AppError::bad_request("驳回理由不能为空"))?;
+    let result = sqlx::query(
         "UPDATE guild_rating_applications SET status='rejected', admin_note=?, reviewed_at=? WHERE id=? AND status='pending'",
     )
-    .bind(body.get("note").and_then(|v| v.as_str()).unwrap_or(""))
+    .bind(note)
     .bind(now_iso())
     .bind(id)
     .execute(&state.pools.art)
     .await?;
+    if result.rows_affected() == 0 {
+        return Err(AppError::bad_request("评级申请不存在或已审核"));
+    }
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -3604,8 +3620,9 @@ async fn applications_for_uid(state: &AppState, uid: &str) -> AppResult<Vec<Valu
         Option<String>,
         Option<String>,
         Option<String>,
+        Option<String>,
     )> = sqlx::query_as(
-        "SELECT id, from_rating, target_rating, status, user_note, admin_note, created_at
+        "SELECT id, from_rating, target_rating, status, user_note, admin_note, created_at, reviewed_at
              FROM guild_rating_applications WHERE uid=? ORDER BY datetime(created_at) DESC",
     )
     .bind(uid)
@@ -3614,7 +3631,16 @@ async fn applications_for_uid(state: &AppState, uid: &str) -> AppResult<Vec<Valu
     Ok(rows
         .into_iter()
         .map(
-            |(id, from_rating, target_rating, status, user_note, admin_note, created_at)| {
+            |(
+                id,
+                from_rating,
+                target_rating,
+                status,
+                user_note,
+                admin_note,
+                created_at,
+                reviewed_at,
+            )| {
                 json!({
                     "id": id,
                     "fromRating": from_rating,
@@ -3622,7 +3648,8 @@ async fn applications_for_uid(state: &AppState, uid: &str) -> AppResult<Vec<Valu
                     "status": status,
                     "userNote": user_note,
                     "adminNote": admin_note,
-                    "createdAt": created_at
+                    "createdAt": created_at,
+                    "reviewedAt": reviewed_at
                 })
             },
         )

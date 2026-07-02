@@ -392,6 +392,26 @@
           <span class="g-feedback__dot" aria-hidden="true"></span>
           <span>{{ ratingAuditText }}</span>
         </div>
+
+        <div v-if="ratingApplications.length" class="g-rating-history">
+          <div class="g-rating-history__head">
+            <span>申请记录</span>
+            <b>最近 {{ ratingApplications.length }} 条</b>
+          </div>
+          <article v-for="item in ratingApplications" :key="item.id" class="g-rating-record">
+            <div>
+              <b>{{ item.fromRating || 'F' }} → {{ item.targetRating }}</b>
+              <time>{{ formatShortDateTime(item.reviewedAt || item.createdAt) }}</time>
+            </div>
+            <span class="g-rating-record__status" :class="`status-${item.status}`">
+              {{ ratingApplicationStatusLabel(item.status) }}
+            </span>
+            <p v-if="item.status === 'rejected' && item.adminNote">
+              驳回理由：{{ item.adminNote }}
+            </p>
+            <p v-else-if="item.adminNote">管理员备注：{{ item.adminNote }}</p>
+          </article>
+        </div>
       </section>
 
       <!-- 规则书 -->
@@ -632,6 +652,7 @@ const leaderboard = ref([])
 const currentLeader = ref(null)
 const redemptions = ref([])
 const selectedRedemption = ref(null)
+const ratingApplications = ref([])
 const profile = ref({
   uid: '',
   rating: 'F',
@@ -718,6 +739,17 @@ const ruleBooks = [
       '评级提升后会解锁更困难的委托，困难委托通常给予大量声望。',
     ],
     tables: [ratingApplicationTable],
+  },
+  {
+    id: 'penalty',
+    title: '惩罚规则',
+    lines: [
+      '画廊不鼓励以低完成度速写、重复内容或明显刷画的方式获取金币与声望。',
+      '管理员发现明显刷取金币的情况时，可将当前金币总量按 1/5 或 1/10 折算。',
+      '被扣除的金币会同步扣减历史累计获得金币，并影响金币排行榜。',
+      '惩罚执行时，待审核的兑换申请可能会被自动取消，避免冻结金币超过惩罚后的可用余额。',
+      '具体惩罚原因会由管理员记录，用户可在相关申请或记录中查看。',
+    ],
   },
   {
     id: 'access',
@@ -819,6 +851,15 @@ const ratingAuditText = computed(() => {
   return '继续完成委托与投稿，满足条件后会自动进入管理员验收。'
 })
 
+function ratingApplicationStatusLabel(status) {
+  const map = {
+    pending: '待验收',
+    approved: '已通过',
+    rejected: '已驳回',
+  }
+  return map[status] || status || '未知'
+}
+
 function reqPercent(current, required) {
   const req = Number(required || 0)
   if (req <= 0) return 100
@@ -868,6 +909,7 @@ async function loadGuild() {
     leaderboard.value = rankRes.data || []
     currentLeader.value = rankRes.me || null
     profile.value = questRes.profile || rewardRes.profile || profile.value
+    ratingApplications.value = questRes.ratingApplications || []
 
     if (session.state.user) {
       try {
@@ -1220,6 +1262,17 @@ function applyMock() {
     nextRating: { rating: 'C', requiredReputation: 800, requiredHaruhiCount: 4, available: false },
     pendingRatingApplication: null,
   }
+  ratingApplications.value = [
+    {
+      id: 2,
+      fromRating: 'D',
+      targetRating: 'C',
+      status: 'rejected',
+      adminNote: '近期作品完成度不足，请补充更完整的凉宫个人作品后重新触发申请。',
+      createdAt: '2026-07-01T12:00:00.000Z',
+      reviewedAt: '2026-07-01T13:20:00.000Z',
+    },
+  ]
   quests.value = [
     {
       id: 1,
@@ -2484,6 +2537,68 @@ onUnmounted(() => {
   );
   transition: width 0.5s ease;
 }
+.g-rating-history {
+  display: grid;
+  gap: 10px;
+}
+.g-rating-history__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--g-muted);
+}
+.g-rating-history__head b {
+  font-size: 11px;
+  color: var(--g-soft);
+}
+.g-rating-record {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  padding: 13px 14px;
+  border: 1px solid color-mix(in srgb, var(--g-line) 72%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, #ffffff 78%, transparent);
+}
+.g-rating-record > div {
+  display: grid;
+  gap: 3px;
+}
+.g-rating-record b {
+  font-size: 13px;
+  color: var(--g-ink);
+}
+.g-rating-record time {
+  color: var(--g-soft);
+  font-size: 11px;
+}
+.g-rating-record p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--g-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.g-rating-record__status {
+  align-self: start;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--g-accent) 12%, transparent);
+  color: var(--g-accent-strong);
+  font-size: 11px;
+  font-weight: 850;
+}
+.g-rating-record__status.status-rejected {
+  background: color-mix(in srgb, #d53f3a 12%, transparent);
+  color: #b72623;
+}
+.g-rating-record__status.status-approved {
+  background: color-mix(in srgb, #20a678 13%, transparent);
+  color: #137b57;
+}
 
 /* feedback */
 .g-feedback {
@@ -2774,6 +2889,18 @@ onUnmounted(() => {
 }
 :global(html.art-lights-out .g-feedback) {
   background: rgba(12, 22, 44, 0.45);
+}
+:global(html.art-lights-out .g-rating-record) {
+  background: rgba(16, 28, 50, 0.58);
+  border-color: rgba(119, 143, 184, 0.18);
+}
+:global(html.art-lights-out .g-rating-record__status.status-rejected) {
+  color: #f1a19d;
+  background: rgba(213, 63, 58, 0.14);
+}
+:global(html.art-lights-out .g-rating-record__status.status-approved) {
+  color: #87e8c2;
+  background: rgba(32, 166, 120, 0.14);
 }
 :global(html.art-lights-out .g-dialog) {
   background: #0f1a30;
