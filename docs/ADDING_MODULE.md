@@ -257,6 +257,7 @@ export default defineConfig({
 | news          | 5204 |
 | shop          | 5205 |
 | design-system | 5206 |
+| fiction       | 5207 |
 
 接入共享客户端：
 

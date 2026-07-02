@@ -62,6 +62,7 @@ APP=novel pnpm dev    # 默认 APP=news
 | art           | `@haruhi/art`                | `/art/`           | 5201     | 画廊、投稿、匿名互动、积分和审核后台             |
 | exam          | `@haruhi/exam`               | `/exam/`          | 5202     | 在线试卷、编辑器、分享导出和审核后台，TypeScript |
 | novel         | `@haruhi/novel`              | `/library/`       | 5203     | EPUB 书架、阅读器、上传和编目后台                |
+| fiction       | `@haruhi/fiction`            | `/fiction/`       | 5207     | 同人小说创作与阅读、富文本编辑器、书库和创作中心 |
 | shop          | `@haruhi/shop`               | `/shop/`          | 5205     | 商品、订单、预售、优惠券、物流和商城后台         |
 | console       | `@haruhi/console`            | `/console/`       | 5200     | 超管控制台，管理用户和 RBAC 角色，TypeScript     |
 | design-system | `@haruhi/design-system-docs` | `/design-system/` | 5206     | SOS / Parallel Design System 静态规范页          |

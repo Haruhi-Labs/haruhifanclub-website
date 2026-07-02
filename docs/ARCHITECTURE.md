@@ -14,6 +14,7 @@ Nginx
   |    /art/      -> apps/art/dist
   |    /exam/     -> apps/exam/dist
   |    /library/  -> apps/novel/dist
+  |    /fiction/  -> apps/fiction/dist
   |    /shop/     -> apps/shop/dist
   |    /console/  -> apps/console/dist
   |    /design-system/ -> apps/design-system/dist
@@ -29,7 +30,7 @@ haruhi-server(axum)
 
 SQLite
   ├─ data/core.db
-  └─ data/{news,art,exam,novel,shop}.db
+  └─ data/{news,art,exam,novel,fiction,shop}.db
 ```
 
 本地开发同样走 `/api` 与 `/uploads`，只是由 Vite dev server 代理到 `127.0.0.1:17777`。
@@ -100,6 +101,7 @@ packages/*
 | art           | `/art/`           | 5201     | Pinia，画廊、投稿、匿名互动      |
 | exam          | `/exam/`          | 5202     | TypeScript，试卷编辑、导出和审核 |
 | novel         | `/library/`       | 5203     | Tailwind，EPUB 阅读器和书库后台  |
+| fiction       | `/fiction/`       | 5207     | Tiptap 富文本，同人小说创作与阅读 |
 | shop          | `/shop/`          | 5205     | reactive store，商城前后台       |
 | console       | `/console/`       | 5200     | TypeScript，超管台               |
 | design-system | `/design-system/` | 5206     | 静态设计规范页，不依赖后端 API   |

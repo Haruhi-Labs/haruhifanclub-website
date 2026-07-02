@@ -78,6 +78,20 @@ async fn summary(State(state): State<AppState>, user: AuthUser) -> AppResult<Jso
             .fetch_one(&state.pools.news)
             .await?;
 
+    // ---- fiction：同人小说按状态分组、评论数 ----
+    let fiction_status: Vec<(Option<String>, i64)> = sqlx::query_as(
+        "SELECT status, COUNT(*) FROM stories WHERE author_user_id = ? GROUP BY status",
+    )
+    .bind(user.id)
+    .fetch_all(&state.pools.fiction)
+    .await?;
+    let fiction_comments: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM comments WHERE author_user_id = ? AND status = 'visible'",
+    )
+    .bind(user.id)
+    .fetch_one(&state.pools.fiction)
+    .await?;
+
     // 注：exam（试卷站）已从用户系统剥离，不纳入个人总览。
 
     Ok(Json(json!({
@@ -85,6 +99,8 @@ async fn summary(State(state): State<AppState>, user: AuthUser) -> AppResult<Jso
         "artworks": tally(&art_status, "approved"),
         "comments": art_comments,
         "articles": tally(&news_status, "published"),
+        "stories": tally(&fiction_status, "published"),
+        "fictionComments": fiction_comments,
         "points": { "art": art_points, "news": news_points },
         "redemptions": news_redemptions,
     })))

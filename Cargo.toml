@@ -66,6 +66,9 @@ zip = "2"
 quick-xml = "0.37"
 epub = "2"
 
+# --- 富文本清洗（fiction 章节正文为编辑器 HTML，落库前按白名单清洗，杜绝 UGC XSS）---
+ammonia = "4"
+
 # --- 工具 ---
 uuid = { version = "1", features = ["v4"] }
 base64 = "0.22"

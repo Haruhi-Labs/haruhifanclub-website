@@ -24,6 +24,7 @@ const APPS: &[&str] = &[
     "exam",
     "novel",
     "shop",
+    "fiction",
     "console",
 ];
 

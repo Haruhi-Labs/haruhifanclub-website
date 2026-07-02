@@ -17,6 +17,7 @@ pub struct Pools {
     pub exam: SqlitePool,
     pub novel: SqlitePool,
     pub shop: SqlitePool,
+    pub fiction: SqlitePool,
 }
 
 /// 打开（或创建）一个 SQLite 库，启用 WAL + busy_timeout。
@@ -50,6 +51,7 @@ impl Pools {
             exam: open_pool(&cfg.db_path("exam")).await?,
             novel: open_pool(&cfg.db_path("novel")).await?,
             shop: open_pool(&cfg.db_path("shop")).await?,
+            fiction: open_pool(&cfg.db_path("fiction")).await?,
         };
         Ok(pools)
     }
@@ -74,6 +76,9 @@ impl Pools {
             .await?;
         sqlx::migrate!("../../migrations/shop")
             .run(&self.shop)
+            .await?;
+        sqlx::migrate!("../../migrations/fiction")
+            .run(&self.fiction)
             .await?;
         tracing::info!("数据库迁移完成");
         Ok(())

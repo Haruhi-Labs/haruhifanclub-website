@@ -1,0 +1,362 @@
+/* ============================================================
+   同人文库 —— 站点级样式
+   基调采用设计系统 shop 表达（晴空蓝 · 浅蓝白底 · 无衬线 · 大圆角 · 柔蓝阴影），
+   清爽轻快，契合二次元同人文站气质；与商城同属蓝色系、和全站协调。
+   ============================================================ */
+
+/* 全局 reset：去掉浏览器默认的 body 8px 外边距（否则整站四周会有一圈微小空白，
+   与其它站点不一致）；底色对齐页面色，抹平下拉回弹的溢出区 */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100dvh;
+  background-color: var(--sos-bg-page);
+}
+
+.fiction-app.sos-scope {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--sos-bg-page);
+  color: var(--sos-text-primary);
+}
+
+.fiction-main {
+  flex: 1 0 auto;
+  width: 100%;
+}
+
+/* ---- 页头导航 ---- */
+.sos-navlinks .sos-navlink.router-link-active {
+  color: var(--sos-accent);
+}
+.fiction-write-cta {
+  text-decoration: none;
+}
+
+/* ---- 页容器 ---- */
+.fiction-page {
+  width: min(1160px, 100% - 2 * var(--sos-space-5));
+  margin-inline: auto;
+  padding-block: var(--sos-space-8);
+}
+.fiction-page--narrow {
+  width: min(760px, 100% - 2 * var(--sos-space-5));
+}
+.fiction-page--wide {
+  width: min(1280px, 100% - 2 * var(--sos-space-5));
+}
+
+/* 区块标题 */
+.fiction-rail {
+  margin-block: var(--sos-space-10);
+}
+.fiction-rail__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+  margin-bottom: var(--sos-space-5);
+}
+.fiction-rail__title {
+  font-family: var(--sos-display-family, var(--sos-font-display));
+  font-size: var(--sos-text-2xl);
+  font-weight: 700;
+  color: var(--sos-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-3);
+}
+.fiction-rail__title::before {
+  content: '';
+  width: 6px;
+  height: 1.1em;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-accent);
+}
+.fiction-rail__more {
+  color: var(--sos-text-secondary);
+  text-decoration: none;
+  font-size: var(--sos-text-sm);
+}
+.fiction-rail__more:hover {
+  color: var(--sos-accent);
+}
+
+/* ---- 作品文本列表（响应式文本卡网格） ---- */
+.fic-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 336px), 1fr));
+  gap: var(--sos-space-4);
+}
+/* 加载骨架卡 */
+.fic-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--sos-space-5);
+  background: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-card-radius, 16px);
+}
+
+/* ---- 封面（扁平海报式） ---- */
+.fiction-cover {
+  position: relative;
+  container-type: inline-size;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--sos-media-radius, 12px);
+  overflow: hidden;
+  background: var(--sos-bg-muted);
+}
+.fiction-cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* 无封面：明快扁平渐变海报（三色同系渐变 + 柔光 + 抽象几何 + 分类标 + 底部书名） */
+.fiction-cover__ph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 9cqw;
+  color: #fff;
+  overflow: hidden;
+  background:
+    radial-gradient(66% 52% at 80% 16%, rgba(255, 255, 255, 0.34), transparent 62%),
+    linear-gradient(
+      152deg,
+      hsl(var(--cover-h1) 90% 68%),
+      hsl(var(--cover-h2) 82% 54%) 62%,
+      hsl(var(--cover-h3) 78% 47%)
+    );
+}
+/* 抽象几何：右下柔光大圆 + 左中描边圆环 */
+.fiction-cover__ph::before {
+  content: '';
+  position: absolute;
+  right: -18cqw;
+  bottom: -22cqw;
+  width: 64cqw;
+  height: 64cqw;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.24), transparent 70%);
+}
+.fiction-cover__ph::after {
+  content: '';
+  position: absolute;
+  left: -9cqw;
+  top: 24cqw;
+  width: 34cqw;
+  height: 34cqw;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.24);
+}
+.fiction-cover__cat {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+  font-size: clamp(0.5rem, 5cqw, 0.74rem);
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--sos-radius-full);
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(2px);
+}
+.fiction-cover__name {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(0.9rem, 12.5cqw, 1.55rem);
+  font-weight: 800;
+  line-height: 1.24;
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+/* ---- 作品文本条目（纯文本卡） ---- */
+.fic-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--sos-space-5);
+  text-decoration: none;
+  color: inherit;
+  background: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-card-radius, 16px);
+  box-shadow: var(--sos-card-shadow);
+  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+}
+.fic-item:hover {
+  box-shadow: var(--sos-hover-shadow);
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--sos-accent) 32%, var(--sos-border-subtle));
+}
+.fic-item__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+}
+.fic-item__title {
+  font-size: var(--sos-text-lg);
+  font-weight: 700;
+  line-height: var(--sos-leading-snug);
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.fic-item:hover .fic-item__title {
+  color: var(--sos-accent);
+}
+.fic-item__flag {
+  flex: none;
+  margin-top: 2px;
+  padding: 1px 9px;
+  border-radius: var(--sos-radius-full);
+  font-size: var(--sos-text-2xs);
+  font-weight: 600;
+  color: var(--sos-text-secondary);
+  background: var(--sos-bg-subtle);
+}
+.fic-item__flag.is-done {
+  color: var(--sos-accent);
+  background: var(--sos-accent-soft);
+}
+.fic-item__by {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--sos-text-sm);
+  color: var(--sos-text-secondary);
+}
+.fic-item__cat {
+  color: var(--sos-accent);
+  font-weight: 600;
+}
+.fic-item__dot {
+  color: var(--sos-text-tertiary);
+}
+.fic-item__r18 {
+  font-size: var(--sos-text-2xs);
+  color: #fff;
+  background: var(--sos-danger);
+  border-radius: var(--sos-radius-xs);
+  padding: 0 5px;
+  font-weight: 700;
+}
+.fic-item__summary {
+  font-size: var(--sos-text-sm);
+  color: var(--sos-text-tertiary);
+  line-height: var(--sos-leading-body);
+  margin: 2px 0 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.fic-item__foot {
+  margin-top: auto;
+  padding-top: var(--sos-space-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+  flex-wrap: wrap;
+}
+.fic-item__tags {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.fic-item__tags li {
+  font-size: var(--sos-text-2xs);
+  color: var(--sos-text-secondary);
+  background: var(--sos-bg-subtle);
+  border-radius: var(--sos-radius-full);
+  padding: 1px 8px;
+}
+.fic-item__stats {
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-tertiary);
+  font-variant-numeric: var(--sos-numeric-tabular);
+  white-space: nowrap;
+}
+
+/* 紧凑条目（排行/侧栏）：无边框纯文本行 */
+.fic-item--compact {
+  padding: 0;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+.fic-item--compact:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+.fic-item--compact .fic-item__title {
+  font-size: var(--sos-text-sm);
+  -webkit-line-clamp: 1;
+}
+.fic-item--compact .fic-item__foot {
+  padding-top: 0;
+}
+
+/* ---- 排行榜（带名次） ---- */
+.fiction-rank {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sos-space-4);
+}
+.fiction-rank__item {
+  display: flex;
+  gap: var(--sos-space-3);
+  align-items: center;
+}
+.fiction-rank__no {
+  font-family: var(--sos-font-sans);
+  font-variant-numeric: var(--sos-numeric-tabular);
+  font-size: var(--sos-text-lg);
+  font-weight: 800;
+  color: var(--sos-text-tertiary);
+  width: 1.6em;
+  text-align: center;
+  flex: none;
+}
+.fiction-rank__item:nth-child(1) .fiction-rank__no,
+.fiction-rank__item:nth-child(2) .fiction-rank__no,
+.fiction-rank__item:nth-child(3) .fiction-rank__no {
+  color: var(--sos-accent);
+}
+.fiction-rank__item .fic-item {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .fic-list {
+    gap: var(--sos-space-3);
+  }
+  .fiction-page {
+    padding-block: var(--sos-space-6);
+  }
+}
