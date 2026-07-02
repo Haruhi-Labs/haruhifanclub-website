@@ -41,5 +41,7 @@ __pycache__/
 # === sqlx 离线缓存保留（不要忽略）===
 !.sqlx/
 
-# Docker 交叉编译输出（linux 二进制）
+# 交叉编译 / 本地检查输出（linux 二进制、zig 构建等）
 target-linux/
+target-check-linux/
+target-zig/
