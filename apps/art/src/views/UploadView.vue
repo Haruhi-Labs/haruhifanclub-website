@@ -206,6 +206,9 @@
               <span v-if="submitting" class="upload-spinner" aria-hidden="true"></span>
               {{ submitButtonLabel }}
             </button>
+            <p class="upload-cta__note">
+              请勿以低完成度作品刷画哦~若该类作品出现一定张数以上可能会触发惩罚规则~
+            </p>
           </div>
         </aside>
       </form>
@@ -918,6 +921,14 @@ async function submit(){
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.upload-cta__note {
+  margin: 0;
+  color: color-mix(in srgb, var(--upl-muted) 70%, transparent);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.55;
+  text-align: center;
 }
 .upload-msg {
   margin: 0;

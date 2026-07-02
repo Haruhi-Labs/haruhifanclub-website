@@ -1043,6 +1043,201 @@ async fn guild_leaderboard_hides_zero_earned_coins_by_default() {
 }
 
 #[tokio::test]
+async fn admin_reject_rating_requires_reason_and_user_can_see_it() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let user_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username=?")
+        .bind(ADMIN_USER)
+        .fetch_one(&app.state.pools.core)
+        .await
+        .unwrap();
+    let uid = format!("u{user_id}");
+    let ts = "2026-07-01T00:00:00Z";
+
+    sqlx::query(
+        "INSERT OR REPLACE INTO guild_profiles(uid, reputation, rating, access_tier, created_at, updated_at) \
+         VALUES(?, 100, 'F', 'observer_clearance', ?, ?)",
+    )
+    .bind(&uid)
+    .bind(ts)
+    .bind(ts)
+    .execute(&art)
+    .await
+    .unwrap();
+    let app_id: i64 = sqlx::query_scalar(
+        "INSERT INTO guild_rating_applications(uid, from_rating, target_rating,
+         reputation_snapshot, haruhi_count_snapshot, status, user_note, created_at)
+         VALUES(?, 'F', 'E', 100, 1, 'pending', 'auto apply', ?) RETURNING id",
+    )
+    .bind(&uid)
+    .bind(ts)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/rating-applications/{app_id}/reject"),
+            json!({ "note": "  " }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    let reason = "Need more complete Haruhi personal artworks";
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/rating-applications/{app_id}/reject"),
+            json!({ "note": reason }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "reject should pass: {body:?}");
+
+    let (status, body) = send(&app.router, get("/api/art/guild/quests", Some(&token))).await;
+    assert_eq!(status, StatusCode::OK);
+    let applications = body["ratingApplications"].as_array().unwrap();
+    let item = applications
+        .iter()
+        .find(|item| item["id"].as_i64() == Some(app_id))
+        .expect("rejected rating application should be visible to user");
+    assert_eq!(item["status"], "rejected");
+    assert_eq!(item["adminNote"], reason);
+    assert_eq!(item["targetRating"], "E");
+    assert!(item["reviewedAt"].as_str().is_some());
+}
+
+#[tokio::test]
+async fn admin_points_penalty_reduces_earned_and_cancels_pending_redemptions() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let uid = "u_penalty_case";
+    let ts = "2026-07-01T00:00:00Z";
+
+    sqlx::query(
+        "INSERT INTO guild_profiles(uid, reputation, rating, access_tier, created_at, updated_at) \
+         VALUES(?, 0, 'F', 'observer_clearance', ?, ?)",
+    )
+    .bind(uid)
+    .bind(ts)
+    .bind(ts)
+    .execute(&art)
+    .await
+    .unwrap();
+    for (points, source_type) in [(100_i64, "upload"), (3_i64, "manual")] {
+        sqlx::query(
+            "INSERT INTO points_ledger(uid, artwork_id, points, note, source_type, created_at, granted_at) \
+             VALUES(?, NULL, ?, 'earned before penalty', ?, ?, ?)",
+        )
+        .bind(uid)
+        .bind(points)
+        .bind(source_type)
+        .bind(ts)
+        .bind(ts)
+        .execute(&art)
+        .await
+        .unwrap();
+    }
+    sqlx::query(
+        "INSERT INTO guild_reward_redemptions(reward_id, uid, frozen_coins, status, user_note, created_at) \
+         VALUES(1, ?, 30, 'pending', 'pending redemption', ?)",
+    )
+    .bind(uid)
+    .bind(ts)
+    .execute(&art)
+    .await
+    .unwrap();
+
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/admin/points/penalize",
+            json!({ "uid": uid, "divisor": 3, "note": "bad divisor" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/admin/points/penalize",
+            json!({ "uid": uid, "divisor": 5, "note": "" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/admin/points/penalize",
+            json!({ "uid": "u_missing_penalty", "divisor": 5, "note": "missing uid" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    let reason = "speed sketch farming";
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            "/api/art/admin/points/penalize",
+            json!({ "uid": uid, "divisor": 5, "note": reason }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "penalty should pass: {body:?}");
+    assert_eq!(body["previousTotal"], 103);
+    assert_eq!(body["targetTotal"], 20);
+    assert_eq!(body["deductedPoints"], 83);
+    assert_eq!(body["cancelledRedemptions"], 1);
+
+    let total: i64 =
+        sqlx::query_scalar("SELECT COALESCE(SUM(points), 0) FROM points_ledger WHERE uid=?")
+            .bind(uid)
+            .fetch_one(&art)
+            .await
+            .unwrap();
+    assert_eq!(total, 20);
+    let penalty_points: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(SUM(points), 0) FROM points_ledger WHERE uid=? AND source_type='penalty'",
+    )
+    .bind(uid)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    assert_eq!(penalty_points, -83);
+    let (redemption_status, admin_note): (String, Option<String>) = sqlx::query_as(
+        "SELECT status, admin_note FROM guild_reward_redemptions WHERE uid=? ORDER BY id DESC LIMIT 1",
+    )
+    .bind(uid)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    assert_eq!(redemption_status, "cancelled");
+    assert!(admin_note.unwrap_or_default().contains(reason));
+
+    let (status, body) = send(&app.router, get("/api/art/guild/leaderboard", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    let entry = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["uid"] == uid)
+        .expect("penalized user should remain on leaderboard with positive earned coins");
+    assert_eq!(entry["earned"], 20);
+}
+
+#[tokio::test]
 async fn guild_budget_uses_manual_supplies_and_physical_spends() {
     let app = setup().await;
     let art = app.state.pools.art.clone();

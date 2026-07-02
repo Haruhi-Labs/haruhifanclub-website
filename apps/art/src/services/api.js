@@ -223,6 +223,7 @@ export const api = {
   adminDeleteCreator: (uid) => request('DELETE', `${API_PREFIX}/admin/creators/${encodeURIComponent(uid)}`),
 
   adminGrantPoints: (body) => request('POST', `${API_PREFIX}/admin/points/grant`, { body }),
+  adminPenalizePoints: (body) => request('POST', `${API_PREFIX}/admin/points/penalize`, { body }),
 
   // Points & Leaderboard
   pointsLeaderboard: async (page = 1) => {

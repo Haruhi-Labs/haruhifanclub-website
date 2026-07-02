@@ -772,6 +772,33 @@
                         </button>
                       </div>
                     </div>
+                    <div class="points-penalty-row">
+                      <div class="points-penalty-copy">
+                        <b>刷画惩罚</b>
+                        <span>将当前金币折算为原来的 1/5 或 1/10，并影响历史累计金币。</span>
+                      </div>
+                      <input
+                        v-model="pointsPenaltyForm.reason"
+                        class="input sm"
+                        placeholder="惩罚原因 (必填)"
+                      />
+                      <div class="points-penalty-actions">
+                        <button
+                          class="btn-ghost danger sm"
+                          :disabled="!pointsPenaltyForm.reason"
+                          @click="penalizePoints(5)"
+                        >
+                          惩罚 ÷5
+                        </button>
+                        <button
+                          class="btn-ghost danger sm"
+                          :disabled="!pointsPenaltyForm.reason"
+                          @click="penalizePoints(10)"
+                        >
+                          惩罚 ÷10
+                        </button>
+                      </div>
+                    </div>
 
                     <div class="ph-list compact">
                       <div class="ph-row head">
@@ -2543,6 +2570,7 @@ const creatorProductionStats = ref({
   data: [],
 })
 const pointsForm = ref({ amount: 10, reason: '' })
+const pointsPenaltyForm = ref({ reason: '' })
 
 // --- 公会系统管理数据 ---
 const guildTab = ref('quests')
@@ -2974,6 +3002,7 @@ async function selectCreator(c) {
   previewAvatar.value = null
   saveMsg.value = ''
   pointsForm.value = { amount: 10, reason: '' }
+  pointsPenaltyForm.value = { reason: '' }
 
   // 加载积分
   const res = await api.adminPointsLedger({ uid: c.uid })
@@ -3061,6 +3090,37 @@ async function grantPoints() {
     await loadCreatorProductionStats()
   } catch (e) {
     alert('操作失败')
+  }
+}
+
+async function penalizePoints(divisor) {
+  if (!selectedCreator.value || !pointsPenaltyForm.value.reason) return
+  const uid = selectedCreator.value.uid
+  const name = selectedCreator.value.name || uid
+  const reason = pointsPenaltyForm.value.reason.trim()
+  if (!reason) return
+  if (
+    !confirm(
+      `确认对「${name}」执行金币惩罚 ÷${divisor}？\n该操作会扣减历史累计获得金币，并自动取消待审核兑换。`
+    )
+  ) {
+    return
+  }
+  try {
+    const result = await api.adminPenalizePoints({
+      uid,
+      divisor,
+      note: reason,
+    })
+    const res = await api.adminPointsLedger({ uid })
+    creatorLogs.value = res.data || []
+    pointsPenaltyForm.value.reason = ''
+    saveMsg.value = `已扣除 ${result.deductedPoints || 0}G，当前 ${result.targetTotal || 0}G，取消待审兑换 ${result.cancelledRedemptions || 0} 个`
+    setTimeout(() => (saveMsg.value = ''), 2600)
+    await loadCreators()
+    await loadCreatorProductionStats()
+  } catch (e) {
+    alert('惩罚失败: ' + (e.message || '未知错误'))
   }
 }
 
@@ -3557,9 +3617,14 @@ async function deleteGuildReward(reward) {
   await loadGuildAdmin()
 }
 
-function adminNote(defaultText = '') {
+function adminNote(defaultText = '', required = false) {
   const note = window.prompt('管理员备注：', defaultText)
-  return note === null ? null : note
+  if (note === null) return null
+  if (required && !note.trim()) {
+    alert('请填写驳回理由')
+    return null
+  }
+  return note
 }
 
 function formatDateTime(value) {
@@ -3695,7 +3760,7 @@ async function approveRating(item) {
 }
 
 async function rejectRating(item) {
-  const note = adminNote('暂未满足评级要求')
+  const note = adminNote('暂未满足评级要求', true)
   if (note === null) return
   await api.adminRejectGuildRating(item.id, note)
   await loadGuildAdmin()
@@ -4288,6 +4353,36 @@ onMounted(async () => {
 }
 .points-action-row {
   margin-bottom: 16px;
+}
+.points-penalty-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1.2fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--sos-danger) 35%, var(--sos-border-default));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sos-danger) 8%, var(--sos-bg-surface));
+}
+.points-penalty-copy {
+  display: grid;
+  gap: 4px;
+}
+.points-penalty-copy b {
+  color: var(--sos-danger);
+  font-size: 13px;
+}
+.points-penalty-copy span {
+  color: var(--sos-text-tertiary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.points-penalty-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .ph-list.compact {
@@ -6179,6 +6274,16 @@ onMounted(async () => {
   .pa-form {
     flex-direction: column;
     gap: 8px;
+  }
+  .points-penalty-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .points-penalty-actions {
+    justify-content: stretch;
+  }
+  .points-penalty-actions .btn-ghost {
+    flex: 1;
   }
   .input-group {
     width: 100%;
