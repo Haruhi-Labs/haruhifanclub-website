@@ -255,7 +255,10 @@ watch([storyId, chapterId], load, { immediate: true })
   position: sticky;
   top: 0;
   z-index: 30;
-  display: flex;
+  /* 三栏等宽（1fr｜中｜1fr）让标题对齐视口中心，与正文中轴一致；
+     左右按钮宽度不同也不会把标题挤偏 */
+  display: grid;
+  grid-template-columns: 1fr minmax(0, auto) 1fr;
   align-items: center;
   gap: var(--sos-space-3);
   padding: var(--sos-space-3) var(--sos-space-5);
@@ -263,8 +266,11 @@ watch([storyId, chapterId], load, { immediate: true })
   backdrop-filter: blur(8px);
   border-bottom: 1px solid rgba(120, 100, 80, 0.14);
 }
+.reader__bar > .reader__iconbtn {
+  justify-self: start;
+}
 .reader__crumb {
-  flex: 1;
+  justify-self: center;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -288,6 +294,7 @@ watch([storyId, chapterId], load, { immediate: true })
   white-space: nowrap;
 }
 .reader__bar-right {
+  justify-self: end;
   display: flex;
   gap: var(--sos-space-2);
 }
