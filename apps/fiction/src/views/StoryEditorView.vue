@@ -15,7 +15,7 @@ import {
   reorderChapters,
   uploadCover,
 } from '@/api'
-import { CATEGORIES, RATINGS, wordLabel, fmtDate } from '@/lib/format'
+import { CATEGORIES, wordLabel, fmtDate } from '@/lib/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,7 +26,7 @@ const loading = ref(true)
 const saving = ref(false)
 const story = ref(null)
 const chapters = ref([])
-const form = ref({ title: '', summary: '', category: 'other', contentRating: 'general', isCompleted: false, coverPath: null, tags: [] })
+const form = ref({ title: '', summary: '', category: 'daily', isCompleted: false, coverPath: null, tags: [] })
 const tagInput = ref('')
 
 async function load() {
@@ -39,7 +39,6 @@ async function load() {
       title: r.story.title,
       summary: r.story.summary,
       category: r.story.category,
-      contentRating: r.story.contentRating,
       isCompleted: r.story.isCompleted,
       coverPath: r.story.coverPath,
       tags: [...(r.story.tags || [])],
@@ -212,20 +211,12 @@ watch(id, load, { immediate: true })
               <span>简介</span>
               <textarea v-model="form.summary" rows="4" maxlength="2000" placeholder="向读者介绍你的故事……"></textarea>
             </label>
-            <div class="se__row">
-              <label class="se__field">
-                <span>分类</span>
-                <SosSelect v-model="form.category">
-                  <option v-for="c in CATEGORIES" :key="c.slug" :value="c.slug">{{ c.label }}</option>
-                </SosSelect>
-              </label>
-              <label class="se__field">
-                <span>分级</span>
-                <SosSelect v-model="form.contentRating">
-                  <option v-for="r in RATINGS" :key="r.slug" :value="r.slug">{{ r.label }}</option>
-                </SosSelect>
-              </label>
-            </div>
+            <label class="se__field">
+              <span>分类</span>
+              <SosSelect v-model="form.category">
+                <option v-for="c in CATEGORIES" :key="c.slug" :value="c.slug">{{ c.label }}</option>
+              </SosSelect>
+            </label>
             <label class="se__field">
               <span>标签</span>
               <div class="se__tags">

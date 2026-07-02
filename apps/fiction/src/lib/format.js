@@ -1,32 +1,18 @@
-// 展示层工具：分类/分级映射、字数、阅读时长、时间格式化。
+// 展示层工具：分类映射、字数、阅读时长、时间格式化。
 
 // 与后端 fiction.rs CATEGORIES 保持一致
 export const CATEGORIES = [
   { slug: 'daily', label: '日常' },
   { slug: 'romance', label: '恋爱' },
-  { slug: 'school', label: '校园' },
-  { slug: 'supernatural', label: '超自然' },
-  { slug: 'scifi', label: '科幻幻想' },
   { slug: 'adventure', label: '冒险' },
   { slug: 'parallel', label: '平行世界' },
+  { slug: 'fantasy', label: '幻想' },
+  { slug: 'mystery', label: '推理' },
   { slug: 'comedy', label: '欢乐向' },
-  { slug: 'drama', label: '剧情' },
-  { slug: 'healing', label: '治愈' },
-  { slug: 'other', label: '其它' },
-]
-
-export const RATINGS = [
-  { slug: 'general', label: '全年龄' },
-  { slug: 'teen', label: '青少年' },
-  { slug: 'mature', label: '限制级' },
 ]
 
 export function categoryLabel(slug) {
-  return CATEGORIES.find((c) => c.slug === slug)?.label || '其它'
-}
-
-export function ratingLabel(slug) {
-  return RATINGS.find((r) => r.slug === slug)?.label || '全年龄'
+  return CATEGORIES.find((c) => c.slug === slug)?.label || '日常'
 }
 
 /** 大数字紧凑显示：12345 → 1.2万 */

@@ -250,14 +250,6 @@ body {
 .fic-item__dot {
   color: var(--sos-text-tertiary);
 }
-.fic-item__r18 {
-  font-size: var(--sos-text-2xs);
-  color: #fff;
-  background: var(--sos-danger);
-  border-radius: var(--sos-radius-xs);
-  padding: 0 5px;
-  font-weight: 700;
-}
 .fic-item__summary {
   font-size: var(--sos-text-sm);
   color: var(--sos-text-tertiary);

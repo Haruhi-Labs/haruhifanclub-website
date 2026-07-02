@@ -110,8 +110,6 @@ watch(id, load, { immediate: true })
             </RouterLink>
             <SosBadge v-if="story.isCompleted" variant="success">已完结</SosBadge>
             <SosBadge v-else variant="accent">连载中</SosBadge>
-            <SosBadge v-if="story.contentRating === 'mature'" variant="danger">限制级</SosBadge>
-            <SosBadge v-else-if="story.contentRating === 'teen'" variant="outline">青少年</SosBadge>
           </div>
           <h1 class="story__title">{{ story.title }}</h1>
           <p class="story__author">作者：{{ story.authorName || '佚名' }}</p>
