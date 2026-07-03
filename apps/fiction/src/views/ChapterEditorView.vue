@@ -85,7 +85,7 @@ async function togglePublish() {
   try {
     await updateChapter(storyId.value, chapterId.value, { status: nextStatus })
     status.value = nextStatus
-    toast.success(nextStatus === 'published' ? '章节已发布' : '已转为草稿')
+    toast.success(nextStatus === 'published' ? '章节已发布，读者现在可以读到' : '已设为草稿')
   } catch (e) {
     toast.danger(e.message || '操作失败')
   }
@@ -111,9 +111,9 @@ watch([storyId, chapterId], load, { immediate: true })
       <span class="ce__save" :class="`ce__save--${saveState}`">{{ saveLabel }}</span>
       <span class="ce__wc">{{ wordCount }} 字</span>
       <div class="ce__bar-right">
-        <SosButton variant="secondary" size="sm" @click="save">保存草稿</SosButton>
+        <SosButton variant="secondary" size="sm" @click="save">保存</SosButton>
         <SosButton :variant="status === 'published' ? 'ghost' : 'primary'" size="sm" @click="togglePublish">
-          {{ status === 'published' ? '转为草稿' : '发布本章' }}
+          {{ status === 'published' ? '设为草稿' : '发布本章' }}
         </SosButton>
       </div>
     </header>

@@ -44,6 +44,7 @@ const router = createRouter({
 
     // 创作（需登录）
     { path: '/write', name: 'write', component: WriteDashboardView, meta: { requiresAuth: true } },
+    { path: '/write/new', name: 'write-new', component: StoryEditorView, meta: { requiresAuth: true } },
     { path: '/write/:id', name: 'write-story', component: StoryEditorView, meta: { requiresAuth: true } },
     { path: '/write/:id/chapter/:cid', name: 'write-chapter', component: ChapterEditorView, meta: { requiresAuth: true } },
 

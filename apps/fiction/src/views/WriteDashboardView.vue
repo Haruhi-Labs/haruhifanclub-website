@@ -1,15 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
-import { SosButton, SosBadge, SosSkeleton, useToast } from '@haruhi/ui'
+import { SosButton, SosBadge, SosSkeleton } from '@haruhi/ui'
 import CoverImage from '@/components/CoverImage.vue'
-import { myStories, myStats, createStory } from '@/api'
+import { myStories, myStats } from '@/api'
 import { compact, wordLabel, fmtDate } from '@/lib/format'
 
 const router = useRouter()
-const toast = useToast()
 const loading = ref(true)
-const creating = ref(false)
 const stories = ref([])
 const stats = ref(null)
 
@@ -26,20 +24,15 @@ async function load() {
   }
 }
 
-async function create() {
-  creating.value = true
-  try {
-    const r = await createStory({ title: '未命名作品' })
-    router.push(`/write/${r.id}`)
-  } catch (e) {
-    toast.danger(e.message || '创建失败')
-    creating.value = false
-  }
+// 不再预建空草稿：仅进入「新建态」，用户填写并保存后才真正创建作品
+function create() {
+  router.push('/write/new')
 }
 
+// 一层发布：下架=hidden；有已发布章节即对读者可见（已发布）；否则草稿
 function statusBadge(s) {
-  if (s.status === 'published') return { v: 'success', t: '已发布' }
   if (s.status === 'hidden') return { v: 'danger', t: '已下架' }
+  if (s.chapterCount > 0) return { v: 'success', t: '已发布' }
   return { v: 'outline', t: '草稿' }
 }
 
@@ -53,7 +46,7 @@ onMounted(load)
         <h1 class="wd__title">创作中心</h1>
         <p class="wd__sub">管理你的同人作品，续写那个夏天。</p>
       </div>
-      <SosButton variant="primary" size="lg" :loading="creating" @click="create">＋ 新建作品</SosButton>
+      <SosButton variant="primary" size="lg" @click="create">＋ 新建作品</SosButton>
     </header>
 
     <div v-if="stats" class="wd__stats">
@@ -97,7 +90,7 @@ onMounted(load)
     <div v-else class="wd__empty">
       <h2>还没有作品</h2>
       <p>你的第一个 SOS 团故事，从这里开始。</p>
-      <SosButton variant="primary" size="lg" :loading="creating" @click="create">写第一部作品</SosButton>
+      <SosButton variant="primary" size="lg" @click="create">写第一部作品</SosButton>
     </div>
   </div>
 </template>
