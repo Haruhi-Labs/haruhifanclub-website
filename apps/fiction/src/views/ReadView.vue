@@ -162,9 +162,11 @@ watch([storyId, chapterId], load, { immediate: true })
         <button class="reader__pagerbtn" :disabled="!next" @click="go(next)">下一章 ›</button>
       </nav>
 
-      <div class="reader__comments">
-        <CommentSection :story-id="storyId" :chapter-id="chapterId" />
-      </div>
+      <section class="reader__comments">
+        <div class="reader__comments-inner">
+          <CommentSection :story-id="storyId" :chapter-id="chapterId" />
+        </div>
+      </section>
     </template>
 
     <!-- 设置面板 -->
@@ -247,7 +249,8 @@ watch([storyId, chapterId], load, { immediate: true })
   background: var(--r-bg);
   color: var(--r-text);
   transition: background 0.2s ease, color 0.2s ease;
-  padding-bottom: var(--sos-space-10);
+  /* 底部留白由评论区块自带 padding 承担；此处置 0，避免区块下方露出一条阅读底色 */
+  padding-bottom: 0;
 }
 .reader__progress {
   position: fixed;
@@ -508,15 +511,24 @@ watch([storyId, chapterId], load, { immediate: true })
   border-color: var(--sos-accent);
   color: var(--sos-accent);
 }
-/* 评论区脱离阅读主题，回到设计系统中性表面，保证任意背景（含夜间）下都清晰可读 */
+/* 评论区：脱离阅读主题的全宽中性区块（自带页面底色，夜间等任意背景下都清晰可读）；
+   顶部分隔线自然分区，内部内容与正文同宽同轴，视觉上从故事平滑过渡到讨论区，
+   不再是突兀地浮在沉浸正文下方的一张卡片 */
 .reader__comments {
-  width: min(48rem, 100% - 2 * var(--sos-space-5));
-  margin: var(--sos-space-10) auto 0;
-  background: var(--sos-bg-surface);
+  margin-top: var(--sos-space-10);
+  /* 横向不加内边距：底色全宽铺满，内缩交给内层容器，使评论与正文严格同宽同轴 */
+  padding: var(--sos-space-8) 0 var(--sos-space-10);
+  background: var(--sos-bg-page);
   color: var(--sos-text-primary);
-  border: 1px solid var(--sos-border-subtle);
-  border-radius: var(--sos-radius-lg);
-  padding: var(--sos-space-6);
+  border-top: 1px solid var(--sos-border-subtle);
+}
+.reader__comments-inner {
+  width: min(var(--r-width), 100% - 2 * var(--sos-space-5));
+  margin-inline: auto;
+}
+/* 区块已有顶部内边距，去掉组件自带的上外边距，避免双重留白 */
+.reader__comments :deep(.cmt) {
+  margin-top: 0;
 }
 
 /* 面板与抽屉 */
