@@ -1,8 +1,9 @@
 <script setup>
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { SosSearch, SosPagination, SosSkeleton, SosEmptyState } from '@haruhi/ui'
+import { SosSearch, SosPagination, SosSkeleton, SosEmptyState, SosButton, SosModal } from '@haruhi/ui'
 import StoryCard from '@/components/StoryCard.vue'
+import LibraryFilters from '@/components/LibraryFilters.vue'
 import { listStories, getTags } from '@/api'
 import { CATEGORIES } from '@/lib/format'
 
@@ -29,6 +30,15 @@ const COMPLETED = [
 ]
 
 const f = reactive({ category: '', sort: 'latest', completed: '', tag: '', q: '', page: 1 })
+
+// 移动端筛选抽屉开关；徽标计数用于「筛选」按钮
+const showFilters = ref(false)
+const activeFilters = computed(() => [f.category, f.completed, f.tag].filter(Boolean).length)
+
+function resetFilters() {
+  searchInput.value = ''
+  apply({ category: '', completed: '', tag: '', q: '' })
+}
 
 function readQuery() {
   f.category = route.query.category || ''
@@ -94,54 +104,27 @@ onMounted(async () => {
 
 <template>
   <div class="fiction-page fiction-page--wide lib">
+    <!-- PC 侧栏（≤820px 隐藏，改由「筛选」抽屉承载） -->
     <aside class="lib__side">
-      <div class="lib__block">
-        <h3 class="lib__block-title">分类</h3>
-        <ul class="lib__cats">
-          <li>
-            <button :class="{ on: !f.category }" @click="apply({ category: '' })">全部作品</button>
-          </li>
-          <li v-for="c in CATEGORIES" :key="c.slug">
-            <button :class="{ on: f.category === c.slug }" @click="apply({ category: c.slug })">
-              {{ c.label }}
-            </button>
-          </li>
-        </ul>
-      </div>
-
-      <div class="lib__block">
-        <h3 class="lib__block-title">连载状态</h3>
-        <div class="lib__chips">
-          <button
-            v-for="c in COMPLETED"
-            :key="c.key"
-            class="lib__chip"
-            :class="{ on: f.completed === c.key }"
-            @click="apply({ completed: c.key })"
-          >
-            {{ c.label }}
-          </button>
-        </div>
-      </div>
-
-      <div v-if="tags.length" class="lib__block">
-        <h3 class="lib__block-title">热门标签</h3>
-        <div class="lib__tagcloud">
-          <button
-            v-for="t in tags"
-            :key="t.name"
-            class="lib__tag"
-            :class="{ on: f.tag === t.name }"
-            @click="apply({ tag: f.tag === t.name ? '' : t.name })"
-          >
-            {{ t.name }}
-          </button>
-        </div>
-      </div>
+      <LibraryFilters
+        :filters="f"
+        :categories="CATEGORIES"
+        :completed-options="COMPLETED"
+        :tags="tags"
+        @apply="apply"
+      />
     </aside>
 
     <main class="lib__main">
       <div class="lib__bar">
+        <!-- 移动端筛选入口（PC 隐藏） -->
+        <button class="lib__filter-btn" @click="showFilters = true">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+          筛选
+          <span v-if="activeFilters" class="lib__filter-badge">{{ activeFilters }}</span>
+        </button>
         <div class="lib__sorts">
           <button
             v-for="s in SORTS"
@@ -159,7 +142,6 @@ onMounted(async () => {
             class="lib__search"
             v-model="searchInput"
             placeholder="搜索书名 / 作者"
-            submit
             @search="apply({ q: searchInput })"
             @clear="apply({ q: '' })"
           />
@@ -202,6 +184,23 @@ onMounted(async () => {
         </template>
       </SosEmptyState>
     </main>
+
+    <!-- 移动端筛选抽屉：复用侧栏同一套筛选块 -->
+    <SosModal v-model:open="showFilters" title="筛选">
+      <LibraryFilters
+        :filters="f"
+        :categories="CATEGORIES"
+        :completed-options="COMPLETED"
+        :tags="tags"
+        @apply="apply"
+      />
+      <template #footer>
+        <SosButton variant="ghost" @click="resetFilters">重置</SosButton>
+        <SosButton variant="primary" @click="showFilters = false">
+          查看 {{ pagination.total }} 部作品
+        </SosButton>
+      </template>
+    </SosModal>
   </div>
 </template>
 
@@ -215,65 +214,37 @@ onMounted(async () => {
 .lib__side {
   position: sticky;
   top: calc(var(--sos-appbar-height, 64px) + var(--sos-space-4));
-  display: flex;
-  flex-direction: column;
-  gap: var(--sos-space-6);
 }
-.lib__block-title {
-  font-size: var(--sos-text-sm);
-  font-weight: 700;
-  color: var(--sos-text-secondary);
-  margin: 0 0 var(--sos-space-3);
-  letter-spacing: var(--sos-tracking-wide);
-}
-.lib__cats {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.lib__cats button {
-  width: 100%;
-  text-align: left;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  padding: 7px 12px;
-  border-radius: var(--sos-radius-sm);
-  color: var(--sos-text-secondary);
-  font-size: var(--sos-text-sm);
-}
-.lib__cats button:hover {
-  background: var(--sos-bg-subtle);
-}
-.lib__cats button.on {
-  background: var(--sos-accent-soft);
-  color: var(--sos-accent);
-  font-weight: 600;
-}
-.lib__chips,
-.lib__tagcloud {
-  display: flex;
-  flex-wrap: wrap;
+/* 移动端筛选入口：PC 隐藏，≤820px 显示 */
+.lib__filter-btn {
+  display: none;
+  align-items: center;
   gap: 6px;
-}
-.lib__chip,
-.lib__tag {
   border: 1px solid var(--sos-border-default);
   background: var(--sos-bg-surface);
+  color: var(--sos-text-primary);
   cursor: pointer;
-  padding: 4px 12px;
+  padding: 6px 14px;
   border-radius: var(--sos-radius-full);
-  font-size: var(--sos-text-xs);
-  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  font-weight: 600;
 }
-.lib__chip.on,
-.lib__tag.on {
+.lib__filter-btn:hover {
   border-color: var(--sos-accent);
-  background: var(--sos-accent-soft);
   color: var(--sos-accent);
+}
+.lib__filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-accent);
+  color: var(--sos-accent-contrast);
+  font-size: var(--sos-text-2xs);
+  font-weight: 700;
 }
 /* 精炼工具条：吸顶，排序在左、结果计数 + 搜索在右 */
 .lib__bar {
@@ -353,14 +324,32 @@ onMounted(async () => {
   .lib {
     grid-template-columns: 1fr;
   }
+  /* 移动端隐藏 PC 侧栏，筛选改由「筛选」抽屉承载，主列表占满整屏 */
   .lib__side {
-    position: static;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: var(--sos-space-4);
+    display: none;
   }
-  .lib__block {
-    flex: 1 1 45%;
+  /* 工具条重排：第一行「筛选 …… 计数 + 搜索」，第二行排序横向滚动，避免挤成一坨 */
+  .lib__filter-btn {
+    display: inline-flex;
+    order: 1;
+  }
+  .lib__bar-end {
+    order: 2;
+    margin-left: auto;
+  }
+  .lib__sorts {
+    order: 3;
+    flex-basis: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .lib__sorts::-webkit-scrollbar {
+    display: none;
+  }
+  .lib__search {
+    flex: 1;
+    min-width: 150px;
   }
 }
 </style>
