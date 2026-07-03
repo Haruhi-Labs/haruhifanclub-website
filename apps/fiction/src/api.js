@@ -41,9 +41,8 @@ export const myComments = (params = {}) => api.get(`/me/comments?${qs(params)}`)
 export const myStats = () => api.get('/me/stats')
 export const createStory = (body) => api.post('/me/stories', body)
 export const updateStory = (id, body) => api.patch(`/me/stories/${id}`, body)
-export const deleteStory = (id) => api.del(`/me/stories/${id}`)
-export const publishStory = (id) => api.post(`/me/stories/${id}/publish`)
-export const unpublishStory = (id) => api.post(`/me/stories/${id}/unpublish`)
+export const takedownStory = (id) => api.del(`/me/stories/${id}`) // 下架（软删，可恢复）
+export const restoreStory = (id) => api.post(`/me/stories/${id}/restore`) // 恢复上架
 export const createChapter = (id, body) => api.post(`/me/stories/${id}/chapters`, body)
 export const updateChapter = (id, cid, body) => api.patch(`/me/stories/${id}/chapters/${cid}`, body)
 export const deleteChapter = (id, cid) => api.del(`/me/stories/${id}/chapters/${cid}`)

@@ -97,8 +97,7 @@ pub fn router() -> Router<AppState> {
             "/me/stories/{id}",
             get(my_story).patch(update_story).delete(delete_story),
         )
-        .route("/me/stories/{id}/publish", post(publish_story))
-        .route("/me/stories/{id}/unpublish", post(unpublish_story))
+        .route("/me/stories/{id}/restore", post(restore_story))
         .route("/me/stories/{id}/chapters", post(create_chapter))
         .route("/me/stories/{id}/chapters/reorder", post(reorder_chapters))
         .route(
@@ -199,8 +198,8 @@ async fn list_stories(
     let page_size = clamp_int(getq("pageSize"), 1, 48, 12);
     let offset = (page - 1) * page_size;
 
-    // 已发布是公开列表的硬条件，其余为可选过滤。
-    let mut where_sql = String::from("WHERE status = 'published'");
+    // 读者可见的硬条件：未被作者下架，且至少有一个已发布章节；其余为可选过滤。
+    let mut where_sql = String::from("WHERE status != 'hidden' AND chapter_count > 0");
     let mut params: Vec<String> = Vec::new();
 
     if let Some(c) = getq("category") {
@@ -282,7 +281,7 @@ async fn get_story(
     user: Option<AuthUser>,
 ) -> AppResult<Json<Value>> {
     let row: Option<StoryRow> = sqlx::query_as(&format!(
-        "SELECT {STORY_COLS} FROM stories WHERE id = ? AND status = 'published'"
+        "SELECT {STORY_COLS} FROM stories WHERE id = ? AND status != 'hidden' AND chapter_count > 0"
     ))
     .bind(id)
     .fetch_optional(&state.pools.fiction)
@@ -332,7 +331,7 @@ async fn get_chapter(
     Path((id, cid)): Path<(i64, i64)>,
 ) -> AppResult<Json<Value>> {
     let story: Option<(i64, String, String, Option<String>)> = sqlx::query_as(
-        "SELECT id, title, author_name, author_uid FROM stories WHERE id = ? AND status = 'published'",
+        "SELECT id, title, author_name, author_uid FROM stories WHERE id = ? AND status != 'hidden'",
     )
     .bind(id)
     .fetch_optional(&state.pools.fiction)
@@ -401,7 +400,7 @@ async fn get_chapter(
 /// POST /api/fiction/stories/{id}/views —— 阅读量 +1（公开，无需登录；前端每会话调一次）。
 async fn bump_view(State(state): State<AppState>, Path(id): Path<i64>) -> AppResult<Json<Value>> {
     let res = sqlx::query(
-        "UPDATE stories SET view_count = view_count + 1 WHERE id = ? AND status = 'published'",
+        "UPDATE stories SET view_count = view_count + 1 WHERE id = ? AND status != 'hidden'",
     )
     .bind(id)
     .execute(&state.pools.fiction)
@@ -752,9 +751,11 @@ async fn recompute_story(pool: &SqlitePool, id: i64) -> AppResult<()> {
         "UPDATE stories SET \
          word_count = (SELECT COALESCE(SUM(word_count), 0) FROM chapters WHERE story_id = ? AND status = 'published'), \
          chapter_count = (SELECT COUNT(*) FROM chapters WHERE story_id = ? AND status = 'published'), \
+         published_at = COALESCE(published_at, (SELECT MIN(published_at) FROM chapters WHERE story_id = ? AND status = 'published')), \
          last_chapter_at = (SELECT published_at FROM chapters WHERE story_id = ? AND status = 'published' ORDER BY datetime(published_at) DESC, id DESC LIMIT 1), \
          updated_at = ? WHERE id = ?",
     )
+    .bind(id)
     .bind(id)
     .bind(id)
     .bind(id)
@@ -986,37 +987,9 @@ async fn delete_story(
     Ok(Json(json!({ "ok": true })))
 }
 
-/// POST /api/fiction/me/stories/{id}/publish —— 发布作品（要求至少 1 个已发布章节）。
-async fn publish_story(
-    State(state): State<AppState>,
-    Path(id): Path<i64>,
-    user: AuthUser,
-) -> AppResult<Json<Value>> {
-    assert_owner(&state.pools.fiction, id, user.id).await?;
-    let published: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM chapters WHERE story_id = ? AND status = 'published'",
-    )
-    .bind(id)
-    .fetch_one(&state.pools.fiction)
-    .await?;
-    if published == 0 {
-        return Err(AppError::bad_request("请先发布至少一个章节，再发布作品"));
-    }
-    let now = now_iso();
-    sqlx::query(
-        "UPDATE stories SET status = 'published', published_at = COALESCE(published_at, ?), updated_at = ? WHERE id = ?",
-    )
-    .bind(&now)
-    .bind(&now)
-    .bind(id)
-    .execute(&state.pools.fiction)
-    .await?;
-    recompute_story(&state.pools.fiction, id).await?;
-    Ok(Json(json!({ "ok": true })))
-}
-
-/// POST /api/fiction/me/stories/{id}/unpublish —— 撤回为草稿。
-async fn unpublish_story(
+/// POST /api/fiction/me/stories/{id}/restore —— 恢复上架（解除作者下架标记）。
+/// 作品是否对读者可见由「是否有已发布章节」自动决定，这里只把 hidden 清回 draft。
+async fn restore_story(
     State(state): State<AppState>,
     Path(id): Path<i64>,
     user: AuthUser,
@@ -1027,6 +1000,7 @@ async fn unpublish_story(
         .bind(id)
         .execute(&state.pools.fiction)
         .await?;
+    recompute_story(&state.pools.fiction, id).await?;
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -1621,27 +1595,29 @@ async fn my_bookmarks(
 /// GET /api/fiction/me/stats —— 我的创作数据总览。
 async fn my_stats(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     let pool = &state.pools.fiction;
-    let status_rows: Vec<(String, i64)> = sqlx::query_as(
-        "SELECT status, COUNT(*) FROM stories WHERE author_user_id = ? GROUP BY status",
+    // 作品口径按可见性：下架=hidden；已发布=未下架且有已发布章节；草稿=其余
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM stories WHERE author_user_id = ?")
+        .bind(user.id)
+        .fetch_one(pool)
+        .await?;
+    let hidden: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM stories WHERE author_user_id = ? AND status = 'hidden'",
     )
     .bind(user.id)
-    .fetch_all(pool)
+    .fetch_one(pool)
     .await?;
-    let (mut total, mut published, mut draft, mut hidden) = (0i64, 0i64, 0i64, 0i64);
-    for (st, c) in &status_rows {
-        total += c;
-        match st.as_str() {
-            "published" => published += c,
-            "draft" => draft += c,
-            "hidden" => hidden += c,
-            _ => {}
-        }
-    }
+    let published: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM stories WHERE author_user_id = ? AND status != 'hidden' AND chapter_count > 0",
+    )
+    .bind(user.id)
+    .fetch_one(pool)
+    .await?;
+    let draft = total - hidden - published;
 
-    // 仅统计公开作品的对外数据
+    // 仅统计对读者可见作品的对外数据
     let agg: (Option<i64>, Option<i64>, Option<i64>, Option<i64>) = sqlx::query_as(
         "SELECT SUM(word_count), SUM(view_count), SUM(like_count), SUM(bookmark_count) \
-         FROM stories WHERE author_user_id = ? AND status = 'published'",
+         FROM stories WHERE author_user_id = ? AND status != 'hidden' AND chapter_count > 0",
     )
     .bind(user.id)
     .fetch_one(pool)

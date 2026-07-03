@@ -29,9 +29,10 @@ function create() {
   router.push('/write/new')
 }
 
+// 一层发布：下架=hidden；有已发布章节即对读者可见（已发布）；否则草稿
 function statusBadge(s) {
-  if (s.status === 'published') return { v: 'success', t: '已发布' }
   if (s.status === 'hidden') return { v: 'danger', t: '已下架' }
+  if (s.chapterCount > 0) return { v: 'success', t: '已发布' }
   return { v: 'outline', t: '草稿' }
 }
 

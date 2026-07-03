@@ -7,9 +7,8 @@ import {
   myStory,
   createStory,
   updateStory,
-  deleteStory,
-  publishStory,
-  unpublishStory,
+  takedownStory,
+  restoreStory,
   createChapter,
   updateChapter,
   deleteChapter,
@@ -31,6 +30,14 @@ const story = ref(null)
 const chapters = ref([])
 const form = ref({ title: '', summary: '', category: 'daily', isCompleted: false, coverPath: null, tags: [] })
 const tagInput = ref('')
+
+// 一层发布模型：作品是否对读者可见由「已发布章节数」自动决定；作者可主动下架
+const publishedCount = computed(() => chapters.value.filter((c) => c.status === 'published').length)
+const visState = computed(() => {
+  if (!story.value) return 'new'
+  if (story.value.status === 'hidden') return 'hidden'
+  return publishedCount.value > 0 ? 'public' : 'draft'
+})
 
 async function load() {
   // 新建态：仅呈现空白作品信息表单，不请求后端、不创建草稿
@@ -151,31 +158,23 @@ async function move(i, dir) {
   }
 }
 
-async function onPublish() {
+async function onTakedown() {
+  if (!window.confirm('确定下架该作品？下架后读者将无法访问，可在创作中心重新发布恢复，数据不会丢失。')) return
   try {
-    await publishStory(id.value)
-    toast.success('作品已发布')
-    await load()
-  } catch (e) {
-    toast.danger(e.message || '发布失败')
-  }
-}
-async function onUnpublish() {
-  try {
-    await unpublishStory(id.value)
-    await load()
-  } catch (e) {
-    toast.danger(e.message || '撤回失败')
-  }
-}
-async function onDelete() {
-  if (!window.confirm('确定下架并删除该作品？读者将无法再看到。')) return
-  try {
-    await deleteStory(id.value)
+    await takedownStory(id.value)
     toast.success('已下架')
     router.push('/write')
   } catch (e) {
-    toast.danger(e.message || '删除失败')
+    toast.danger(e.message || '下架失败')
+  }
+}
+async function onRestore() {
+  try {
+    await restoreStory(id.value)
+    toast.success('已恢复上架')
+    await load()
+  } catch (e) {
+    toast.danger(e.message || '恢复失败')
   }
 }
 
@@ -191,10 +190,10 @@ watch(id, load, { immediate: true })
         <RouterLink to="/write" class="se__back">‹ 创作中心</RouterLink>
         <div class="se__head-right">
           <template v-if="story">
-            <SosBadge v-if="story.status === 'published'" variant="success">已发布</SosBadge>
-            <SosBadge v-else-if="story.status === 'hidden'" variant="danger">已下架</SosBadge>
+            <SosBadge v-if="visState === 'public'" variant="success">已发布</SosBadge>
+            <SosBadge v-else-if="visState === 'hidden'" variant="danger">已下架</SosBadge>
             <SosBadge v-else variant="outline">草稿</SosBadge>
-            <RouterLink v-if="story.status === 'published'" :to="`/story/${story.id}`" class="sos-button sos-button--ghost sos-button--sm">查看</RouterLink>
+            <RouterLink v-if="visState === 'public'" :to="`/story/${story.id}`" class="sos-button sos-button--ghost sos-button--sm">查看</RouterLink>
           </template>
           <SosBadge v-else variant="outline">新建作品</SosBadge>
         </div>
@@ -261,6 +260,24 @@ watch(id, load, { immediate: true })
             <SosButton variant="primary" size="sm" @click="newChapter">＋ 新建章节</SosButton>
           </div>
 
+          <!-- 可见性说明：读者能读到一章 = 作品未下架 且 该章已发布 -->
+          <div class="se__vis" :class="`se__vis--${visState}`">
+            <p class="se__vis-title">
+              <template v-if="visState === 'public'">✅ 已发布 · 读者可阅读其中已发布的章节</template>
+              <template v-else-if="visState === 'hidden'">🚫 已下架 · 读者暂时无法访问</template>
+              <template v-else>📝 草稿 · 尚未公开</template>
+            </p>
+            <p class="se__vis-desc">
+              <template v-if="visState === 'public'">已有 {{ publishedCount }} 章发布、对读者可见；草稿章节仅自己可见。</template>
+              <template v-else-if="visState === 'hidden'">你已主动下架本作品，点「重新发布」即可恢复，数据不会丢失。</template>
+              <template v-else>发布任意章节后，作品会自动出现在书库，读者即可阅读已发布的章节。</template>
+            </p>
+            <div v-if="visState !== 'draft'" class="se__vis-actions">
+              <SosButton v-if="visState === 'hidden'" variant="primary" size="sm" @click="onRestore">重新发布</SosButton>
+              <SosButton v-else variant="danger" size="sm" @click="onTakedown">下架作品</SosButton>
+            </div>
+          </div>
+
           <p v-if="!chapters.length" class="se__empty">还没有章节，点「新建章节」开始写第一章吧。</p>
           <ul v-else class="se__chlist">
             <li v-for="(c, i) in chapters" :key="c.id" class="se__chitem">
@@ -281,17 +298,12 @@ watch(id, load, { immediate: true })
                 </div>
               </div>
               <div class="se__ch-ops">
-                <button @click="toggleChapter(c)">{{ c.status === 'published' ? '转草稿' : '发布' }}</button>
+                <button @click="toggleChapter(c)">{{ c.status === 'published' ? '设为草稿' : '发布' }}</button>
                 <button class="se__del" @click="removeChapter(c)">删除</button>
               </div>
             </li>
           </ul>
 
-          <div class="se__publish">
-            <SosButton v-if="story.status !== 'published'" variant="primary" @click="onPublish">发布作品</SosButton>
-            <SosButton v-else variant="secondary" @click="onUnpublish">撤回作品</SosButton>
-            <SosButton variant="danger" @click="onDelete">删除作品</SosButton>
-          </div>
         </section>
 
         <!-- 新建态占位：先创建作品，再管理章节与发布 -->
@@ -534,12 +546,35 @@ watch(id, load, { immediate: true })
 .se__ch-ops .se__del:hover {
   color: var(--sos-danger);
 }
-.se__publish {
-  display: flex;
-  gap: var(--sos-space-3);
-  margin-top: var(--sos-space-7);
-  padding-top: var(--sos-space-5);
-  border-top: 1px solid var(--sos-border-subtle);
+.se__vis {
+  margin-bottom: var(--sos-space-4);
+  padding: var(--sos-space-4);
+  border-radius: var(--sos-radius-md);
+  border: 1px solid var(--sos-border-subtle);
+  background: var(--sos-bg-subtle);
+}
+.se__vis--public {
+  border-color: color-mix(in srgb, var(--sos-success) 40%, transparent);
+  background: color-mix(in srgb, var(--sos-success) 8%, var(--sos-bg-surface));
+}
+.se__vis--hidden {
+  border-color: color-mix(in srgb, var(--sos-danger) 40%, transparent);
+  background: color-mix(in srgb, var(--sos-danger) 8%, var(--sos-bg-surface));
+}
+.se__vis-title {
+  margin: 0;
+  font-weight: 600;
+  font-size: var(--sos-text-sm);
+  color: var(--sos-text-primary);
+}
+.se__vis-desc {
+  margin: 4px 0 0;
+  font-size: var(--sos-text-sm);
+  color: var(--sos-text-secondary);
+  line-height: var(--sos-leading-body);
+}
+.se__vis-actions {
+  margin-top: var(--sos-space-3);
 }
 
 @media (max-width: 820px) {
