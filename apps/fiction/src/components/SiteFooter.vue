@@ -14,21 +14,22 @@ const groups = [
   {
     title: '主要站点',
     links: [
-      { label: '同人文库', href: 'https://haruyuki.cn/fiction/', brand: '#a63d61' },
       { label: '春日团报', href: 'https://haruyuki.cn/news/', brand: '#3b82f6' },
       { label: '春日画廊', href: 'https://haruyuki.cn/art/', brand: '#14b8a6' },
+      { label: '春日文库', href: 'https://haruyuki.cn/fiction/', brand: '#a63d61' },
       { label: '春日商城', href: 'https://haruyuki.cn/shop/', brand: '#0ea5e9' },
       { label: '长门有希的书架', href: 'https://haruyuki.cn/library/', brand: '#10b981' },
+      { label: '凉宫春日语音合成', href: 'https://tts.haruyuki.cn/', brand: '#3b82f6' },
     ],
   },
   {
     title: '探索',
     links: [
       { label: '凉宫春日资源站', href: 'https://haruhifanclub.yuque.com/staff-sqlmik/phgf5z', brand: '#eab308' },
-      { label: '凉宫春日语音合成', href: 'https://tts.haruyuki.cn/', brand: '#3b82f6' },
       { label: '凉宫春日声线转换', href: 'https://rvc.haruyuki.cn/', brand: '#06b6d4' },
       { label: '京阿尼台词检索', href: 'https://anitool.haruyuki.cn/', brand: '#10b981' },
       { label: '春日试卷中心', href: 'https://haruyuki.cn/exam/', brand: '#ef4444' },
+      { label: '求学路', href: 'https://study.haruyuki.cn/', brand: '#f59e0b' },
     ],
   },
   {
@@ -66,11 +67,11 @@ const groups = [
             <span class="sos-brand-lockup__mark"><img :src="logoUrl" alt="" /></span>
             <span class="sos-brand-lockup__text">
               <strong>凉宫春日应援团</strong>
-              <small>同人文库 · Haruhifanclub</small>
+              <small>春日文库 · Haruhifanclub</small>
             </span>
           </span>
           <p class="sos-footer__tagline">
-            用文字延续那个不会结束的夏天——团员创作的凉宫春日同人小说。
+            让世界变得更加热闹！《凉宫春日系列》的非营利粉丝团体。
           </p>
           <div class="sos-footer__social">
             <a class="sos-footer__social-link" style="--brand: #fb7299" href="https://space.bilibili.com/201296348" target="_blank" rel="noopener">哔哩哔哩</a>

@@ -17,6 +17,7 @@ const groups = [
     links: [
       { label: '春日团报', href: 'https://haruyuki.cn/news/', brand: '#3b82f6' },
       { label: '春日画廊', href: 'https://haruyuki.cn/art/', brand: '#14b8a6' },
+      { label: '春日文库', href: 'https://haruyuki.cn/fiction/', brand: '#a63d61' },
       { label: '春日商城', href: 'https://haruyuki.cn/shop/', brand: '#0ea5e9' },
       { label: '长门有希的书架', href: 'https://haruyuki.cn/library/', brand: '#10b981' },
       { label: '凉宫春日语音合成', href: 'https://tts.haruyuki.cn/', brand: '#3b82f6' },
