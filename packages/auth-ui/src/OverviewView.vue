@@ -32,7 +32,7 @@ function pendingText(g) {
 
 const stats = computed(() => {
   const s = summary.value || {}
-  return [
+  const all = [
     {
       key: 'artworks',
       label: '画廊作品',
@@ -48,6 +48,13 @@ const stats = computed(() => {
       to: `${ctx.basePath}/articles`,
     },
     {
+      key: 'stories',
+      label: '同人文作品',
+      value: s.stories?.total ?? 0,
+      sub: pendingText(s.stories),
+      to: `${ctx.basePath}/stories`,
+    },
+    {
       key: 'comments',
       label: '我的评论',
       value: s.comments ?? 0,
@@ -55,6 +62,8 @@ const stats = computed(() => {
       to: `${ctx.basePath}/comments`,
     },
   ]
+  // 仅展示当前 app 已接入的板块，避免概览卡片指向未注册的子路由
+  return ctx.sections ? all.filter((st) => ctx.sections.includes(st.key)) : all
 })
 
 const points = computed(() => summary.value?.points || { art: 0, news: 0 })
