@@ -4,7 +4,6 @@ import { RouterLink } from 'vue-router'
 import { SosButton, SosSkeleton } from '@haruhi/ui'
 import StoryCard from '@/components/StoryCard.vue'
 import { getSpotlight } from '@/api'
-import { CATEGORIES } from '@/lib/format'
 
 const loading = ref(true)
 const data = ref({ featured: [], latest: [], popular: [], updated: [] })
@@ -33,14 +32,6 @@ onMounted(async () => {
 
 <template>
   <div class="fiction-page fiction-page--wide">
-    <!-- 分类导航 -->
-    <nav class="fic-cats">
-      <RouterLink to="/library" class="fic-cats__all">全部</RouterLink>
-      <RouterLink v-for="c in CATEGORIES" :key="c.slug" :to="`/library?category=${c.slug}`" class="fic-cats__chip">
-        {{ c.label }}
-      </RouterLink>
-    </nav>
-
     <!-- 精选佳作 -->
     <section v-if="data.featured.length" class="fiction-rail">
       <div class="fiction-rail__head">
@@ -111,32 +102,11 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* 分类导航（首页顶部第一块） */
-.fic-cats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sos-space-2);
-  padding-bottom: var(--sos-space-5);
-  margin-bottom: var(--sos-space-2);
-  border-bottom: 1px solid var(--sos-border-subtle);
-}
-.fic-cats__chip,
-.fic-cats__all {
-  text-decoration: none;
-  font-size: var(--sos-text-sm);
-  color: var(--sos-text-secondary);
-  padding: 6px 14px;
-  border-radius: var(--sos-radius-full);
-  background: var(--sos-bg-subtle);
-  transition: all 0.15s ease;
-}
-.fic-cats__all {
-  color: var(--sos-accent-contrast);
-  background: var(--sos-accent);
-}
-.fic-cats__chip:hover {
-  background: var(--sos-accent-soft);
-  color: var(--sos-accent);
+/* 首个区块顶部外边距清零：否则 .fiction-rail 的 margin-top 会叠加页面 padding-top，
+   顶部留白过大（删掉分类条后尤为明显） */
+.fiction-page > .fiction-rail:first-child,
+.fiction-page > .fic-split:first-child :is(.fiction-rail) {
+  margin-top: 0;
 }
 
 .fic-split {
