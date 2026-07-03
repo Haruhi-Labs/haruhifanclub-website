@@ -21,8 +21,8 @@ onMounted(() => session.ensureReady())
         <RouterLink to="/" class="sos-brand-lockup">
           <span class="sos-brand-lockup__mark"><img :src="logoSrc" alt="" /></span>
           <span class="sos-brand-lockup__text">
-            <strong>同人文库</strong>
-            <small>凉宫春日应援团 · 同人小说</small>
+            <strong>春日文库</strong>
+            <small>凉宫春日应援团 · 同人文库</small>
           </span>
         </RouterLink>
       </template>
