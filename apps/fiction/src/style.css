@@ -315,6 +315,9 @@ body {
 
 /* ---- 排行榜（带名次） ---- */
 .fiction-rank {
+  list-style: none;
+  margin: 0;
+  padding: 0; /* 去掉 <ol> 默认的 40px 缩进，使序号左缘与区块标题对齐 */
   display: flex;
   flex-direction: column;
   gap: var(--sos-space-4);
