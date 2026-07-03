@@ -36,6 +36,12 @@ export function useUserHub(apiBase = '/api') {
       claim: () => api.post('/art/claim', {}),
     },
 
+    // 同人文库（fiction）
+    fiction: {
+      comments: (params) => api.get(`/fiction/me/comments${qs(params)}`),
+      deleteComment: (id) => api.del(`/fiction/me/comments/${id}`),
+    },
+
     // 团报（news）
     news: {
       articles: () => api.get('/news/me/articles'),

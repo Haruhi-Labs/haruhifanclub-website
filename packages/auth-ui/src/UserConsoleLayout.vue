@@ -30,6 +30,7 @@ provide(CONSOLE_CTX, {
   basePath: props.basePath,
   loginPath: props.loginPath,
   home: props.home,
+  sections: props.sections, // 下发已接入分区，供子页（如概览）按需隐藏未接入板块
 })
 
 // 侧边导航项（to 相对 basePath）
@@ -37,6 +38,7 @@ const allNavItems = [
   { key: 'overview', label: '概览', to: '' },
   { key: 'artworks', label: '我的作品', to: '/artworks' },
   { key: 'articles', label: '我的文章', to: '/articles' },
+  { key: 'stories', label: '我的同人文', to: '/stories' },
   { key: 'comments', label: '我的评论', to: '/comments' },
   { key: 'points', label: '积分与兑换', to: '/points' },
   { key: 'profile', label: '资料', to: '/profile' },
@@ -44,7 +46,7 @@ const allNavItems = [
 ]
 // 仅展示已接入的分区（与各 app 已注册的子路由保持一致），避免导航指向未建页。
 const navItems = computed(() =>
-  props.sections ? allNavItems.filter((i) => props.sections.includes(i.key)) : allNavItems,
+  props.sections ? allNavItems.filter((i) => props.sections.includes(i.key)) : allNavItems
 )
 
 function fullPath(to) {
