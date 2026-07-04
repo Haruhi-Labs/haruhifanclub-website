@@ -41,6 +41,8 @@ async fn main() -> anyhow::Result<()> {
         mailer: Mailer::from_config(&cfg),
         // 资源站索引缓存（与后台同步任务共享同一 Arc）
         download: download_cache,
+        // SEO 注入模板缓存（懒加载，mtime 失效）
+        seo_templates: modules::seo::template::new_cache(),
     };
     let app = routes::router(state);
 

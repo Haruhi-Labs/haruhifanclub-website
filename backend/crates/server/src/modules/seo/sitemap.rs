@@ -31,7 +31,8 @@ fn xml_response(body: String) -> Response {
 
 /// 各库时间格式不一（RFC3339 / "YYYY-MM-DD HH:MM:SS" / 迁移遗留自由文本）：
 /// 统一只认合法的 `YYYY-MM-DD` 前缀作 lastmod，认不出就省略该字段（坏数据不炸 XML）。
-fn lastmod_date(s: &str) -> Option<&str> {
+/// pages.rs 的 JSON-LD datePublished 同样复用此口径。
+pub(crate) fn lastmod_date(s: &str) -> Option<&str> {
     let b = s.as_bytes();
     if b.len() < 10 {
         return None;
