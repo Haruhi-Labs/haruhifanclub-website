@@ -132,3 +132,18 @@ pub fn truncate_chars(s: &str, max_chars: usize) -> String {
         out
     }
 }
+
+/// URL 路径段 percent-encode（uid 等自由文本进 canonical/og:url 前用）：
+/// 保留 RFC 3986 unreserved 字符，其余按 UTF-8 字节编码。
+pub fn encode_path_segment(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.as_bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(*b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}

@@ -111,7 +111,7 @@ pub async fn robots_txt(State(state): State<AppState>) -> impl IntoResponse {
 
 pub async fn sitemap_index(State(state): State<AppState>) -> impl IntoResponse {
     let b = base(&state);
-    let items: String = ["static", "news", "novel", "exam", "shop"]
+    let items: String = ["static", "news", "novel", "exam", "shop", "art"]
         .iter()
         .map(|s| format!("  <sitemap><loc>{b}/sitemap-{s}.xml</loc></sitemap>\n"))
         .collect();
@@ -222,6 +222,28 @@ pub async fn sitemap_shop(State(state): State<AppState>) -> AppResult<Response> 
     let mut urls = String::new();
     for (id,) in &rows {
         push_url(&mut urls, &format!("{b}/shop/product/{id}"), None);
+    }
+    Ok(xml_response(urlset(urls)))
+}
+
+/// art 创作者档案页：只收录有已过审作品的创作者（空档案是薄内容）。
+pub async fn sitemap_art(State(state): State<AppState>) -> AppResult<Response> {
+    let rows: Vec<(String, Option<String>)> = sqlx::query_as(
+        "SELECT uploader_uid, MAX(created_at) FROM artworks \
+         WHERE status = 'approved' AND uploader_uid IS NOT NULL AND TRIM(uploader_uid) <> '' \
+         GROUP BY uploader_uid ORDER BY uploader_uid LIMIT ?",
+    )
+    .bind(MAX_URLS)
+    .fetch_all(&state.pools.art)
+    .await?;
+    let b = base(&state);
+    let mut urls = String::new();
+    for (uid, lm) in &rows {
+        push_url(
+            &mut urls,
+            &format!("{b}/art/profile/{}", super::meta::encode_path_segment(uid)),
+            lm.as_deref(),
+        );
     }
     Ok(xml_response(urlset(urls)))
 }

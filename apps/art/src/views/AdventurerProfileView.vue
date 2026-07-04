@@ -242,6 +242,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { usePageMeta, canonicalUrl, absoluteUrl } from '@haruhi/seo'
 import { api, thumbUrl } from '../services/api.js'
 
 const route = useRoute()
@@ -315,6 +316,25 @@ async function loadProfile() {
     loading.value = false
   }
 }
+
+// 页面 meta：仅公开档案页（/profile/:uid）在数据加载成功后设置；
+// 创作者终端（/terminal，需登录、路由级 noindex）不参与
+usePageMeta(() => {
+  if (isTerminal.value || loading.value || error.value) return null
+  const name = displayName.value
+  return {
+    title: `${name}的创作者档案 · 春日画廊`,
+    description: `${name} 的创作者档案：已在春日画廊发布 ${stats.value.total || 0} 幅凉宫春日同人作品，冒险者评级 ${profile.value.rating || 'F'}。`,
+    canonical: canonicalUrl(`/profile/${encodeURIComponent(route.params.uid || '')}`),
+    ogType: 'profile',
+    ogImage: profile.value.avatar_url ? absoluteUrl(profile.value.avatar_url) : undefined,
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'ProfilePage',
+      mainEntity: { '@type': 'Person', name },
+    },
+  }
+})
 
 function openArtwork(art) {
   router.push({ name: 'gallery', query: { artwork: art.id } })

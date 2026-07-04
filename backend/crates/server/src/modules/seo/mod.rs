@@ -23,6 +23,7 @@ pub fn router() -> Router<AppState> {
         .route("/sitemap-novel.xml", get(sitemap::sitemap_novel))
         .route("/sitemap-exam.xml", get(sitemap::sitemap_exam))
         .route("/sitemap-shop.xml", get(sitemap::sitemap_shop))
+        .route("/sitemap-art.xml", get(sitemap::sitemap_art))
         // 内容详情页 HTML meta 注入（fiction 的 URL 前缀是 /novel/）
         .route("/news/blog/{id}", get(pages::news_article))
         .route("/novel/story/{id}", get(pages::fiction_story))
@@ -32,6 +33,7 @@ pub fn router() -> Router<AppState> {
         )
         .route("/exam/exam/{id}", get(pages::exam_paper))
         .route("/shop/product/{id}", get(pages::shop_product))
+        .route("/art/profile/{uid}", get(pages::art_profile))
 }
 
 /// XML / HTML 属性通用转义（& < > " '）。

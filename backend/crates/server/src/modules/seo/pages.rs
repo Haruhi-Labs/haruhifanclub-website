@@ -349,3 +349,70 @@ pub async fn shop_product(
     };
     Ok(render(&state, "shop", StatusCode::OK, page).await)
 }
+
+// ---- art：/art/profile/{uid} ----
+
+const ART_TITLE: &str = "春日画廊 · 凉宫春日应援团";
+
+pub async fn art_profile(
+    State(state): State<AppState>,
+    Path(uid): Path<String>,
+) -> AppResult<Response> {
+    // uid 为自由文本（历史创作者名 / u{id}），只做长度与非空校验（同 art_guild::normalize_uid 口径）
+    let uid = uid.trim().to_string();
+    if uid.is_empty() || uid.len() > 80 {
+        return Ok(render_404(&state, "art", ART_TITLE).await);
+    }
+    // 只有存在已过审作品的创作者才值得收录；空档案 → 404 + noindex（薄内容，浏览器端照常渲染）
+    let (name, count): (Option<String>, i64) = sqlx::query_as(
+        "SELECT (SELECT uploader_name FROM artworks \
+                  WHERE uploader_uid = ?1 AND status = 'approved' ORDER BY id DESC LIMIT 1), \
+                COUNT(*) \
+           FROM artworks WHERE uploader_uid = ?1 AND status = 'approved'",
+    )
+    .bind(&uid)
+    .fetch_one(&state.pools.art)
+    .await?;
+    if count == 0 {
+        return Ok(render_404(&state, "art", ART_TITLE).await);
+    }
+    let rating: Option<(String,)> =
+        sqlx::query_as("SELECT rating FROM guild_profiles WHERE uid = ?")
+            .bind(&uid)
+            .fetch_optional(&state.pools.art)
+            .await?;
+    let avatar: Option<(Option<String>,)> =
+        sqlx::query_as("SELECT avatar_url FROM creators WHERE uid = ?")
+            .bind(&uid)
+            .fetch_optional(&state.pools.art)
+            .await?;
+
+    let b = base(&state);
+    let name = name
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| uid.clone());
+    let rating = rating.map(|(r,)| r).unwrap_or_else(|| "F".into());
+    let desc = format!(
+        "{name} 的创作者档案：已在春日画廊发布 {count} 幅凉宫春日同人作品，冒险者评级 {rating}。"
+    );
+    let canonical = format!("{b}/art/profile/{}", meta::encode_path_segment(&uid));
+    let og_image = avatar
+        .and_then(|(a,)| a)
+        .filter(|s| !s.is_empty())
+        .map(|a| meta::absolutize(&b, &a));
+    let json_ld = json!({
+        "@context": "https://schema.org",
+        "@type": "ProfilePage",
+        "mainEntity": { "@type": "Person", "name": name },
+    });
+
+    let page = PageMeta {
+        description: Some(desc),
+        canonical: Some(canonical),
+        og_type: "profile",
+        og_image,
+        json_ld: Some(json_ld),
+        ..PageMeta::new(format!("{name}的创作者档案 · 春日画廊"))
+    };
+    Ok(render(&state, "art", StatusCode::OK, page).await)
+}
