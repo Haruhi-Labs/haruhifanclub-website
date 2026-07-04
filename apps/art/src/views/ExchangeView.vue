@@ -109,6 +109,7 @@
               'is-done': questStatus(quest) === 'completed',
               'is-unknown-quest': quest.questType === 'unknown',
               'is-limited-quest': quest.questType === 'limited',
+              'is-closed-space-denied': closedSpaceDenied(quest),
             }"
           >
             <div class="g-quest__body">
@@ -161,6 +162,13 @@
             >
               {{ questButtonLabel(quest) }}
             </button>
+            <span v-if="closedSpaceDenied(quest)" class="g-quest__closed-lock" aria-hidden="true">
+              <i class="g-quest__chain g-quest__chain--tl"></i>
+              <i class="g-quest__chain g-quest__chain--tr"></i>
+              <i class="g-quest__chain g-quest__chain--br"></i>
+              <i class="g-quest__chain g-quest__chain--bl"></i>
+              <strong>闭锁空间进入禁止</strong>
+            </span>
           </article>
         </div>
         <div v-if="!quests.length" class="g-empty">暂无可接取的委托</div>
@@ -976,6 +984,23 @@ function isManualQuest(quest) {
 }
 function manualQuestSubmitted(quest) {
   return Number(quest?.claim?.submittedCount ?? quest?.claim?.progress ?? 0)
+}
+function accessRank(access) {
+  const ranks = {
+    public_archive: 0,
+    observer_clearance: 1,
+    anomaly_research: 2,
+    closed_space: 3,
+  }
+  return ranks[String(access || 'public_archive')] ?? 0
+}
+function questRequiresClosedSpace(quest) {
+  const required = String(quest?.requiredAccess || '').toLowerCase()
+  const label = String(quest?.requiredAccessLabel || '')
+  return required === 'closed_space' || label.includes('闭锁3') || label.includes('3级闭锁空间许可')
+}
+function closedSpaceDenied(quest) {
+  return questRequiresClosedSpace(quest) && accessRank(profile.value?.accessTier) < accessRank('closed_space')
 }
 function questProgressPercent(quest) {
   const target = questTarget(quest)
@@ -2199,6 +2224,119 @@ onUnmounted(() => {
 .g-quest.is-limited-quest .g-progress__fill {
   background: linear-gradient(90deg, #2ec7ff, #ff67cd, #ffd75f, #4ee6b4);
 }
+.g-quest.is-closed-space-denied {
+  border-color: #00f0ff;
+  background: #05050a;
+  opacity: 1;
+  box-shadow:
+    0 0 9px rgba(0, 240, 255, 0.84),
+    inset 0 0 0 1px rgba(0, 240, 255, 0.3),
+    inset 0 0 34px rgba(0, 0, 0, 0.78);
+}
+.g-quest.is-closed-space-denied > :not(.g-quest__closed-lock) {
+  filter: grayscale(0.48) brightness(0.5);
+  opacity: 0.54;
+}
+.g-quest__closed-lock {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at center, rgba(0, 240, 255, 0.16), transparent 0 116px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.08), transparent 28% 72%, rgba(255, 43, 214, 0.08)),
+    rgba(0, 0, 0, 0.28);
+}
+.g-quest__closed-lock::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent 0 48%, rgba(0, 240, 255, 0.24) 49% 51%, transparent 52%),
+    linear-gradient(0deg, transparent 0 48%, rgba(0, 240, 255, 0.2) 49% 51%, transparent 52%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 5px);
+  mix-blend-mode: screen;
+  opacity: 0.7;
+}
+.g-quest__closed-lock strong {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  max-width: min(88%, 360px);
+  padding: 9px 18px;
+  border: 1px solid rgba(0, 240, 255, 0.92);
+  border-radius: 4px;
+  background: rgba(5, 5, 10, 0.92);
+  color: #ffffff;
+  font-size: clamp(14px, 2.1vw, 18px);
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+  text-shadow:
+    -2px 0 0 rgba(255, 23, 77, 0.76),
+    2px 0 0 rgba(29, 125, 255, 0.76),
+    0 0 12px rgba(0, 240, 255, 0.78);
+  box-shadow:
+    0 0 10px rgba(0, 240, 255, 0.72),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+.g-quest__chain {
+  --chain-angle: 0deg;
+  --chain-origin: left center;
+
+  position: absolute;
+  z-index: 1;
+  width: min(57%, 430px);
+  height: 16px;
+  border: 1px solid rgba(0, 240, 255, 0.48);
+  border-radius: 999px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(232, 246, 255, 0.95) 0 8px,
+      rgba(5, 7, 14, 0.96) 8px 12px,
+      rgba(0, 240, 255, 0.78) 12px 14px,
+      transparent 14px 20px
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.36), rgba(0, 0, 0, 0.42));
+  box-shadow:
+    0 0 10px rgba(0, 240, 255, 0.64),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.58);
+  transform: rotate(var(--chain-angle)) scaleX(1);
+  transform-origin: var(--chain-origin);
+}
+.g-quest__chain--tl {
+  top: 18px;
+  left: -8px;
+  --chain-angle: 18deg;
+  --chain-origin: left center;
+}
+.g-quest__chain--tr {
+  top: 18px;
+  right: -8px;
+  --chain-angle: -18deg;
+  --chain-origin: right center;
+}
+.g-quest__chain--br {
+  right: -8px;
+  bottom: 18px;
+  --chain-angle: 18deg;
+  --chain-origin: right center;
+}
+.g-quest__chain--bl {
+  bottom: 18px;
+  left: -8px;
+  --chain-angle: -18deg;
+  --chain-origin: left center;
+}
 @media (prefers-reduced-motion: no-preference) {
   .g-quest.is-unknown-quest {
     animation:
@@ -2223,6 +2361,12 @@ onUnmounted(() => {
   }
   .g-quest.is-limited-quest::before {
     animation: g-limited-flow 5.6s cubic-bezier(0.45, 0, 0.18, 1) infinite;
+  }
+  .g-quest.is-closed-space-denied .g-quest__chain {
+    animation: closed-chain-lock 0.72s steps(6, end) both;
+  }
+  .g-quest.is-closed-space-denied .g-quest__closed-lock strong {
+    animation: closed-lock-seal 0.86s cubic-bezier(0.45, 0, 0.18, 1) both;
   }
 }
 @keyframes glitch-scan {
@@ -2332,6 +2476,37 @@ onUnmounted(() => {
   }
   38% {
     filter: brightness(1.12) saturate(1.08);
+  }
+}
+@keyframes closed-chain-lock {
+  0% {
+    opacity: 0.3;
+    transform: rotate(var(--chain-angle)) scaleX(0.06);
+  }
+  68% {
+    opacity: 1;
+    transform: rotate(var(--chain-angle)) scaleX(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(var(--chain-angle)) scaleX(1);
+  }
+}
+@keyframes closed-lock-seal {
+  0% {
+    opacity: 0;
+    transform: scale(1.12);
+    filter: brightness(1.5);
+  }
+  64% {
+    opacity: 1;
+    transform: scale(0.96);
+    filter: brightness(1.25);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1);
   }
 }
 @keyframes g-limited-flow {
