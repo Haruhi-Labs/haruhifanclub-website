@@ -104,7 +104,12 @@
             v-for="quest in group.items"
             :key="quest.id"
             class="g-quest"
-            :class="{ 'is-locked': !quest.unlocked, 'is-done': questStatus(quest) === 'completed' }"
+            :class="{
+              'is-locked': !quest.unlocked,
+              'is-done': questStatus(quest) === 'completed',
+              'is-unknown-quest': quest.questType === 'unknown',
+              'is-limited-quest': quest.questType === 'limited',
+            }"
           >
             <div class="g-quest__body">
               <div class="g-quest__top">
@@ -1957,6 +1962,9 @@ onUnmounted(() => {
 }
 
 .g-quest {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -1981,6 +1989,359 @@ onUnmounted(() => {
 .g-quest.is-done {
   border-color: color-mix(in srgb, var(--g-accent) 42%, transparent);
   background: color-mix(in srgb, var(--g-accent) 8%, #ffffff);
+}
+.g-quest > * {
+  position: relative;
+  z-index: 1;
+}
+.g-quest.is-unknown-quest {
+  --glitch-cyan: #00f0ff;
+  --glitch-magenta: #ff2bd6;
+  --glitch-red: #ff174d;
+  --glitch-blue: #1d7dff;
+
+  border-color: var(--glitch-cyan);
+  background: #0a0a0f;
+  box-shadow:
+    0 0 8px rgba(0, 240, 255, 0.9),
+    0 18px 38px -26px rgba(0, 240, 255, 0.46),
+    inset 0 0 0 1px rgba(0, 240, 255, 0.32),
+    inset 0 0 18px rgba(255, 43, 214, 0.08);
+  transform: skew(-0.5deg);
+}
+.g-quest.is-unknown-quest::before,
+.g-quest.is-unknown-quest::after,
+.g-quest.is-limited-quest::before,
+.g-quest.is-limited-quest::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+.g-quest.is-unknown-quest::before {
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background:
+    linear-gradient(var(--glitch-cyan) 0 0) 10px 10px / 26px 1px no-repeat,
+    linear-gradient(var(--glitch-cyan) 0 0) 10px 10px / 1px 26px no-repeat,
+    linear-gradient(var(--glitch-cyan) 0 0) right 10px top 10px / 26px 1px no-repeat,
+    linear-gradient(var(--glitch-cyan) 0 0) right 10px top 10px / 1px 26px no-repeat,
+    linear-gradient(var(--glitch-cyan) 0 0) 10px bottom 10px / 26px 1px no-repeat,
+    linear-gradient(var(--glitch-cyan) 0 0) 10px bottom 10px / 1px 26px no-repeat,
+    linear-gradient(var(--glitch-cyan) 0 0) right 10px bottom 10px / 26px 1px no-repeat,
+    linear-gradient(var(--glitch-cyan) 0 0) right 10px bottom 10px / 1px 26px no-repeat,
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 4px),
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.11) 0 0.7px, transparent 0.8px) 0 0 / 9px 7px repeat,
+    radial-gradient(circle at 2px 3px, rgba(0, 240, 255, 0.08) 0 0.6px, transparent 0.7px) 0 0 / 13px 11px repeat;
+  mix-blend-mode: screen;
+  opacity: 0.74;
+}
+.g-quest.is-unknown-quest::after {
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 3;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.48);
+  box-shadow:
+    0 0 8px rgba(255, 255, 255, 0.82),
+    0 0 12px rgba(0, 240, 255, 0.76);
+  opacity: 0;
+  transform: translateY(-8px) scaleX(0.92);
+}
+.g-quest.is-unknown-quest:hover {
+  border-color: var(--glitch-cyan);
+  box-shadow:
+    0 0 8px rgba(0, 240, 255, 1),
+    0 0 18px rgba(255, 43, 214, 0.34),
+    0 18px 40px -24px rgba(0, 240, 255, 0.72),
+    inset 0 0 0 1px rgba(0, 240, 255, 0.38);
+}
+.g-quest.is-unknown-quest .g-quest__top h3 {
+  color: #ffffff;
+  text-shadow:
+    -1px 0 0 rgba(255, 23, 77, 0.72),
+    1px 0 0 rgba(29, 125, 255, 0.72);
+}
+.g-quest.is-unknown-quest .g-quest__body {
+  text-shadow:
+    -1px 0 0 rgba(255, 23, 77, 0.42),
+    1px 0 0 rgba(29, 125, 255, 0.42);
+}
+.g-quest.is-unknown-quest .g-quest__body p,
+.g-quest.is-unknown-quest .g-progress__num {
+  color: rgba(236, 248, 255, 0.86);
+}
+.g-quest.is-unknown-quest .g-chip {
+  color: rgba(246, 252, 255, 0.92);
+  background: rgba(0, 240, 255, 0.08);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 240, 255, 0.18),
+    0 0 7px rgba(0, 240, 255, 0.1);
+}
+.g-quest.is-unknown-quest .g-quest__status {
+  color: #ffffff;
+  background: rgba(0, 240, 255, 0.18);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 240, 255, 0.3),
+    0 0 8px rgba(0, 240, 255, 0.15);
+}
+.g-quest.is-unknown-quest .g-progress__track {
+  background: rgba(255, 255, 255, 0.1);
+}
+.g-quest.is-unknown-quest .g-progress__fill {
+  background: linear-gradient(90deg, var(--glitch-cyan), var(--glitch-magenta));
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.54);
+}
+.g-quest.is-unknown-quest .sos-button--primary {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  background: linear-gradient(135deg, var(--glitch-cyan), var(--glitch-magenta));
+  color: #ffffff;
+  text-shadow:
+    -1px 0 0 var(--glitch-red),
+    1px 0 0 var(--glitch-blue);
+  box-shadow:
+    0 0 9px rgba(0, 240, 255, 0.48),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  clip-path: polygon(
+    0 3px,
+    3px 3px,
+    3px 0,
+    calc(100% - 6px) 0,
+    calc(100% - 6px) 3px,
+    calc(100% - 3px) 3px,
+    calc(100% - 3px) 6px,
+    100% 6px,
+    100% calc(100% - 6px),
+    calc(100% - 3px) calc(100% - 6px),
+    calc(100% - 3px) calc(100% - 3px),
+    calc(100% - 6px) calc(100% - 3px),
+    calc(100% - 6px) 100%,
+    6px 100%,
+    6px calc(100% - 3px),
+    3px calc(100% - 3px),
+    3px calc(100% - 6px),
+    0 calc(100% - 6px)
+  );
+}
+.g-quest.is-unknown-quest .sos-button--primary::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.42), transparent 32% 68%, rgba(255, 255, 255, 0.28)),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.18) 0 1px, transparent 1px 4px);
+  opacity: 0.36;
+}
+.g-quest.is-unknown-quest .sos-button--primary:not(:disabled):hover {
+  border-color: rgba(255, 255, 255, 0.86);
+}
+.g-quest.is-unknown-quest .sos-button--primary:disabled {
+  opacity: 0.72;
+  filter: saturate(0.82);
+}
+.g-quest.is-limited-quest {
+  border-color: rgba(120, 112, 255, 0.34);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.7)) padding-box,
+    linear-gradient(
+        118deg,
+        rgba(58, 214, 255, 0.78),
+        rgba(255, 96, 207, 0.62),
+        rgba(255, 219, 92, 0.72),
+        rgba(96, 244, 192, 0.64)
+      )
+      border-box;
+  box-shadow: 0 18px 34px -28px rgba(80, 130, 210, 0.46);
+}
+.g-quest.is-limited-quest::before {
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 0 19%,
+    rgba(255, 255, 255, 0.42) 29%,
+    rgba(133, 245, 255, 0.2) 36%,
+    transparent 48% 100%
+  );
+  transform: translateX(-70%);
+  opacity: 0.78;
+}
+.g-quest.is-limited-quest::after {
+  inset: 1px;
+  z-index: 0;
+  border-radius: calc(15px - 1px);
+  background:
+    linear-gradient(90deg, rgba(63, 211, 255, 0.12), transparent 30% 70%, rgba(96, 244, 192, 0.12)),
+    linear-gradient(125deg, rgba(255, 101, 211, 0.12), transparent 34%, rgba(255, 214, 86, 0.13) 66%, transparent);
+  opacity: 0.85;
+}
+.g-quest.is-limited-quest:hover {
+  border-color: rgba(255, 104, 206, 0.48);
+  box-shadow:
+    0 18px 38px -26px rgba(255, 104, 206, 0.42),
+    0 10px 32px -24px rgba(48, 202, 255, 0.5);
+}
+.g-quest.is-limited-quest .g-quest__status {
+  color: color-mix(in srgb, #7a3d8f 78%, #000);
+  background: linear-gradient(90deg, rgba(94, 211, 255, 0.2), rgba(255, 105, 202, 0.17));
+}
+.g-quest.is-limited-quest .g-chip--time {
+  color: color-mix(in srgb, #b33173 78%, #000);
+  background: linear-gradient(90deg, rgba(255, 117, 195, 0.17), rgba(255, 217, 91, 0.19));
+}
+.g-quest.is-limited-quest .g-progress__fill {
+  background: linear-gradient(90deg, #2ec7ff, #ff67cd, #ffd75f, #4ee6b4);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .g-quest.is-unknown-quest {
+    animation:
+      glitch-flicker 0.16s steps(1, end) infinite,
+      glitch-split 4.8s steps(1, end) infinite;
+  }
+  .g-quest.is-unknown-quest::before {
+    animation: glitch-corner-pulse 1.8s cubic-bezier(0.54, 0, 0.18, 1) infinite alternate;
+  }
+  .g-quest.is-unknown-quest::after {
+    animation: glitch-scan 2.3s steps(1, end) infinite;
+  }
+  .g-quest.is-unknown-quest .g-quest__body,
+  .g-quest.is-unknown-quest .sos-button--primary {
+    animation: glitch-rgb-split 4.8s steps(1, end) infinite;
+  }
+  .g-quest.is-unknown-quest .sos-button--primary:not(:disabled):hover {
+    animation:
+      glitch-rgb-split 4.8s steps(1, end) infinite,
+      glitch-button-jitter 0.34s steps(2, end) infinite,
+      glitch-button-overload 0.48s cubic-bezier(0.22, 0, 0.1, 1) 1;
+  }
+  .g-quest.is-limited-quest::before {
+    animation: g-limited-flow 5.6s cubic-bezier(0.45, 0, 0.18, 1) infinite;
+  }
+}
+@keyframes glitch-scan {
+  0%,
+  86.9% {
+    top: 8%;
+    opacity: 0;
+    transform: translateY(-8px) scaleX(0.72);
+  }
+  87% {
+    top: 12%;
+    opacity: 0.88;
+    transform: translateY(0) scaleX(0.82);
+  }
+  93% {
+    top: 58%;
+    opacity: 0.72;
+    transform: translateY(0) scaleX(1);
+  }
+  99%,
+  100% {
+    top: 98%;
+    opacity: 0;
+    transform: translateY(0) scaleX(0.9);
+  }
+}
+@keyframes glitch-flicker {
+  0%,
+  100% {
+    opacity: 1;
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    opacity: 0.92;
+    filter: hue-rotate(15deg);
+  }
+}
+@keyframes glitch-split {
+  0%,
+  82%,
+  86%,
+  91%,
+  100% {
+    transform: skew(-0.5deg) translateX(0);
+  }
+  83% {
+    transform: skew(-0.5deg) translateX(-4px);
+  }
+  84% {
+    transform: skew(-0.5deg) translateX(4px);
+  }
+  90% {
+    transform: skew(-0.5deg) translateX(-4px);
+  }
+}
+@keyframes glitch-rgb-split {
+  0%,
+  82%,
+  86%,
+  91%,
+  100% {
+    text-shadow:
+      -1px 0 0 rgba(255, 23, 77, 0.42),
+      1px 0 0 rgba(29, 125, 255, 0.42);
+  }
+  83%,
+  84%,
+  90% {
+    text-shadow:
+      -2px 0 0 rgba(255, 23, 77, 0.85),
+      2px 0 0 rgba(29, 125, 255, 0.85);
+  }
+}
+@keyframes glitch-corner-pulse {
+  0% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes glitch-button-jitter {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  18% {
+    transform: translateX(-3px);
+  }
+  36% {
+    transform: translateX(3px);
+  }
+  54% {
+    transform: translateX(-2px);
+  }
+  72% {
+    transform: translateX(2px);
+  }
+}
+@keyframes glitch-button-overload {
+  0%,
+  100% {
+    filter: brightness(1) saturate(1);
+  }
+  12% {
+    filter: brightness(1.5) saturate(1.35);
+  }
+  38% {
+    filter: brightness(1.12) saturate(1.08);
+  }
+}
+@keyframes g-limited-flow {
+  0% {
+    transform: translateX(-74%);
+  }
+  48%,
+  100% {
+    transform: translateX(74%);
+  }
 }
 .g-quest__body {
   display: flex;
@@ -2873,6 +3234,36 @@ onUnmounted(() => {
 }
 :global(html.art-lights-out .g-quest.is-done:hover) {
   background: rgba(19, 52, 58, 0.66);
+}
+:global(html.art-lights-out .g-quest.is-unknown-quest) {
+  border-color: #00f0ff;
+  background: #0a0a0f;
+  box-shadow:
+    0 0 8px rgba(0, 240, 255, 0.9),
+    0 18px 38px -26px rgba(0, 240, 255, 0.46),
+    inset 0 0 0 1px rgba(0, 240, 255, 0.32),
+    inset 0 0 18px rgba(255, 43, 214, 0.08);
+}
+:global(html.art-lights-out .g-quest.is-limited-quest) {
+  border-color: rgba(124, 205, 255, 0.35);
+  background:
+    linear-gradient(180deg, rgba(18, 28, 50, 0.88), rgba(32, 22, 52, 0.72)) padding-box,
+    linear-gradient(
+        118deg,
+        rgba(58, 214, 255, 0.74),
+        rgba(255, 96, 207, 0.56),
+        rgba(255, 219, 92, 0.58),
+        rgba(96, 244, 192, 0.56)
+      )
+      border-box;
+}
+:global(html.art-lights-out .g-quest.is-limited-quest .g-quest__body p),
+:global(html.art-lights-out .g-quest.is-limited-quest .g-progress__num) {
+  color: rgba(224, 236, 255, 0.78);
+}
+:global(html.art-lights-out .g-quest.is-limited-quest .g-chip) {
+  color: rgba(232, 241, 255, 0.84);
+  background: rgba(255, 255, 255, 0.08);
 }
 :global(html.art-lights-out .g-quest__status.completed) {
   background: rgba(42, 129, 132, 0.68);
