@@ -163,10 +163,10 @@
               {{ questButtonLabel(quest) }}
             </button>
             <span v-if="closedSpaceDenied(quest)" class="g-quest__closed-lock" aria-hidden="true">
-              <i class="g-quest__chain g-quest__chain--tl"></i>
-              <i class="g-quest__chain g-quest__chain--tr"></i>
-              <i class="g-quest__chain g-quest__chain--br"></i>
-              <i class="g-quest__chain g-quest__chain--bl"></i>
+              <i class="g-quest__tape g-quest__tape--tl"></i>
+              <i class="g-quest__tape g-quest__tape--tr"></i>
+              <i class="g-quest__tape g-quest__tape--br"></i>
+              <i class="g-quest__tape g-quest__tape--bl"></i>
               <strong>闭锁空间进入禁止</strong>
             </span>
           </article>
@@ -2287,55 +2287,71 @@ onUnmounted(() => {
     0 0 10px rgba(0, 240, 255, 0.72),
     inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
-.g-quest__chain {
-  --chain-angle: 0deg;
-  --chain-origin: left center;
+.g-quest__tape {
+  --tape-angle: 0deg;
+  --tape-origin: left center;
 
   position: absolute;
   z-index: 1;
-  width: min(57%, 430px);
-  height: 16px;
-  border: 1px solid rgba(0, 240, 255, 0.48);
-  border-radius: 999px;
+  width: min(64%, 460px);
+  height: 24px;
+  border: 1px solid rgba(255, 230, 54, 0.66);
+  border-radius: 3px;
   background:
     repeating-linear-gradient(
-      90deg,
-      rgba(232, 246, 255, 0.95) 0 8px,
-      rgba(5, 7, 14, 0.96) 8px 12px,
-      rgba(0, 240, 255, 0.78) 12px 14px,
-      transparent 14px 20px
+      115deg,
+      #ffdb1f 0 13px,
+      #ffdb1f 13px 17px,
+      #d71920 17px 30px,
+      #d71920 30px 34px
     ),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.36), rgba(0, 0, 0, 0.42));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(0, 0, 0, 0.22));
   box-shadow:
-    0 0 10px rgba(0, 240, 255, 0.64),
-    inset 0 1px 0 rgba(255, 255, 255, 0.36),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.58);
-  transform: rotate(var(--chain-angle)) scaleX(1);
-  transform-origin: var(--chain-origin);
+    0 0 12px rgba(255, 219, 31, 0.34),
+    0 5px 12px rgba(0, 0, 0, 0.46),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.38);
+  transform: rotate(var(--tape-angle)) scaleX(1);
+  transform-origin: var(--tape-origin);
 }
-.g-quest__chain--tl {
-  top: 18px;
-  left: -8px;
-  --chain-angle: 18deg;
-  --chain-origin: left center;
+.g-quest__tape::before,
+.g-quest__tape::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 1px;
+  background: rgba(6, 6, 8, 0.34);
 }
-.g-quest__chain--tr {
-  top: 18px;
-  right: -8px;
-  --chain-angle: -18deg;
-  --chain-origin: right center;
+.g-quest__tape::before {
+  left: 11px;
 }
-.g-quest__chain--br {
-  right: -8px;
-  bottom: 18px;
-  --chain-angle: 18deg;
-  --chain-origin: right center;
+.g-quest__tape::after {
+  right: 11px;
 }
-.g-quest__chain--bl {
-  bottom: 18px;
-  left: -8px;
-  --chain-angle: -18deg;
-  --chain-origin: left center;
+.g-quest__tape--tl {
+  top: 20px;
+  left: -18px;
+  --tape-angle: 24deg;
+  --tape-origin: left center;
+}
+.g-quest__tape--tr {
+  top: 20px;
+  right: -18px;
+  --tape-angle: -24deg;
+  --tape-origin: right center;
+}
+.g-quest__tape--br {
+  right: -18px;
+  bottom: 20px;
+  --tape-angle: 24deg;
+  --tape-origin: right center;
+}
+.g-quest__tape--bl {
+  bottom: 20px;
+  left: -18px;
+  --tape-angle: -24deg;
+  --tape-origin: left center;
 }
 @media (prefers-reduced-motion: no-preference) {
   .g-quest.is-unknown-quest {
@@ -2362,8 +2378,8 @@ onUnmounted(() => {
   .g-quest.is-limited-quest::before {
     animation: g-limited-flow 5.6s cubic-bezier(0.45, 0, 0.18, 1) infinite;
   }
-  .g-quest.is-closed-space-denied .g-quest__chain {
-    animation: closed-chain-lock 0.72s steps(6, end) both;
+  .g-quest.is-closed-space-denied .g-quest__tape {
+    animation: closed-tape-wrap 0.72s steps(6, end) both;
   }
   .g-quest.is-closed-space-denied .g-quest__closed-lock strong {
     animation: closed-lock-seal 0.86s cubic-bezier(0.45, 0, 0.18, 1) both;
@@ -2478,18 +2494,18 @@ onUnmounted(() => {
     filter: brightness(1.12) saturate(1.08);
   }
 }
-@keyframes closed-chain-lock {
+@keyframes closed-tape-wrap {
   0% {
     opacity: 0.3;
-    transform: rotate(var(--chain-angle)) scaleX(0.06);
+    transform: rotate(var(--tape-angle)) scaleX(0.06);
   }
   68% {
     opacity: 1;
-    transform: rotate(var(--chain-angle)) scaleX(1.08);
+    transform: rotate(var(--tape-angle)) scaleX(1.08);
   }
   100% {
     opacity: 1;
-    transform: rotate(var(--chain-angle)) scaleX(1);
+    transform: rotate(var(--tape-angle)) scaleX(1);
   }
 }
 @keyframes closed-lock-seal {
