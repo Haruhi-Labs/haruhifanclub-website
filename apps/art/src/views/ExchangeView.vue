@@ -171,7 +171,6 @@
                 class="g-quest__warning-tape g-quest__warning-tape--bottom"
                 data-text="RESTRICTED // KEEP AWAY // CAUTION // RESTRICTED // KEEP AWAY // CAUTION //"
               ></i>
-              <strong>闭锁空间进入禁止</strong>
             </span>
           </article>
         </div>
@@ -2253,32 +2252,6 @@ onUnmounted(() => {
   border-radius: inherit;
   pointer-events: none;
   background: transparent;
-}
-.g-quest__closed-lock strong {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  max-width: min(88%, 360px);
-  padding: 10px 20px;
-  border: 2px solid #d6a928;
-  border-radius: 3px;
-  background: rgba(255, 250, 223, 0.96);
-  color: #7d241d;
-  font-size: clamp(14px, 2.1vw, 18px);
-  font-weight: 900;
-  line-height: 1.2;
-  text-align: center;
-  opacity: 0.2;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
-  transform: translate(-50%, -50%);
-  box-shadow:
-    0 10px 20px rgba(124, 78, 26, 0.24),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.58);
 }
 .g-quest__warning-tape {
   position: absolute;
