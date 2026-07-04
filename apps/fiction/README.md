@@ -4,7 +4,7 @@
 
 ## 入口
 
-- 子路径：`/fiction/`
+- 子路径：`/novel/`
 - dev 端口：`5207`
 - 后端接口：`/api/fiction/*`
 - 上传资源：`/uploads/fiction/*`（作品封面）
@@ -20,7 +20,7 @@ pnpm dev:backend
 pnpm --filter @haruhi/fiction dev
 ```
 
-访问 `http://localhost:5207/fiction/`。
+访问 `http://localhost:5207/novel/`。
 
 构建与静态预览（`preview` 仅做产物静态预览，**不含 `/api`、`/uploads` 代理，不能用于联调**）：
 
@@ -86,7 +86,7 @@ src/
 
 ## 维护注意
 
-- Vite `base` 使用 `/fiction/`，部署（`deploy/nginx.conf`、`deploy/test.haruyuki.cn.nginx.conf`）和路由都按这个子路径配置。
+- Vite `base` 使用 `/novel/`，部署（`deploy/nginx.conf`、`deploy/test.haruyuki.cn.nginx.conf`）和路由都按这个子路径配置。
 - 章节正文为富文本，写入时后端用 `ammonia` 白名单清洗，读取时前端再经 `dompurify` 二次防御，改动编辑器允许标签时两端需同步。
 - 表现模式采用 `shop`（晴空蓝 · 浅蓝白底 · 无衬线 · 大圆角 · 柔蓝阴影），清爽轻快，契合二次元同人文站气质；`data-sos-site="shop"` 设在 `index.html` 与 App 根，账号中心/登录页随 `router` 的 `SITE='shop'` 一并切换主题。
 - 数据库为 `data/fiction.db`，迁移在 `backend/migrations/fiction/`，迁移文件只增不改（sqlx 校验哈希）。
