@@ -2229,7 +2229,9 @@ onUnmounted(() => {
 }
 .g-quest.is-closed-space-denied {
   border-color: #e4b82e;
-  background: #fff4c7;
+  background:
+    radial-gradient(circle at center, rgba(180, 150, 235, 0.18), transparent 58%),
+    #fff4c7;
   opacity: 1;
   padding-top: 42px;
   padding-bottom: 42px;
