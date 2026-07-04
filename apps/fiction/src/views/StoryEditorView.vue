@@ -14,6 +14,7 @@ import {
   deleteChapter,
   reorderChapters,
   uploadCover,
+  session,
 } from '@/api'
 import { CATEGORIES, wordLabel, fmtDate } from '@/lib/format'
 
@@ -28,8 +29,19 @@ const loading = ref(true)
 const saving = ref(false)
 const story = ref(null)
 const chapters = ref([])
-const form = ref({ title: '', summary: '', category: 'daily', isCompleted: false, coverPath: null, tags: [] })
+const form = ref({ title: '', summary: '', category: 'daily', isCompleted: false, coverPath: null, tags: [], authorName: '' })
 const tagInput = ref('')
+
+// fiction 管理员（超管，或 fiction「管理」角色 level≥4）可为作品设置「独立署名」——不绑定任何账号。
+// 判定须与后端 authorize(…, Action::Manage) 一致，避免「审核」角色(level 3)看到字段却提交被拒。
+const me = computed(() => session.state.user)
+const isFictionAdmin = computed(
+  () => !!me.value && (me.value.isSuperAdmin || (me.value.apps?.fiction?.level ?? 0) >= 4)
+)
+// 署名字段仅在「新建」或编辑「已是独立署名（未绑定账号）的作品」时出现，避免把成员作品改成独立署名
+const showAuthorField = computed(
+  () => isFictionAdmin.value && (isNew.value || (story.value != null && story.value.authorUserId == null))
+)
 
 // 一层发布模型：作品是否对读者可见由「已发布章节数」自动决定；作者可主动下架
 const publishedCount = computed(() => chapters.value.filter((c) => c.status === 'published').length)
@@ -44,7 +56,7 @@ async function load() {
   if (isNew.value) {
     story.value = null
     chapters.value = []
-    form.value = { title: '', summary: '', category: 'daily', isCompleted: false, coverPath: null, tags: [] }
+    form.value = { title: '', summary: '', category: 'daily', isCompleted: false, coverPath: null, tags: [], authorName: '' }
     loading.value = false
     return
   }
@@ -60,6 +72,8 @@ async function load() {
       isCompleted: r.story.isCompleted,
       coverPath: r.story.coverPath,
       tags: [...(r.story.tags || [])],
+      // 独立署名作品（未绑定账号）预填其署名，供管理员修改；普通作品留空不展示该字段
+      authorName: r.story.authorUserId == null ? r.story.authorName || '' : '',
     }
   } catch (e) {
     toast.danger(e.status === 403 ? '无权管理该作品' : '作品加载失败')
@@ -225,6 +239,11 @@ watch(id, load, { immediate: true })
             <label class="se__field">
               <span>标题</span>
               <input v-model="form.title" maxlength="120" placeholder="作品标题" />
+            </label>
+            <label v-if="showAuthorField" class="se__field">
+              <span>作者署名<SosBadge variant="outline" class="se__admin-tag">管理员</SosBadge></span>
+              <input v-model="form.authorName" maxlength="60" placeholder="留空则以你的账号昵称署名" />
+              <small class="se__field-hint">填写后作品以该署名对外展示，且不与任何账号绑定；留空则默认署你的账号昵称。</small>
             </label>
             <label class="se__field">
               <span>简介</span>
@@ -395,6 +414,17 @@ watch(id, load, { immediate: true })
 .se__field > span {
   font-size: var(--sos-text-sm);
   color: var(--sos-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+}
+.se__admin-tag {
+  font-size: var(--sos-text-xs);
+}
+.se__field-hint {
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-tertiary, var(--sos-text-secondary));
+  line-height: 1.5;
 }
 .se__field input,
 .se__field textarea {
