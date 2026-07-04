@@ -707,16 +707,25 @@ fn count_words(text: &str) -> i64 {
     text.chars().filter(|c| !c.is_whitespace()).count() as i64
 }
 
-/// 确认 story 存在且属于该用户，否则 404 / 403。
-async fn assert_owner(pool: &SqlitePool, id: i64, uid: i64) -> AppResult<()> {
+/// 是否 fiction 管理员（超管或 fiction「管理」角色）——可创建并统一维护「独立署名」作品。
+async fn is_fiction_admin(core: &SqlitePool, user: &AuthUser) -> bool {
+    authorize(core, user, "fiction", Action::Manage)
+        .await
+        .is_ok()
+}
+
+/// 确认 story 存在且可被该用户管理：作者本人；或作品未绑定账号（独立署名）且请求者为 fiction 管理员。
+async fn assert_owner(state: &AppState, id: i64, user: &AuthUser) -> AppResult<()> {
     let owner: Option<Option<i64>> =
         sqlx::query_scalar("SELECT author_user_id FROM stories WHERE id = ?")
             .bind(id)
-            .fetch_optional(pool)
+            .fetch_optional(&state.pools.fiction)
             .await?;
     match owner {
         None => Err(AppError::not_found("作品不存在")),
-        Some(a) if a == Some(uid) => Ok(()),
+        Some(Some(a)) if a == user.id => Ok(()),
+        // 独立署名作品（author_user_id 为空）交由 fiction 管理员统一管理
+        Some(None) if is_fiction_admin(&state.pools.core, user).await => Ok(()),
         Some(_) => Err(AppError::Forbidden),
     }
 }
@@ -768,8 +777,14 @@ async fn recompute_story(pool: &SqlitePool, id: i64) -> AppResult<()> {
 
 /// GET /api/fiction/me/stories —— 我的创作列表（含草稿/下架，附总章节数）。
 async fn my_stories(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+    // 管理员的创作中心额外纳入「独立署名」作品（author_user_id 为空），便于统一维护
+    let where_clause = if is_fiction_admin(&state.pools.core, &user).await {
+        "WHERE author_user_id = ? OR author_user_id IS NULL"
+    } else {
+        "WHERE author_user_id = ?"
+    };
     let rows: Vec<StoryRow> = sqlx::query_as(&format!(
-        "SELECT {STORY_COLS} FROM stories WHERE author_user_id = ? \
+        "SELECT {STORY_COLS} FROM stories {where_clause} \
          ORDER BY datetime(updated_at) DESC, id DESC"
     ))
     .bind(user.id)
@@ -815,10 +830,27 @@ async fn create_story(
     user: AuthUser,
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
-    let author_name = require_verified_member(&state.pools.core, &user).await?;
     let obj = body
         .as_object()
         .ok_or_else(|| AppError::bad_request("请求体须为对象"))?;
+
+    // 署名归属：管理员填写 authorName 可创建「独立署名」作品——不绑定任何账号、
+    // 署名为自定义文本；普通成员或留空则以本人昵称署名并绑定账号。
+    let custom_author = obj
+        .get("authorName")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let (author_user_id, author_uid, author_name): (Option<i64>, Option<String>, String) =
+        if let Some(name) = custom_author {
+            if !is_fiction_admin(&state.pools.core, &user).await {
+                return Err(AppError::Forbidden);
+            }
+            (None, None, clamp_len(Some(name), 60))
+        } else {
+            let name = require_verified_member(&state.pools.core, &user).await?;
+            (Some(user.id), Some(member_uid(user.id)), name)
+        };
 
     let title = clamp_len(obj.get("title").and_then(|v| v.as_str()), 120);
     if title.trim().is_empty() {
@@ -850,8 +882,8 @@ async fn create_story(
     .bind(&cover)
     .bind(&category)
     .bind(is_completed as i64)
-    .bind(user.id)
-    .bind(member_uid(user.id))
+    .bind(author_user_id)
+    .bind(&author_uid)
     .bind(&author_name)
     .bind(&now)
     .bind(&now)
@@ -869,7 +901,7 @@ async fn my_story(
     Path(id): Path<i64>,
     user: AuthUser,
 ) -> AppResult<Json<Value>> {
-    assert_owner(&state.pools.fiction, id, user.id).await?;
+    assert_owner(&state, id, &user).await?;
 
     let s: StoryRow = sqlx::query_as(&format!("SELECT {STORY_COLS} FROM stories WHERE id = ?"))
         .bind(id)
@@ -908,7 +940,7 @@ async fn update_story(
     user: AuthUser,
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
-    assert_owner(&state.pools.fiction, id, user.id).await?;
+    assert_owner(&state, id, &user).await?;
     let obj = body
         .as_object()
         .ok_or_else(|| AppError::bad_request("请求体须为对象"))?;
@@ -962,6 +994,25 @@ async fn update_story(
     if obj.contains_key("tags") {
         set_story_tags(pool, id, &parse_tags(obj.get("tags"))).await?;
     }
+    // 独立署名作品：管理员可修改署名（仅对未绑定账号的作品开放，杜绝篡改成员作品署名）
+    if let Some(name) = obj.get("authorName").and_then(|v| v.as_str()) {
+        let name = clamp_len(Some(name), 60);
+        let bound: Option<i64> =
+            sqlx::query_scalar("SELECT author_user_id FROM stories WHERE id = ?")
+                .bind(id)
+                .fetch_one(pool)
+                .await?;
+        if !name.trim().is_empty()
+            && bound.is_none()
+            && is_fiction_admin(&state.pools.core, &user).await
+        {
+            sqlx::query("UPDATE stories SET author_name = ? WHERE id = ?")
+                .bind(&name)
+                .bind(id)
+                .execute(pool)
+                .await?;
+        }
+    }
 
     sqlx::query("UPDATE stories SET updated_at = ? WHERE id = ?")
         .bind(now_iso())
@@ -978,7 +1029,7 @@ async fn delete_story(
     Path(id): Path<i64>,
     user: AuthUser,
 ) -> AppResult<Json<Value>> {
-    assert_owner(&state.pools.fiction, id, user.id).await?;
+    assert_owner(&state, id, &user).await?;
     sqlx::query("UPDATE stories SET status = 'hidden', updated_at = ? WHERE id = ?")
         .bind(now_iso())
         .bind(id)
@@ -994,7 +1045,7 @@ async fn restore_story(
     Path(id): Path<i64>,
     user: AuthUser,
 ) -> AppResult<Json<Value>> {
-    assert_owner(&state.pools.fiction, id, user.id).await?;
+    assert_owner(&state, id, &user).await?;
     sqlx::query("UPDATE stories SET status = 'draft', updated_at = ? WHERE id = ?")
         .bind(now_iso())
         .bind(id)
@@ -1011,7 +1062,7 @@ async fn create_chapter(
     user: AuthUser,
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
-    assert_owner(&state.pools.fiction, id, user.id).await?;
+    assert_owner(&state, id, &user).await?;
     let obj = body.as_object().cloned().unwrap_or_default();
 
     let mut title = clamp_len(obj.get("title").and_then(|v| v.as_str()), 120);
@@ -1059,7 +1110,7 @@ async fn my_chapter(
     Path((id, cid)): Path<(i64, i64)>,
     user: AuthUser,
 ) -> AppResult<Json<Value>> {
-    assert_owner(&state.pools.fiction, id, user.id).await?;
+    assert_owner(&state, id, &user).await?;
     let ch: Option<(
         i64,
         String,
@@ -1101,7 +1152,7 @@ async fn update_chapter(
     user: AuthUser,
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
-    assert_owner(&state.pools.fiction, id, user.id).await?;
+    assert_owner(&state, id, &user).await?;
     let obj = body
         .as_object()
         .ok_or_else(|| AppError::bad_request("请求体须为对象"))?;
@@ -1188,7 +1239,7 @@ async fn delete_chapter(
     Path((id, cid)): Path<(i64, i64)>,
     user: AuthUser,
 ) -> AppResult<Json<Value>> {
-    assert_owner(&state.pools.fiction, id, user.id).await?;
+    assert_owner(&state, id, &user).await?;
     sqlx::query("DELETE FROM chapters WHERE id = ? AND story_id = ?")
         .bind(cid)
         .bind(id)
@@ -1205,7 +1256,7 @@ async fn reorder_chapters(
     user: AuthUser,
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
-    assert_owner(&state.pools.fiction, id, user.id).await?;
+    assert_owner(&state, id, &user).await?;
     let order = body
         .get("order")
         .and_then(|v| v.as_array())

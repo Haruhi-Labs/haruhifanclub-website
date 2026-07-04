@@ -71,9 +71,12 @@ onMounted(load)
           <div class="wd__card-top">
             <h3>{{ s.title }}</h3>
             <SosBadge :variant="statusBadge(s).v">{{ statusBadge(s).t }}</SosBadge>
+            <SosBadge v-if="s.authorUserId == null" variant="outline">独立署名</SosBadge>
           </div>
           <p class="wd__card-summary">{{ s.summary || '暂无简介' }}</p>
           <div class="wd__card-meta">
+            <span v-if="s.authorUserId == null">✍ {{ s.authorName || '佚名' }}</span>
+            <span v-if="s.authorUserId == null">·</span>
             <span>{{ s.chapterTotal }} 章（{{ s.chapterCount }} 已发布）</span>
             <span>·</span>
             <span>{{ wordLabel(s.wordCount) }}</span>
