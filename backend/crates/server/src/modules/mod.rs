@@ -6,6 +6,7 @@ use crate::state::AppState;
 
 pub mod art;
 pub mod art_guild;
+pub mod download;
 pub mod exam;
 pub mod fiction;
 pub mod news;
@@ -20,4 +21,5 @@ pub fn mount(api: Router<AppState>) -> Router<AppState> {
         .nest("/exam", exam::router())
         .nest("/shop", shop::router())
         .nest("/fiction", fiction::router())
+        .nest("/download", download::router())
 }

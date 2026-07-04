@@ -345,12 +345,12 @@
         <div v-if="!leaderboard.length" class="g-empty">暂无公会成员记录</div>
       </section>
 
-      <!-- 评级 -->
+      <!-- 评级&权限 -->
       <section v-else-if="activeTab === 'rating'" class="g-view">
         <header class="g-view__head">
           <div>
             <span class="g-view__eyebrow">Rank Up</span>
-            <h1>评级申请</h1>
+            <h1>评级&权限申请</h1>
             <p>{{ nextRatingText }}</p>
           </div>
         </header>
@@ -399,14 +399,60 @@
           <span>{{ ratingAuditText }}</span>
         </div>
 
+        <section class="g-access-panel">
+          <div class="g-access-panel__copy">
+            <span>访问许可</span>
+            <h2>{{ profile.accessLabel || '0级公开档案许可' }}</h2>
+            <p>{{ accessAuditText }}</p>
+            <p v-if="latestRejectedAccessApplication?.adminNote" class="g-access-panel__reject">
+              最近驳回理由：{{ latestRejectedAccessApplication.adminNote }}
+            </p>
+          </div>
+          <div class="g-access-panel__side">
+            <span>下一档</span>
+            <b>{{ profile.nextAccess?.label || '最高许可' }}</b>
+            <button
+              type="button"
+              class="sos-button sos-button--primary"
+              :disabled="accessApplicationDisabled"
+              @click="openAccessApplication"
+            >
+              {{ accessApplicationButtonLabel }}
+            </button>
+          </div>
+        </section>
+
         <div v-if="ratingApplications.length" class="g-rating-history">
           <div class="g-rating-history__head">
-            <span>申请记录</span>
+            <span>评级申请记录</span>
             <b>最近 {{ ratingApplications.length }} 条</b>
           </div>
           <article v-for="item in ratingApplications" :key="item.id" class="g-rating-record">
             <div>
               <b>{{ item.fromRating || 'F' }} → {{ item.targetRating }}</b>
+              <time>{{ formatShortDateTime(item.reviewedAt || item.createdAt) }}</time>
+            </div>
+            <span class="g-rating-record__status" :class="`status-${item.status}`">
+              {{ ratingApplicationStatusLabel(item.status) }}
+            </span>
+            <p v-if="item.status === 'rejected' && item.adminNote">
+              驳回理由：{{ item.adminNote }}
+            </p>
+            <p v-else-if="item.adminNote">管理员备注：{{ item.adminNote }}</p>
+          </article>
+        </div>
+
+        <div v-if="accessApplications.length" class="g-rating-history">
+          <div class="g-rating-history__head">
+            <span>权限申请记录</span>
+            <b>最近 {{ accessApplications.length }} 条</b>
+          </div>
+          <article v-for="item in accessApplications" :key="item.id" class="g-rating-record">
+            <div>
+              <b>
+                {{ item.fromAccessShortLabel || '档案0' }} →
+                {{ item.targetAccessShortLabel || item.targetAccessLabel }}
+              </b>
               <time>{{ formatShortDateTime(item.reviewedAt || item.createdAt) }}</time>
             </div>
             <span class="g-rating-record__status" :class="`status-${item.status}`">
@@ -426,7 +472,7 @@
           <div>
             <span class="g-view__eyebrow">Guild Rule Book</span>
             <h1>公会规则书</h1>
-            <p>冒险者公会的运作规约，共 {{ ruleBooks.length }} 章，章节内容由管理员后台维护。</p>
+            <p>冒险者公会的运作规约，共 {{ ruleBooks.length }} 章，内容与后台审核规则同步。</p>
           </div>
         </header>
         <div class="g-rules-grid">
@@ -603,6 +649,76 @@
     </transition>
 
     <transition name="g-fade">
+      <div v-if="accessApplicationOpen" class="g-modal" @click.self="closeAccessApplication">
+        <article class="g-dialog g-dialog--submission" role="dialog" aria-modal="true">
+          <button
+            class="g-dialog__close"
+            type="button"
+            @click="closeAccessApplication"
+            aria-label="关闭"
+          >
+            ×
+          </button>
+          <span class="g-dialog__eyebrow">Access Request</span>
+          <h2>申请{{ profile.nextAccess?.label || '下一档访问许可' }}</h2>
+          <p class="g-dialog__lede">
+            请选择至少 <b>1</b> 张自己已审核通过的凉宫个人作品。理由可留空，由管理员决定是否通过。
+          </p>
+          <div class="g-submission-list">
+            <button
+              v-for="artwork in accessSubmissionArtworks"
+              :key="artwork.id"
+              type="button"
+              class="g-submission-item"
+              :class="{ 'is-selected': selectedAccessArtworkIds.includes(artwork.id) }"
+              @click="toggleAccessArtwork(artwork.id)"
+            >
+              <span class="g-submission-item__thumb">
+                <img
+                  v-if="artwork.image_url"
+                  :src="thumbUrl(artwork.image_url, 320)"
+                  :alt="artwork.title || '作品'"
+                />
+                <i v-else>ART</i>
+              </span>
+              <span class="g-submission-item__copy">
+                <b>{{ artwork.title || `作品 #${artwork.id}` }}</b>
+                <small>{{ formatShortDateTime(artwork.publishedAt || artwork.created_at) }}</small>
+              </span>
+              <span class="g-submission-item__check" aria-hidden="true"></span>
+            </button>
+            <div v-if="accessSubmissionLoading" class="g-empty compact">正在读取可提交作品</div>
+            <div v-else-if="!accessSubmissionArtworks.length" class="g-empty compact">
+              暂无可用于申请的凉宫个人作品
+            </div>
+          </div>
+          <textarea
+            v-model="accessApplicationNote"
+            class="sos-textarea"
+            placeholder="给管理员的申请说明（可留空）"
+          ></textarea>
+          <div class="g-dialog__actions">
+            <button
+              type="button"
+              class="sos-button sos-button--ghost"
+              @click="closeAccessApplication"
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              class="sos-button sos-button--primary"
+              :disabled="accessApplicationSaving || !selectedAccessArtworkIds.length"
+              @click="submitAccessApplication"
+            >
+              提交申请
+            </button>
+          </div>
+        </article>
+      </div>
+    </transition>
+
+    <transition name="g-fade">
       <div v-if="activeRuleTable" class="g-modal" @click.self="closeRuleTable">
         <article class="g-dialog g-dialog--table" role="dialog" aria-modal="true">
           <button class="g-dialog__close" type="button" @click="closeRuleTable" aria-label="关闭">
@@ -659,6 +775,7 @@ const currentLeader = ref(null)
 const redemptions = ref([])
 const selectedRedemption = ref(null)
 const ratingApplications = ref([])
+const accessApplications = ref([])
 const profile = ref({
   uid: '',
   rating: 'F',
@@ -685,6 +802,12 @@ const submissionArtworks = ref([])
 const selectedSubmissionArtworkIds = ref([])
 const submissionLoading = ref(false)
 const submissionSaving = ref(false)
+const accessApplicationOpen = ref(false)
+const accessSubmissionArtworks = ref([])
+const selectedAccessArtworkIds = ref([])
+const accessApplicationNote = ref('')
+const accessSubmissionLoading = ref(false)
+const accessApplicationSaving = ref(false)
 
 const ratingApplicationTable = {
   title: '评级申请条件',
@@ -764,6 +887,9 @@ const ruleBooks = [
       '档案0：公开档案许可，可浏览公开画廊与公会规则。',
       '观测1：观测员许可，可参与日常委托与基础兑换。',
       '异常2 / 闭锁3：更高阶观测许可，由管理员根据社团需要授予。',
+      '需要提升访问许可时，可在评级&权限页面主动申请下一档许可，不支持越级申请。',
+      '申请访问许可需要从自己的历史画作中选择至少 1 张已审核通过的凉宫个人作品提交。',
+      '申请理由可以留空；管理员通过后新许可立即生效，驳回时会给出驳回理由。',
     ],
   },
   {
@@ -814,12 +940,14 @@ const guildTabs = computed(() => [
   {
     id: 'rating',
     eyebrow: 'Rank Up',
-    label: '评级',
-    summary: profile.value.pendingRatingApplication?.targetRating
-      ? `待验收 ${profile.value.pendingRatingApplication.targetRating}`
-      : profile.value.nextRating?.rating
-        ? `目标 ${profile.value.nextRating.rating}`
-        : '当前',
+    label: '评级&权限',
+    summary: profile.value.pendingAccessApplication?.targetAccessShortLabel
+      ? `许可待审 ${profile.value.pendingAccessApplication.targetAccessShortLabel}`
+      : profile.value.pendingRatingApplication?.targetRating
+        ? `待验收 ${profile.value.pendingRatingApplication.targetRating}`
+        : profile.value.nextRating?.rating
+          ? `目标 ${profile.value.nextRating.rating}`
+          : '当前',
   },
   { id: 'rules', eyebrow: 'Rule Book', label: '规则书', summary: `${ruleBooks.length} 章` },
 ])
@@ -856,6 +984,30 @@ const ratingAuditText = computed(() => {
   if (next.available) return `${next.rating} 评级条件已满足，系统会自动提交验收申请。`
   return '继续完成委托与投稿，满足条件后会自动进入管理员验收。'
 })
+
+const pendingAccessApplication = computed(() => profile.value.pendingAccessApplication || null)
+const latestRejectedAccessApplication = computed(
+  () => accessApplications.value.find((item) => item.status === 'rejected') || null
+)
+const accessAuditText = computed(() => {
+  if (!session.state.user) return '登录后可提交凉宫个人作品申请下一档访问许可。'
+  const pending = pendingAccessApplication.value
+  if (pending?.targetAccessShortLabel) {
+    return `${pending.targetAccessShortLabel} 访问许可申请已提交，等待管理员审核。`
+  }
+  const next = profile.value.nextAccess
+  if (!next?.tier) return '当前访问许可已经达到最高档。'
+  return `下一档 ${next.label || next.shortLabel}：提交至少 1 张已通过的凉宫个人作品后，可申请管理员审核。`
+})
+const accessApplicationButtonLabel = computed(() => {
+  if (!session.state.user) return '登录后申请'
+  if (pendingAccessApplication.value) return '等待审核'
+  if (!profile.value.nextAccess?.tier) return '已是最高许可'
+  return '申请下一档许可'
+})
+const accessApplicationDisabled = computed(
+  () => !session.state.user || !!pendingAccessApplication.value || !profile.value.nextAccess?.tier
+)
 
 function ratingApplicationStatusLabel(status) {
   const map = {
@@ -916,6 +1068,7 @@ async function loadGuild() {
     currentLeader.value = rankRes.me || null
     profile.value = questRes.profile || rewardRes.profile || profile.value
     ratingApplications.value = questRes.ratingApplications || []
+    accessApplications.value = questRes.accessApplications || []
 
     if (session.state.user) {
       try {
@@ -1175,6 +1328,59 @@ async function submitQuestArtworks() {
   }
 }
 
+async function openAccessApplication() {
+  if (!requireLogin() || accessApplicationDisabled.value) return
+  accessApplicationOpen.value = true
+  accessSubmissionArtworks.value = []
+  selectedAccessArtworkIds.value = []
+  accessApplicationNote.value = ''
+  accessSubmissionLoading.value = true
+  try {
+    const res = await api.guildAccessSubmissionArtworks()
+    accessSubmissionArtworks.value = res.data || []
+  } catch (error) {
+    feedback.value = error.message || '读取可提交作品失败'
+    closeAccessApplication()
+  } finally {
+    accessSubmissionLoading.value = false
+  }
+}
+
+function closeAccessApplication() {
+  accessApplicationOpen.value = false
+  accessSubmissionArtworks.value = []
+  selectedAccessArtworkIds.value = []
+  accessApplicationNote.value = ''
+  accessSubmissionLoading.value = false
+  accessApplicationSaving.value = false
+}
+
+function toggleAccessArtwork(artworkId) {
+  if (selectedAccessArtworkIds.value.includes(artworkId)) {
+    selectedAccessArtworkIds.value = selectedAccessArtworkIds.value.filter((id) => id !== artworkId)
+  } else {
+    selectedAccessArtworkIds.value = [...selectedAccessArtworkIds.value, artworkId]
+  }
+}
+
+async function submitAccessApplication() {
+  if (!selectedAccessArtworkIds.value.length) return
+  accessApplicationSaving.value = true
+  try {
+    await api.guildApplyAccess({
+      artworkIds: selectedAccessArtworkIds.value,
+      note: accessApplicationNote.value,
+    })
+    feedback.value = '访问许可申请已提交，等待管理员审核。'
+    closeAccessApplication()
+    await loadGuild()
+  } catch (error) {
+    feedback.value = error.message || '提交访问许可申请失败'
+  } finally {
+    accessApplicationSaving.value = false
+  }
+}
+
 function openRedeem(reward) {
   if (!requireLogin() || !reward.unlocked) return
   redeemTarget.value = reward
@@ -1283,7 +1489,13 @@ function applyMock() {
     haruhiPersonalCount: 3,
     coins: { total: 1880, available: 1720, frozen: 160 },
     nextRating: { rating: 'C', requiredReputation: 800, requiredHaruhiCount: 4, available: false },
+    nextAccess: {
+      tier: 'anomaly_research',
+      label: '2级异常观测许可',
+      shortLabel: '异常2',
+    },
     pendingRatingApplication: null,
+    pendingAccessApplication: null,
   }
   ratingApplications.value = [
     {
@@ -1294,6 +1506,20 @@ function applyMock() {
       adminNote: '近期作品完成度不足，请补充更完整的凉宫个人作品后重新触发申请。',
       createdAt: '2026-07-01T12:00:00.000Z',
       reviewedAt: '2026-07-01T13:20:00.000Z',
+    },
+  ]
+  accessApplications.value = [
+    {
+      id: 1,
+      fromAccess: 'observer_clearance',
+      fromAccessShortLabel: '观测1',
+      targetAccess: 'anomaly_research',
+      targetAccessLabel: '2级异常观测许可',
+      targetAccessShortLabel: '异常2',
+      status: 'rejected',
+      adminNote: '请补充更完整的凉宫个人作品后再次申请。',
+      createdAt: '2026-07-02T10:00:00.000Z',
+      reviewedAt: '2026-07-02T11:00:00.000Z',
     },
   ]
   quests.value = [
@@ -2926,6 +3152,44 @@ onUnmounted(() => {
   );
   transition: width 0.5s ease;
 }
+.g-access-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
+  gap: 14px;
+  align-items: stretch;
+  padding: 16px;
+  border: 1px solid var(--g-line);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--g-accent) 8%, #fff);
+}
+.g-access-panel__copy,
+.g-access-panel__side {
+  display: grid;
+  gap: 8px;
+}
+.g-access-panel__copy span,
+.g-access-panel__side span {
+  color: var(--g-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+.g-access-panel__copy h2,
+.g-access-panel__side b {
+  margin: 0;
+  color: var(--g-ink);
+}
+.g-access-panel__copy p {
+  margin: 0;
+  color: var(--g-muted);
+}
+.g-access-panel__reject {
+  color: #b72623 !important;
+}
+.g-access-panel__side {
+  justify-items: end;
+  align-content: space-between;
+  text-align: right;
+}
 .g-rating-history {
   display: grid;
   gap: 10px;
@@ -3223,6 +3487,13 @@ onUnmounted(() => {
   }
   .g-quest {
     grid-template-columns: 1fr;
+  }
+  .g-access-panel {
+    grid-template-columns: 1fr;
+  }
+  .g-access-panel__side {
+    justify-items: start;
+    text-align: left;
   }
 }
 

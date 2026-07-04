@@ -21,6 +21,8 @@ pub struct AppState {
     pub account_limiter: Arc<RateLimiter>,
     /// 统一邮件发送器；未配置邮件时为 None（业务层据此把链接打日志降级）。
     pub mailer: Option<Mailer>,
+    /// 资源站（download）：语雀知识库索引的内存缓存，后台定时同步、请求直接读。
+    pub download: crate::modules::download::DownloadCache,
 }
 
 /// 让 auth 提取器能从 AppState 取到 JWT 密钥。

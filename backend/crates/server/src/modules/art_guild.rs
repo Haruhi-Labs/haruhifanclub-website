@@ -30,6 +30,13 @@ const RATINGS: &[(&str, i64, i64)] = &[
     ("X", 12000, 35),
 ];
 
+const ACCESS_TIERS: &[&str] = &[
+    "public_archive",
+    "observer_clearance",
+    "anomaly_research",
+    "closed_space",
+];
+
 type GuildLeaderboardRow = (
     String,
     Option<i64>,
@@ -142,6 +149,11 @@ pub fn router() -> Router<AppState> {
         .route("/guild/leaderboard", get(guild_leaderboard))
         .route("/guild/coins/history", get(guild_coin_history))
         .route("/guild/rating/apply", post(guild_apply_rating))
+        .route(
+            "/guild/access/submission-artworks",
+            get(guild_access_submission_artworks),
+        )
+        .route("/guild/access/apply", post(guild_apply_access))
         .route("/guild/rewards", get(guild_rewards))
         .route("/guild/rewards/{id}/redeem", post(guild_redeem_reward))
         .route("/guild/redemptions/me", get(guild_my_redemptions))
@@ -234,7 +246,18 @@ pub fn router() -> Router<AppState> {
             "/admin/guild/rating-applications/{id}/reject",
             post(admin_reject_rating),
         )
-        .route("/admin/guild/profiles", get(admin_profiles))
+        .route(
+            "/admin/guild/access-applications",
+            get(admin_access_applications),
+        )
+        .route(
+            "/admin/guild/access-applications/{id}/approve",
+            post(admin_approve_access),
+        )
+        .route(
+            "/admin/guild/access-applications/{id}/reject",
+            post(admin_reject_access),
+        )
         .route(
             "/admin/guild/profiles/{uid}/access",
             post(admin_profile_access),
@@ -466,6 +489,10 @@ async fn guild_quests(
         Some(uid) => applications_for_uid(&state, uid).await?,
         None => Vec::new(),
     };
+    let access_applications = match &uid {
+        Some(uid) => access_applications_for_uid(&state, uid).await?,
+        None => Vec::new(),
+    };
 
     let rows: Vec<GuildQuestListRow> = sqlx::query_as(
         "SELECT q.id, q.title, q.description, q.quest_type, q.difficulty,
@@ -621,6 +648,7 @@ async fn guild_quests(
         "ok": true,
         "profile": profile,
         "ratingApplications": rating_applications,
+        "accessApplications": access_applications,
         "data": data
     })))
 }
@@ -964,6 +992,80 @@ async fn guild_apply_rating(
     .bind(haruhi_count)
     .bind("pending")
     .bind(body.get("note").and_then(|v| v.as_str()).unwrap_or(""))
+    .bind(&now)
+    .execute(&state.pools.art)
+    .await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+async fn guild_access_submission_artworks(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    let uid = ensure_profile_for_user(&state, &user).await?;
+    let artworks = eligible_access_application_artworks(&state, &uid, 200).await?;
+    Ok(Json(json!({ "ok": true, "data": artworks })))
+}
+
+async fn guild_apply_access(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    let uid = ensure_profile_for_user(&state, &user).await?;
+    let current_access: String =
+        sqlx::query_scalar("SELECT access_tier FROM guild_profiles WHERE uid=?")
+            .bind(&uid)
+            .fetch_optional(&state.pools.art)
+            .await?
+            .unwrap_or_else(|| "observer_clearance".to_string());
+    let Some(target_access) = next_access_tier(&current_access) else {
+        return Err(AppError::bad_request("当前访问许可已是最高档"));
+    };
+    let exists: Option<i64> = sqlx::query_scalar(
+        "SELECT id FROM guild_access_applications WHERE uid=? AND status='pending'",
+    )
+    .bind(&uid)
+    .fetch_optional(&state.pools.art)
+    .await?;
+    if exists.is_some() {
+        return Err(AppError::bad_request("已有待审核访问许可申请"));
+    }
+
+    let artwork_ids = i64_array_field(&body, "artworkIds");
+    if artwork_ids.is_empty() {
+        return Err(AppError::bad_request("请选择至少 1 张凉宫个人作品"));
+    }
+    let mut valid_ids = Vec::new();
+    for artwork_id in artwork_ids.into_iter().take(60) {
+        if valid_ids.contains(&artwork_id) {
+            continue;
+        }
+        if !eligible_access_application_artwork_exists(&state, &uid, artwork_id).await? {
+            return Err(AppError::bad_request(
+                "只能提交本人已审核通过的凉宫个人作品",
+            ));
+        }
+        valid_ids.push(artwork_id);
+    }
+    if valid_ids.is_empty() {
+        return Err(AppError::bad_request("请选择至少 1 张凉宫个人作品"));
+    }
+    let artwork_ids_json = serde_json::to_string(&valid_ids)
+        .map_err(|e| AppError::internal(format!("序列化权限申请作品失败: {e}")))?;
+    let note = body.get("note").and_then(|v| v.as_str()).unwrap_or("");
+    let now = now_iso();
+    sqlx::query(
+        "INSERT INTO guild_access_applications(
+            uid, from_access, target_access, artwork_ids_json, status, user_note, created_at
+         ) VALUES(?,?,?,?,?,?,?)",
+    )
+    .bind(&uid)
+    .bind(&current_access)
+    .bind(target_access)
+    .bind(&artwork_ids_json)
+    .bind("pending")
+    .bind(note)
     .bind(&now)
     .execute(&state.pools.art)
     .await?;
@@ -1896,6 +1998,158 @@ async fn admin_reject_rating(
     Ok(Json(json!({ "ok": true })))
 }
 
+async fn admin_access_applications(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Read).await?;
+    let rows: Vec<(
+        i64,
+        String,
+        Option<String>,
+        String,
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT id, uid, from_access, target_access, artwork_ids_json, status,
+                user_note, admin_note, created_at, reviewed_at
+         FROM guild_access_applications
+         ORDER BY
+            CASE status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END,
+            datetime(created_at) DESC,
+            id DESC
+         LIMIT 200",
+    )
+    .fetch_all(&state.pools.art)
+    .await?;
+    let uids: Vec<String> = rows.iter().map(|r| r.1.clone()).collect();
+    let names = super::art::member_display_names(&state.pools.core, &uids).await;
+    let mut data = Vec::with_capacity(rows.len());
+    for (
+        id,
+        uid,
+        from_access,
+        target_access,
+        artwork_ids_json,
+        status,
+        user_note,
+        admin_note,
+        created_at,
+        reviewed_at,
+    ) in rows
+    {
+        let artwork_ids = parse_artwork_ids_json(&artwork_ids_json);
+        let submitted_artworks = artworks_by_ids(&state, &artwork_ids).await?;
+        let name = names.get(&uid).cloned();
+        let from_access_label = from_access.as_deref().map(access_label);
+        let from_access_short_label = from_access.as_deref().map(access_short_label);
+        data.push(json!({
+            "id": id,
+            "uid": uid,
+            "name": name,
+            "fromAccess": from_access,
+            "fromAccessLabel": from_access_label,
+            "fromAccessShortLabel": from_access_short_label,
+            "targetAccess": target_access,
+            "targetAccessLabel": access_label(&target_access),
+            "targetAccessShortLabel": access_short_label(&target_access),
+            "artworkIds": artwork_ids,
+            "submittedArtworks": submitted_artworks,
+            "status": status,
+            "userNote": user_note,
+            "adminNote": admin_note,
+            "createdAt": created_at,
+            "reviewedAt": reviewed_at
+        }));
+    }
+    Ok(Json(json!({ "ok": true, "data": data })))
+}
+
+async fn admin_approve_access(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+    let row: Option<(String, String)> = sqlx::query_as(
+        "SELECT uid, target_access FROM guild_access_applications WHERE id=? AND status='pending'",
+    )
+    .bind(id)
+    .fetch_optional(&state.pools.art)
+    .await?;
+    let Some((uid, target_access)) = row else {
+        return Err(AppError::bad_request("访问许可申请不存在或已审核"));
+    };
+    if access_rank(&target_access) < 0 {
+        return Err(AppError::bad_request("访问许可无效"));
+    }
+    let now = now_iso();
+    let note = body.get("note").and_then(|v| v.as_str()).unwrap_or("");
+    let current_access: Option<String> =
+        sqlx::query_scalar("SELECT access_tier FROM guild_profiles WHERE uid=?")
+            .bind(&uid)
+            .fetch_optional(&state.pools.art)
+            .await?;
+    let approved_access = current_access
+        .as_deref()
+        .filter(|access| access_rank(access) > access_rank(&target_access))
+        .unwrap_or(&target_access);
+    let mut tx = state.pools.art.begin().await?;
+    sqlx::query("UPDATE guild_profiles SET access_tier=?, updated_at=? WHERE uid=?")
+        .bind(approved_access)
+        .bind(&now)
+        .bind(&uid)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query(
+        "UPDATE guild_access_applications
+         SET status='approved', admin_note=?, reviewed_at=?
+         WHERE id=? AND status='pending'",
+    )
+    .bind(note)
+    .bind(&now)
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    ensure_auto_claims_for_uid(&state, &uid).await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+async fn admin_reject_access(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Manage).await?;
+    let note = body
+        .get("note")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| AppError::bad_request("驳回理由不能为空"))?;
+    let result = sqlx::query(
+        "UPDATE guild_access_applications
+         SET status='rejected', admin_note=?, reviewed_at=?
+         WHERE id=? AND status='pending'",
+    )
+    .bind(note)
+    .bind(now_iso())
+    .bind(id)
+    .execute(&state.pools.art)
+    .await?;
+    if result.rows_affected() == 0 {
+        return Err(AppError::bad_request("访问许可申请不存在或已审核"));
+    }
+    Ok(Json(json!({ "ok": true })))
+}
+
 async fn admin_guild_quest_claims(
     State(state): State<AppState>,
     user: AuthUser,
@@ -2068,40 +2322,6 @@ async fn admin_reject_quest_claim(
     Ok(Json(json!({ "ok": true })))
 }
 
-async fn admin_profiles(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
-    authorize(&state.pools.core, &user, "art", Action::Read).await?;
-    let rows: Vec<(String, Option<i64>, i64, String, String, Option<i64>)> = sqlx::query_as(
-        "SELECT gp.uid, gp.user_id, gp.reputation, gp.rating, gp.access_tier,
-                COALESCE(SUM(pl.points), 0) AS coins
-         FROM guild_profiles gp
-         LEFT JOIN points_ledger pl ON pl.uid=gp.uid
-         GROUP BY gp.uid
-         ORDER BY gp.updated_at DESC, gp.uid ASC",
-    )
-    .fetch_all(&state.pools.art)
-    .await?;
-    let uids: Vec<String> = rows.iter().map(|r| r.0.clone()).collect();
-    let names = super::art::member_display_names(&state.pools.core, &uids).await;
-    let data: Vec<Value> = rows
-        .into_iter()
-        .map(|(uid, user_id, reputation, rating, access, coins)| {
-            let name = names.get(&uid).cloned();
-            json!({
-                "uid": uid,
-                "name": name,
-                "userId": user_id,
-                "reputation": reputation,
-                "level": level_from_reputation(reputation),
-                "rating": rating,
-                "accessTier": access,
-                "accessLabel": access_label(&access),
-                "coins": coins.unwrap_or(0)
-            })
-        })
-        .collect();
-    Ok(Json(json!({ "ok": true, "data": data })))
-}
-
 async fn admin_profile_access(
     State(state): State<AppState>,
     user: AuthUser,
@@ -2209,7 +2429,13 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
     } else {
         None
     };
+    let pending_access_application = if private {
+        pending_access_application_for_uid(state, uid).await?
+    } else {
+        None
+    };
     let next_rating = next_rating(&rating, reputation, haruhi_count);
+    let next_access = next_access_value(&access_tier);
     let user_profile = match (private, user_id) {
         (true, Some(id)) => Some(user_profile_value(state, id).await?),
         _ => None,
@@ -2238,7 +2464,9 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
         "coins": coins,
         "haruhiPersonalCount": haruhi_count,
         "nextRating": next_rating,
+        "nextAccess": next_access,
         "pendingRatingApplication": pending_rating_application,
+        "pendingAccessApplication": pending_access_application,
         "user": user_profile
     }))
 }
@@ -3215,6 +3443,27 @@ async fn eligible_submission_artworks(
     Ok(rows.into_iter().map(submission_artwork_value).collect())
 }
 
+async fn eligible_access_application_artworks(
+    state: &AppState,
+    uid: &str,
+    limit: i64,
+) -> AppResult<Vec<Value>> {
+    let rows: Vec<QuestSubmissionArtworkRow> = sqlx::query_as(
+        "SELECT id, title, source_type, content_type, file_path, images_json, status,
+                created_at, reviewed_at, NULL AS submitted_at
+         FROM artworks
+         WHERE uploader_uid=? AND status='approved'
+           AND source_type='personal' AND content_type='haruhi'
+         ORDER BY datetime(COALESCE(reviewed_at, created_at)) DESC, id DESC
+         LIMIT ?",
+    )
+    .bind(uid)
+    .bind(limit)
+    .fetch_all(&state.pools.art)
+    .await?;
+    Ok(rows.into_iter().map(submission_artwork_value).collect())
+}
+
 async fn submitted_artworks_for_claim(state: &AppState, claim_id: i64) -> AppResult<Vec<Value>> {
     let rows: Vec<QuestSubmissionArtworkRow> = sqlx::query_as(
         "SELECT a.id, a.title, a.source_type, a.content_type, a.file_path, a.images_json,
@@ -3268,6 +3517,24 @@ async fn eligible_submission_artwork_exists(
     Ok(count > 0)
 }
 
+async fn eligible_access_application_artwork_exists(
+    state: &AppState,
+    uid: &str,
+    artwork_id: i64,
+) -> AppResult<bool> {
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*)
+         FROM artworks
+         WHERE id=? AND uploader_uid=? AND status='approved'
+           AND source_type='personal' AND content_type='haruhi'",
+    )
+    .bind(artwork_id)
+    .bind(uid)
+    .fetch_one(&state.pools.art)
+    .await?;
+    Ok(count > 0)
+}
+
 async fn valid_submitted_count_for_claim(
     state: &AppState,
     claim_id: i64,
@@ -3287,6 +3554,25 @@ async fn valid_submitted_count_for_claim(
     .bind(eligible_from)
     .fetch_one(&state.pools.art)
     .await?)
+}
+
+async fn artworks_by_ids(state: &AppState, artwork_ids: &[i64]) -> AppResult<Vec<Value>> {
+    let mut result = Vec::new();
+    for artwork_id in artwork_ids.iter().copied().take(60) {
+        let row: Option<QuestSubmissionArtworkRow> = sqlx::query_as(
+            "SELECT id, title, source_type, content_type, file_path, images_json, status,
+                    created_at, reviewed_at, NULL AS submitted_at
+             FROM artworks
+             WHERE id=?",
+        )
+        .bind(artwork_id)
+        .fetch_optional(&state.pools.art)
+        .await?;
+        if let Some(row) = row {
+            result.push(submission_artwork_value(row));
+        }
+    }
+    Ok(result)
 }
 
 fn submission_artwork_value(row: QuestSubmissionArtworkRow) -> Value {
@@ -3654,6 +3940,109 @@ async fn applications_for_uid(state: &AppState, uid: &str) -> AppResult<Vec<Valu
             },
         )
         .collect())
+}
+
+async fn access_applications_for_uid(state: &AppState, uid: &str) -> AppResult<Vec<Value>> {
+    let rows: Vec<(
+        i64,
+        Option<String>,
+        String,
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT id, from_access, target_access, artwork_ids_json, status,
+                user_note, admin_note, created_at, reviewed_at
+         FROM guild_access_applications
+         WHERE uid=?
+         ORDER BY datetime(created_at) DESC, id DESC",
+    )
+    .bind(uid)
+    .fetch_all(&state.pools.art)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(
+            |(
+                id,
+                from_access,
+                target_access,
+                artwork_ids_json,
+                status,
+                user_note,
+                admin_note,
+                created_at,
+                reviewed_at,
+            )| {
+                let artwork_ids = parse_artwork_ids_json(&artwork_ids_json);
+                let from_access_label = from_access.as_deref().map(access_label);
+                let from_access_short_label = from_access.as_deref().map(access_short_label);
+                json!({
+                    "id": id,
+                    "fromAccess": from_access,
+                    "fromAccessLabel": from_access_label,
+                    "fromAccessShortLabel": from_access_short_label,
+                    "targetAccess": target_access,
+                    "targetAccessLabel": access_label(&target_access),
+                    "targetAccessShortLabel": access_short_label(&target_access),
+                    "artworkIds": artwork_ids,
+                    "status": status,
+                    "userNote": user_note,
+                    "adminNote": admin_note,
+                    "createdAt": created_at,
+                    "reviewedAt": reviewed_at
+                })
+            },
+        )
+        .collect())
+}
+
+async fn pending_access_application_for_uid(
+    state: &AppState,
+    uid: &str,
+) -> AppResult<Option<Value>> {
+    let row: Option<(
+        i64,
+        Option<String>,
+        String,
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT id, from_access, target_access, artwork_ids_json, status, user_note, created_at
+         FROM guild_access_applications
+         WHERE uid=? AND status='pending'
+         ORDER BY datetime(created_at) DESC, id DESC
+         LIMIT 1",
+    )
+    .bind(uid)
+    .fetch_optional(&state.pools.art)
+    .await?;
+
+    Ok(row.map(
+        |(id, from_access, target_access, artwork_ids_json, status, user_note, created_at)| {
+            let artwork_ids = parse_artwork_ids_json(&artwork_ids_json);
+            let from_access_label = from_access.as_deref().map(access_label);
+            let from_access_short_label = from_access.as_deref().map(access_short_label);
+            json!({
+                "id": id,
+                "fromAccess": from_access,
+                "fromAccessLabel": from_access_label,
+                "fromAccessShortLabel": from_access_short_label,
+                "targetAccess": target_access,
+                "targetAccessLabel": access_label(&target_access),
+                "targetAccessShortLabel": access_short_label(&target_access),
+                "artworkIds": artwork_ids,
+                "status": status,
+                "userNote": user_note,
+                "createdAt": created_at
+            })
+        },
+    ))
 }
 
 async fn pending_rating_application_for_uid(
@@ -4383,6 +4772,25 @@ fn access_rank(access: &str) -> i64 {
     }
 }
 
+fn next_access_tier(access: &str) -> Option<&'static str> {
+    let current_rank = access_rank(access);
+    ACCESS_TIERS
+        .iter()
+        .copied()
+        .find(|tier| access_rank(tier) > current_rank)
+}
+
+fn next_access_value(access: &str) -> Value {
+    if let Some(tier) = next_access_tier(access) {
+        return json!({
+            "tier": tier,
+            "label": access_label(tier),
+            "shortLabel": access_short_label(tier)
+        });
+    }
+    Value::Null
+}
+
 pub(crate) fn access_label(access: &str) -> &'static str {
     match access {
         "closed_space" => "3级闭锁空间许可",
@@ -4403,6 +4811,19 @@ pub(crate) fn access_short_label(access: &str) -> &'static str {
 
 pub(crate) fn rating_label(rating: &str) -> String {
     format!("{rating}级冒险者")
+}
+
+fn parse_artwork_ids_json(value: &str) -> Vec<i64> {
+    serde_json::from_str::<Vec<i64>>(value)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|id| *id > 0)
+        .fold(Vec::new(), |mut acc, id| {
+            if !acc.contains(&id) {
+                acc.push(id);
+            }
+            acc
+        })
 }
 
 fn next_rating_rule(current: &str) -> Option<(&'static str, i64, i64)> {
