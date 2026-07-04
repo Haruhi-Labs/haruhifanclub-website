@@ -2301,41 +2301,41 @@ onUnmounted(() => {
   transform-origin: center;
 }
 .g-quest__warning-tape--a {
-  top: 20%;
+  top: 16%;
   z-index: 1;
-  --tape-left: -15%;
-  --tape-width: 130%;
+  --tape-left: -18%;
+  --tape-width: 136%;
   --tape-x: -1%;
-  --tape-rotate: -5.2deg;
+  --tape-rotate: -8.2deg;
   --tape-opacity: 0.92;
 }
 .g-quest__warning-tape--b {
-  top: 37%;
+  top: 29%;
   z-index: 3;
-  height: 15px;
-  --tape-left: -18%;
-  --tape-width: 136%;
+  height: 14px;
+  --tape-left: -20%;
+  --tape-width: 140%;
   --tape-x: 2%;
-  --tape-rotate: 5.8deg;
+  --tape-rotate: 6.4deg;
 }
 .g-quest__warning-tape--c {
-  top: 56%;
+  top: 66%;
   z-index: 2;
   height: 15px;
   --tape-left: -18%;
   --tape-width: 136%;
   --tape-x: -2.5%;
-  --tape-rotate: -4.8deg;
+  --tape-rotate: -2.6deg;
   --tape-opacity: 0.94;
 }
 .g-quest__warning-tape--d {
-  top: 72%;
+  top: 80%;
   z-index: 4;
-  height: 15px;
-  --tape-left: -14%;
-  --tape-width: 128%;
+  height: 14px;
+  --tape-left: -19%;
+  --tape-width: 138%;
   --tape-x: 1.5%;
-  --tape-rotate: 5.1deg;
+  --tape-rotate: 11.8deg;
   --tape-opacity: 0.9;
 }
 .g-quest__warning-tape::before {
