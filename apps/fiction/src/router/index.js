@@ -13,6 +13,7 @@ import {
   PointsView as AccountPointsView,
 } from '@haruhi/auth-ui'
 import { session } from '@/api'
+import { canModerate } from '@/lib/admin'
 
 import HomeView from '@/views/HomeView.vue'
 const LibraryView = () => import('@/views/LibraryView.vue')
@@ -24,6 +25,12 @@ const StoryEditorView = () => import('@/views/StoryEditorView.vue')
 const ChapterEditorView = () => import('@/views/ChapterEditorView.vue')
 const AccountStoriesView = () => import('@/views/AccountStoriesView.vue')
 const NotFoundView = () => import('@/views/NotFoundView.vue')
+
+// 隐藏后台（/novel/admin）：无导航入口，仅 fiction 管理员可达
+const AdminLayout = () => import('@/views/admin/AdminLayout.vue')
+const AdminOverview = () => import('@/views/admin/AdminOverview.vue')
+const AdminWorks = () => import('@/views/admin/AdminWorks.vue')
+const AdminComments = () => import('@/views/admin/AdminComments.vue')
 
 const SITE = 'shop'
 // 「我的同人文」为 fiction 专属分区：导航项在 auth-ui 通用，子页用本地视图（跳创作中心管理）
@@ -120,15 +127,32 @@ const router = createRouter({
       ],
     },
 
+    // 隐藏后台
+    {
+      path: '/admin',
+      component: AdminLayout,
+      meta: { requiresAuth: true, requiresAdmin: true },
+      children: [
+        { path: '', name: 'admin', component: AdminOverview },
+        { path: 'works', name: 'admin-works', component: AdminWorks },
+        { path: 'comments', name: 'admin-comments', component: AdminComments },
+      ],
+    },
+
     { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },
   ],
 })
 
 router.beforeEach(async (to) => {
-  if (!to.matched.some((r) => r.meta.requiresAuth)) return true
+  const needsAuth = to.matched.some((r) => r.meta.requiresAuth)
+  const needsAdmin = to.matched.some((r) => r.meta.requiresAdmin)
+  if (!needsAuth && !needsAdmin) return true
   await session.ensureReady()
-  if (session.state.user) return true
-  return { name: 'login', query: { redirect: to.fullPath } }
+  const user = session.state.user
+  if (!user) return { name: 'login', query: { redirect: to.fullPath } }
+  // 隐藏后台：非 fiction 管理员一律当作不存在，静默回首页（不暴露入口）
+  if (needsAdmin && !canModerate(user)) return { name: 'home' }
+  return true
 })
 
 export default router

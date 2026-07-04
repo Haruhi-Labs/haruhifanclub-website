@@ -48,6 +48,14 @@ export const updateChapter = (id, cid, body) => api.patch(`/me/stories/${id}/cha
 export const deleteChapter = (id, cid) => api.del(`/me/stories/${id}/chapters/${cid}`)
 export const reorderChapters = (id, order) => api.post(`/me/stories/${id}/chapters/reorder`, { order })
 
+// —— 后台（需 fiction 角色，后端 authorize 强制）——
+export const adminOverview = () => api.get('/admin/overview')
+export const adminListStories = (params = {}) => api.get(`/admin/stories?${qs(params)}`)
+export const adminUpdateStory = (id, body) => api.patch(`/admin/stories/${id}`, body)
+export const adminDeleteStory = (id) => api.del(`/admin/stories/${id}`)
+export const adminListComments = (params = {}) => api.get(`/admin/comments?${qs(params)}`)
+export const adminUpdateComment = (id, status) => api.patch(`/admin/comments/${id}`, { status })
+
 /** 上传封面（File），返回 { path }。 */
 export function uploadCover(file) {
   const fd = new FormData()

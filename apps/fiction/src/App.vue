@@ -7,8 +7,8 @@ import SiteFooter from '@/components/SiteFooter.vue'
 import { session } from '@/api'
 
 const route = useRoute()
-// 阅读页沉浸全屏：隐藏页头页脚
-const immersive = computed(() => route.name === 'read')
+// 阅读页沉浸全屏、后台自带 chrome：均隐藏站点页头页脚
+const immersive = computed(() => route.name === 'read' || route.path.startsWith('/admin'))
 const logoSrc = `${import.meta.env.BASE_URL}haruhi-logo-192.png`
 
 onMounted(() => session.ensureReady())

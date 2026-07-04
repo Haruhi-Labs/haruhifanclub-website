@@ -17,6 +17,7 @@ import {
   session,
 } from '@/api'
 import { CATEGORIES, wordLabel, fmtDate } from '@/lib/format'
+import { canManage } from '@/lib/admin'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,12 +33,9 @@ const chapters = ref([])
 const form = ref({ title: '', summary: '', category: 'daily', isCompleted: false, coverPath: null, tags: [], authorName: '', featured: false })
 const tagInput = ref('')
 
-// fiction 管理员（超管，或 fiction「管理」角色 level≥4）可为作品设置「独立署名」——不绑定任何账号。
-// 判定须与后端 authorize(…, Action::Manage) 一致，避免「审核」角色(level 3)看到字段却提交被拒。
+// 「独立署名」「首页精选」仅 fiction 管理（Manage）以上可用，与后端 authorize(…, Action::Manage) 对齐
 const me = computed(() => session.state.user)
-const isFictionAdmin = computed(
-  () => !!me.value && (me.value.isSuperAdmin || (me.value.apps?.fiction?.level ?? 0) >= 4)
-)
+const isFictionAdmin = computed(() => canManage(me.value))
 // 署名字段仅在「新建」或编辑「已是独立署名（未绑定账号）的作品」时出现，避免把成员作品改成独立署名
 const showAuthorField = computed(
   () => isFictionAdmin.value && (isNew.value || (story.value != null && story.value.authorUserId == null))
