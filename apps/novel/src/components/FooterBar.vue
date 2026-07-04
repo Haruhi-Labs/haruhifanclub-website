@@ -26,7 +26,7 @@ const groups = [
   {
     title: '探索',
     links: [
-      { label: '凉宫春日资源站', href: 'https://haruhifanclub.yuque.com/staff-sqlmik/phgf5z', brand: '#eab308' },
+      { label: '凉宫春日资源站', href: 'https://haruyuki.cn/download/', brand: '#eab308' },
       { label: '凉宫春日声线转换', href: 'https://rvc.haruyuki.cn/', brand: '#06b6d4' },
       { label: '京阿尼台词检索', href: 'https://anitool.haruyuki.cn/', brand: '#10b981' },
       { label: '春日试卷中心', href: 'https://haruyuki.cn/exam/', brand: '#ef4444' },
