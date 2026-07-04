@@ -2312,15 +2312,15 @@ onUnmounted(() => {
   --tape-opacity: 0.9;
 }
 .g-quest__warning-tape--d {
-  top: 76%;
+  top: 84%;
   z-index: 4;
-  height: 12px;
-  --tape-left: -30%;
-  --tape-width: 154%;
-  --tape-x: 4%;
-  --tape-rotate: 15.8deg;
-  --tape-origin: 82% 50%;
-  --tape-opacity: 0.78;
+  height: 14px;
+  --tape-left: -26%;
+  --tape-width: 146%;
+  --tape-x: 2.5%;
+  --tape-rotate: 8.8deg;
+  --tape-origin: 76% 50%;
+  --tape-opacity: 0.82;
 }
 .g-quest__warning-tape::before {
   content: attr(data-text) ' ' attr(data-text);
