@@ -2236,15 +2236,15 @@ onUnmounted(() => {
   background: linear-gradient(90deg, #2ec7ff, #ff67cd, #ffd75f, #4ee6b4);
 }
 .g-quest.is-closed-space-denied {
-  border-color: #e9bf63;
+  border-color: rgba(178, 142, 232, 0.3);
   background:
     radial-gradient(circle at center, rgba(178, 142, 232, 0.22), transparent 56%),
     linear-gradient(135deg, rgba(250, 247, 255, 0.96), rgba(239, 231, 255, 0.92));
   opacity: 1;
   box-shadow:
-    0 14px 30px -24px rgba(96, 57, 18, 0.46),
-    inset 0 0 0 1px rgba(177, 68, 56, 0.22),
-    inset 0 0 28px rgba(202, 184, 245, 0.54);
+    0 14px 30px -24px rgba(78, 52, 120, 0.34),
+    inset 0 0 0 1px rgba(178, 142, 232, 0.18),
+    inset 0 0 28px rgba(202, 184, 245, 0.5);
 }
 .g-quest.is-closed-space-denied > :not(.g-quest__closed-lock) {
   z-index: 1;
@@ -2286,17 +2286,21 @@ onUnmounted(() => {
   width: var(--tape-width, 132%);
   height: 15px;
   overflow: hidden;
-  border-block: 1px solid rgba(104, 62, 26, 0.26);
+  border: 1px solid rgba(132, 99, 60, 0.18);
+  border-radius: 8px;
   background:
-    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.14) 0 1px, transparent 1px 4px),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.02)),
-    repeating-linear-gradient(45deg, #efd66a 0 13.333px, #d95f67 13.333px 20px);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0.08)),
+    repeating-linear-gradient(180deg, rgba(70, 48, 32, 0.07) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(
+      45deg,
+      rgba(239, 211, 106, 0.84) 0 13.333px,
+      rgba(214, 105, 111, 0.68) 13.333px 20px
+    );
   box-shadow:
-    0 5px 12px rgba(112, 68, 22, 0.24),
-    3px 0 0 rgba(0, 240, 255, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.36),
-    inset 0 -1px 0 rgba(101, 55, 30, 0.26);
-  opacity: var(--tape-opacity, 0.96);
+    0 8px 18px -13px rgba(88, 55, 26, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.46),
+    inset 0 -1px 0 rgba(98, 66, 40, 0.12);
+  opacity: var(--tape-opacity, 0.86);
   transform: translateX(var(--tape-x, 0)) rotate(var(--tape-rotate, -5deg));
   transform-origin: center;
 }
@@ -2347,7 +2351,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   white-space: nowrap;
-  color: #1c1208;
+  color: rgba(49, 40, 30, 0.72);
   font-family: var(--mono), monospace;
   font-size: 9px;
   font-style: normal;
@@ -2355,17 +2359,16 @@ onUnmounted(() => {
   letter-spacing: 0;
   line-height: 1;
   text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.86),
-    0 -1px 0 rgba(255, 255, 255, 0.48);
-  -webkit-text-stroke: 0.24px rgba(255, 255, 255, 0.64);
+    0 1px 0 rgba(255, 255, 255, 0.7),
+    0 -1px 0 rgba(255, 255, 255, 0.28);
 }
 .g-quest__warning-tape::after {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
-  opacity: 0.45;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  opacity: 0.38;
   mix-blend-mode: screen;
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -3405,14 +3408,14 @@ onUnmounted(() => {
   background: rgba(19, 52, 58, 0.66);
 }
 :global(html.art-lights-out .g-quest.is-closed-space-denied) {
-  border-color: #e9bf63;
+  border-color: rgba(178, 142, 232, 0.3);
   background:
     radial-gradient(circle at center, rgba(178, 142, 232, 0.22), transparent 56%),
     linear-gradient(135deg, rgba(250, 247, 255, 0.96), rgba(239, 231, 255, 0.92));
   box-shadow:
-    0 14px 30px -24px rgba(96, 57, 18, 0.46),
-    inset 0 0 0 1px rgba(177, 68, 56, 0.22),
-    inset 0 0 28px rgba(202, 184, 245, 0.54);
+    0 14px 30px -24px rgba(78, 52, 120, 0.34),
+    inset 0 0 0 1px rgba(178, 142, 232, 0.18),
+    inset 0 0 28px rgba(202, 184, 245, 0.5);
 }
 :global(html.art-lights-out .g-quest.is-unknown-quest) {
   border-color: #00f0ff;
