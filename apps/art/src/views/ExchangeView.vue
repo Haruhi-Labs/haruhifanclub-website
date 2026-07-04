@@ -2290,14 +2290,14 @@ onUnmounted(() => {
   --tape-opacity: 0.86;
 }
 .g-quest__warning-tape--b {
-  top: 32%;
+  top: 24%;
   z-index: 4;
   height: 15px;
-  --tape-left: -24%;
-  --tape-width: 148%;
-  --tape-x: 3.5%;
-  --tape-rotate: 4.2deg;
-  --tape-origin: 64% 50%;
+  --tape-left: -18%;
+  --tape-width: 136%;
+  --tape-x: -0.5%;
+  --tape-rotate: 6.8deg;
+  --tape-origin: 46% 50%;
   --tape-opacity: 0.82;
 }
 .g-quest__warning-tape--c {
@@ -2312,14 +2312,14 @@ onUnmounted(() => {
   --tape-opacity: 0.9;
 }
 .g-quest__warning-tape--d {
-  top: 82%;
+  top: 76%;
   z-index: 4;
   height: 12px;
-  --tape-left: -21%;
-  --tape-width: 134%;
-  --tape-x: 0.5%;
-  --tape-rotate: 13.6deg;
-  --tape-origin: 73% 50%;
+  --tape-left: -30%;
+  --tape-width: 154%;
+  --tape-x: 4%;
+  --tape-rotate: 15.8deg;
+  --tape-origin: 82% 50%;
   --tape-opacity: 0.78;
 }
 .g-quest__warning-tape::before {
