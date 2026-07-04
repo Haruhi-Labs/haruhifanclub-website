@@ -2232,29 +2232,33 @@ onUnmounted(() => {
   border-color: #e4b82e;
   background: #fff4c7;
   opacity: 1;
+  padding-top: 42px;
+  padding-bottom: 42px;
   box-shadow:
     0 14px 30px -24px rgba(96, 57, 18, 0.46),
     inset 0 0 0 1px rgba(177, 68, 56, 0.22),
     inset 0 0 28px rgba(255, 234, 153, 0.72);
 }
 .g-quest.is-closed-space-denied > :not(.g-quest__closed-lock) {
-  filter: saturate(0.72) brightness(0.96);
-  opacity: 0.72;
+  z-index: 3;
+  filter: none;
+  opacity: 1;
 }
 .g-quest__closed-lock {
   position: absolute;
   inset: 0;
-  z-index: 8;
-  display: grid;
-  place-items: center;
+  z-index: 2;
+  display: block;
   overflow: hidden;
   border-radius: inherit;
   pointer-events: none;
-  background: rgba(255, 247, 219, 0.3);
+  background: transparent;
 }
 .g-quest__closed-lock strong {
-  position: relative;
-  z-index: 3;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2269,7 +2273,9 @@ onUnmounted(() => {
   font-weight: 900;
   line-height: 1.2;
   text-align: center;
+  opacity: 0.2;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+  transform: translate(-50%, -50%);
   box-shadow:
     0 10px 20px rgba(124, 78, 26, 0.24),
     inset 0 0 0 1px rgba(255, 255, 255, 0.58);
