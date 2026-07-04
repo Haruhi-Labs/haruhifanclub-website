@@ -2229,17 +2229,17 @@ onUnmounted(() => {
   background: linear-gradient(90deg, #2ec7ff, #ff67cd, #ffd75f, #4ee6b4);
 }
 .g-quest.is-closed-space-denied {
-  border-color: #00f0ff;
-  background: #05050a;
+  border-color: #ffdd00;
+  background: #17110d;
   opacity: 1;
   box-shadow:
-    0 0 9px rgba(0, 240, 255, 0.84),
-    inset 0 0 0 1px rgba(0, 240, 255, 0.3),
-    inset 0 0 34px rgba(0, 0, 0, 0.78);
+    0 14px 28px -24px rgba(0, 0, 0, 0.72),
+    inset 0 0 0 1px rgba(255, 0, 51, 0.28),
+    inset 0 0 32px rgba(0, 0, 0, 0.62);
 }
 .g-quest.is-closed-space-denied > :not(.g-quest__closed-lock) {
-  filter: grayscale(0.48) brightness(0.5);
-  opacity: 0.54;
+  filter: grayscale(0.42) brightness(0.62);
+  opacity: 0.6;
 }
 .g-quest__closed-lock {
   position: absolute;
@@ -2250,46 +2250,29 @@ onUnmounted(() => {
   overflow: hidden;
   border-radius: inherit;
   pointer-events: none;
-  background:
-    radial-gradient(circle at center, rgba(0, 240, 255, 0.16), transparent 0 116px),
-    linear-gradient(90deg, rgba(0, 240, 255, 0.08), transparent 28% 72%, rgba(255, 43, 214, 0.08)),
-    rgba(0, 0, 0, 0.28);
-}
-.g-quest__closed-lock::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, transparent 0 48%, rgba(0, 240, 255, 0.24) 49% 51%, transparent 52%),
-    linear-gradient(0deg, transparent 0 48%, rgba(0, 240, 255, 0.2) 49% 51%, transparent 52%),
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 5px);
-  mix-blend-mode: screen;
-  opacity: 0.7;
+  background: rgba(0, 0, 0, 0.36);
 }
 .g-quest__closed-lock strong {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
+  min-height: 44px;
   max-width: min(88%, 360px);
-  padding: 9px 18px;
-  border: 1px solid rgba(0, 240, 255, 0.92);
-  border-radius: 4px;
-  background: rgba(5, 5, 10, 0.92);
-  color: #ffffff;
+  padding: 10px 20px;
+  border: 2px solid #ffdd00;
+  border-radius: 3px;
+  background: rgba(18, 13, 8, 0.96);
+  color: #ffdd00;
   font-size: clamp(14px, 2.1vw, 18px);
   font-weight: 900;
   line-height: 1.2;
   text-align: center;
-  text-shadow:
-    -2px 0 0 rgba(255, 23, 77, 0.76),
-    2px 0 0 rgba(29, 125, 255, 0.76),
-    0 0 12px rgba(0, 240, 255, 0.78);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.84);
   box-shadow:
-    0 0 10px rgba(0, 240, 255, 0.72),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    0 10px 18px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 .g-quest__warning-tape {
   position: absolute;
@@ -2315,11 +2298,12 @@ onUnmounted(() => {
   content: '';
   position: absolute;
   z-index: 1;
-  top: -1px;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: rgba(0, 0, 0, 0.28);
+  top: 5px;
+  right: -8px;
+  bottom: 5px;
+  left: -8px;
+  border-block: 1px solid rgba(0, 0, 0, 0.42);
+  background: rgba(255, 246, 178, 0.88);
 }
 .g-quest__warning-tape::after {
   content: attr(data-text) ' ' attr(data-text);
@@ -2330,16 +2314,14 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   white-space: nowrap;
-  color: #000000;
+  color: #070707;
   font-family: var(--mono), monospace;
-  font-size: 10px;
+  font-size: 11px;
   font-style: normal;
   font-weight: 700;
+  letter-spacing: 0;
   line-height: 1;
-  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.86);
-  text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.72),
-    0 -1px 0 rgba(255, 255, 255, 0.72);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.76);
 }
 @media (prefers-reduced-motion: no-preference) {
   .g-quest.is-unknown-quest {
@@ -2365,23 +2347,6 @@ onUnmounted(() => {
   }
   .g-quest.is-limited-quest::before {
     animation: g-limited-flow 5.6s cubic-bezier(0.45, 0, 0.18, 1) infinite;
-  }
-  .g-quest.is-closed-space-denied .g-quest__warning-tape {
-    animation:
-      caution-tape-drift 2s steps(4, end) infinite alternate,
-      caution-tape-invert 4s steps(1, end) infinite;
-  }
-  .g-quest.is-closed-space-denied .g-quest__warning-tape--bottom {
-    animation-delay: 0.18s, 0s;
-  }
-  .g-quest.is-closed-space-denied .g-quest__warning-tape::before {
-    animation: caution-tape-scan 0.05s steps(1, end) infinite;
-  }
-  .g-quest.is-closed-space-denied .g-quest__warning-tape::after {
-    animation: caution-tape-text-glitch 4s steps(1, end) infinite;
-  }
-  .g-quest.is-closed-space-denied .g-quest__closed-lock strong {
-    animation: closed-lock-seal 0.86s cubic-bezier(0.45, 0, 0.18, 1) both;
   }
 }
 @keyframes glitch-scan {
@@ -2491,79 +2456,6 @@ onUnmounted(() => {
   }
   38% {
     filter: brightness(1.12) saturate(1.08);
-  }
-}
-@keyframes caution-tape-drift {
-  0% {
-    transform: translateX(-5px);
-  }
-  50% {
-    transform: translateX(5px);
-  }
-  100% {
-    transform: translateX(-5px);
-  }
-}
-@keyframes caution-tape-invert {
-  0%,
-  3.75% {
-    background: repeating-linear-gradient(45deg, #ff0033 0 6.667px, #ffdd00 6.667px 20px);
-    box-shadow:
-      3px 0 0 rgba(0, 240, 255, 0.78),
-      0 4px 12px rgba(0, 0, 0, 0.5),
-      inset 0 1px 0 rgba(255, 255, 255, 0.36),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.42);
-  }
-  3.76%,
-  100% {
-    background: repeating-linear-gradient(45deg, #ffdd00 0 13.333px, #ff0033 13.333px 20px);
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.5),
-      inset 0 1px 0 rgba(255, 255, 255, 0.36),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.42);
-  }
-}
-@keyframes caution-tape-scan {
-  0% {
-    transform: translateY(-1px);
-  }
-  100% {
-    transform: translateY(29px);
-  }
-}
-@keyframes caution-tape-text-glitch {
-  0%,
-  3.75% {
-    text-shadow:
-      -2px 0 0 rgba(255, 0, 51, 0.86),
-      2px 0 0 rgba(0, 240, 255, 0.86),
-      0 1px 0 rgba(255, 255, 255, 0.72),
-      0 -1px 0 rgba(255, 255, 255, 0.72);
-    transform: translateX(2px);
-  }
-  3.76%,
-  100% {
-    text-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.72),
-      0 -1px 0 rgba(255, 255, 255, 0.72);
-    transform: translateX(0);
-  }
-}
-@keyframes closed-lock-seal {
-  0% {
-    opacity: 0;
-    transform: scale(1.12);
-    filter: brightness(1.5);
-  }
-  64% {
-    opacity: 1;
-    transform: scale(0.96);
-    filter: brightness(1.25);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-    filter: brightness(1);
   }
 }
 @keyframes g-limited-flow {
