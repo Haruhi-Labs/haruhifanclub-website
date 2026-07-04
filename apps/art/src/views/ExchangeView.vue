@@ -2253,7 +2253,7 @@ onUnmounted(() => {
 }
 .g-quest__closed-lock {
   position: absolute;
-  inset: -20px -24px;
+  inset: 0;
   z-index: 4;
   display: block;
   overflow: hidden;
@@ -2261,12 +2261,30 @@ onUnmounted(() => {
   pointer-events: none;
   background: transparent;
 }
+.g-quest__closed-lock::before,
+.g-quest__closed-lock::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+  width: 34px;
+  pointer-events: none;
+}
+.g-quest__closed-lock::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(117, 82, 155, 0.18), transparent);
+}
+.g-quest__closed-lock::after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(117, 82, 155, 0.18), transparent);
+}
 .g-quest__warning-tape {
   position: absolute;
   z-index: 1;
-  left: -38%;
-  width: 176%;
-  height: 16px;
+  left: -18%;
+  width: 136%;
+  height: 15px;
   overflow: hidden;
   border-block: 1px solid rgba(104, 62, 26, 0.26);
   background:
@@ -2279,33 +2297,38 @@ onUnmounted(() => {
     inset 0 1px 0 rgba(255, 255, 255, 0.36),
     inset 0 -1px 0 rgba(101, 55, 30, 0.26);
   opacity: var(--tape-opacity, 0.96);
-  transform: translateX(var(--tape-x, 0)) rotate(var(--tape-rotate, -12deg));
-  transform-origin: 50% 50%;
+  transform: translateX(var(--tape-x, 0)) rotate(var(--tape-rotate, -4deg));
+  transform-origin: center;
 }
 .g-quest__warning-tape--a {
-  top: 17%;
-  --tape-x: -3%;
-  --tape-rotate: -17deg;
+  top: 19%;
+  z-index: 1;
+  --tape-x: -1.5%;
+  --tape-rotate: -3.8deg;
+  --tape-opacity: 0.92;
 }
 .g-quest__warning-tape--b {
-  top: 35%;
+  top: 39%;
+  z-index: 2;
   height: 15px;
-  --tape-x: 4%;
-  --tape-rotate: 13deg;
+  --tape-x: 2.5%;
+  --tape-rotate: -3.2deg;
 }
 .g-quest__warning-tape--c {
-  top: 58%;
-  height: 14px;
-  --tape-x: -7%;
-  --tape-rotate: -8deg;
-  --tape-opacity: 0.9;
+  top: 59%;
+  z-index: 1;
+  height: 15px;
+  --tape-x: -3%;
+  --tape-rotate: -4deg;
+  --tape-opacity: 0.94;
 }
 .g-quest__warning-tape--d {
-  top: 76%;
+  top: 78%;
+  z-index: 2;
   height: 15px;
-  --tape-x: 2%;
-  --tape-rotate: 22deg;
-  --tape-opacity: 0.92;
+  --tape-x: 1%;
+  --tape-rotate: -3.4deg;
+  --tape-opacity: 0.9;
 }
 .g-quest__warning-tape::before {
   content: attr(data-text) ' ' attr(data-text);
@@ -2361,21 +2384,6 @@ onUnmounted(() => {
   }
   .g-quest.is-limited-quest::before {
     animation: g-limited-flow 5.6s cubic-bezier(0.45, 0, 0.18, 1) infinite;
-  }
-  .g-quest__warning-tape {
-    animation: g-warning-tape-drift var(--tape-speed, 3.4s) steps(2, end) infinite;
-  }
-  .g-quest__warning-tape--a {
-    --tape-speed: 3.7s;
-  }
-  .g-quest__warning-tape--b {
-    --tape-speed: 2.9s;
-  }
-  .g-quest__warning-tape--c {
-    --tape-speed: 4.2s;
-  }
-  .g-quest__warning-tape--d {
-    --tape-speed: 3.2s;
   }
 }
 @keyframes glitch-scan {
@@ -2494,18 +2502,6 @@ onUnmounted(() => {
   48%,
   100% {
     transform: translateX(74%);
-  }
-}
-@keyframes g-warning-tape-drift {
-  0%,
-  100% {
-    transform: translateX(calc(var(--tape-x, 0%) - 2px)) rotate(var(--tape-rotate, -12deg));
-  }
-  42% {
-    transform: translateX(calc(var(--tape-x, 0%) + 4px)) rotate(var(--tape-rotate, -12deg));
-  }
-  68% {
-    transform: translateX(calc(var(--tape-x, 0%) - 5px)) rotate(var(--tape-rotate, -12deg));
   }
 }
 .g-quest__body {
