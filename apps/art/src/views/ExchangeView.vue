@@ -163,10 +163,14 @@
               {{ questButtonLabel(quest) }}
             </button>
             <span v-if="closedSpaceDenied(quest)" class="g-quest__closed-lock" aria-hidden="true">
-              <i class="g-quest__tape g-quest__tape--tl"></i>
-              <i class="g-quest__tape g-quest__tape--tr"></i>
-              <i class="g-quest__tape g-quest__tape--br"></i>
-              <i class="g-quest__tape g-quest__tape--bl"></i>
+              <i
+                class="g-quest__warning-tape g-quest__warning-tape--top"
+                data-text="CAUTION // KEEP AWAY // RESTRICTED // CAUTION // KEEP AWAY // RESTRICTED //"
+              ></i>
+              <i
+                class="g-quest__warning-tape g-quest__warning-tape--bottom"
+                data-text="RESTRICTED // KEEP AWAY // CAUTION // RESTRICTED // KEEP AWAY // CAUTION //"
+              ></i>
               <strong>闭锁空间进入禁止</strong>
             </span>
           </article>
@@ -2287,71 +2291,55 @@ onUnmounted(() => {
     0 0 10px rgba(0, 240, 255, 0.72),
     inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
-.g-quest__tape {
-  --tape-angle: 0deg;
-  --tape-origin: left center;
-
+.g-quest__warning-tape {
   position: absolute;
   z-index: 1;
-  width: min(64%, 460px);
-  height: 24px;
-  border: 1px solid rgba(255, 230, 54, 0.66);
-  border-radius: 3px;
-  background:
-    repeating-linear-gradient(
-      115deg,
-      #ffdb1f 0 13px,
-      #ffdb1f 13px 17px,
-      #d71920 17px 30px,
-      #d71920 30px 34px
-    ),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(0, 0, 0, 0.22));
+  left: 0;
+  width: 100%;
+  height: 28px;
+  overflow: hidden;
+  border-block: 1px solid rgba(0, 0, 0, 0.42);
+  background: repeating-linear-gradient(45deg, #ffdd00 0 13.333px, #ff0033 13.333px 20px);
   box-shadow:
-    0 0 12px rgba(255, 219, 31, 0.34),
-    0 5px 12px rgba(0, 0, 0, 0.46),
-    inset 0 1px 0 rgba(255, 255, 255, 0.42),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.38);
-  transform: rotate(var(--tape-angle)) scaleX(1);
-  transform-origin: var(--tape-origin);
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.42);
 }
-.g-quest__tape::before,
-.g-quest__tape::after {
+.g-quest__warning-tape--top {
+  top: 0;
+}
+.g-quest__warning-tape--bottom {
+  bottom: 0;
+}
+.g-quest__warning-tape::before {
   content: '';
   position: absolute;
-  top: 3px;
-  bottom: 3px;
-  width: 1px;
-  background: rgba(6, 6, 8, 0.34);
+  z-index: 1;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.28);
 }
-.g-quest__tape::before {
-  left: 11px;
-}
-.g-quest__tape::after {
-  right: 11px;
-}
-.g-quest__tape--tl {
-  top: 20px;
-  left: -18px;
-  --tape-angle: 24deg;
-  --tape-origin: left center;
-}
-.g-quest__tape--tr {
-  top: 20px;
-  right: -18px;
-  --tape-angle: -24deg;
-  --tape-origin: right center;
-}
-.g-quest__tape--br {
-  right: -18px;
-  bottom: 20px;
-  --tape-angle: 24deg;
-  --tape-origin: right center;
-}
-.g-quest__tape--bl {
-  bottom: 20px;
-  left: -18px;
-  --tape-angle: -24deg;
-  --tape-origin: left center;
+.g-quest__warning-tape::after {
+  content: attr(data-text) ' ' attr(data-text);
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  color: #000000;
+  font-family: var(--mono), monospace;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.86);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72),
+    0 -1px 0 rgba(255, 255, 255, 0.72);
 }
 @media (prefers-reduced-motion: no-preference) {
   .g-quest.is-unknown-quest {
@@ -2378,8 +2366,19 @@ onUnmounted(() => {
   .g-quest.is-limited-quest::before {
     animation: g-limited-flow 5.6s cubic-bezier(0.45, 0, 0.18, 1) infinite;
   }
-  .g-quest.is-closed-space-denied .g-quest__tape {
-    animation: closed-tape-wrap 0.72s steps(6, end) both;
+  .g-quest.is-closed-space-denied .g-quest__warning-tape {
+    animation:
+      caution-tape-drift 2s steps(4, end) infinite alternate,
+      caution-tape-invert 4s steps(1, end) infinite;
+  }
+  .g-quest.is-closed-space-denied .g-quest__warning-tape--bottom {
+    animation-delay: 0.18s, 0s;
+  }
+  .g-quest.is-closed-space-denied .g-quest__warning-tape::before {
+    animation: caution-tape-scan 0.05s steps(1, end) infinite;
+  }
+  .g-quest.is-closed-space-denied .g-quest__warning-tape::after {
+    animation: caution-tape-text-glitch 4s steps(1, end) infinite;
   }
   .g-quest.is-closed-space-denied .g-quest__closed-lock strong {
     animation: closed-lock-seal 0.86s cubic-bezier(0.45, 0, 0.18, 1) both;
@@ -2494,18 +2493,60 @@ onUnmounted(() => {
     filter: brightness(1.12) saturate(1.08);
   }
 }
-@keyframes closed-tape-wrap {
+@keyframes caution-tape-drift {
   0% {
-    opacity: 0.3;
-    transform: rotate(var(--tape-angle)) scaleX(0.06);
+    transform: translateX(-5px);
   }
-  68% {
-    opacity: 1;
-    transform: rotate(var(--tape-angle)) scaleX(1.08);
+  50% {
+    transform: translateX(5px);
   }
   100% {
-    opacity: 1;
-    transform: rotate(var(--tape-angle)) scaleX(1);
+    transform: translateX(-5px);
+  }
+}
+@keyframes caution-tape-invert {
+  0%,
+  3.75% {
+    background: repeating-linear-gradient(45deg, #ff0033 0 6.667px, #ffdd00 6.667px 20px);
+    box-shadow:
+      3px 0 0 rgba(0, 240, 255, 0.78),
+      0 4px 12px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.36),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.42);
+  }
+  3.76%,
+  100% {
+    background: repeating-linear-gradient(45deg, #ffdd00 0 13.333px, #ff0033 13.333px 20px);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.36),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.42);
+  }
+}
+@keyframes caution-tape-scan {
+  0% {
+    transform: translateY(-1px);
+  }
+  100% {
+    transform: translateY(29px);
+  }
+}
+@keyframes caution-tape-text-glitch {
+  0%,
+  3.75% {
+    text-shadow:
+      -2px 0 0 rgba(255, 0, 51, 0.86),
+      2px 0 0 rgba(0, 240, 255, 0.86),
+      0 1px 0 rgba(255, 255, 255, 0.72),
+      0 -1px 0 rgba(255, 255, 255, 0.72);
+    transform: translateX(2px);
+  }
+  3.76%,
+  100% {
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.72),
+      0 -1px 0 rgba(255, 255, 255, 0.72);
+    transform: translateX(0);
   }
 }
 @keyframes closed-lock-seal {
