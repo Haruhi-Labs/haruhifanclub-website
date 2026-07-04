@@ -1871,6 +1871,205 @@ async fn manual_guild_quest_accepts_artwork_submissions_before_admin_approval() 
 }
 
 #[tokio::test]
+async fn guild_access_application_requires_haruhi_art_and_admin_review() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let admin = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    insert_active_user(&app.state, "alice", "alice-pass").await;
+    let alice = login(&app.router, "alice", "alice-pass").await;
+    let user_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username='alice'")
+        .fetch_one(&app.state.pools.core)
+        .await
+        .unwrap();
+    let uid = format!("u{user_id}");
+
+    let eligible: i64 = sqlx::query_scalar(
+        "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at, reviewed_at)
+         VALUES('凉宫个人作品', ?, 'personal', 'haruhi', 'approved', '2026-07-01T10:00:00.000Z', '2026-07-01T11:00:00.000Z')
+         RETURNING id",
+    )
+    .bind(&uid)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    let other_content: i64 = sqlx::query_scalar(
+        "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at, reviewed_at)
+         VALUES('其他个人作品', ?, 'personal', 'other', 'approved', '2026-07-01T12:00:00.000Z', '2026-07-01T12:30:00.000Z')
+         RETURNING id",
+    )
+    .bind(&uid)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at, reviewed_at)
+         VALUES('待审凉宫作品', ?, 'personal', 'haruhi', 'pending', '2026-07-01T13:00:00.000Z', NULL)",
+    )
+    .bind(&uid)
+    .execute(&art)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at, reviewed_at)
+         VALUES('他人凉宫作品', 'u_other', 'personal', 'haruhi', 'approved', '2026-07-01T14:00:00.000Z', '2026-07-01T14:30:00.000Z')",
+    )
+    .execute(&art)
+    .await
+    .unwrap();
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/guild/access/submission-artworks", Some(&alice)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let artwork_ids: Vec<i64> = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["id"].as_i64())
+        .collect();
+    assert_eq!(artwork_ids, vec![eligible]);
+
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/guild/access/apply",
+            json!({ "artworkIds": [] }),
+            Some(&alice),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/guild/access/apply",
+            json!({ "artworkIds": [other_content] }),
+            Some(&alice),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            "/api/art/guild/access/apply",
+            json!({ "artworkIds": [eligible], "note": "" }),
+            Some(&alice),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "合格作品应能申请访问许可: {body:?}");
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/guild/access/apply",
+            json!({ "artworkIds": [eligible] }),
+            Some(&alice),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "已有 pending 时不能重复申请"
+    );
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/admin/guild/access-applications", Some(&admin)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let app_id = body["data"][0]["id"].as_i64().unwrap();
+    assert_eq!(body["data"][0]["targetAccess"], "anomaly_research");
+    assert_eq!(
+        body["data"][0]["submittedArtworks"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/access-applications/{app_id}/reject"),
+            json!({ "note": "" }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "驳回理由必填");
+
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/access-applications/{app_id}/approve"),
+            json!({ "note": "通过" }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "管理员应可批准权限申请: {body:?}");
+    let access: String = sqlx::query_scalar("SELECT access_tier FROM guild_profiles WHERE uid=?")
+        .bind(&uid)
+        .fetch_one(&art)
+        .await
+        .unwrap();
+    assert_eq!(access, "anomaly_research");
+
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/guild/access/apply",
+            json!({ "artworkIds": [eligible] }),
+            Some(&alice),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "批准后可继续申请下一档");
+    let second_id: i64 = sqlx::query_scalar(
+        "SELECT id FROM guild_access_applications WHERE uid=? AND status='pending'",
+    )
+    .bind(&uid)
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/access-applications/{second_id}/reject"),
+            json!({ "note": "请补充更完整的凉宫作品" }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let access: String = sqlx::query_scalar("SELECT access_tier FROM guild_profiles WHERE uid=?")
+        .bind(&uid)
+        .fetch_one(&art)
+        .await
+        .unwrap();
+    assert_eq!(access, "anomaly_research", "驳回不应改变当前许可");
+
+    let (status, body) = send(&app.router, get("/api/art/guild/quests", Some(&alice))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["profile"]["accessTier"], "anomaly_research");
+    assert!(
+        body["accessApplications"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["status"] == "rejected"
+                && item["adminNote"] == "请补充更完整的凉宫作品"),
+        "用户侧应能看到权限申请驳回理由"
+    );
+}
+
+#[tokio::test]
 async fn admin_creator_production_stats_use_recent_approved_art_and_positive_coins() {
     let app = setup().await;
     let art = app.state.pools.art.clone();

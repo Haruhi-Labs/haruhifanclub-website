@@ -492,19 +492,13 @@
               :class="['sub-tab', guildTab === 'ratings' && 'on']"
               @click="switchGuildTab('ratings')"
             >
-              评级审核
+              评级&权限审核
             </button>
             <button
               :class="['sub-tab', guildTab === 'creators' && 'on']"
               @click="switchGuildTab('creators')"
             >
               创作者档案
-            </button>
-            <button
-              :class="['sub-tab', guildTab === 'profiles' && 'on']"
-              @click="switchGuildTab('profiles')"
-            >
-              访问许可
             </button>
           </div>
 
@@ -2139,6 +2133,12 @@
           </div>
 
           <div v-if="guildTab === 'ratings'" class="guild-list single">
+            <div class="panel-header compact">
+              <div>
+                <div class="ph-title">评级审核</div>
+                <div class="tip-text">评级申请由系统在满足条件后自动提交。</div>
+              </div>
+            </div>
             <article v-for="item in guildRatings" :key="item.id" class="guild-manage-row">
               <div>
                 <div class="m-title">
@@ -2152,45 +2152,96 @@
                 </div>
               </div>
               <div class="guild-row-actions">
-                <button class="btn-ghost sm" @click="approveRating(item)">批准</button>
-                <button class="btn-ghost danger sm" @click="rejectRating(item)">拒绝</button>
+                <button
+                  class="btn-ghost sm"
+                  :disabled="item.status !== 'pending'"
+                  @click="approveRating(item)"
+                >
+                  批准
+                </button>
+                <button
+                  class="btn-ghost danger sm"
+                  :disabled="item.status !== 'pending'"
+                  @click="rejectRating(item)"
+                >
+                  拒绝
+                </button>
               </div>
             </article>
             <div v-if="!guildRatings.length" class="empty-ph">暂无评级申请</div>
-          </div>
 
-          <div v-if="guildTab === 'profiles'" class="guild-list single">
-            <article v-for="item in guildProfiles" :key="item.uid" class="guild-manage-row">
+            <div class="panel-header compact guild-section-head">
               <div>
-                <div class="m-title">{{ item.name || item.uid }}</div>
-                <div class="m-info">
-                  <span class="tag">评级 {{ item.rating }}</span>
-                  <span class="tag">Lv{{ item.level }}</span>
-                  <span class="tag">声望 {{ item.reputation }}</span>
-                  <span class="tag">金币 {{ item.coins || 0 }}G</span>
+                <div class="ph-title">访问许可审核</div>
+                <div class="tip-text">
+                  用户需提交至少 1 张已通过的凉宫个人作品，审核通过后同步更新档案访问许可。
                 </div>
               </div>
-              <div class="guild-row-actions access-editor">
-                <div class="guild-inline-field">
-                  <div class="guild-field-label-row">
-                    <span>访问许可</span>
-                    <button class="help-tip" type="button" aria-label="访问许可说明">
-                      ?
-                      <span class="help-tip__bubble" role="tooltip">
-                        给该用户分配公会档案访问层级；档案0最开放，后续层级可访问更高权限内容。
-                      </span>
-                    </button>
-                  </div>
-                  <select v-model="item.accessTier" class="select sm">
-                    <option v-for="a in accessOptions" :key="a.value" :value="a.value">
-                      {{ a.label }}
-                    </option>
-                  </select>
+            </div>
+            <article
+              v-for="item in guildAccessApplications"
+              :key="item.id"
+              class="guild-manage-row"
+            >
+              <div class="guild-row-main">
+                <div class="m-title">
+                  {{ item.name || item.uid }}：{{ item.fromAccessShortLabel || '档案0' }} →
+                  {{ item.targetAccessShortLabel || item.targetAccessLabel }}
                 </div>
-                <button class="btn-ghost sm" @click="saveProfileAccess(item)">保存许可</button>
+                <div class="m-info">
+                  <span class="tag">{{ item.status }}</span>
+                  <span v-if="item.userNote" class="tag">说明：{{ item.userNote }}</span>
+                  <span v-if="item.adminNote" class="tag">备注：{{ item.adminNote }}</span>
+                  <span v-if="item.createdAt" class="tag"
+                    >提交 {{ formatDateTime(item.createdAt) }}</span
+                  >
+                  <span v-if="item.reviewedAt" class="tag"
+                    >处理 {{ formatDateTime(item.reviewedAt) }}</span
+                  >
+                </div>
+                <div v-if="item.submittedArtworks?.length" class="guild-claim-artworks">
+                  <a
+                    v-for="artwork in item.submittedArtworks"
+                    :key="artwork.id"
+                    class="guild-claim-artwork"
+                    :href="`/gallery?artwork=${artwork.id}`"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    <span class="guild-claim-artwork__thumb">
+                      <img
+                        v-if="artwork.image_url"
+                        :src="thumbUrl(artwork.image_url, 160)"
+                        :alt="artwork.title || '提交作品'"
+                      />
+                      <i v-else>ART</i>
+                    </span>
+                    <span class="guild-claim-artwork__copy">
+                      <b>{{ artwork.title || `作品 #${artwork.id}` }}</b>
+                      <small>{{ formatDateTime(artwork.publishedAt || artwork.created_at) }}</small>
+                      <em>{{ artwork.status }}</em>
+                    </span>
+                  </a>
+                </div>
+              </div>
+              <div class="guild-row-actions">
+                <button
+                  class="btn-ghost sm"
+                  :disabled="item.status !== 'pending'"
+                  @click="approveAccessApplication(item)"
+                >
+                  批准
+                </button>
+                <button
+                  class="btn-ghost danger sm"
+                  :disabled="item.status !== 'pending'"
+                  @click="rejectAccessApplication(item)"
+                >
+                  拒绝
+                </button>
               </div>
             </article>
-            <div v-if="!guildProfiles.length" class="empty-ph">暂无公会档案</div>
+            <div v-if="!guildAccessApplications.length" class="empty-ph">暂无访问许可申请</div>
           </div>
         </div>
 
@@ -2411,11 +2462,7 @@
     </div>
 
     <transition name="modal">
-      <div
-        v-if="selectedRedemption"
-        class="admin-modal"
-        @click.self="closeRedemptionDetail"
-      >
+      <div v-if="selectedRedemption" class="admin-modal" @click.self="closeRedemptionDetail">
         <article class="admin-dialog redemption-detail" role="dialog" aria-modal="true">
           <button
             class="dialog-close"
@@ -2611,7 +2658,7 @@ const rewardSettingsForm = ref(defaultRewardSettingsForm())
 const rewardSettingsLoading = ref(false)
 const rewardSettingsSaving = ref(false)
 const guildRatings = ref([])
-const guildProfiles = ref([])
+const guildAccessApplications = ref([])
 const guildQuestEditingId = ref(null)
 const guildRewardEditingId = ref(null)
 const guildRewardImageInput = ref(null)
@@ -3312,13 +3359,14 @@ async function loadGuildAdmin() {
   } else if (guildTab.value === 'rewardSettings') {
     await loadRewardSettings()
   } else if (guildTab.value === 'ratings') {
-    const res = await api.adminGuildRatingApplications()
-    guildRatings.value = res.data || []
+    const [ratingRes, accessRes] = await Promise.all([
+      api.adminGuildRatingApplications(),
+      api.adminGuildAccessApplications(),
+    ])
+    guildRatings.value = ratingRes.data || []
+    guildAccessApplications.value = accessRes.data || []
   } else if (guildTab.value === 'creators') {
     await Promise.all([loadCreators(), loadCreatorProductionStats()])
-  } else if (guildTab.value === 'profiles') {
-    const res = await api.adminGuildProfiles()
-    guildProfiles.value = res.data || []
   }
 }
 
@@ -3763,6 +3811,20 @@ async function rejectRating(item) {
   const note = adminNote('暂未满足评级要求', true)
   if (note === null) return
   await api.adminRejectGuildRating(item.id, note)
+  await loadGuildAdmin()
+}
+
+async function approveAccessApplication(item) {
+  const note = adminNote('访问许可申请通过')
+  if (note === null) return
+  await api.adminApproveGuildAccess(item.id, note)
+  await loadGuildAdmin()
+}
+
+async function rejectAccessApplication(item) {
+  const note = adminNote('请补充更完整的凉宫个人作品后再次申请', true)
+  if (note === null) return
+  await api.adminRejectGuildAccess(item.id, note)
   await loadGuildAdmin()
 }
 
@@ -5867,6 +5929,9 @@ onMounted(async () => {
   color: var(--sos-text-secondary);
   font-size: 12px;
   font-style: normal;
+}
+.guild-section-head {
+  margin-top: 14px;
 }
 
 .guild-row-desc {

@@ -268,6 +268,12 @@ export const api = {
   guildLeaderboard: () => request('GET', `${API_PREFIX}/guild/leaderboard`),
   guildCoinHistory: () => request('GET', `${API_PREFIX}/guild/coins/history`),
   guildApplyRating: (body) => request('POST', `${API_PREFIX}/guild/rating/apply`, { body }),
+  guildAccessSubmissionArtworks: async () => {
+    const data = await request('GET', `${API_PREFIX}/guild/access/submission-artworks`)
+    if (Array.isArray(data.data)) data.data = data.data.map(transformArtwork)
+    return data
+  },
+  guildApplyAccess: (body) => request('POST', `${API_PREFIX}/guild/access/apply`, { body }),
   guildRewards: async () => {
     const data = await request('GET', `${API_PREFIX}/guild/rewards`)
     if (Array.isArray(data.data)) data.data = data.data.map(transformGuildReward)
@@ -343,7 +349,26 @@ export const api = {
   adminGuildRatingApplications: () => request('GET', `${API_PREFIX}/admin/guild/rating-applications`),
   adminApproveGuildRating: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/rating-applications/${id}/approve`, { body: { note } }),
   adminRejectGuildRating: (id, note = '') => request('POST', `${API_PREFIX}/admin/guild/rating-applications/${id}/reject`, { body: { note } }),
-  adminGuildProfiles: () => request('GET', `${API_PREFIX}/admin/guild/profiles`),
+  adminGuildAccessApplications: async () => {
+    const data = await request('GET', `${API_PREFIX}/admin/guild/access-applications`)
+    if (Array.isArray(data.data)) {
+      data.data = data.data.map(item => ({
+        ...item,
+        submittedArtworks: Array.isArray(item.submittedArtworks)
+          ? item.submittedArtworks.map(transformArtwork)
+          : [],
+      }))
+    }
+    return data
+  },
+  adminApproveGuildAccess: (id, note = '') =>
+    request('POST', `${API_PREFIX}/admin/guild/access-applications/${id}/approve`, {
+      body: { note },
+    }),
+  adminRejectGuildAccess: (id, note = '') =>
+    request('POST', `${API_PREFIX}/admin/guild/access-applications/${id}/reject`, {
+      body: { note },
+    }),
   adminUpdateGuildProfileAccess: (uid, accessTier) => request('POST', `${API_PREFIX}/admin/guild/profiles/${encodeURIComponent(uid)}/access`, { body: { accessTier } }),
   searchCreators: async (q) => {
     const data = await request('GET', `${API_PREFIX}/creators/search`, { params: { q } })
