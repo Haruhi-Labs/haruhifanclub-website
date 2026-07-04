@@ -2236,15 +2236,12 @@ onUnmounted(() => {
   background: linear-gradient(90deg, #2ec7ff, #ff67cd, #ffd75f, #4ee6b4);
 }
 .g-quest.is-closed-space-denied {
-  border-color: rgba(178, 142, 232, 0.3);
+  border-color: rgba(178, 142, 232, 0.18);
   background:
     radial-gradient(circle at center, rgba(178, 142, 232, 0.22), transparent 56%),
     linear-gradient(135deg, rgba(250, 247, 255, 0.96), rgba(239, 231, 255, 0.92));
   opacity: 1;
-  box-shadow:
-    0 14px 30px -24px rgba(78, 52, 120, 0.34),
-    inset 0 0 0 1px rgba(178, 142, 232, 0.18),
-    inset 0 0 28px rgba(202, 184, 245, 0.5);
+  box-shadow: none;
 }
 .g-quest.is-closed-space-denied > :not(.g-quest__closed-lock) {
   z-index: 1;
@@ -2261,24 +2258,6 @@ onUnmounted(() => {
   pointer-events: none;
   background: transparent;
 }
-.g-quest__closed-lock::before,
-.g-quest__closed-lock::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  z-index: 3;
-  width: 34px;
-  pointer-events: none;
-}
-.g-quest__closed-lock::before {
-  left: 0;
-  background: linear-gradient(90deg, rgba(117, 82, 155, 0.18), transparent);
-}
-.g-quest__closed-lock::after {
-  right: 0;
-  background: linear-gradient(270deg, rgba(117, 82, 155, 0.18), transparent);
-}
 .g-quest__warning-tape {
   position: absolute;
   z-index: 1;
@@ -2286,21 +2265,16 @@ onUnmounted(() => {
   width: var(--tape-width, 132%);
   height: 15px;
   overflow: hidden;
-  border: 1px solid rgba(132, 99, 60, 0.18);
-  border-radius: 8px;
+  border: 1px solid rgba(132, 99, 60, 0.12);
+  border-radius: 4px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0.08)),
-    repeating-linear-gradient(180deg, rgba(70, 48, 32, 0.07) 0 1px, transparent 1px 5px),
     repeating-linear-gradient(
       45deg,
-      rgba(239, 211, 106, 0.84) 0 13.333px,
-      rgba(214, 105, 111, 0.68) 13.333px 20px
+      rgba(232, 204, 92, 0.78) 0 13.333px,
+      rgba(205, 111, 116, 0.64) 13.333px 20px
     );
-  box-shadow:
-    0 8px 18px -13px rgba(88, 55, 26, 0.44),
-    inset 0 1px 0 rgba(255, 255, 255, 0.46),
-    inset 0 -1px 0 rgba(98, 66, 40, 0.12);
-  opacity: var(--tape-opacity, 0.86);
+  box-shadow: none;
+  opacity: var(--tape-opacity, 0.8);
   transform: translateX(var(--tape-x, 0)) rotate(var(--tape-rotate, -5deg));
   transform-origin: center;
 }
@@ -2358,18 +2332,7 @@ onUnmounted(() => {
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1;
-  text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.7),
-    0 -1px 0 rgba(255, 255, 255, 0.28);
-}
-.g-quest__warning-tape::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
-  opacity: 0.38;
-  mix-blend-mode: screen;
+  text-shadow: none;
 }
 @media (prefers-reduced-motion: no-preference) {
   .g-quest.is-unknown-quest {
@@ -3408,14 +3371,11 @@ onUnmounted(() => {
   background: rgba(19, 52, 58, 0.66);
 }
 :global(html.art-lights-out .g-quest.is-closed-space-denied) {
-  border-color: rgba(178, 142, 232, 0.3);
+  border-color: rgba(178, 142, 232, 0.18);
   background:
     radial-gradient(circle at center, rgba(178, 142, 232, 0.22), transparent 56%),
     linear-gradient(135deg, rgba(250, 247, 255, 0.96), rgba(239, 231, 255, 0.92));
-  box-shadow:
-    0 14px 30px -24px rgba(78, 52, 120, 0.34),
-    inset 0 0 0 1px rgba(178, 142, 232, 0.18),
-    inset 0 0 28px rgba(202, 184, 245, 0.5);
+  box-shadow: none;
 }
 :global(html.art-lights-out .g-quest.is-unknown-quest) {
   border-color: #00f0ff;
