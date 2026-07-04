@@ -17,6 +17,7 @@
     "dev:exam": "pnpm --filter @haruhi/exam dev",
     "dev:novel": "pnpm --filter @haruhi/novel dev",
     "dev:fiction": "pnpm --filter @haruhi/fiction dev",
+    "dev:download": "pnpm --filter @haruhi/download dev",
     "dev:shop": "pnpm --filter @haruhi/shop dev",
     "dev:console": "pnpm --filter @haruhi/console dev",
     "dev:design-system": "pnpm --filter @haruhi/design-system-docs dev",

@@ -38,6 +38,14 @@ pub struct Config {
 
     // CORS 允许的来源（release 生效）；为空则默认仅 public_site_url。逗号分隔 HARUHI_CORS_ORIGINS。
     pub cors_origins: Vec<String>,
+
+    // 资源站（download）：语雀知识库索引镜像
+    /// 语雀 API Token（X-Auth-Token）；未配置则资源站同步不启动、前端拿到空索引。
+    pub yuque_token: Option<String>,
+    /// 语雀知识库 namespace（login/slug），默认「凉宫春日资源站」。
+    pub yuque_repo: String,
+    /// 资源站后台同步间隔（秒），默认 6 小时（最短 5 分钟，见 download 模块）。
+    pub yuque_sync_interval_secs: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -177,6 +185,9 @@ impl Config {
                         .collect()
                 })
                 .unwrap_or_default(),
+            yuque_token: env("HARUHI_YUQUE_TOKEN"),
+            yuque_repo: env_or("HARUHI_YUQUE_REPO", "staff-sqlmik/phgf5z"),
+            yuque_sync_interval_secs: env_parse("HARUHI_YUQUE_SYNC_INTERVAL_SECS", 21_600),
         })
     }
 

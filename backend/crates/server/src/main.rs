@@ -24,6 +24,10 @@ async fn main() -> anyhow::Result<()> {
     // 启动 shop 邮件队列后台 worker（Mailer 为 None 即邮件未启用时内部空转不启）。
     modules::shop::spawn_email_worker(cfg.clone(), pools.shop.clone());
 
+    // 资源站（download）：语雀知识库索引缓存 + 后台定时同步（未配 token 时内部不启）。
+    let download_cache = modules::download::new_cache();
+    modules::download::spawn_sync(cfg.clone(), download_cache.clone());
+
     let state = AppState {
         cfg: cfg.clone(),
         pools: pools.clone(),
@@ -35,6 +39,8 @@ async fn main() -> anyhow::Result<()> {
         account_limiter: Arc::new(RateLimiter::new(5, 3600)),
         // 统一邮件发送器（未配置邮件时为 None）
         mailer: Mailer::from_config(&cfg),
+        // 资源站索引缓存（与后台同步任务共享同一 Arc）
+        download: download_cache,
     };
     let app = routes::router(state);
 

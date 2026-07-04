@@ -1,0 +1,246 @@
+/* ============================================================
+   凉宫春日资源站 —— 站点级样式
+   一个面向检索的资源索引：左侧「搜索 + 分类过滤」sticky 面板，右侧密集条目列表。
+   基调采用设计系统 download 表达（凉宫夏日晴空蓝 · SOS团信号黄点缀）。
+   间距一律走 4px 网格 token，紧密而留呼吸。
+   ============================================================ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100dvh;
+  background-color: var(--sos-bg-page);
+}
+
+.dl-app.sos-scope {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--sos-bg-page);
+  color: var(--sos-text-primary);
+}
+.dl-main {
+  flex: 1 0 auto;
+  width: 100%;
+}
+
+/* 页头「索引」tab 当前态 */
+.sos-navlinks .sos-navlink.router-link-active {
+  color: var(--sos-accent);
+}
+
+/* ---- 页容器 ---- */
+.dl-page {
+  width: min(1200px, 100% - 2 * var(--sos-space-5));
+  margin-inline: auto;
+  padding-block: var(--sos-space-6);
+}
+.dl-page--narrow {
+  width: min(760px, 100% - 2 * var(--sos-space-5));
+}
+
+/* ============================================================
+   目录：左面板 + 右内容
+   ============================================================ */
+.dl-catalog__body {
+  display: grid;
+  grid-template-columns: 264px 1fr;
+  align-items: start;
+  gap: var(--sos-space-6);
+}
+
+/* ---- 左侧 sticky 面板：搜索 + 分类过滤 ---- */
+.dl-side {
+  position: sticky;
+  top: calc(var(--sos-header-height) + var(--sos-space-4));
+  align-self: start;
+  max-height: calc(100vh - var(--sos-header-height) - 2 * var(--sos-space-4));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sos-space-3);
+  padding: var(--sos-space-3);
+  background: var(--sos-bg-surface);
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-card-radius, 14px);
+  box-shadow: var(--sos-card-shadow);
+}
+.dl-side__meta {
+  margin: 0;
+  padding-inline: var(--sos-space-1);
+  font-size: var(--sos-text-xs);
+  color: var(--sos-text-tertiary);
+  font-variant-numeric: var(--sos-numeric-tabular);
+}
+.dl-side__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dl-side__link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sos-space-3);
+  width: 100%;
+  padding: 7px var(--sos-space-3);
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: var(--sos-radius-md);
+  background: transparent;
+  color: var(--sos-text-secondary);
+  font-size: var(--sos-text-sm);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.13s ease,
+    color 0.13s ease;
+}
+.dl-side__link:hover {
+  background: var(--sos-bg-page);
+  color: var(--sos-text-primary);
+}
+.dl-side__link.is-active {
+  background: var(--sos-accent-soft);
+  color: var(--sos-accent);
+  font-weight: 700;
+  border-left-color: var(--sos-signal);
+}
+.dl-side__n {
+  flex: none;
+  font-size: var(--sos-text-2xs);
+  font-variant-numeric: var(--sos-numeric-tabular);
+  color: var(--sos-text-tertiary);
+}
+.dl-side__link.is-active .dl-side__n {
+  color: var(--sos-accent);
+}
+.dl-side__ext {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sos-space-2);
+  margin-top: var(--sos-space-1);
+  padding-top: var(--sos-space-3);
+  border-top: 1px solid var(--sos-border-subtle);
+}
+.dl-side__ext a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-2);
+  font-size: var(--sos-text-sm);
+  color: var(--sos-accent);
+  text-decoration: none;
+}
+.dl-side__ext a:hover {
+  text-decoration: underline;
+}
+.dl-side__mail {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+/* ---- 右侧内容 ---- */
+.dl-content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sos-space-7);
+}
+.dl-content__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sos-space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sos-space-4);
+}
+.dl-content__title {
+  margin: 0;
+  font-family: var(--sos-display-family, var(--sos-font-display));
+  font-size: var(--sos-text-xl);
+  font-weight: 800;
+  color: var(--sos-text-primary);
+}
+.dl-content__n {
+  font-size: var(--sos-text-sm);
+  color: var(--sos-text-tertiary);
+  font-variant-numeric: var(--sos-numeric-tabular);
+}
+
+/* 分类块（全部/单分类共用） */
+.dl-cat-block__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-3);
+  margin-bottom: var(--sos-space-3);
+}
+.dl-cat-block__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sos-space-3);
+  margin: 0;
+  font-family: var(--sos-display-family, var(--sos-font-display));
+  font-size: var(--sos-text-xl);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--sos-text-primary);
+}
+.dl-cat-block__title::before {
+  content: '';
+  width: 9px;
+  height: 1.05em;
+  border-radius: var(--sos-radius-full);
+  background: var(--sos-signal);
+}
+.dl-cat-block__n {
+  font-size: var(--sos-text-sm);
+  color: var(--sos-text-tertiary);
+  font-variant-numeric: var(--sos-numeric-tabular);
+}
+
+/* 条目列表容器：一组条目收进带细分隔线的卡片 */
+.dl-entrylist {
+  border: 1px solid var(--sos-border-subtle);
+  border-radius: var(--sos-card-radius, 14px);
+  background: var(--sos-bg-surface);
+  box-shadow: var(--sos-card-shadow);
+  overflow: hidden;
+}
+
+/* ============================================================
+   移动端：左面板降为顶部块（搜索 + 横向分类），内容纵向排下
+   ============================================================ */
+@media (max-width: 880px) {
+  .dl-catalog__body {
+    grid-template-columns: 1fr;
+    gap: var(--sos-space-5);
+  }
+  .dl-side {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+  .dl-side__list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--sos-space-2);
+  }
+  .dl-side__link {
+    width: auto;
+    border-left: none;
+    border: 1px solid var(--sos-border-subtle);
+    border-radius: var(--sos-radius-full);
+    padding: 5px var(--sos-space-3);
+  }
+  .dl-side__link.is-active {
+    border-color: color-mix(in srgb, var(--sos-accent) 40%, transparent);
+  }
+}
+@media (max-width: 640px) {
+  .dl-page {
+    padding-block: var(--sos-space-4);
+  }
+}
