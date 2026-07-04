@@ -164,10 +164,6 @@
             </button>
             <span v-if="closedSpaceDenied(quest)" class="g-quest__closed-lock" aria-hidden="true">
               <i
-                class="g-quest__warning-tape g-quest__warning-tape--a"
-                data-text="CAUTION // KEEP AWAY // RESTRICTED // CAUTION // KEEP AWAY // RESTRICTED //"
-              ></i>
-              <i
                 class="g-quest__warning-tape g-quest__warning-tape--b"
                 data-text="RESTRICTED // KEEP AWAY // CAUTION // RESTRICTED // KEEP AWAY // CAUTION //"
               ></i>
@@ -2277,17 +2273,6 @@ onUnmounted(() => {
   opacity: var(--tape-opacity, 0.8);
   transform: translateX(var(--tape-x, 0)) rotate(var(--tape-rotate, -5deg));
   transform-origin: var(--tape-origin, center);
-}
-.g-quest__warning-tape--a {
-  top: 13%;
-  z-index: 1;
-  height: 13px;
-  --tape-left: -12%;
-  --tape-width: 124%;
-  --tape-x: -4%;
-  --tape-rotate: -9.6deg;
-  --tape-origin: 28% 50%;
-  --tape-opacity: 0.86;
 }
 .g-quest__warning-tape--b {
   top: 24%;
