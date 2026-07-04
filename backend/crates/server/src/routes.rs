@@ -31,11 +31,15 @@ pub fn router(state: AppState) -> Router {
         .merge(me_routes::router());
     // CSRF 中间件只罩 /api：写方法 + 带会话 cookie 时校验双提交 token。
     let api = modules::mount(api)
-        .with_state(state)
+        .with_state(state.clone())
         .layer(axum::middleware::from_fn(crate::middleware::csrf_guard));
+
+    // SEO 路由（robots/sitemap/详情页 HTML 注入）挂根路径：全部只读 GET，无需 CSRF。
+    let seo = modules::seo::router().with_state(state);
 
     Router::new()
         .nest("/api", api)
+        .merge(seo)
         .nest_service("/uploads", ServeDir::new(uploads_dir))
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(cors)

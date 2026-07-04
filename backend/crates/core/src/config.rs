@@ -8,6 +8,10 @@ pub struct Config {
     pub bind: SocketAddr,
     pub data_dir: PathBuf,
     pub uploads_dir: PathBuf,
+    /// 前端构建产物根目录（apps/<app>/dist）：SEO 模块读取 index.html 作 meta 注入模板。
+    /// 生产 systemd WorkingDirectory=/var/www/haruhifanclub、开发从仓库根 cargo run，
+    /// 默认相对路径 ./apps 两端通用。
+    pub apps_dir: PathBuf,
 
     // 鉴权
     pub jwt_secret: String,
@@ -156,6 +160,7 @@ impl Config {
             bind,
             data_dir: PathBuf::from(env_or("HARUHI_DATA_DIR", "./data")),
             uploads_dir: PathBuf::from(env_or("HARUHI_UPLOADS_DIR", "./uploads")),
+            apps_dir: PathBuf::from(env_or("HARUHI_APPS_DIR", "./apps")),
             jwt_secret,
             jwt_ttl_seconds: env_parse("HARUHI_JWT_TTL_SECONDS", 86_400),
             // 会话默认 30 天（cookie 模式，可吊销，故可比 JWT 更长）

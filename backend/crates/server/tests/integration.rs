@@ -35,6 +35,7 @@ fn test_config(data_dir: PathBuf, uploads_dir: PathBuf) -> Config {
         bind: "127.0.0.1:0".parse().unwrap(),
         data_dir,
         uploads_dir,
+        apps_dir: PathBuf::from("./apps"),
         jwt_secret: "test-secret-please-change-32-chars-long".into(),
         jwt_ttl_seconds: 3600,
         session_ttl_seconds: 3600,
