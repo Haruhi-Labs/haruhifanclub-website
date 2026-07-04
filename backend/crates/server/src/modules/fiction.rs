@@ -84,6 +84,7 @@ pub fn router() -> Router<AppState> {
         .route("/me/stats", get(my_stats))
         .route("/me/progress/{sid}", get(get_progress).put(put_progress))
         // ---- 后台审核（需 fiction 角色）----
+        .route("/admin/overview", get(admin_overview))
         .route("/admin/stories", get(admin_list_stories))
         .route(
             "/admin/stories/{id}",
@@ -1754,6 +1755,44 @@ async fn put_progress(
 // ================= 后台审核（需 fiction 角色）=================
 
 /// GET /api/fiction/admin/stories —— 全部作品（可按状态/关键词过滤）。
+/// GET /api/fiction/admin/overview —— 后台总览统计（作品 / 评论 / 对外数据）。
+async fn admin_overview(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "fiction", Action::Moderate).await?;
+    let pool = &state.pools.fiction;
+    let scalar = |sql: &'static str| sqlx::query_scalar::<_, i64>(sql).fetch_one(pool);
+
+    let total = scalar("SELECT COUNT(*) FROM stories").await?;
+    // 可见性口径与前台一致：已发布=未下架且有已发布章节；下架=hidden；其余=草稿
+    let published =
+        scalar("SELECT COUNT(*) FROM stories WHERE status != 'hidden' AND chapter_count > 0")
+            .await?;
+    let hidden = scalar("SELECT COUNT(*) FROM stories WHERE status = 'hidden'").await?;
+    let draft = total - published - hidden;
+    let featured = scalar("SELECT COUNT(*) FROM stories WHERE featured = 1").await?;
+
+    let c_total = scalar("SELECT COUNT(*) FROM comments").await?;
+    let c_hidden = scalar("SELECT COUNT(*) FROM comments WHERE status = 'hidden'").await?;
+    let c_visible = c_total - c_hidden;
+
+    let agg: (Option<i64>, Option<i64>, Option<i64>) =
+        sqlx::query_as("SELECT SUM(view_count), SUM(like_count), SUM(bookmark_count) FROM stories")
+            .fetch_one(pool)
+            .await?;
+    let chapters = scalar("SELECT COUNT(*) FROM chapters WHERE status = 'published'").await?;
+
+    Ok(Json(json!({
+        "ok": true,
+        "works": { "total": total, "published": published, "draft": draft, "hidden": hidden, "featured": featured },
+        "comments": { "total": c_total, "visible": c_visible, "hidden": c_hidden },
+        "totals": {
+            "views": agg.0.unwrap_or(0),
+            "likes": agg.1.unwrap_or(0),
+            "bookmarks": agg.2.unwrap_or(0),
+            "chapters": chapters,
+        },
+    })))
+}
+
 async fn admin_list_stories(
     State(state): State<AppState>,
     user: AuthUser,
@@ -1767,12 +1806,17 @@ async fn admin_list_stories(
 
     let mut where_sql = String::from("WHERE 1 = 1");
     let mut params: Vec<String> = Vec::new();
-    if let Some(s) = getq("status") {
-        let s = s.trim();
-        if !s.is_empty() && s != "all" {
-            where_sql.push_str(" AND status = ?");
-            params.push(s.to_string());
+    // 状态筛选走可见性语义（与前台一致），而非 status 列原值——status 列只有 draft/hidden
+    match getq("status").map(str::trim) {
+        Some("published") => {
+            where_sql.push_str(" AND status != 'hidden' AND chapter_count > 0");
         }
+        Some("draft") => {
+            where_sql.push_str(" AND status != 'hidden' AND chapter_count = 0");
+        }
+        Some("hidden") => where_sql.push_str(" AND status = 'hidden'"),
+        Some("featured") => where_sql.push_str(" AND featured = 1"),
+        _ => {}
     }
     if let Some(kw) = getq("q") {
         let kw = kw.trim();
