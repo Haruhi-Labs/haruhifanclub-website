@@ -64,6 +64,10 @@ fn test_config(data_dir: PathBuf, uploads_dir: PathBuf) -> Config {
         public_site_url: "http://localhost".into(),
         account_web_base: "http://localhost/news".into(),
         cors_origins: vec![],
+        // 资源站（download）语雀同步配置：测试不启用（token None → 同步不启动）
+        yuque_token: None,
+        yuque_repo: "staff-sqlmik/phgf5z".into(),
+        yuque_sync_interval_secs: 21_600,
     }
 }
 
@@ -86,6 +90,7 @@ async fn setup() -> TestApp {
         upload_limiter: Arc::new(RateLimiter::new(60, 600)),
         account_limiter: Arc::new(RateLimiter::new(5, 3600)),
         mailer: None,
+        download: haruhi_server::modules::download::new_cache(),
     };
     let router = routes::router(state.clone());
     TestApp {
