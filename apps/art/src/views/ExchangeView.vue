@@ -2229,17 +2229,17 @@ onUnmounted(() => {
   background: linear-gradient(90deg, #2ec7ff, #ff67cd, #ffd75f, #4ee6b4);
 }
 .g-quest.is-closed-space-denied {
-  border-color: #ffdd00;
-  background: #17110d;
+  border-color: #e4b82e;
+  background: #fff4c7;
   opacity: 1;
   box-shadow:
-    0 14px 28px -24px rgba(0, 0, 0, 0.72),
-    inset 0 0 0 1px rgba(255, 0, 51, 0.28),
-    inset 0 0 32px rgba(0, 0, 0, 0.62);
+    0 14px 30px -24px rgba(96, 57, 18, 0.46),
+    inset 0 0 0 1px rgba(177, 68, 56, 0.22),
+    inset 0 0 28px rgba(255, 234, 153, 0.72);
 }
 .g-quest.is-closed-space-denied > :not(.g-quest__closed-lock) {
-  filter: grayscale(0.42) brightness(0.62);
-  opacity: 0.6;
+  filter: saturate(0.72) brightness(0.96);
+  opacity: 0.72;
 }
 .g-quest__closed-lock {
   position: absolute;
@@ -2250,7 +2250,7 @@ onUnmounted(() => {
   overflow: hidden;
   border-radius: inherit;
   pointer-events: none;
-  background: rgba(0, 0, 0, 0.36);
+  background: rgba(255, 247, 219, 0.3);
 }
 .g-quest__closed-lock strong {
   position: relative;
@@ -2261,18 +2261,18 @@ onUnmounted(() => {
   min-height: 44px;
   max-width: min(88%, 360px);
   padding: 10px 20px;
-  border: 2px solid #ffdd00;
+  border: 2px solid #d6a928;
   border-radius: 3px;
-  background: rgba(18, 13, 8, 0.96);
-  color: #ffdd00;
+  background: rgba(255, 250, 223, 0.96);
+  color: #7d241d;
   font-size: clamp(14px, 2.1vw, 18px);
   font-weight: 900;
   line-height: 1.2;
   text-align: center;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.84);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
   box-shadow:
-    0 10px 18px rgba(0, 0, 0, 0.42),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    0 10px 20px rgba(124, 78, 26, 0.24),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.58);
 }
 .g-quest__warning-tape {
   position: absolute;
@@ -2281,12 +2281,12 @@ onUnmounted(() => {
   width: 100%;
   height: 28px;
   overflow: hidden;
-  border-block: 1px solid rgba(0, 0, 0, 0.42);
-  background: repeating-linear-gradient(45deg, #ffdd00 0 13.333px, #ff0033 13.333px 20px);
+  border-block: 1px solid rgba(102, 54, 20, 0.28);
+  background: repeating-linear-gradient(45deg, #e8c34a 0 13.333px, #c65549 13.333px 20px);
   box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.36),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.42);
+    0 4px 12px rgba(112, 68, 22, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 -1px 0 rgba(101, 55, 30, 0.26);
 }
 .g-quest__warning-tape--top {
   top: 0;
@@ -2302,8 +2302,8 @@ onUnmounted(() => {
   right: -8px;
   bottom: 5px;
   left: -8px;
-  border-block: 1px solid rgba(0, 0, 0, 0.42);
-  background: rgba(255, 246, 178, 0.88);
+  border-block: 1px solid rgba(87, 47, 18, 0.24);
+  background: rgba(255, 247, 204, 0.94);
 }
 .g-quest__warning-tape::after {
   content: attr(data-text) ' ' attr(data-text);
@@ -2314,14 +2314,14 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   white-space: nowrap;
-  color: #070707;
+  color: #1c1208;
   font-family: var(--mono), monospace;
   font-size: 11px;
   font-style: normal;
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.76);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.86);
 }
 @media (prefers-reduced-motion: no-preference) {
   .g-quest.is-unknown-quest {
