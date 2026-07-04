@@ -496,7 +496,7 @@ async fn list_comments(
 /// GET /api/fiction/categories —— 固定分类 + 各分类已发布作品数。
 async fn list_categories(State(state): State<AppState>) -> AppResult<Json<Value>> {
     let rows: Vec<(String, i64)> = sqlx::query_as(
-        "SELECT category, COUNT(*) FROM stories WHERE status = 'published' GROUP BY category",
+        "SELECT category, COUNT(*) FROM stories WHERE status != 'hidden' AND chapter_count > 0 GROUP BY category",
     )
     .fetch_all(&state.pools.fiction)
     .await?;
@@ -527,7 +527,7 @@ async fn list_tags(
         "SELECT t.name, COUNT(*) AS c FROM story_tags st \
          JOIN tags t ON t.id = st.tag_id \
          JOIN stories s ON s.id = st.story_id \
-         WHERE s.status = 'published' GROUP BY t.id ORDER BY c DESC, t.name ASC LIMIT ?",
+         WHERE s.status != 'hidden' AND s.chapter_count > 0 GROUP BY t.id ORDER BY c DESC, t.name ASC LIMIT ?",
     )
     .bind(limit)
     .fetch_all(&state.pools.fiction)
@@ -548,7 +548,7 @@ async fn spotlight(State(state): State<AppState>) -> AppResult<Json<Value>> {
         limit: i64,
     ) -> AppResult<Vec<Value>> {
         let sql = format!(
-            "SELECT {STORY_COLS} FROM stories WHERE status = 'published' {extra_where} {order} LIMIT ?"
+            "SELECT {STORY_COLS} FROM stories WHERE status != 'hidden' AND chapter_count > 0 {extra_where} {order} LIMIT ?"
         );
         let rows = sqlx::query_as::<_, StoryRow>(&sql)
             .bind(limit)
@@ -994,6 +994,16 @@ async fn update_story(
     if obj.contains_key("tags") {
         set_story_tags(pool, id, &parse_tags(obj.get("tags"))).await?;
     }
+    // 首页精选：仅 fiction 管理员可切换（精选段展示在首页「精选佳作」）
+    if let Some(f) = obj.get("featured").and_then(|v| v.as_bool()) {
+        if is_fiction_admin(&state.pools.core, &user).await {
+            sqlx::query("UPDATE stories SET featured = ? WHERE id = ?")
+                .bind(f as i64)
+                .bind(id)
+                .execute(pool)
+                .await?;
+        }
+    }
     // 独立署名作品：管理员可修改署名（仅对未绑定账号的作品开放，杜绝篡改成员作品署名）
     if let Some(name) = obj.get("authorName").and_then(|v| v.as_str()) {
         let name = clamp_len(Some(name), 60);
@@ -1340,13 +1350,14 @@ async fn upload_cover(
 
 // ================= 互动 / 个人中心 =================
 
-/// 作品必须存在且已发布，否则 404（互动/评论只针对公开作品）。
+/// 作品必须对读者可见（未下架且有已发布章节），否则 404（互动/评论只针对公开作品）。
 async fn ensure_published(pool: &SqlitePool, id: i64) -> AppResult<()> {
-    let ok: Option<i64> =
-        sqlx::query_scalar("SELECT id FROM stories WHERE id = ? AND status = 'published'")
-            .bind(id)
-            .fetch_optional(pool)
-            .await?;
+    let ok: Option<i64> = sqlx::query_scalar(
+        "SELECT id FROM stories WHERE id = ? AND status != 'hidden' AND chapter_count > 0",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
     ok.map(|_| ())
         .ok_or_else(|| AppError::not_found("作品不存在"))
 }
@@ -1615,7 +1626,7 @@ async fn my_bookmarks(
     let offset = (page - 1) * page_size;
 
     let total: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM stories WHERE status = 'published' \
+        "SELECT COUNT(*) FROM stories WHERE status != 'hidden' AND chapter_count > 0 \
          AND id IN (SELECT story_id FROM reactions WHERE user_id = ? AND kind = 'bookmark')",
     )
     .bind(user.id)
@@ -1623,7 +1634,7 @@ async fn my_bookmarks(
     .await?;
 
     let rows: Vec<StoryRow> = sqlx::query_as(&format!(
-        "SELECT {STORY_COLS} FROM stories WHERE status = 'published' \
+        "SELECT {STORY_COLS} FROM stories WHERE status != 'hidden' AND chapter_count > 0 \
          AND id IN (SELECT story_id FROM reactions WHERE user_id = ? AND kind = 'bookmark') \
          ORDER BY datetime((SELECT created_at FROM reactions WHERE user_id = ? \
          AND story_id = stories.id AND kind = 'bookmark')) DESC, id DESC LIMIT ? OFFSET ?"
