@@ -2233,8 +2233,8 @@ onUnmounted(() => {
     radial-gradient(circle at center, rgba(180, 150, 235, 0.2), transparent 58%),
     #f6f1ff;
   opacity: 1;
-  padding-top: 42px;
-  padding-bottom: 42px;
+  padding-top: 34px;
+  padding-bottom: 34px;
   box-shadow:
     0 14px 30px -24px rgba(96, 57, 18, 0.46),
     inset 0 0 0 1px rgba(177, 68, 56, 0.22),
@@ -2260,7 +2260,7 @@ onUnmounted(() => {
   z-index: 1;
   left: 0;
   width: 100%;
-  height: 28px;
+  height: 20px;
   overflow: hidden;
   border-block: 1px solid rgba(102, 54, 20, 0.28);
   background: repeating-linear-gradient(45deg, #e8c34a 0 13.333px, #c65549 13.333px 20px);
@@ -2279,9 +2279,9 @@ onUnmounted(() => {
   content: '';
   position: absolute;
   z-index: 1;
-  top: 5px;
+  top: 3px;
   right: -8px;
-  bottom: 5px;
+  bottom: 3px;
   left: -8px;
   border-block: 1px solid rgba(87, 47, 18, 0.24);
   background: rgba(255, 247, 204, 0.94);
@@ -2297,7 +2297,7 @@ onUnmounted(() => {
   white-space: nowrap;
   color: #1c1208;
   font-family: var(--mono), monospace;
-  font-size: 11px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 700;
   letter-spacing: 0;
