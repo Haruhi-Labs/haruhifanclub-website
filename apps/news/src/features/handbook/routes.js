@@ -5,7 +5,8 @@ export const handbookRoutes = [
     {
         path: '/handbook',
         name: 'handbook',
-        component: HandbookView
+        component: HandbookView,
+        meta: { title: '团员手册' }
     }
 ];
 

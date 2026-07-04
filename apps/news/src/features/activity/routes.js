@@ -5,7 +5,8 @@ export const activityRoutes = [
     {
         path: '/activity',
         name: 'activity',
-        component: ActivityView
+        component: ActivityView,
+        meta: { title: '活动中心' }
     }
 ];
 

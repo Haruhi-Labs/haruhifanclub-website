@@ -9,6 +9,7 @@ const router = createRouter({
   // [修改] 传入 base 参数 '/exam/'
   history: createWebHistory('/exam/'),
   routes: [
+    // 首页与 /exam/:id 详情页不加静态 title：首页用 index.html 兜底，详情页由视图内 usePageMeta 在数据加载后设置
     {
       path: '/',
       name: 'home',
@@ -17,13 +18,16 @@ const router = createRouter({
     {
       path: '/create',
       name: 'create',
-      component: EditorView
+      component: EditorView,
+      meta: { title: '出卷', noindex: true }
     },
     {
       path: '/haruhi',
       name: 'haruhi',
       component: ExamPaper,
-      props: { isHaruhi: true }
+      props: { isHaruhi: true },
+      // 内置卷（mock-exam 的 config.title 为「凉宫春日大考试！」），路由级静态标题
+      meta: { title: '凉宫春日大考试' }
     },
     {
       path: '/exam/:id',
@@ -34,7 +38,8 @@ const router = createRouter({
     {
       path: '/admin',
       name: 'admin',
-      component: AdminView
+      component: AdminView,
+      meta: { title: '管理', noindex: true }
     }
   ]
 });

@@ -13,6 +13,7 @@
     "@haruhi/api-client": "workspace:*",
     "@haruhi/auth-ui": "workspace:*",
     "@haruhi/design-system": "workspace:*",
+    "@haruhi/seo": "workspace:*",
     "@haruhi/ui": "workspace:*",
     "dompurify": "^3.4.8",
     "html-to-image": "^1.11.13",

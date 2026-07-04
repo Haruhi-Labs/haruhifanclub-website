@@ -5,7 +5,8 @@ export const adminRoutes = [
     {
         path: '/admin',
         name: 'admin',
-        component: AdminView
+        component: AdminView,
+        meta: { title: '管理后台', noindex: true }
     }
 ];
 

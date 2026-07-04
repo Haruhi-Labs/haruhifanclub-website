@@ -6,7 +6,7 @@ export const quizRoutes = [
         path: '/quiz-game',
         name: 'quiz',
         component: QuizView,
-        meta: { hideNavbar: true }
+        meta: { hideNavbar: true, title: '问答游戏' }
     }
 ];
 

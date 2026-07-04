@@ -38,6 +38,7 @@ const router = createRouter({
       path: '/admin/login',
       name: 'admin-login',
       component: () => import('../views/admin/AdminLoginView.vue'),
+      meta: { title: '管理员登录', noindex: true },
     },
     // 终端用户账号系统：套专门的 ShopAuthLayout（精简页头 + 满屏 shop 主题背景），
     // 既补上之前缺失的页头，也消除登录页「下半截颜色不同的底」。
@@ -46,12 +47,19 @@ const router = createRouter({
       path: '/account-portal',
       component: ShopAuthLayout,
       redirect: '/login',
+      meta: { title: '账号', noindex: true },
       children: [
-        { path: '/login', name: 'login', component: LoginView, props: { site: 'shop' } },
+        {
+          path: '/login',
+          name: 'login',
+          component: LoginView,
+          props: { site: 'shop' },
+          meta: { title: '登录', noindex: true },
+        },
         {
           path: '/account',
           component: UserConsoleLayout,
-          meta: { requiresAuth: true },
+          meta: { requiresAuth: true, title: '个人中心', noindex: true },
           props: { site: 'shop', basePath: '/account', sections: ACCOUNT_SECTIONS },
           children: [
             { path: '', name: 'account', component: AccountOverviewView },
@@ -78,12 +86,14 @@ const router = createRouter({
           name: 'verify-email',
           component: VerifyEmailView,
           props: { site: 'shop' },
+          meta: { title: '验证邮箱', noindex: true },
         },
         {
           path: '/reset-password',
           name: 'reset-password',
           component: ResetPasswordView,
           props: { site: 'shop' },
+          meta: { title: '重置密码', noindex: true },
         },
       ],
     },
@@ -92,37 +102,48 @@ const router = createRouter({
       path: '/',
       component: ShopLayout,
       children: [
+        // 首页与商品详情页不加静态 title：首页用 index.html 兜底，详情页由视图内 usePageMeta 在数据加载后设置
         { path: '', name: 'home', component: () => import('../views/shop/HomeView.vue') },
         {
           path: 'product/:id',
           name: 'product',
           component: () => import('../views/shop/ProductDetailView.vue'),
         },
-        { path: 'cart', name: 'cart', component: () => import('../views/shop/CartView.vue') },
+        {
+          path: 'cart',
+          name: 'cart',
+          component: () => import('../views/shop/CartView.vue'),
+          meta: { title: '购物车', noindex: true },
+        },
         {
           path: 'checkout',
           name: 'checkout',
           component: () => import('../views/shop/CheckoutView.vue'),
+          meta: { title: '结算', noindex: true },
         },
         {
           path: 'payment',
           name: 'payment',
           component: () => import('../views/shop/PaymentView.vue'),
+          meta: { title: '支付', noindex: true },
         },
         {
           path: 'success',
           name: 'success',
           component: () => import('../views/shop/SuccessView.vue'),
+          meta: { title: '下单成功', noindex: true },
         },
         {
           path: 'query',
           name: 'query',
           component: () => import('../views/shop/OrderQueryView.vue'),
+          meta: { title: '订单查询', noindex: true },
         },
         {
           path: 'contact',
           name: 'contact',
           component: () => import('../views/shop/ContactView.vue'),
+          meta: { title: '联系我们' },
         },
       ],
     },
@@ -130,6 +151,7 @@ const router = createRouter({
     {
       path: '/admin',
       component: AdminLayout,
+      meta: { title: '管理后台', noindex: true },
       children: [
         { path: '', redirect: '/admin/dashboard' },
         {
