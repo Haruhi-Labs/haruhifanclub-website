@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import DOMPurify from 'dompurify'
+import { usePageMeta, canonicalUrl } from '@haruhi/seo'
 import CommentSection from '@/components/CommentSection.vue'
 import { getChapter, saveProgress, session } from '@/api'
 import { useReaderSettings, THEMES, themeOf, widthOf } from '@/lib/reader'
@@ -107,6 +108,24 @@ onBeforeUnmount(() => {
 })
 
 watch([storyId, chapterId], load, { immediate: true })
+
+// 章节摘要：取净化后正文的前 160 字（净化复用 safeHtml，避免二次 sanitize）
+function chapterExcerpt() {
+  const div = document.createElement('div')
+  div.innerHTML = safeHtml.value
+  return (div.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 160)
+}
+
+usePageMeta(() =>
+  story.value && chapter.value
+    ? {
+        title: `${chapter.value.title} · ${story.value.title} · 春日文库`,
+        description: chapterExcerpt() || `《${story.value.title}》${chapter.value.title}`,
+        canonical: canonicalUrl(`/story/${storyId.value}/chapter/${chapterId.value}`),
+        ogType: 'article',
+      }
+    : null,
+)
 </script>
 
 <template>

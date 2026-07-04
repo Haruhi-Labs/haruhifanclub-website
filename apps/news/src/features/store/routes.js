@@ -5,7 +5,8 @@ export const storeRoutes = [
     {
         path: '/store',
         name: 'store',
-        component: StoreView
+        component: StoreView,
+        meta: { title: '积分商店' }
     }
 ];
 

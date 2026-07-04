@@ -54,7 +54,8 @@ const router = createRouter({
   },
   routes: [
     { path: '/', name: 'home', component: HomeView },
-    { path: '/library', name: 'library', component: LibraryView },
+    { path: '/library', name: 'library', component: LibraryView, meta: { title: '书库' } },
+    // 详情页 title/meta 由视图内 usePageMeta 在数据加载后设置
     { path: '/story/:id', name: 'story', component: StoryView },
     { path: '/story/:id/chapter/:cid', name: 'read', component: ReadView },
 
@@ -62,48 +63,61 @@ const router = createRouter({
       path: '/bookmarks',
       name: 'bookmarks',
       component: BookmarksView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, title: '我的书架', noindex: true },
     },
 
     // 创作（需登录）
-    { path: '/write', name: 'write', component: WriteDashboardView, meta: { requiresAuth: true } },
+    {
+      path: '/write',
+      name: 'write',
+      component: WriteDashboardView,
+      meta: { requiresAuth: true, title: '创作中心', noindex: true },
+    },
     {
       path: '/write/new',
       name: 'write-new',
       component: StoryEditorView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, title: '新建作品', noindex: true },
     },
     {
       path: '/write/:id',
       name: 'write-story',
       component: StoryEditorView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, title: '管理作品', noindex: true },
     },
     {
       path: '/write/:id/chapter/:cid',
       name: 'write-chapter',
       component: ChapterEditorView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, title: '编辑章节', noindex: true },
     },
 
     // 账号
-    { path: '/login', name: 'login', component: LoginView, props: { site: SITE } },
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
+      props: { site: SITE },
+      meta: { title: '登录', noindex: true },
+    },
     {
       path: '/reset-password',
       name: 'reset-password',
       component: ResetPasswordView,
       props: { site: SITE },
+      meta: { title: '重置密码', noindex: true },
     },
     {
       path: '/verify-email',
       name: 'verify-email',
       component: VerifyEmailView,
       props: { site: SITE },
+      meta: { title: '验证邮箱', noindex: true },
     },
     {
       path: '/account',
       component: UserConsoleLayout,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, title: '个人中心', noindex: true },
       props: { site: SITE, basePath: '/account', home: '/', sections: ACCOUNT_SECTIONS },
       children: [
         { path: '', name: 'account', component: OverviewView },
@@ -131,7 +145,7 @@ const router = createRouter({
     {
       path: '/admin',
       component: AdminLayout,
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true, requiresAdmin: true, noindex: true },
       children: [
         { path: '', name: 'admin', component: AdminOverview },
         { path: 'works', name: 'admin-works', component: AdminWorks },
@@ -139,7 +153,7 @@ const router = createRouter({
       ],
     },
 
-    { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },
+    { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView, meta: { noindex: true } },
   ],
 })
 

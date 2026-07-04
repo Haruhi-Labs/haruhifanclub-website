@@ -1,0 +1,23 @@
+{
+  "name": "@haruhi/seo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "页面 meta 管理：usePageMeta / useNoindex / installRouterMeta（与后端 SEO 注入协同）。",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "types": "src/index.d.ts",
+  "scripts": {
+    "lint": "eslint . --max-warnings=0"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js"
+    }
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0",
+    "vue-router": "^4.0.0"
+  }
+}

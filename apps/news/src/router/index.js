@@ -26,11 +26,17 @@ import {
 // 个人控制台：/account 为带侧边导航的「个人空间」外壳，子页嵌套渲染。
 // sections 控制导航显示的分区（随子页接入逐步扩展）。
 const accountRoutes = [
-  { path: '/login', name: 'login', component: LoginView, props: { site: 'news' } },
+  {
+    path: '/login',
+    name: 'login',
+    component: LoginView,
+    props: { site: 'news' },
+    meta: { title: '登录', noindex: true },
+  },
   {
     path: '/account',
     component: UserConsoleLayout,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, title: '个人中心', noindex: true },
     props: {
       site: 'news',
       basePath: '/account',
@@ -69,12 +75,14 @@ const accountRoutes = [
     name: 'verify-email',
     component: VerifyEmailView,
     props: { site: 'news' },
+    meta: { title: '验证邮箱', noindex: true },
   },
   {
     path: '/reset-password',
     name: 'reset-password',
     component: ResetPasswordView,
     props: { site: 'news' },
+    meta: { title: '重置密码', noindex: true },
   },
 ]
 

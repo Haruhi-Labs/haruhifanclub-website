@@ -41,23 +41,31 @@ const router = createRouter({
     { path: '/', name: 'home', component: CatalogView },
 
     // 账号（全站统一账号体系，自托管登录 + 个人控制台）
-    { path: '/login', name: 'login', component: LoginView, props: { site: SITE } },
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
+      props: { site: SITE },
+      meta: { title: '登录', noindex: true },
+    },
     {
       path: '/reset-password',
       name: 'reset-password',
       component: ResetPasswordView,
       props: { site: SITE },
+      meta: { title: '重置密码', noindex: true },
     },
     {
       path: '/verify-email',
       name: 'verify-email',
       component: VerifyEmailView,
       props: { site: SITE },
+      meta: { title: '验证邮箱', noindex: true },
     },
     {
       path: '/account',
       component: UserConsoleLayout,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, title: '个人中心', noindex: true },
       props: { site: SITE, basePath: '/account', home: '/', sections: ACCOUNT_SECTIONS },
       children: [
         { path: '', name: 'account', component: OverviewView },
@@ -80,7 +88,7 @@ const router = createRouter({
       ],
     },
 
-    { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },
+    { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView, meta: { noindex: true } },
   ],
 })
 

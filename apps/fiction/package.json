@@ -12,6 +12,7 @@
     "@haruhi/api-client": "workspace:*",
     "@haruhi/auth-ui": "workspace:*",
     "@haruhi/design-system": "workspace:*",
+    "@haruhi/seo": "workspace:*",
     "@haruhi/ui": "workspace:*",
     "@tiptap/core": "^2.27.2",
     "@tiptap/extension-character-count": "^2.27.2",
