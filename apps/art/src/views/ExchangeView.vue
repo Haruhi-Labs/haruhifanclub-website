@@ -2282,8 +2282,8 @@ onUnmounted(() => {
 .g-quest__warning-tape {
   position: absolute;
   z-index: 1;
-  left: -18%;
-  width: 136%;
+  left: var(--tape-left, -16%);
+  width: var(--tape-width, 132%);
   height: 15px;
   overflow: hidden;
   border-block: 1px solid rgba(104, 62, 26, 0.26);
@@ -2297,37 +2297,45 @@ onUnmounted(() => {
     inset 0 1px 0 rgba(255, 255, 255, 0.36),
     inset 0 -1px 0 rgba(101, 55, 30, 0.26);
   opacity: var(--tape-opacity, 0.96);
-  transform: translateX(var(--tape-x, 0)) rotate(var(--tape-rotate, -4deg));
+  transform: translateX(var(--tape-x, 0)) rotate(var(--tape-rotate, -5deg));
   transform-origin: center;
 }
 .g-quest__warning-tape--a {
-  top: 19%;
+  top: 20%;
   z-index: 1;
-  --tape-x: -1.5%;
-  --tape-rotate: -3.8deg;
+  --tape-left: -15%;
+  --tape-width: 130%;
+  --tape-x: -1%;
+  --tape-rotate: -5.2deg;
   --tape-opacity: 0.92;
 }
 .g-quest__warning-tape--b {
-  top: 39%;
-  z-index: 2;
+  top: 37%;
+  z-index: 3;
   height: 15px;
-  --tape-x: 2.5%;
-  --tape-rotate: -3.2deg;
+  --tape-left: -18%;
+  --tape-width: 136%;
+  --tape-x: 2%;
+  --tape-rotate: 5.8deg;
 }
 .g-quest__warning-tape--c {
-  top: 59%;
-  z-index: 1;
+  top: 56%;
+  z-index: 2;
   height: 15px;
-  --tape-x: -3%;
-  --tape-rotate: -4deg;
+  --tape-left: -18%;
+  --tape-width: 136%;
+  --tape-x: -2.5%;
+  --tape-rotate: -4.8deg;
   --tape-opacity: 0.94;
 }
 .g-quest__warning-tape--d {
-  top: 78%;
-  z-index: 2;
+  top: 72%;
+  z-index: 4;
   height: 15px;
-  --tape-x: 1%;
-  --tape-rotate: -3.4deg;
+  --tape-left: -14%;
+  --tape-width: 128%;
+  --tape-x: 1.5%;
+  --tape-rotate: 5.1deg;
   --tape-opacity: 0.9;
 }
 .g-quest__warning-tape::before {
