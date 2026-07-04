@@ -2,9 +2,9 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-// 同人小说站前端，部署于子路径 /fiction/，dev 代理到统一后端 17777。
+// 同人小说站前端，部署于子路径 /novel/，dev 代理到统一后端 17777。
 export default defineConfig({
-  base: '/fiction/',
+  base: '/novel/',
   plugins: [vue()],
   resolve: {
     alias: {
