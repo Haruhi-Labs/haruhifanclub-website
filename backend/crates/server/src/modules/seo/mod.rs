@@ -9,7 +9,10 @@ use axum::Router;
 
 use crate::state::AppState;
 
+mod meta;
+mod pages;
 mod sitemap;
+pub mod template;
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -20,6 +23,15 @@ pub fn router() -> Router<AppState> {
         .route("/sitemap-novel.xml", get(sitemap::sitemap_novel))
         .route("/sitemap-exam.xml", get(sitemap::sitemap_exam))
         .route("/sitemap-shop.xml", get(sitemap::sitemap_shop))
+        // 内容详情页 HTML meta 注入（fiction 的 URL 前缀是 /novel/）
+        .route("/news/blog/{id}", get(pages::news_article))
+        .route("/novel/story/{id}", get(pages::fiction_story))
+        .route(
+            "/novel/story/{id}/chapter/{cid}",
+            get(pages::fiction_chapter),
+        )
+        .route("/exam/exam/{id}", get(pages::exam_paper))
+        .route("/shop/product/{id}", get(pages::shop_product))
 }
 
 /// XML / HTML 属性通用转义（& < > " '）。

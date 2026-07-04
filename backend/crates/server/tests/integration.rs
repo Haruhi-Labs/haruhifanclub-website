@@ -92,6 +92,7 @@ async fn setup() -> TestApp {
         account_limiter: Arc::new(RateLimiter::new(5, 3600)),
         mailer: None,
         download: haruhi_server::modules::download::new_cache(),
+        seo_templates: haruhi_server::modules::seo::template::new_cache(),
     };
     let router = routes::router(state.clone());
     TestApp {
