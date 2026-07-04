@@ -2276,45 +2276,51 @@ onUnmounted(() => {
   box-shadow: none;
   opacity: var(--tape-opacity, 0.8);
   transform: translateX(var(--tape-x, 0)) rotate(var(--tape-rotate, -5deg));
-  transform-origin: center;
+  transform-origin: var(--tape-origin, center);
 }
 .g-quest__warning-tape--a {
-  top: 16%;
+  top: 13%;
   z-index: 1;
-  --tape-left: -18%;
-  --tape-width: 136%;
-  --tape-x: -1%;
-  --tape-rotate: -8.2deg;
-  --tape-opacity: 0.92;
+  height: 13px;
+  --tape-left: -12%;
+  --tape-width: 124%;
+  --tape-x: -4%;
+  --tape-rotate: -9.6deg;
+  --tape-origin: 28% 50%;
+  --tape-opacity: 0.86;
 }
 .g-quest__warning-tape--b {
-  top: 29%;
-  z-index: 3;
-  height: 14px;
-  --tape-left: -20%;
-  --tape-width: 140%;
-  --tape-x: 2%;
-  --tape-rotate: 6.4deg;
+  top: 32%;
+  z-index: 4;
+  height: 15px;
+  --tape-left: -24%;
+  --tape-width: 148%;
+  --tape-x: 3.5%;
+  --tape-rotate: 4.2deg;
+  --tape-origin: 64% 50%;
+  --tape-opacity: 0.82;
 }
 .g-quest__warning-tape--c {
-  top: 66%;
+  top: 62%;
   z-index: 2;
-  height: 15px;
-  --tape-left: -18%;
-  --tape-width: 136%;
-  --tape-x: -2.5%;
-  --tape-rotate: -2.6deg;
-  --tape-opacity: 0.94;
+  height: 14px;
+  --tape-left: -9%;
+  --tape-width: 118%;
+  --tape-x: -1%;
+  --tape-rotate: -2deg;
+  --tape-origin: 42% 50%;
+  --tape-opacity: 0.9;
 }
 .g-quest__warning-tape--d {
-  top: 80%;
+  top: 82%;
   z-index: 4;
-  height: 14px;
-  --tape-left: -19%;
-  --tape-width: 138%;
-  --tape-x: 1.5%;
-  --tape-rotate: 11.8deg;
-  --tape-opacity: 0.9;
+  height: 12px;
+  --tape-left: -21%;
+  --tape-width: 134%;
+  --tape-x: 0.5%;
+  --tape-rotate: 13.6deg;
+  --tape-origin: 73% 50%;
+  --tape-opacity: 0.78;
 }
 .g-quest__warning-tape::before {
   content: attr(data-text) ' ' attr(data-text);
