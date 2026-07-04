@@ -162,20 +162,6 @@
             >
               {{ questButtonLabel(quest) }}
             </button>
-            <span v-if="closedSpaceDenied(quest)" class="g-quest__closed-lock" aria-hidden="true">
-              <i
-                class="g-quest__warning-tape g-quest__warning-tape--b"
-                data-text="RESTRICTED // KEEP AWAY // CAUTION // RESTRICTED // KEEP AWAY // CAUTION //"
-              ></i>
-              <i
-                class="g-quest__warning-tape g-quest__warning-tape--c"
-                data-text="KEEP AWAY // RESTRICTED // CAUTION // KEEP AWAY // RESTRICTED // CAUTION //"
-              ></i>
-              <i
-                class="g-quest__warning-tape g-quest__warning-tape--d"
-                data-text="RESTRICTED // CAUTION // KEEP AWAY // RESTRICTED // CAUTION // KEEP AWAY //"
-              ></i>
-            </span>
           </article>
         </div>
         <div v-if="!quests.length" class="g-empty">暂无可接取的委托</div>
@@ -2232,98 +2218,12 @@ onUnmounted(() => {
   background: linear-gradient(90deg, #2ec7ff, #ff67cd, #ffd75f, #4ee6b4);
 }
 .g-quest.is-closed-space-denied {
-  border-color: rgba(178, 142, 232, 0.18);
+  border-color: rgba(207, 172, 82, 0.18);
   background:
-    radial-gradient(circle at center, rgba(178, 142, 232, 0.22), transparent 56%),
-    linear-gradient(135deg, rgba(250, 247, 255, 0.96), rgba(239, 231, 255, 0.92));
+    radial-gradient(circle at center, rgba(226, 188, 88, 0.14), transparent 58%),
+    linear-gradient(135deg, rgba(255, 252, 241, 0.96), rgba(250, 244, 223, 0.9));
   opacity: 1;
   box-shadow: none;
-}
-.g-quest.is-closed-space-denied > :not(.g-quest__closed-lock) {
-  z-index: 1;
-  filter: blur(0.4px) saturate(0.78);
-  opacity: 0.42;
-}
-.g-quest__closed-lock {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  display: block;
-  overflow: hidden;
-  border-radius: inherit;
-  pointer-events: none;
-  background: transparent;
-}
-.g-quest__warning-tape {
-  position: absolute;
-  z-index: 1;
-  left: var(--tape-left, -16%);
-  width: var(--tape-width, 132%);
-  height: 15px;
-  overflow: hidden;
-  border: 1px solid rgba(132, 99, 60, 0.12);
-  border-radius: 4px;
-  background:
-    repeating-linear-gradient(
-      45deg,
-      rgba(232, 204, 92, 0.78) 0 13.333px,
-      rgba(205, 111, 116, 0.64) 13.333px 20px
-    );
-  box-shadow: none;
-  opacity: var(--tape-opacity, 0.8);
-  transform: translateX(var(--tape-x, 0)) rotate(var(--tape-rotate, -5deg));
-  transform-origin: var(--tape-origin, center);
-}
-.g-quest__warning-tape--b {
-  top: 24%;
-  z-index: 4;
-  height: 15px;
-  --tape-left: -18%;
-  --tape-width: 136%;
-  --tape-x: -0.5%;
-  --tape-rotate: 6.8deg;
-  --tape-origin: 46% 50%;
-  --tape-opacity: 0.82;
-}
-.g-quest__warning-tape--c {
-  top: 62%;
-  z-index: 2;
-  height: 14px;
-  --tape-left: -9%;
-  --tape-width: 118%;
-  --tape-x: -1%;
-  --tape-rotate: -2deg;
-  --tape-origin: 42% 50%;
-  --tape-opacity: 0.9;
-}
-.g-quest__warning-tape--d {
-  top: 84%;
-  z-index: 4;
-  height: 14px;
-  --tape-left: -26%;
-  --tape-width: 146%;
-  --tape-x: 2.5%;
-  --tape-rotate: 8.8deg;
-  --tape-origin: 76% 50%;
-  --tape-opacity: 0.82;
-}
-.g-quest__warning-tape::before {
-  content: attr(data-text) ' ' attr(data-text);
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-  color: rgba(49, 40, 30, 0.72);
-  font-family: var(--mono), monospace;
-  font-size: 9px;
-  font-style: normal;
-  font-weight: 700;
-  letter-spacing: 0;
-  line-height: 1;
-  text-shadow: none;
 }
 @media (prefers-reduced-motion: no-preference) {
   .g-quest.is-unknown-quest {
@@ -3362,10 +3262,10 @@ onUnmounted(() => {
   background: rgba(19, 52, 58, 0.66);
 }
 :global(html.art-lights-out .g-quest.is-closed-space-denied) {
-  border-color: rgba(178, 142, 232, 0.18);
+  border-color: rgba(207, 172, 82, 0.18);
   background:
-    radial-gradient(circle at center, rgba(178, 142, 232, 0.22), transparent 56%),
-    linear-gradient(135deg, rgba(250, 247, 255, 0.96), rgba(239, 231, 255, 0.92));
+    radial-gradient(circle at center, rgba(226, 188, 88, 0.14), transparent 58%),
+    linear-gradient(135deg, rgba(255, 252, 241, 0.96), rgba(250, 244, 223, 0.9));
   box-shadow: none;
 }
 :global(html.art-lights-out .g-quest.is-unknown-quest) {
