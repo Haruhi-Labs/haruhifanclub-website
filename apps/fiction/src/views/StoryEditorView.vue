@@ -29,7 +29,7 @@ const loading = ref(true)
 const saving = ref(false)
 const story = ref(null)
 const chapters = ref([])
-const form = ref({ title: '', summary: '', category: 'daily', isCompleted: false, coverPath: null, tags: [], authorName: '' })
+const form = ref({ title: '', summary: '', category: 'daily', isCompleted: false, coverPath: null, tags: [], authorName: '', featured: false })
 const tagInput = ref('')
 
 // fiction 管理员（超管，或 fiction「管理」角色 level≥4）可为作品设置「独立署名」——不绑定任何账号。
@@ -42,6 +42,8 @@ const isFictionAdmin = computed(
 const showAuthorField = computed(
   () => isFictionAdmin.value && (isNew.value || (story.value != null && story.value.authorUserId == null))
 )
+// 首页精选开关：管理员编辑「已存在」的作品时可切换（新建未落库、无从精选）
+const showFeaturedToggle = computed(() => isFictionAdmin.value && story.value != null)
 
 // 一层发布模型：作品是否对读者可见由「已发布章节数」自动决定；作者可主动下架
 const publishedCount = computed(() => chapters.value.filter((c) => c.status === 'published').length)
@@ -56,7 +58,7 @@ async function load() {
   if (isNew.value) {
     story.value = null
     chapters.value = []
-    form.value = { title: '', summary: '', category: 'daily', isCompleted: false, coverPath: null, tags: [], authorName: '' }
+    form.value = { title: '', summary: '', category: 'daily', isCompleted: false, coverPath: null, tags: [], authorName: '', featured: false }
     loading.value = false
     return
   }
@@ -74,6 +76,7 @@ async function load() {
       tags: [...(r.story.tags || [])],
       // 独立署名作品（未绑定账号）预填其署名，供管理员修改；普通作品留空不展示该字段
       authorName: r.story.authorUserId == null ? r.story.authorName || '' : '',
+      featured: !!r.story.featured,
     }
   } catch (e) {
     toast.danger(e.status === 403 ? '无权管理该作品' : '作品加载失败')
@@ -265,6 +268,10 @@ watch(id, load, { immediate: true })
             <label class="se__switch">
               <SosSwitch v-model="form.isCompleted" />
               <span>已完结</span>
+            </label>
+            <label v-if="showFeaturedToggle" class="se__switch">
+              <SosSwitch v-model="form.featured" />
+              <span>首页精选<SosBadge variant="outline" class="se__admin-tag">管理员</SosBadge></span>
             </label>
             <div class="se__meta-actions">
               <SosButton variant="primary" :loading="saving" @click="saveMeta">{{ story ? '保存作品信息' : '创建作品' }}</SosButton>
@@ -486,6 +493,11 @@ watch(id, load, { immediate: true })
   gap: var(--sos-space-3);
   font-size: var(--sos-text-sm);
   color: var(--sos-text-secondary);
+}
+.se__switch span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sos-space-2);
 }
 .se__section-head {
   display: flex;
