@@ -2030,7 +2030,9 @@ onUnmounted(() => {
 .g-quest.is-unknown-quest::before,
 .g-quest.is-unknown-quest::after,
 .g-quest.is-limited-quest::before,
-.g-quest.is-limited-quest::after {
+.g-quest.is-limited-quest::after,
+.g-quest.is-closed-space-denied:not(.is-unknown-quest)::before,
+.g-quest.is-closed-space-denied:not(.is-unknown-quest)::after {
   content: '';
   position: absolute;
   pointer-events: none;
@@ -2163,7 +2165,8 @@ onUnmounted(() => {
   opacity: 0.72;
   filter: saturate(0.82);
 }
-.g-quest.is-limited-quest {
+.g-quest.is-limited-quest,
+.g-quest.is-closed-space-denied:not(.is-unknown-quest) {
   border-color: rgba(120, 112, 255, 0.34);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.7)) padding-box,
@@ -2177,7 +2180,8 @@ onUnmounted(() => {
       border-box;
   box-shadow: 0 18px 34px -28px rgba(80, 130, 210, 0.46);
 }
-.g-quest.is-limited-quest::before {
+.g-quest.is-limited-quest::before,
+.g-quest.is-closed-space-denied:not(.is-unknown-quest)::before {
   inset: 0;
   z-index: 0;
   border-radius: inherit;
@@ -2191,7 +2195,8 @@ onUnmounted(() => {
   transform: translateX(-70%);
   opacity: 0.78;
 }
-.g-quest.is-limited-quest::after {
+.g-quest.is-limited-quest::after,
+.g-quest.is-closed-space-denied:not(.is-unknown-quest)::after {
   inset: 1px;
   z-index: 0;
   border-radius: calc(15px - 1px);
@@ -2200,30 +2205,26 @@ onUnmounted(() => {
     linear-gradient(125deg, rgba(255, 101, 211, 0.12), transparent 34%, rgba(255, 214, 86, 0.13) 66%, transparent);
   opacity: 0.85;
 }
-.g-quest.is-limited-quest:hover {
+.g-quest.is-limited-quest:hover,
+.g-quest.is-closed-space-denied:not(.is-unknown-quest):hover {
   border-color: rgba(255, 104, 206, 0.48);
   box-shadow:
     0 18px 38px -26px rgba(255, 104, 206, 0.42),
     0 10px 32px -24px rgba(48, 202, 255, 0.5);
 }
-.g-quest.is-limited-quest .g-quest__status {
+.g-quest.is-limited-quest .g-quest__status,
+.g-quest.is-closed-space-denied:not(.is-unknown-quest) .g-quest__status {
   color: color-mix(in srgb, #7a3d8f 78%, #000);
   background: linear-gradient(90deg, rgba(94, 211, 255, 0.2), rgba(255, 105, 202, 0.17));
 }
-.g-quest.is-limited-quest .g-chip--time {
+.g-quest.is-limited-quest .g-chip--time,
+.g-quest.is-closed-space-denied:not(.is-unknown-quest) .g-chip--time {
   color: color-mix(in srgb, #b33173 78%, #000);
   background: linear-gradient(90deg, rgba(255, 117, 195, 0.17), rgba(255, 217, 91, 0.19));
 }
-.g-quest.is-limited-quest .g-progress__fill {
+.g-quest.is-limited-quest .g-progress__fill,
+.g-quest.is-closed-space-denied:not(.is-unknown-quest) .g-progress__fill {
   background: linear-gradient(90deg, #2ec7ff, #ff67cd, #ffd75f, #4ee6b4);
-}
-.g-quest.is-closed-space-denied {
-  border-color: rgba(207, 172, 82, 0.18);
-  background:
-    radial-gradient(circle at center, rgba(226, 188, 88, 0.14), transparent 58%),
-    linear-gradient(135deg, rgba(255, 252, 241, 0.96), rgba(250, 244, 223, 0.9));
-  opacity: 1;
-  box-shadow: none;
 }
 @media (prefers-reduced-motion: no-preference) {
   .g-quest.is-unknown-quest {
@@ -2247,7 +2248,8 @@ onUnmounted(() => {
       glitch-button-jitter 0.34s steps(2, end) infinite,
       glitch-button-overload 0.48s cubic-bezier(0.22, 0, 0.1, 1) 1;
   }
-  .g-quest.is-limited-quest::before {
+  .g-quest.is-limited-quest::before,
+  .g-quest.is-closed-space-denied:not(.is-unknown-quest)::before {
     animation: g-limited-flow 5.6s cubic-bezier(0.45, 0, 0.18, 1) infinite;
   }
 }
@@ -3261,13 +3263,6 @@ onUnmounted(() => {
 :global(html.art-lights-out .g-quest.is-done:hover) {
   background: rgba(19, 52, 58, 0.66);
 }
-:global(html.art-lights-out .g-quest.is-closed-space-denied) {
-  border-color: rgba(207, 172, 82, 0.18);
-  background:
-    radial-gradient(circle at center, rgba(226, 188, 88, 0.14), transparent 58%),
-    linear-gradient(135deg, rgba(255, 252, 241, 0.96), rgba(250, 244, 223, 0.9));
-  box-shadow: none;
-}
 :global(html.art-lights-out .g-quest.is-unknown-quest) {
   border-color: #00f0ff;
   background: #0a0a0f;
@@ -3277,7 +3272,8 @@ onUnmounted(() => {
     inset 0 0 0 1px rgba(0, 240, 255, 0.32),
     inset 0 0 18px rgba(255, 43, 214, 0.08);
 }
-:global(html.art-lights-out .g-quest.is-limited-quest) {
+:global(html.art-lights-out .g-quest.is-limited-quest),
+:global(html.art-lights-out .g-quest.is-closed-space-denied:not(.is-unknown-quest)) {
   border-color: rgba(124, 205, 255, 0.35);
   background:
     linear-gradient(180deg, rgba(18, 28, 50, 0.88), rgba(32, 22, 52, 0.72)) padding-box,
@@ -3291,10 +3287,22 @@ onUnmounted(() => {
       border-box;
 }
 :global(html.art-lights-out .g-quest.is-limited-quest .g-quest__body p),
+:global(
+  html.art-lights-out
+    .g-quest.is-closed-space-denied:not(.is-unknown-quest)
+    .g-quest__body
+    p
+),
+:global(
+  html.art-lights-out
+    .g-quest.is-closed-space-denied:not(.is-unknown-quest)
+    .g-progress__num
+),
 :global(html.art-lights-out .g-quest.is-limited-quest .g-progress__num) {
   color: rgba(224, 236, 255, 0.78);
 }
-:global(html.art-lights-out .g-quest.is-limited-quest .g-chip) {
+:global(html.art-lights-out .g-quest.is-limited-quest .g-chip),
+:global(html.art-lights-out .g-quest.is-closed-space-denied:not(.is-unknown-quest) .g-chip) {
   color: rgba(232, 241, 255, 0.84);
   background: rgba(255, 255, 255, 0.08);
 }
