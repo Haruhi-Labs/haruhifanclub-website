@@ -164,12 +164,20 @@
             </button>
             <span v-if="closedSpaceDenied(quest)" class="g-quest__closed-lock" aria-hidden="true">
               <i
-                class="g-quest__warning-tape g-quest__warning-tape--top"
+                class="g-quest__warning-tape g-quest__warning-tape--a"
                 data-text="CAUTION // KEEP AWAY // RESTRICTED // CAUTION // KEEP AWAY // RESTRICTED //"
               ></i>
               <i
-                class="g-quest__warning-tape g-quest__warning-tape--bottom"
+                class="g-quest__warning-tape g-quest__warning-tape--b"
                 data-text="RESTRICTED // KEEP AWAY // CAUTION // RESTRICTED // KEEP AWAY // CAUTION //"
+              ></i>
+              <i
+                class="g-quest__warning-tape g-quest__warning-tape--c"
+                data-text="KEEP AWAY // RESTRICTED // CAUTION // KEEP AWAY // RESTRICTED // CAUTION //"
+              ></i>
+              <i
+                class="g-quest__warning-tape g-quest__warning-tape--d"
+                data-text="RESTRICTED // CAUTION // KEEP AWAY // RESTRICTED // CAUTION // KEEP AWAY //"
               ></i>
             </span>
           </article>
@@ -2228,27 +2236,25 @@ onUnmounted(() => {
   background: linear-gradient(90deg, #2ec7ff, #ff67cd, #ffd75f, #4ee6b4);
 }
 .g-quest.is-closed-space-denied {
-  border-color: #e4b82e;
+  border-color: #e9bf63;
   background:
-    radial-gradient(circle at center, rgba(180, 150, 235, 0.2), transparent 58%),
-    #f6f1ff;
+    radial-gradient(circle at center, rgba(178, 142, 232, 0.22), transparent 56%),
+    linear-gradient(135deg, rgba(250, 247, 255, 0.96), rgba(239, 231, 255, 0.92));
   opacity: 1;
-  padding-top: 34px;
-  padding-bottom: 34px;
   box-shadow:
     0 14px 30px -24px rgba(96, 57, 18, 0.46),
     inset 0 0 0 1px rgba(177, 68, 56, 0.22),
     inset 0 0 28px rgba(202, 184, 245, 0.54);
 }
 .g-quest.is-closed-space-denied > :not(.g-quest__closed-lock) {
-  z-index: 3;
-  filter: none;
-  opacity: 1;
+  z-index: 1;
+  filter: blur(0.4px) saturate(0.78);
+  opacity: 0.42;
 }
 .g-quest__closed-lock {
   position: absolute;
-  inset: 0;
-  z-index: 2;
+  inset: -20px -24px;
+  z-index: 4;
   display: block;
   overflow: hidden;
   border-radius: inherit;
@@ -2258,35 +2264,50 @@ onUnmounted(() => {
 .g-quest__warning-tape {
   position: absolute;
   z-index: 1;
-  left: 0;
-  width: 100%;
-  height: 20px;
+  left: -38%;
+  width: 176%;
+  height: 16px;
   overflow: hidden;
-  border-block: 1px solid rgba(102, 54, 20, 0.28);
-  background: repeating-linear-gradient(45deg, #e8c34a 0 13.333px, #c65549 13.333px 20px);
+  border-block: 1px solid rgba(104, 62, 26, 0.26);
+  background:
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.14) 0 1px, transparent 1px 4px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.02)),
+    repeating-linear-gradient(45deg, #efd66a 0 13.333px, #d95f67 13.333px 20px);
   box-shadow:
-    0 4px 12px rgba(112, 68, 22, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 5px 12px rgba(112, 68, 22, 0.24),
+    3px 0 0 rgba(0, 240, 255, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36),
     inset 0 -1px 0 rgba(101, 55, 30, 0.26);
+  opacity: var(--tape-opacity, 0.96);
+  transform: translateX(var(--tape-x, 0)) rotate(var(--tape-rotate, -12deg));
+  transform-origin: 50% 50%;
 }
-.g-quest__warning-tape--top {
-  top: 0;
+.g-quest__warning-tape--a {
+  top: 17%;
+  --tape-x: -3%;
+  --tape-rotate: -17deg;
 }
-.g-quest__warning-tape--bottom {
-  bottom: 0;
+.g-quest__warning-tape--b {
+  top: 35%;
+  height: 15px;
+  --tape-x: 4%;
+  --tape-rotate: 13deg;
+}
+.g-quest__warning-tape--c {
+  top: 58%;
+  height: 14px;
+  --tape-x: -7%;
+  --tape-rotate: -8deg;
+  --tape-opacity: 0.9;
+}
+.g-quest__warning-tape--d {
+  top: 76%;
+  height: 15px;
+  --tape-x: 2%;
+  --tape-rotate: 22deg;
+  --tape-opacity: 0.92;
 }
 .g-quest__warning-tape::before {
-  content: '';
-  position: absolute;
-  z-index: 1;
-  top: 3px;
-  right: -8px;
-  bottom: 3px;
-  left: -8px;
-  border-block: 1px solid rgba(87, 47, 18, 0.24);
-  background: rgba(255, 247, 204, 0.94);
-}
-.g-quest__warning-tape::after {
   content: attr(data-text) ' ' attr(data-text);
   position: absolute;
   inset: 0;
@@ -2297,12 +2318,24 @@ onUnmounted(() => {
   white-space: nowrap;
   color: #1c1208;
   font-family: var(--mono), monospace;
-  font-size: 10px;
+  font-size: 9px;
   font-style: normal;
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.86);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.86),
+    0 -1px 0 rgba(255, 255, 255, 0.48);
+  -webkit-text-stroke: 0.24px rgba(255, 255, 255, 0.64);
+}
+.g-quest__warning-tape::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  opacity: 0.45;
+  mix-blend-mode: screen;
 }
 @media (prefers-reduced-motion: no-preference) {
   .g-quest.is-unknown-quest {
@@ -2328,6 +2361,21 @@ onUnmounted(() => {
   }
   .g-quest.is-limited-quest::before {
     animation: g-limited-flow 5.6s cubic-bezier(0.45, 0, 0.18, 1) infinite;
+  }
+  .g-quest__warning-tape {
+    animation: g-warning-tape-drift var(--tape-speed, 3.4s) steps(2, end) infinite;
+  }
+  .g-quest__warning-tape--a {
+    --tape-speed: 3.7s;
+  }
+  .g-quest__warning-tape--b {
+    --tape-speed: 2.9s;
+  }
+  .g-quest__warning-tape--c {
+    --tape-speed: 4.2s;
+  }
+  .g-quest__warning-tape--d {
+    --tape-speed: 3.2s;
   }
 }
 @keyframes glitch-scan {
@@ -2446,6 +2494,18 @@ onUnmounted(() => {
   48%,
   100% {
     transform: translateX(74%);
+  }
+}
+@keyframes g-warning-tape-drift {
+  0%,
+  100% {
+    transform: translateX(calc(var(--tape-x, 0%) - 2px)) rotate(var(--tape-rotate, -12deg));
+  }
+  42% {
+    transform: translateX(calc(var(--tape-x, 0%) + 4px)) rotate(var(--tape-rotate, -12deg));
+  }
+  68% {
+    transform: translateX(calc(var(--tape-x, 0%) - 5px)) rotate(var(--tape-rotate, -12deg));
   }
 }
 .g-quest__body {
@@ -3339,6 +3399,16 @@ onUnmounted(() => {
 }
 :global(html.art-lights-out .g-quest.is-done:hover) {
   background: rgba(19, 52, 58, 0.66);
+}
+:global(html.art-lights-out .g-quest.is-closed-space-denied) {
+  border-color: #e9bf63;
+  background:
+    radial-gradient(circle at center, rgba(178, 142, 232, 0.22), transparent 56%),
+    linear-gradient(135deg, rgba(250, 247, 255, 0.96), rgba(239, 231, 255, 0.92));
+  box-shadow:
+    0 14px 30px -24px rgba(96, 57, 18, 0.46),
+    inset 0 0 0 1px rgba(177, 68, 56, 0.22),
+    inset 0 0 28px rgba(202, 184, 245, 0.54);
 }
 :global(html.art-lights-out .g-quest.is-unknown-quest) {
   border-color: #00f0ff;
