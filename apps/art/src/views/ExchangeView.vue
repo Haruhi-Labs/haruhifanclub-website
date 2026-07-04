@@ -2230,15 +2230,15 @@ onUnmounted(() => {
 .g-quest.is-closed-space-denied {
   border-color: #e4b82e;
   background:
-    radial-gradient(circle at center, rgba(180, 150, 235, 0.18), transparent 58%),
-    #fff4c7;
+    radial-gradient(circle at center, rgba(180, 150, 235, 0.2), transparent 58%),
+    #f6f1ff;
   opacity: 1;
   padding-top: 42px;
   padding-bottom: 42px;
   box-shadow:
     0 14px 30px -24px rgba(96, 57, 18, 0.46),
     inset 0 0 0 1px rgba(177, 68, 56, 0.22),
-    inset 0 0 28px rgba(255, 234, 153, 0.72);
+    inset 0 0 28px rgba(202, 184, 245, 0.54);
 }
 .g-quest.is-closed-space-denied > :not(.g-quest__closed-lock) {
   z-index: 3;
