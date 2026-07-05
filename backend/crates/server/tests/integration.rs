@@ -69,6 +69,14 @@ fn test_config(data_dir: PathBuf, uploads_dir: PathBuf) -> Config {
         yuque_token: None,
         yuque_repo: "staff-sqlmik/phgf5z".into(),
         yuque_sync_interval_secs: 21_600,
+        // 语音工坊（voice）：测试不启探活任务，基址随意（不会被访问）
+        voice_tts_base: "http://127.0.0.1:9872".into(),
+        voice_rvc_base: "http://127.0.0.1:7865".into(),
+        voice_shared_key: None,
+        voice_probe_interval_secs: 60,
+        voice_tts_timeout_secs: 180,
+        voice_rvc_timeout_secs: 600,
+        voice_user_cooldown_secs: 30,
     }
 }
 
@@ -92,6 +100,7 @@ async fn setup() -> TestApp {
         account_limiter: Arc::new(RateLimiter::new(5, 3600)),
         mailer: None,
         download: haruhi_server::modules::download::new_cache(),
+        voice: haruhi_server::modules::voice::VoiceState::new(),
         seo_templates: haruhi_server::modules::seo::template::new_cache(),
     };
     let router = routes::router(state.clone());

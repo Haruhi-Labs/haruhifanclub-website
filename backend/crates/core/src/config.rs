@@ -50,6 +50,22 @@ pub struct Config {
     pub yuque_repo: String,
     /// 资源站后台同步间隔（秒），默认 6 小时（最短 5 分钟，见 download 模块）。
     pub yuque_sync_interval_secs: u64,
+
+    // 语音工坊（voice）：转发本地 TTS/RVC 服务（跑在团员本地、经 frp 上服务器）
+    /// TTS（GPT-SoVITS integrated_server）基址；生产走 frp 域名 https://tts.haruyuki.cn。
+    pub voice_tts_base: String,
+    /// RVC（integrated_server）基址；生产走 frp 域名 https://rvc.haruyuki.cn。
+    pub voice_rvc_base: String,
+    /// 与两个本地服务约定的共享密钥（X-HFC-Voice-Key）；未配置则不带头（本地开发）。
+    pub voice_shared_key: Option<String>,
+    /// 探活间隔（秒），默认 60。
+    pub voice_probe_interval_secs: u64,
+    /// TTS 合成上游超时（秒），默认 180。
+    pub voice_tts_timeout_secs: u64,
+    /// RVC 转换上游超时（秒），默认 600（整曲可能数分钟）。
+    pub voice_rvc_timeout_secs: u64,
+    /// 同一用户两次提交之间的冷却（秒），默认 30。
+    pub voice_user_cooldown_secs: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -193,6 +209,13 @@ impl Config {
             yuque_token: env("HARUHI_YUQUE_TOKEN"),
             yuque_repo: env_or("HARUHI_YUQUE_REPO", "staff-sqlmik/phgf5z"),
             yuque_sync_interval_secs: env_parse("HARUHI_YUQUE_SYNC_INTERVAL_SECS", 21_600),
+            voice_tts_base: env_or("HARUHI_VOICE_TTS_BASE", "http://127.0.0.1:9872"),
+            voice_rvc_base: env_or("HARUHI_VOICE_RVC_BASE", "http://127.0.0.1:7865"),
+            voice_shared_key: env("HARUHI_VOICE_KEY"),
+            voice_probe_interval_secs: env_parse("HARUHI_VOICE_PROBE_INTERVAL_SECS", 60),
+            voice_tts_timeout_secs: env_parse("HARUHI_VOICE_TTS_TIMEOUT_SECS", 180),
+            voice_rvc_timeout_secs: env_parse("HARUHI_VOICE_RVC_TIMEOUT_SECS", 600),
+            voice_user_cooldown_secs: env_parse("HARUHI_VOICE_USER_COOLDOWN_SECS", 30),
         })
     }
 

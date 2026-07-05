@@ -1,6 +1,6 @@
 <script setup>
-// 设计系统统一页脚 .sos-footer（资源站 · 晴空蓝主题）
-// 结构与 art/news/shop/novel 六站一致：品牌锁头 + 标语 + 社交 ｜ 多列全站链接 + 底部条 + 回到顶部
+// 设计系统统一页脚 .sos-footer（语音工坊 · 活力橙主题）
+// 结构与其余各站一致：品牌锁头 + 标语 + 社交 ｜ 多列全站链接 + 底部条 + 回到顶部
 const logoUrl = `${import.meta.env.BASE_URL}haruhi-logo-192.png`
 const year = new Date().getFullYear()
 
@@ -67,7 +67,7 @@ const groups = [
             <span class="sos-brand-lockup__mark"><img :src="logoUrl" alt="" /></span>
             <span class="sos-brand-lockup__text">
               <strong>凉宫春日应援团</strong>
-              <small>凉宫春日资源站 · Haruhifanclub</small>
+              <small>春日语音工坊 · Haruhifanclub</small>
             </span>
           </span>
           <p class="sos-footer__tagline">
@@ -102,9 +102,9 @@ const groups = [
       <div class="sos-footer__bottom">
         <span>© {{ year }} <a class="sos-footer__link" href="https://github.com/Haruhi-Labs" target="_blank" rel="noopener">Haruhi-Labs</a> · 凉宫春日应援团开发组</span>
         <div class="sos-footer__bottom-meta">
-          <span>资源索引镜像 · 版权归原作者 / 官方</span>
+          <span>AI 语音仅供爱好者交流</span>
           <span class="sos-footer__bottom-sep" aria-hidden="true"></span>
-          <span>仅供爱好者交流，请勿商用</span>
+          <span>禁止用于冒充他人 / 商用</span>
         </div>
       </div>
     </div>
