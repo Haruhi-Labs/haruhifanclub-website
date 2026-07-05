@@ -59,6 +59,14 @@
   --sos-amber-600: #985d14;
   --sos-amber-700: #76450f;
 
+  /* Vivid orange — voice 语音工坊（高饱和红橙，与 library 低饱和棕橙拉开） */
+  --sos-orange-50: #fff4ec;
+  --sos-orange-100: #ffe4d1;
+  --sos-orange-300: #ffb385;
+  --sos-orange-500: #f97316;
+  --sos-orange-600: #ea580c;
+  --sos-orange-700: #c2410c;
+
   /* Teacher red — exam 危险 / 强提醒 */
   --sos-red-50: #fff0f0;
   --sos-red-100: #ffd8db;
@@ -461,6 +469,34 @@
   /* 夏日晴空：顶部极淡的天蓝 + SOS团黄柔光，随视口固定，不干扰内容 */
   --sos-page-texture:
     radial-gradient(60% 44% at 82% -6%, rgba(23, 149, 214, 0.1), transparent 60%),
+    radial-gradient(56% 40% at 6% -4%, rgba(251, 191, 36, 0.08), transparent 58%);
+  --sos-page-texture-attachment: fixed;
+}
+
+/* voice — 语音工坊：活力橙声浪 + SOS团信号黄；热闹有能量的声音实验室 */
+[data-sos-site='voice'] {
+  --sos-bg-page: #fdf6f0;
+  --sos-bg-surface: var(--sos-white);
+  --sos-bg-subtle: #faeade;
+  --sos-bg-muted: #f5dcc6;
+  --sos-accent: var(--sos-orange-600);
+  --sos-accent-hover: var(--sos-orange-700);
+  --sos-accent-soft: #fdeadd;
+  --sos-accent-contrast: var(--sos-white);
+  --sos-accent-2: var(--sos-yellow-500); /* SOS团黄：状态徽标 / 波形点缀辅色 */
+  --sos-link: var(--sos-orange-700); /* 正文链接用 700 保证对比度 */
+  --sos-link-hover: var(--sos-orange-600);
+  --sos-focus: var(--sos-orange-500);
+  --sos-signal: var(--sos-yellow-500);
+  --sos-card-radius: var(--sos-radius-lg);
+  --sos-media-radius: var(--sos-radius-md);
+  --sos-control-radius: var(--sos-radius-full);
+  --sos-card-shadow: 0 1px 2px rgba(160, 70, 10, 0.06), 0 12px 30px -14px rgba(200, 90, 20, 0.18);
+  --sos-hover-shadow:
+    0 10px 22px -10px rgba(200, 90, 20, 0.2), 0 34px 60px -24px rgba(200, 90, 20, 0.28);
+  /* 暖橙声浪：顶部活力橙 + SOS团黄柔光，随视口固定，不干扰内容 */
+  --sos-page-texture:
+    radial-gradient(60% 44% at 82% -6%, rgba(249, 115, 22, 0.1), transparent 60%),
     radial-gradient(56% 40% at 6% -4%, rgba(251, 191, 36, 0.08), transparent 58%);
   --sos-page-texture-attachment: fixed;
 }

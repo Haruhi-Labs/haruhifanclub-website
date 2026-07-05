@@ -14,6 +14,7 @@ pub mod novel;
 // seo 挂根路径而非 /api（robots/sitemap/HTML 注入），不进下方 mount()
 pub mod seo;
 pub mod shop;
+pub mod voice;
 
 /// 把所有已上线的模块路由挂到 api 路由器上。
 pub fn mount(api: Router<AppState>) -> Router<AppState> {
@@ -24,4 +25,5 @@ pub fn mount(api: Router<AppState>) -> Router<AppState> {
         .nest("/shop", shop::router())
         .nest("/fiction", fiction::router())
         .nest("/download", download::router())
+        .nest("/voice", voice::router())
 }

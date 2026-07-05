@@ -28,6 +28,10 @@ async fn main() -> anyhow::Result<()> {
     let download_cache = modules::download::new_cache();
     modules::download::spawn_sync(cfg.clone(), download_cache.clone());
 
+    // 语音工坊（voice）：本地 TTS/RVC 服务探活 + 角色缓存后台任务。
+    let voice_state = modules::voice::VoiceState::new();
+    modules::voice::spawn_probe(cfg.clone(), voice_state.clone());
+
     let state = AppState {
         cfg: cfg.clone(),
         pools: pools.clone(),
@@ -41,6 +45,8 @@ async fn main() -> anyhow::Result<()> {
         mailer: Mailer::from_config(&cfg),
         // 资源站索引缓存（与后台同步任务共享同一 Arc）
         download: download_cache,
+        // 语音工坊状态（与探活任务共享）
+        voice: voice_state,
         // SEO 注入模板缓存（懒加载，mtime 失效）
         seo_templates: modules::seo::template::new_cache(),
     };

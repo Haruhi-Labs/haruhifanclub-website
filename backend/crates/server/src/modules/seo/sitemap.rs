@@ -136,6 +136,9 @@ pub async fn sitemap_static(State(state): State<AppState>) -> impl IntoResponse 
         "/art/gallery",
         "/art/announcements",
         "/download/",
+        "/voice/",
+        "/voice/tts",
+        "/voice/rvc",
     ];
     let b = base(&state);
     let mut urls = String::new();

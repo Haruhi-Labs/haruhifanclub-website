@@ -55,7 +55,8 @@ md-5 = "0.10"
 rand = "0.8"
 
 # --- HTTP 客户端 / 邮件 ---
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "multipart"] }
+# stream：语音工坊（voice）把上游音频 bytes_stream 流式回传，避免整段驻内存
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "multipart", "stream"] }
 lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport", "builder"] }
 
 # --- 媒体处理 ---
