@@ -64,7 +64,8 @@ pub struct Config {
     pub voice_tts_timeout_secs: u64,
     /// RVC 转换上游超时（秒），默认 600（整曲可能数分钟）。
     pub voice_rvc_timeout_secs: u64,
-    /// 同一用户两次提交之间的冷却（秒），默认 30。
+    /// 同一用户两次提交之间的冷却（秒），默认 10（并发闸已保证串行，冷却只防脚本狂刷；
+    /// 太长会卡住批量转换的正常使用）。
     pub voice_user_cooldown_secs: u64,
 }
 
@@ -215,7 +216,7 @@ impl Config {
             voice_probe_interval_secs: env_parse("HARUHI_VOICE_PROBE_INTERVAL_SECS", 60),
             voice_tts_timeout_secs: env_parse("HARUHI_VOICE_TTS_TIMEOUT_SECS", 180),
             voice_rvc_timeout_secs: env_parse("HARUHI_VOICE_RVC_TIMEOUT_SECS", 600),
-            voice_user_cooldown_secs: env_parse("HARUHI_VOICE_USER_COOLDOWN_SECS", 30),
+            voice_user_cooldown_secs: env_parse("HARUHI_VOICE_USER_COOLDOWN_SECS", 10),
         })
     }
 

@@ -7,11 +7,15 @@ export const api = createApiClient('/api/voice')
 /** 统一账号会话（与 AccountMenu / 路由守卫共享同一实例）。 */
 export const session = useSession('/api')
 
-/** 服务在线状态（后端探活缓存，公开）。 */
+/** 服务在线状态（后端探活缓存，公开）；含 cooldownSecs 供批量队列自适应间隔。 */
 export const getStatus = () => api.get('/status')
 
 /** 角色列表：{ tts: [{name, refs:[…]}], rvc: [{name}] }（后端缓存，公开）。 */
 export const getRoles = () => api.get('/roles')
+
+/** 预设参考音频试听地址（GET 公开，浏览器直接作 <audio> src）。 */
+export const refUrl = (character, ref) =>
+  `/api/voice/ref?character=${encodeURIComponent(character)}&ref=${encodeURIComponent(ref)}`
 
 /**
  * 音频类请求不能走 createApiClient（其一律按文本解析响应），
@@ -42,15 +46,44 @@ async function fetchAudio(path, init) {
   return res.blob()
 }
 
-/** 语音合成：payload = { character, ref, text, textLang, speed } → wav Blob。 */
-export const synthesize = ({ character, ref, text, textLang, speed }) =>
+/**
+ * 语音合成（预设语气参考）→ wav Blob。
+ * payload 直接使用 /hfc/synth 的 snake_case 字段：
+ * { character, ref, text, text_lang, speed, how_to_cut, top_k, top_p,
+ *   temperature, pause_second, if_freeze, ref_free }
+ */
+export const synthesize = (payload) =>
   fetchAudio('/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ character, ref, text, text_lang: textLang, speed }),
+    body: JSON.stringify(payload),
   })
 
-/** 声线转换：formData 含 audio / role / transpose / indexRate / protect → wav Blob。 */
+/**
+ * 语音合成（自定义参考音频）→ wav Blob。
+ * formData 字段（snake_case，与后端白名单一致）：character/text/text_lang/
+ * prompt_text/prompt_lang/ref_free/speed/how_to_cut/top_k/top_p/temperature/
+ * pause_second/if_freeze + ref_audio 文件 + aux_refs 多文件。
+ */
+export const synthesizeCustom = (formData) =>
+  fetchAudio('/tts/custom', { method: 'POST', body: formData })
+
+/**
+ * 多句拼接合成 → wav Blob。
+ * payload: { items: [{character, ref, text, interval}], text_lang, speed, global_interval }
+ */
+export const synthesizeBatch = (payload) =>
+  fetchAudio('/tts/batch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+/**
+ * 声线转换 → 音频 Blob（格式由 formData.format 决定）。
+ * formData：audio / role / transpose / indexRate / protect / rmsMixRate /
+ * filterRadius / resampleSr / format。
+ */
 export const convert = (formData) =>
   fetchAudio('/rvc', {
     method: 'POST',
