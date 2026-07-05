@@ -42,6 +42,8 @@ export const status = reactive({
   ttsOnline: false,
   rvcOnline: false,
   checkedAt: null,
+  /** 服务端配置的每用户提交冷却（秒），批量队列按它自适应间隔 */
+  cooldownSecs: 10,
 })
 
 /** 拉一次在线状态（页面轮询与提交前都走这里）。失败按全离线处理。 */
@@ -51,6 +53,7 @@ export async function refreshStatus() {
     status.ttsOnline = !!d?.tts?.online
     status.rvcOnline = !!d?.rvc?.online
     status.checkedAt = d?.checkedAt || null
+    if (Number.isFinite(d?.cooldownSecs)) status.cooldownSecs = d.cooldownSecs
   } catch {
     status.ttsOnline = false
     status.rvcOnline = false

@@ -7,6 +7,8 @@ const props = defineProps({
   blob: { type: Object, default: null },
   /** 下载文件名（不含扩展名） */
   filename: { type: String, default: '春日语音工坊' },
+  /** 下载扩展名（RVC 可选 wav/flac/mp3/m4a，TTS 恒为 wav） */
+  ext: { type: String, default: 'wav' },
 })
 
 const url = ref('')
@@ -31,8 +33,8 @@ onBeforeUnmount(() => {
       <span class="vo-result__dot" aria-hidden="true"></span>生成完成
     </p>
     <audio class="vo-result__player" :src="url" controls preload="metadata"></audio>
-    <a class="sos-button sos-button--secondary vo-result__download" :href="url" :download="`${filename}.wav`">
-      下载 WAV
+    <a class="sos-button sos-button--secondary vo-result__download" :href="url" :download="`${filename}.${ext}`">
+      下载 {{ ext.toUpperCase() }}
     </a>
   </div>
 </template>
