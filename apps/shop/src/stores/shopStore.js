@@ -1,4 +1,5 @@
 import { reactive, computed } from 'vue'
+import { getCsrfToken } from '@haruhi/api-client'
 import { trackEvent } from '@/utils/analytics'
 import {
     buildAdminAuthHeaders,
@@ -42,6 +43,13 @@ const DEFAULT_SITE_CONFIG = Object.freeze({
         friendQr: ''
     }
 })
+const publicWriteHeaders = (headers = {}) => {
+    const csrf = getCsrfToken()
+    return {
+        ...headers,
+        ...(csrf ? { 'X-CSRF-Token': csrf } : {})
+    }
+}
 const toCents = (value) => Math.round((Number(value) || 0) * 100)
 const fromCents = (value) => Number((Number(value || 0) / 100).toFixed(2))
 
@@ -367,7 +375,7 @@ export const useShopStore = () => {
         try {
             const res = await fetch(CONTACT_MESSAGES_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: publicWriteHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(payload || {})
             })
             const data = await res.json().catch(() => ({}))
@@ -450,7 +458,7 @@ export const useShopStore = () => {
         try {
             const res = await fetch(COUPON_PREVIEW_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: publicWriteHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ code, orderAmount })
             })
             const data = await res.json().catch(() => ({}))
@@ -861,7 +869,11 @@ export const useShopStore = () => {
     // 前台：创建订单
     const createOrderBackend = async (orderData) => {
         try {
-            const res = await fetch(ORDER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) })
+            const res = await fetch(ORDER_URL, {
+                method: 'POST',
+                headers: publicWriteHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify(orderData)
+            })
             const data = await res.json()
             if (!res.ok) throw new Error(data.error || '创建订单失败')
             const finalOrderId = data.orderId || orderData.id
@@ -932,7 +944,10 @@ export const useShopStore = () => {
     // 前台：用户提交支付凭证 (待付款 -> 待确认)
     const submitOrderPayment = async (id) => {
         try {
-            const res = await fetch(`${ORDER_URL}/${id}/payment`, { method: 'POST' })
+            const res = await fetch(`${ORDER_URL}/${id}/payment`, {
+                method: 'POST',
+                headers: publicWriteHeaders()
+            })
             const data = await res.json().catch(() => ({}))
             if (!res.ok) {
                 showNotification(data.error || '提交支付失败')
