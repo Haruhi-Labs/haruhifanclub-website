@@ -48,8 +48,13 @@
                 <h2 class="page-heading">{{ pageTitle }}</h2>
             </div>
             <div class="user-profile">
-                <span class="user-info">管理员: <strong>长门有希</strong></span>
-                <button class="logout-btn" @click="logout"><i class="fa fa-sign-out-alt"></i></button>
+                <span class="user-info">
+                    管理员: <strong>{{ adminName }}</strong>
+                    <small v-if="adminRoleLabel">（{{ adminRoleLabel }}）</small>
+                </span>
+                <button class="logout-btn" :disabled="logoutBusy" @click="logout">
+                    <i class="fa fa-sign-out-alt"></i>
+                </button>
             </div>
         </header>
         <div class="content-scroll">
@@ -60,14 +65,16 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { clearAdminToken } from '@/utils/adminAuth'
-import { resolveAppPath } from '@/utils/runtimePaths'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useShopStore } from '@/stores/shopStore'
 import '@/assets/admin.css'
 
 const route = useRoute()
+const router = useRouter()
+const store = useShopStore()
 const sidebarOpen = ref(false)
+const logoutBusy = ref(false)
 const pageTitleMap = {
     'admin-dashboard': '总览看板',
     'admin-orders': '订单管理',
@@ -79,6 +86,17 @@ const pageTitleMap = {
 }
 
 const pageTitle = computed(() => pageTitleMap[route.name] || '管理后台')
+const adminUser = computed(() => store.state.adminUser)
+const adminName = computed(() => {
+    const user = adminUser.value
+    return user?.nickname || user?.displayName || user?.username || '管理员'
+})
+const adminRoleLabel = computed(() => {
+    const user = adminUser.value
+    if (!user) return ''
+    if (user.isSuperAdmin) return '超级管理员'
+    return user.apps?.shop?.roleName || '商城管理'
+})
 
 const toggleSidebar = () => {
     sidebarOpen.value = !sidebarOpen.value
@@ -96,8 +114,20 @@ watch(
     }
 )
 
-const logout = () => {
-    clearAdminToken()
-    window.location.href = resolveAppPath('admin/login')
+onMounted(() => {
+    if (!store.state.adminUser) {
+        store.loadAdminUser()
+    }
+})
+
+const logout = async () => {
+    if (logoutBusy.value) return
+    logoutBusy.value = true
+    try {
+        await store.adminLogout()
+        await router.replace('/admin/login')
+    } finally {
+        logoutBusy.value = false
+    }
 }
 </script>

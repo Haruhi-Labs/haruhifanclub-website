@@ -1,6 +1,13 @@
 import { reactive, computed } from 'vue'
 import { trackEvent } from '@/utils/analytics'
-import { buildAdminAuthHeaders, clearAdminToken, hasValidAdminToken, loginShopAdmin } from '@/utils/adminAuth'
+import {
+    buildAdminAuthHeaders,
+    clearAdminToken,
+    getShopAdminUser,
+    hasValidAdminToken,
+    loginShopAdmin,
+    logoutShopAdmin
+} from '@/utils/adminAuth'
 import { isAdminPagePath, resolveApiPath, resolveAppPath } from '@/utils/runtimePaths'
 
 // 使用 Vite 代理路径（统一前缀 /api/shop，由 resolveApiPath 注入）
@@ -213,6 +220,7 @@ const state = reactive({
     products: [], 
     currentOrder: null,
     notification: null,
+    adminUser: null,
     adminOrders: [], // 确保后台订单列表状态存在
     adminOrdersMeta: { page: 1, pageSize: 20, total: 0, totalPages: 1 },
     adminCoupons: [],
@@ -305,14 +313,19 @@ export const useShopStore = () => {
 
     const setOrder = (order) => state.currentOrder = order
 
-    const handleAdminUnauthorized = () => {
+    const clearAdminState = () => {
         clearAdminToken()
+        state.adminUser = null
         state.adminOrders = []
         state.adminOrdersMeta = { page: 1, pageSize: 20, total: 0, totalPages: 1 }
         state.adminCoupons = []
         state.adminCouponsMeta = { page: 1, pageSize: 20, total: 0, totalPages: 1 }
         state.adminContactMessages = []
         state.adminContactMessagesMeta = { page: 1, pageSize: 20, total: 0, totalPages: 1 }
+    }
+
+    const handleAdminUnauthorized = () => {
+        clearAdminState()
         showNotification('登录已失效，请重新登录')
         if (typeof window !== 'undefined' && isAdminPagePath(window.location.pathname)) {
             window.location.href = resolveAppPath('admin/login')
@@ -333,18 +346,21 @@ export const useShopStore = () => {
             showNotification(result.error || '登录失败')
             return false
         }
+        state.adminUser = result.user || null
         showNotification('登录成功')
         return true
     }
 
-    const adminLogout = () => {
-        clearAdminToken()
-        state.adminOrders = []
-        state.adminOrdersMeta = { page: 1, pageSize: 20, total: 0, totalPages: 1 }
-        state.adminCoupons = []
-        state.adminCouponsMeta = { page: 1, pageSize: 20, total: 0, totalPages: 1 }
-        state.adminContactMessages = []
-        state.adminContactMessagesMeta = { page: 1, pageSize: 20, total: 0, totalPages: 1 }
+    const loadAdminUser = async () => {
+        if (!ensureAdminAuth()) return null
+        const user = await getShopAdminUser()
+        state.adminUser = user || null
+        return state.adminUser
+    }
+
+    const adminLogout = async () => {
+        await logoutShopAdmin()
+        clearAdminState()
     }
 
     const submitContactMessage = async (payload) => {
@@ -1122,6 +1138,6 @@ export const useShopStore = () => {
         submitContactMessage, fetchAdminContactMessages, updateAdminContactMessageStatus,
         fetchSiteConfig, updateSiteConfig,
         resolveProductPrice, hasProductDiscount, isPresaleProduct, getPresaleProgress, formatFixedPresaleDate,
-        adminLogin, adminLogout
+        adminLogin, loadAdminUser, adminLogout
     }
 }
