@@ -30,6 +30,10 @@ export interface CurrentUser {
   id: number
   username: string
   displayName: string | null
+  nickname: string | null
+  email?: string | null
+  avatar?: string | null
+  bio?: string | null
   isSuperAdmin: boolean
   apps: Record<string, AppRole>
 }
@@ -47,7 +51,7 @@ export interface Auth {
   updateProfile(patch: { nickname?: string; bio?: string }): Promise<CurrentUser>
   uploadAvatar(file: Blob | File): Promise<CurrentUser>
   removeAvatar(): Promise<CurrentUser>
-  logout(): void
+  logout(): Promise<void>
   getToken(): string
   isLoggedIn(): boolean
   // 通行密钥（Passkey / WebAuthn）
@@ -79,7 +83,7 @@ export interface AdminAuth {
   login(username: string, password: string): Promise<LoginResult>
   restore(): Promise<CurrentUser | null>
   me(): Promise<CurrentUser>
-  logout(): void
+  logout(): Promise<void>
   getToken(): string
   isLoggedIn(): boolean
 }

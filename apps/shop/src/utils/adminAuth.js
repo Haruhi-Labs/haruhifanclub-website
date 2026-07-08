@@ -30,6 +30,12 @@ export const hasShopPerm = (user) => admin.hasPerm(user);
 // 返回 true 表示通过；false 表示未登录 / 无权限 / token 失效。
 export const verifyShopAccess = async () => !!(await admin.restore());
 
+// 读取当前后台用户档案，用于后台页头展示真实登录者。
+export const getShopAdminUser = async () => admin.restore();
+
 // 统一 JWT 登录：用户名 + 密码 → /api/auth/login。
 // 成功且具备 shop 权限返回 { ok: true, user }；否则返回 { ok: false, error }。
 export const loginShopAdmin = async (username, password) => admin.login(username, password);
+
+// 退出后台：吊销服务端会话 cookie，并清理本地兼容 token。
+export const logoutShopAdmin = async () => admin.logout();
