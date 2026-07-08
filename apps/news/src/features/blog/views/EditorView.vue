@@ -290,7 +290,7 @@
                             <div class="preview-modal-header">
                                 <div class="preview-modal-tags">
                                     <span v-for="tag in previewArticleData.tags" :key="tag" class="preview-modal-tag">{{ tag }}</span>
-                                    <span v-if="previewArticleData.type === 'news'" class="preview-modal-tag--news">News</span>
+                                    <span v-if="previewArticleData.headerNote || previewArticleData.type === 'news'" class="preview-modal-tag--news">{{ previewArticleData.headerNote || 'News' }}</span>
                                 </div>
                                 <h2 class="preview-modal-title serif-font">{{ previewArticleData.title }}</h2>
                                 <div class="preview-modal-meta">
