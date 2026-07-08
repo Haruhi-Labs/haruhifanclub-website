@@ -133,6 +133,18 @@ fn post_json(path: &str, body: Value, token: Option<&str>) -> Request<Body> {
         .unwrap()
 }
 
+fn put_json(path: &str, body: Value, token: Option<&str>) -> Request<Body> {
+    let mut b = Request::builder()
+        .method("PUT")
+        .uri(path)
+        .header("content-type", "application/json");
+    if let Some(t) = token {
+        b = b.header("authorization", format!("Bearer {t}"));
+    }
+    b.body(Body::from(serde_json::to_vec(&body).unwrap()))
+        .unwrap()
+}
+
 async fn send(router: &Router, req: Request<Body>) -> (StatusCode, Value) {
     let resp = router.clone().oneshot(req).await.unwrap();
     let status = resp.status();
@@ -284,6 +296,52 @@ async fn public_news_articles_list_is_accessible() {
     assert!(
         j.is_array() || j.is_object(),
         "应返回 JSON 结构，实际: {j:?}"
+    );
+}
+
+#[tokio::test]
+async fn admin_update_article_ignores_unknown_fields() {
+    // 回归：后台编辑器提交的 payload 会带 articles 表不存在的字段（如 headerNote）。
+    // update_article 必须按列白名单过滤，否则动态 UPDATE 会拼出未知列 → SQLite 报
+    // "no such column" → 500。此测试钉住「带未知字段的编辑仍成功且脏字段被丢弃」。
+    let app = setup().await;
+    let admin = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+
+    // 超管建文章（status=published），拿到 id
+    let (s, j) = send(
+        &app.router,
+        post_json(
+            "/api/news/articles",
+            json!({ "title": "原标题", "type": "news", "content": [] }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK, "建文章应成功: {j:?}");
+    let id = j["data"]["id"].as_i64().expect("应返回文章 id");
+
+    // 编辑并携带脏字段 headerNote（表中无此列）→ 应 200，而非 500
+    let (s, j) = send(
+        &app.router,
+        put_json(
+            &format!("/api/news/articles/{id}"),
+            json!({ "title": "新标题", "headerNote": "独家", "type": "news" }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK, "带未知字段的编辑应被过滤后成功: {j:?}");
+
+    // 白名单字段确实落库
+    let (s, detail) = send(
+        &app.router,
+        get(&format!("/api/news/articles/{id}"), Some(&admin)),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(
+        detail["data"]["title"], "新标题",
+        "标题应已更新: {detail:?}"
     );
 }
 
