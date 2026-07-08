@@ -70,10 +70,10 @@
             </span>
           </div>
           <span
-            v-if="article.type === 'news'"
+            v-if="article.headerNote || article.type === 'news'"
             class="hero-news-badge"
           >
-            NEWS
+            {{ article.headerNote || 'NEWS' }}
           </span>
         </div>
 

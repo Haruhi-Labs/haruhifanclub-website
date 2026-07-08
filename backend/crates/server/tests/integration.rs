@@ -301,7 +301,7 @@ async fn public_news_articles_list_is_accessible() {
 
 #[tokio::test]
 async fn admin_update_article_ignores_unknown_fields() {
-    // 回归：后台编辑器提交的 payload 会带 articles 表不存在的字段（如 headerNote）。
+    // 回归：后台编辑器提交的 payload 可能带 articles 表不存在的字段。
     // update_article 必须按列白名单过滤，否则动态 UPDATE 会拼出未知列 → SQLite 报
     // "no such column" → 500。此测试钉住「带未知字段的编辑仍成功且脏字段被丢弃」。
     let app = setup().await;
@@ -320,12 +320,12 @@ async fn admin_update_article_ignores_unknown_fields() {
     assert_eq!(s, StatusCode::OK, "建文章应成功: {j:?}");
     let id = j["data"]["id"].as_i64().expect("应返回文章 id");
 
-    // 编辑并携带脏字段 headerNote（表中无此列）→ 应 200，而非 500
+    // 编辑并携带脏字段 bogusColumn（表中无此列）→ 应 200，而非 500
     let (s, j) = send(
         &app.router,
         put_json(
             &format!("/api/news/articles/{id}"),
-            json!({ "title": "新标题", "headerNote": "独家", "type": "news" }),
+            json!({ "title": "新标题", "bogusColumn": "x", "type": "news" }),
             Some(&admin),
         ),
     )
@@ -342,6 +342,72 @@ async fn admin_update_article_ignores_unknown_fields() {
     assert_eq!(
         detail["data"]["title"], "新标题",
         "标题应已更新: {detail:?}"
+    );
+}
+
+#[tokio::test]
+async fn admin_article_header_note_round_trips() {
+    // 角标（headerNote）作为真实列：建文章可写入、编辑可改、GET 回显；留空回退按 type。
+    let app = setup().await;
+    let admin = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+
+    // 建文章带角标
+    let (s, j) = send(
+        &app.router,
+        post_json(
+            "/api/news/articles",
+            json!({ "title": "标题", "type": "news", "headerNote": "独家", "content": [] }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK, "建文章应成功: {j:?}");
+    let id = j["data"]["id"].as_i64().expect("应返回文章 id");
+
+    // GET 详情回显角标
+    let (s, detail) = send(
+        &app.router,
+        get(&format!("/api/news/articles/{id}"), Some(&admin)),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(
+        detail["data"]["headerNote"], "独家",
+        "角标应回显: {detail:?}"
+    );
+
+    // 列表项也应带角标
+    let (s, list) = send(&app.router, get("/api/news/articles", None)).await;
+    assert_eq!(s, StatusCode::OK);
+    let items = list
+        .get("data")
+        .and_then(|d| d.as_array())
+        .unwrap_or_else(|| list.as_array().expect("列表应为数组或含 data 数组"));
+    let found = items
+        .iter()
+        .find(|it| it["id"].as_i64() == Some(id))
+        .expect("列表应含刚建的文章");
+    assert_eq!(found["headerNote"], "独家", "列表项应带角标: {found:?}");
+
+    // 编辑改角标
+    let (s, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/news/articles/{id}"),
+            json!({ "title": "标题", "type": "news", "headerNote": "重磅" }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK);
+    let (_, detail) = send(
+        &app.router,
+        get(&format!("/api/news/articles/{id}"), Some(&admin)),
+    )
+    .await;
+    assert_eq!(
+        detail["data"]["headerNote"], "重磅",
+        "角标应被更新: {detail:?}"
     );
 }
 
