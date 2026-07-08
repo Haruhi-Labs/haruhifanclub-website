@@ -962,12 +962,35 @@ async fn update_article(
     normalize_numeric_fields(&mut body, &["pinOrder"], false);
     normalize_float_fields(&mut body, &["coverFocalX", "coverFocalY"], false);
 
-    if let Some(obj) = body.as_object_mut() {
-        obj.remove("id");
-        obj.remove("created_at");
+    // 列白名单：只写 articles 真实列，丢弃编辑器携带但无对应列的字段（如 headerNote），
+    // 否则 dynamic_update 会把它拼进 UPDATE，撞上 SQLite "no such column" → 500。
+    // 与 update_my_article 的白名单同源，但 admin 可额外改 author/status/isPinned/pinOrder。
+    const EDITABLE: &[&str] = &[
+        "title",
+        "subtitle",
+        "date",
+        "type",
+        "author",
+        "tags",
+        "image",
+        "originalImage",
+        "coverFocalX",
+        "coverFocalY",
+        "content",
+        "isPinned",
+        "pinOrder",
+        "participants",
+        "status",
+        "summary",
+    ];
+    let mut obj = Map::new();
+    if let Some(b) = body.as_object() {
+        for k in EDITABLE {
+            if let Some(v) = b.get(*k) {
+                obj.insert((*k).to_string(), v.clone());
+            }
+        }
     }
-
-    let obj = body.as_object().cloned().unwrap_or_default();
     dynamic_update(&state.pools.news, "articles", &id, &obj).await?;
 
     let mut data = body.clone();
