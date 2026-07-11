@@ -28,11 +28,13 @@ const groups = [
       { label: '京阿尼台词检索', href: 'https://anitool.haruyuki.cn/', brand: '#10b981' },
       { label: '春日试卷中心', href: 'https://haruyuki.cn/exam/', brand: '#ef4444' },
       { label: '求学路', href: 'https://study.haruyuki.cn/', brand: '#f59e0b' },
+      { label: 'Live2D演出舞台', href: 'https://live2d.haruyuki.cn/', brand: '#198f91' },
     ],
   },
   {
     title: '游戏',
     links: [
+      { label: '动画制作人', href: 'https://producer.haruyuki.cn/', brand: '#275efe' },
       { label: '漫无止境的五月', href: 'https://crt.haruyuki.cn/', brand: '#a855f7' },
       { label: '无尽八月模拟器', href: 'https://loop.haruyuki.cn/', brand: '#0ea5e9' },
       { label: '射手座之日', href: 'https://star.haruyuki.cn/', brand: '#eab308' },
