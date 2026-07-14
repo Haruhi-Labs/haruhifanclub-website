@@ -167,6 +167,7 @@
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useRoute } from 'vue-router'
+import { getCsrfToken } from '@haruhi/api-client'
 import { resolveApiPath } from '@/utils/runtimePaths'
 
 const route = useRoute()
@@ -315,9 +316,13 @@ const saveContact = async () => {
 
     savingContact.value = true
     try {
+        const csrf = getCsrfToken()
         const res = await fetch(resolveApiPath(`/orders/${order.value.id}/contact`), {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...(csrf ? { 'X-CSRF-Token': csrf } : {})
+            },
             body: JSON.stringify(payload)
         })
         const data = await res.json().catch(() => ({}))

@@ -2,9 +2,10 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { SosButton, SosSkeleton, SosBadge, useToast } from '@haruhi/ui'
+import { usePageMeta, canonicalUrl, absoluteUrl } from '@haruhi/seo'
 import CoverImage from '@/components/CoverImage.vue'
 import CommentSection from '@/components/CommentSection.vue'
-import { getStory, bumpView, toggleLike, toggleBookmark, getProgress, session } from '@/api'
+import { getStory, bumpView, toggleLike, toggleBookmark, getProgress, session, coverUrl } from '@/api'
 import { categoryLabel, wordLabel, compact, fmtDate, readingMinutes } from '@/lib/format'
 
 const route = useRoute()
@@ -79,6 +80,27 @@ async function onBookmark() {
 }
 
 watch(id, load, { immediate: true })
+
+usePageMeta(() =>
+  story.value
+    ? {
+        title: `${story.value.title} · 春日文库`,
+        description:
+          story.value.summary || `${story.value.authorName || '佚名'}的凉宫春日同人小说《${story.value.title}》`,
+        canonical: canonicalUrl(`/story/${id.value}`),
+        ogType: 'book',
+        ogImage: absoluteUrl(coverUrl(story.value.coverPath)) || undefined,
+        jsonLd: {
+          '@context': 'https://schema.org',
+          '@type': 'Book',
+          name: story.value.title,
+          author: { '@type': 'Person', name: story.value.authorName || '佚名' },
+          description: story.value.summary || undefined,
+          inLanguage: 'zh-CN',
+        },
+      }
+    : null,
+)
 </script>
 
 <template>

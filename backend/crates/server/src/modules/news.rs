@@ -623,6 +623,8 @@ struct ArticleRow {
     id: i64,
     title: Option<String>,
     subtitle: Option<String>,
+    #[sqlx(rename = "headerNote")]
+    header_note: Option<String>,
     date: Option<String>,
     #[sqlx(rename = "type")]
     type_: Option<String>,
@@ -653,6 +655,7 @@ fn parse_article_full(r: &ArticleRow) -> Value {
         "id": r.id,
         "title": r.title,
         "subtitle": r.subtitle,
+        "headerNote": r.header_note,
         "date": r.date,
         "type": r.type_,
         "author": r.author,
@@ -713,6 +716,7 @@ fn build_article_list_item(r: &ArticleRow) -> Value {
         "id": r.id,
         "title": r.title,
         "subtitle": r.subtitle,
+        "headerNote": r.header_note,
         "date": r.date,
         "type": r.type_,
         "author": r.author,
@@ -733,7 +737,8 @@ fn build_article_list_item(r: &ArticleRow) -> Value {
 
 // 注：created_at 不在旧 list SQL 中，但 ArticleRow(FromRow) 需要该列；这里补选，
 // 不影响 build_article_list_item 输出（其不返回 created_at）。
-const ARTICLE_COLS: &str = "SELECT id, title, subtitle, date, type, author, tags, image, \
+const ARTICLE_COLS: &str =
+    "SELECT id, title, subtitle, headerNote, date, type, author, tags, image, \
     originalImage, \
     CAST(NULLIF(TRIM(coverFocalX), '') AS REAL) AS coverFocalX, \
     CAST(NULLIF(TRIM(coverFocalY), '') AS REAL) AS coverFocalY, \
@@ -885,12 +890,13 @@ async fn create_article(
     // tags/content/participants：对象/数组入库为 JSON 字符串（bind_scalar 处理）
     let mut q = sqlx::query_scalar::<_, i64>(
         "INSERT INTO articles \
-         (title, subtitle, date, type, author, tags, image, originalImage, coverFocalX, coverFocalY, \
+         (title, subtitle, headerNote, date, type, author, tags, image, originalImage, coverFocalX, coverFocalY, \
           content, isPinned, pinOrder, participants, status, created_at, summary, author_user_id) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
     );
     q = bind_scalar(q, &g("title"));
     q = bind_scalar(q, &g("subtitle"));
+    q = bind_scalar(q, &g("headerNote"));
     q = bind_scalar(q, &g("date"));
     q = bind_scalar(q, &g("type"));
     q = bind_scalar(q, &g("author"));
@@ -962,12 +968,36 @@ async fn update_article(
     normalize_numeric_fields(&mut body, &["pinOrder"], false);
     normalize_float_fields(&mut body, &["coverFocalX", "coverFocalY"], false);
 
-    if let Some(obj) = body.as_object_mut() {
-        obj.remove("id");
-        obj.remove("created_at");
+    // 列白名单：只写 articles 真实列，丢弃编辑器携带但无对应列的字段，
+    // 否则 dynamic_update 会把它拼进 UPDATE，撞上 SQLite "no such column" → 500。
+    // 与 update_my_article 的白名单同源，但 admin 可额外改 headerNote/author/status/isPinned/pinOrder。
+    const EDITABLE: &[&str] = &[
+        "title",
+        "subtitle",
+        "headerNote",
+        "date",
+        "type",
+        "author",
+        "tags",
+        "image",
+        "originalImage",
+        "coverFocalX",
+        "coverFocalY",
+        "content",
+        "isPinned",
+        "pinOrder",
+        "participants",
+        "status",
+        "summary",
+    ];
+    let mut obj = Map::new();
+    if let Some(b) = body.as_object() {
+        for k in EDITABLE {
+            if let Some(v) = b.get(*k) {
+                obj.insert((*k).to_string(), v.clone());
+            }
+        }
     }
-
-    let obj = body.as_object().cloned().unwrap_or_default();
     dynamic_update(&state.pools.news, "articles", &id, &obj).await?;
 
     let mut data = body.clone();

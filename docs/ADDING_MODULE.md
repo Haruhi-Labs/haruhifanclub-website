@@ -237,7 +237,7 @@ export default defineConfig({
   base: '/widget/',
   plugins: [vue()],
   server: {
-    port: 5210,
+    port: 5212,
     proxy: {
       '/api': { target: 'http://127.0.0.1:17777', changeOrigin: true },
       '/uploads': { target: 'http://127.0.0.1:17777', changeOrigin: true },
@@ -258,6 +258,8 @@ export default defineConfig({
 | shop          | 5205 |
 | design-system | 5206 |
 | fiction       | 5207 |
+| download      | 5210 |
+| voice         | 5211 |
 
 接入共享客户端：
 

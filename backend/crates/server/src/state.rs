@@ -23,6 +23,10 @@ pub struct AppState {
     pub mailer: Option<Mailer>,
     /// 资源站（download）：语雀知识库索引的内存缓存，后台定时同步、请求直接读。
     pub download: crate::modules::download::DownloadCache,
+    /// 语音工坊（voice）：本地 TTS/RVC 服务的探活状态、角色缓存与并发闸。
+    pub voice: crate::modules::voice::VoiceState,
+    /// SEO 注入：各 app dist/index.html 模板缓存（mtime 失效，部署免重启）。
+    pub seo_templates: crate::modules::seo::template::SeoTemplates,
 }
 
 /// 让 auth 提取器能从 AppState 取到 JWT 密钥。

@@ -27,6 +27,11 @@ pub enum AppError {
     #[error("{0}")]
     TooManyRequests(String),
 
+    /// 依赖的外部/本地服务暂不可用（如语音工坊的本地推理服务离线）。
+    /// 文案面向用户（区别于 Internal 的掩蔽策略）。
+    #[error("{0}")]
+    ServiceUnavailable(String),
+
     #[error(transparent)]
     Database(#[from] sqlx::Error),
 
@@ -47,6 +52,9 @@ impl AppError {
     pub fn internal(msg: impl Into<String>) -> Self {
         Self::Internal(msg.into())
     }
+    pub fn service_unavailable(msg: impl Into<String>) -> Self {
+        Self::ServiceUnavailable(msg.into())
+    }
 
     fn status(&self) -> StatusCode {
         match self {
@@ -56,6 +64,7 @@ impl AppError {
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
+            AppError::ServiceUnavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
             // sqlx 的 RowNotFound 映射为 404，其余为 500
             AppError::Database(sqlx::Error::RowNotFound) => StatusCode::NOT_FOUND,
             AppError::Database(_) | AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
@@ -68,15 +77,17 @@ impl IntoResponse for AppError {
         let status = self.status();
         // 5xx 记录详情，但一律不向客户端暴露内部信息（含 Internal/anyhow 文案，
         // 可能含库表结构、文件路径等敏感细节）。4xx 文案是有意给用户看的，保留。
-        let message = if status.is_server_error() {
-            tracing::error!(error = %self, "服务端错误");
-            "服务器内部错误".to_string()
-        } else if matches!(self, AppError::Database(sqlx::Error::RowNotFound)) {
-            // 该分支映射为 404，给用户友好文案而非 sqlx 原始英文
-            "资源不存在".to_string()
-        } else {
-            self.to_string()
-        };
+        // 503 的文案是给用户的服务状态提示（如「语音服务暂时离线」），不按 5xx 掩蔽
+        let message =
+            if status.is_server_error() && !matches!(self, AppError::ServiceUnavailable(_)) {
+                tracing::error!(error = %self, "服务端错误");
+                "服务器内部错误".to_string()
+            } else if matches!(self, AppError::Database(sqlx::Error::RowNotFound)) {
+                // 该分支映射为 404，给用户友好文案而非 sqlx 原始英文
+                "资源不存在".to_string()
+            } else {
+                self.to_string()
+            };
         (status, Json(json!({ "error": message }))).into_response()
     }
 }

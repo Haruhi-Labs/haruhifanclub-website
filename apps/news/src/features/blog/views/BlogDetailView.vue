@@ -70,10 +70,10 @@
             </span>
           </div>
           <span
-            v-if="article.type === 'news'"
+            v-if="article.headerNote || article.type === 'news'"
             class="hero-news-badge"
           >
-            NEWS
+            {{ article.headerNote || 'NEWS' }}
           </span>
         </div>
 
@@ -364,6 +364,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { usePageMeta, canonicalUrl, absoluteUrl } from '@haruhi/seo';
 import { useMainStore } from '@/stores/main';
 
 const route = useRoute();
@@ -503,6 +504,34 @@ watch(
     article.value = null;
     loadArticle();
   }
+);
+
+// 描述截断至约 160 字（meta description 长度惯例）
+const truncate = (text, max = 160) => {
+  if (!text) return '';
+  const s = String(text).replace(/\s+/g, ' ').trim();
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+};
+
+// 页面 meta：文章数据就绪后设置（加载前返回 null，保留静态兜底标签）
+usePageMeta(() =>
+  article.value
+    ? {
+        title: `${article.value.title} · 春日团报`,
+        description: truncate(article.value.summary || article.value.subtitle) || undefined,
+        canonical: canonicalUrl(`/blog/${route.params.id}`),
+        ogType: 'article',
+        ogImage: article.value.image ? absoluteUrl(article.value.image) : undefined,
+        jsonLd: {
+          '@context': 'https://schema.org',
+          '@type': 'NewsArticle',
+          headline: article.value.title,
+          datePublished: article.value.date || article.value.created_at || undefined,
+          author: { '@type': 'Person', name: article.value.author || '凉宫春日应援团' },
+          ...(article.value.image ? { image: absoluteUrl(article.value.image) } : {}),
+        },
+      }
+    : null,
 );
 </script>
 

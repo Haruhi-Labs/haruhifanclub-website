@@ -40,7 +40,7 @@ async function loadAll() {
       hub.news.prizes().catch(() => ({ data: [] })),
       hub.news.redemptions().catch(() => ({ data: [] })),
     ])
-    artPts.value = { total: a.data?.total || 0, history: a.data?.history || [] }
+    artPts.value = { total: a.total || 0, history: a.history || [] }
     newsPts.value = { total: n.data?.total || 0, history: n.data?.history || [] }
     prizes.value = pz.data || []
     redemptions.value = rd.data || []

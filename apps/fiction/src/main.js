@@ -4,7 +4,10 @@ import '@haruhi/design-system/components.css'
 import './style.css'
 
 import { createApp } from 'vue'
+import { installRouterMeta } from '@haruhi/seo'
 import App from './App.vue'
 import router from './router'
+
+installRouterMeta(router, { siteName: '春日文库', defaultTitle: '春日文库 · 凉宫春日应援团' })
 
 createApp(App).use(router).mount('#app')

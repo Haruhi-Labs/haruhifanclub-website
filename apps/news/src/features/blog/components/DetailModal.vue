@@ -47,10 +47,10 @@
                   {{ tag }}
                 </span>
                 <span
-                  v-if="article.type === 'news'"
+                  v-if="article.headerNote || article.type === 'news'"
                   class="tag-outlined"
                 >
-                  News
+                  {{ article.headerNote || 'News' }}
                 </span>
               </div>
               <h2 class="modal-title">

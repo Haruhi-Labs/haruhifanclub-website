@@ -1,3 +1,4 @@
+import { getCsrfToken } from '@haruhi/api-client';
 import { resolveApiPath } from '@/utils/runtimePaths';
 
 const SESSION_KEY = 'sos_analytics_session_id';
@@ -29,8 +30,11 @@ export function trackEvent(eventKey, meta = {}) {
         meta
     };
 
+    const csrf = getCsrfToken();
+
     try {
-        if (navigator.sendBeacon) {
+        // sendBeacon 不能带自定义 CSRF 头；有登录态时改用 fetch keepalive。
+        if (!csrf && navigator.sendBeacon) {
             const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
             navigator.sendBeacon(EVENT_URL, blob);
             return;
@@ -41,8 +45,12 @@ export function trackEvent(eventKey, meta = {}) {
 
     fetch(EVENT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(csrf ? { 'X-CSRF-Token': csrf } : {})
+        },
         body: JSON.stringify(payload),
+        credentials: 'same-origin',
         keepalive: true
     }).catch(() => {});
 }

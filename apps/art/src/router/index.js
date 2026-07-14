@@ -39,22 +39,44 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'home', component: HomeView },
-    { path: '/gallery', name: 'gallery', component: GalleryView },
-    { path: '/upload', name: 'upload', component: UploadView },
-    { path: '/admin', name: 'admin', component: AdminView, meta: { requiresAuth: true } },
+    { path: '/gallery', name: 'gallery', component: GalleryView, meta: { title: '画廊' } },
+    { path: '/upload', name: 'upload', component: UploadView, meta: { title: '投稿', noindex: true } },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminView,
+      meta: { requiresAuth: true, title: '审核后台', noindex: true }
+    },
     { path: '/points', redirect: '/exchange' },
-    { path: '/announcements', name: 'announcements', component: AnnouncementView },
-    { path: '/exchange', name: 'exchange', component: ExchangeView },
-    { path: '/terminal', name: 'terminal', component: AdventurerProfileView, meta: { requiresAuth: true } },
+    {
+      path: '/announcements',
+      name: 'announcements',
+      component: AnnouncementView,
+      meta: { title: '公告' }
+    },
+    { path: '/exchange', name: 'exchange', component: ExchangeView, meta: { title: '积分兑换' } },
+    {
+      path: '/terminal',
+      name: 'terminal',
+      component: AdventurerProfileView,
+      meta: { requiresAuth: true, title: '创作者终端', noindex: true }
+    },
+    // 冒险者档案为动态内容，本期不做视图级 meta
     { path: '/profile/:uid', name: 'adventurer-profile', component: AdventurerProfileView, props: true },
-    { path: '/license', name: 'license', component: LicenseView },
+    { path: '/license', name: 'license', component: LicenseView, meta: { title: '访问许可' } },
 
-    { path: '/login', name: 'login', component: LoginView, props: authProps },
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
+      props: authProps,
+      meta: { title: '登录', noindex: true }
+    },
     {
       path: '/account',
       component: UserConsoleLayout,
       props: { site: 'art', basePath: '/account', home: '/', sections: accountSections },
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, title: '个人中心', noindex: true },
       children: [
         { path: '', name: 'account', component: AccountOverviewView },
         { path: 'artworks', name: 'account-artworks', component: MyArtworksView },
@@ -75,8 +97,20 @@ const router = createRouter({
         }
       ]
     },
-    { path: '/verify-email', name: 'verify-email', component: VerifyEmailView, props: authProps },
-    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView, props: authProps },
+    {
+      path: '/verify-email',
+      name: 'verify-email',
+      component: VerifyEmailView,
+      props: authProps,
+      meta: { title: '验证邮箱', noindex: true }
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: ResetPasswordView,
+      props: authProps,
+      meta: { title: '重置密码', noindex: true }
+    },
 
     { path: '/:pathMatch(.*)*', redirect: '/' }
   ],

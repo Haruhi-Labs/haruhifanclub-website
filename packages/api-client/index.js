@@ -347,10 +347,15 @@ export function createAdminAuth(app, apiBase = '/api') {
     return true
   }
 
-  // 构造带 JWT 的请求头（给仍用裸 fetch/axios 的调用点）
+  // 构造后台裸 fetch/axios 请求头：兼容旧 Bearer，同时补齐 cookie 会话所需的 CSRF 头。
   const buildHeaders = (headers = {}) => {
     const token = getToken()
-    return token ? { ...headers, Authorization: `Bearer ${token}` } : { ...headers }
+    const csrf = getCsrfToken()
+    return {
+      ...headers,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+    }
   }
 
   // 登录 + 校验本模块权限。永不抛错，返回 { ok, user?, error? }

@@ -139,6 +139,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useShopStore } from '@/stores/shopStore'
 import { SosButton } from '@haruhi/ui'
+import { usePageMeta, canonicalUrl, absoluteUrl } from '@haruhi/seo'
 
 const route = useRoute()
 const router = useRouter()
@@ -207,6 +208,46 @@ const buyNow = () => {
     addToCart()
     router.push('/cart')
 }
+
+// 商品描述截断到约 160 字（多余空白折叠），SEO description 与 JSON-LD 共用
+const truncateDesc = (text, max = 160) => {
+    const s = String(text || '').replace(/\s+/g, ' ').trim()
+    return s.length > max ? `${s.slice(0, max - 1)}…` : s
+}
+
+// 页面 meta：商品数据加载完成后才设置（未就绪返回 null，保留 index.html 静态兜底）
+usePageMeta(() => {
+    const p = product.value
+    if (!p) return null
+    const description = truncateDesc(p.desc) || `凉宫春日应援团周边 —— ${p.name}`
+    const image = absoluteUrl(p.image) || undefined
+    return {
+        title: `${p.name} · 春日商城`,
+        description,
+        canonical: canonicalUrl(`/product/${route.params.id}`),
+        ogType: 'product',
+        ogImage: image,
+        jsonLd: {
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: p.name,
+            description,
+            ...(image ? { image } : {}),
+            offers: {
+                '@type': 'Offer',
+                // 前端商品价格字段已是「元」（两位小数）；有折扣时 resolveProductPrice 返回折扣价
+                price: getDisplayPrice(p).toFixed(2),
+                priceCurrency: 'CNY',
+                // 预售商品可购买且不受库存限制，标记为 PreOrder 而非缺货
+                availability: isPresaleProduct.value
+                    ? 'https://schema.org/PreOrder'
+                    : p.stock > 0
+                      ? 'https://schema.org/InStock'
+                      : 'https://schema.org/OutOfStock',
+            },
+        },
+    }
+})
 </script>
 
 <style scoped>

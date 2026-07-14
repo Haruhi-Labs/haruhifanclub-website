@@ -6,7 +6,8 @@ import { useAudioStore } from '@/stores/audio';
 import { useCameraRig } from '@/composables/useCameraRig';
 import QuestionRenderer from '@/components/QuestionRenderer.vue';
 import { toPng } from 'html-to-image';
-import QRCode from 'qrcode'; 
+import QRCode from 'qrcode';
+import { usePageMeta, canonicalUrl } from '@haruhi/seo';
 import type { Question } from '@/types/exam';
 
 
@@ -22,6 +23,8 @@ const audioStore = useAudioStore();
 const { rigEl, rig, rigStyle, isMobile, measureRig, onRigDown, onRigMove, onRigUp } = useCameraRig();
 
 const mode = ref<'preview' | 'solve' | 'marked'>('preview');
+// 试卷数据是否已就绪（store.paper 初始为内置 mock，须待 loadExam 完成后才能用于页面 meta）
+const metaReady = ref(false);
 const side = ref<'front' | 'back'>('front');
 const activeColumn = ref<'C1' | 'C2' | 'C3' | 'C4'>('C1');
 const viewColumn = ref<'C1' | 'C2' | 'C3' | 'C4'>('C1'); 
@@ -344,6 +347,7 @@ onMounted(() => {
   window.addEventListener('resize', updateAppScale, { passive: true });
 
   examStore.loadExam(props.id, props.isHaruhi).then(() => {
+    metaReady.value = true;
     // 如果没有被锁定，才执行后续 DOM 逻辑
     if (examStore.accessStatus === 'allow') {
       nextTick(() => {
@@ -357,6 +361,23 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateAppScale);
+});
+
+// 页面 meta：仅自定义试卷（/exam/:id）在数据加载成功后设置；
+// 内置卷 /haruhi 走路由级静态 title，加载中/出错/被锁定时返回 null 保留静态兜底。
+usePageMeta(() => {
+  if (props.isHaruhi || !props.id) return null;
+  if (!metaReady.value || examStore.loading || examStore.error || examStore.accessStatus !== 'allow') {
+    return null;
+  }
+  const cfg = examStore.paper.config;
+  const title = cfg.title || cfg.paperTitle;
+  return {
+    title: `${title} · 春日试卷中心`,
+    description: cfg.paperSubtitle || `来挑战《${title}》`,
+    canonical: canonicalUrl(`/exam/${props.id}`),
+    ogType: 'website',
+  };
 });
 </script>
 

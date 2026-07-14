@@ -12,7 +12,7 @@
 
     <div class="sos-card__body">
       <div class="sos-article-card__head">
-        <span class="sos-article-card__label">{{ article.type === 'news' ? 'NEWS' : 'POST' }}</span>
+        <span class="sos-article-card__label">{{ article.headerNote || (article.type === 'news' ? 'NEWS' : 'POST') }}</span>
         <span v-if="article.isPinned" class="sos-badge sos-badge--signal">置顶</span>
       </div>
 
