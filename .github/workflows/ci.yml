@@ -74,7 +74,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [news, art, exam, novel, fiction, shop, console]
+        app: [news, art, exam, novel, fiction, shop, chapter, console]
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6

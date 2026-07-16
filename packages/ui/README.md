@@ -89,12 +89,12 @@ import {
 
 **排印与控件**
 
-| 组件                                  | 用途                                        |
-| ------------------------------------- | ------------------------------------------- |
-| `SosEyebrow` / `SosTitle` / `SosCopy` | 眉标 / 标题（含 hero）/ 正文                |
-| `SosButton`                           | primary / secondary / ghost / danger / link |
-| `SosBadge` / `SosChip`                | 状态短标签 / 可切换可删除筛选标记           |
-| `SosTabs`                             | 分段 pill 与下划线两种 variant              |
+| 组件                                  | 用途                                                   |
+| ------------------------------------- | ------------------------------------------------------ |
+| `SosEyebrow` / `SosTitle` / `SosCopy` | 眉标 / 标题（含 hero）/ 正文                           |
+| `SosButton`                           | primary / secondary / ghost / danger / link            |
+| `SosBadge` / `SosChip`                | 状态短标签 / 可切换可删除筛选标记                      |
+| `SosTabs`                             | 分段 pill 与下划线两种 variant；支持键盘切换及关联面板 |
 
 **表单**
 
@@ -168,7 +168,7 @@ import {
 
 - 不封装 `NewsArticleCard`、`ShopProductCard`、`ArtworkCard`、`LibraryBookCard`、`ExamPaperCard` 等业务卡片。
 - `SosEmptyState` 是系统状态模式，不是营销卡片或落地页模块。
-- `SosPage`、`SosPageHeader`、`SosToolbar` 用于新界面重构时统一页面骨架，不负责生成业务内容。
+- `SosPage`、`SosPageHeader`、`SosToolbar` 用于新界面重构时统一页面骨架，不负责生成业务内容；页面内分区标题可通过 `SosPageHeader.titleAs="h2"` 保持正确标题层级。
 - 不新增独立主题变量；表达模式仍由外层 `data-sos-site` 和 `@haruhi/design-system` token 控制。
 - 不把页面特例做成组件 variant。新增 variant 前必须先更新规范页和状态矩阵。
 - 不替代 `@haruhi/auth-ui`。鉴权 UI 仍由 `packages/auth-ui` 维护，后续可逐步消费本包基础件。

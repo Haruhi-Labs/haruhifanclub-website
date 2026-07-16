@@ -211,27 +211,41 @@ fn secure_attr(secure: bool) -> &'static str {
     }
 }
 
+fn domain_attr(domain: Option<&str>) -> String {
+    domain
+        .map(|value| format!("; Domain={value}"))
+        .unwrap_or_default()
+}
+
 /// 会话 Set-Cookie（httpOnly + SameSite=Lax + Path=/）。
-pub fn session_set_cookie(raw: &str, ttl_seconds: i64, secure: bool) -> String {
+pub fn session_set_cookie(
+    raw: &str,
+    ttl_seconds: i64,
+    secure: bool,
+    domain: Option<&str>,
+) -> String {
     format!(
-        "{SESSION_COOKIE}={raw}; HttpOnly{}; SameSite=Lax; Path=/; Max-Age={ttl_seconds}",
-        secure_attr(secure)
+        "{SESSION_COOKIE}={raw}; HttpOnly{}{}; SameSite=Lax; Path=/; Max-Age={ttl_seconds}",
+        secure_attr(secure),
+        domain_attr(domain)
     )
 }
 
 /// CSRF Set-Cookie（非 httpOnly，前端读出来回填到 X-CSRF-Token）。
-pub fn csrf_set_cookie(csrf: &str, ttl_seconds: i64, secure: bool) -> String {
+pub fn csrf_set_cookie(csrf: &str, ttl_seconds: i64, secure: bool, domain: Option<&str>) -> String {
     format!(
-        "{CSRF_COOKIE}={csrf}; SameSite=Lax; Path=/; Max-Age={ttl_seconds}{}",
-        secure_attr(secure)
+        "{CSRF_COOKIE}={csrf}; SameSite=Lax; Path=/; Max-Age={ttl_seconds}{}{}",
+        secure_attr(secure),
+        domain_attr(domain)
     )
 }
 
 /// 清除某 cookie（登出用，Max-Age=0）。
-pub fn clear_cookie(name: &str, secure: bool) -> String {
+pub fn clear_cookie(name: &str, secure: bool, domain: Option<&str>) -> String {
     format!(
-        "{name}=; HttpOnly{}; SameSite=Lax; Path=/; Max-Age=0",
-        secure_attr(secure)
+        "{name}=; HttpOnly{}{}; SameSite=Lax; Path=/; Max-Age=0",
+        secure_attr(secure),
+        domain_attr(domain)
     )
 }
 
@@ -239,6 +253,16 @@ pub fn clear_cookie(name: &str, secure: bool) -> String {
 mod tests {
     use super::*;
     use sqlx::sqlite::SqlitePoolOptions;
+
+    #[test]
+    fn shared_domain_cookie_is_symmetric_on_set_and_clear() {
+        let set = session_set_cookie("token", 60, true, Some(".haruyuki.cn"));
+        let clear = clear_cookie(SESSION_COOKIE, true, Some(".haruyuki.cn"));
+        assert!(set.contains("Domain=.haruyuki.cn"));
+        assert!(set.contains("Secure"));
+        assert!(clear.contains("Domain=.haruyuki.cn"));
+        assert!(clear.contains("Max-Age=0"));
+    }
 
     async fn mem() -> SqlitePool {
         let pool = SqlitePoolOptions::new()

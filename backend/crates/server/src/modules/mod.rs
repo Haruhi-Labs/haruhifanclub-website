@@ -6,6 +6,7 @@ use crate::state::AppState;
 
 pub mod art;
 pub mod art_guild;
+pub mod chapter;
 pub mod download;
 pub mod exam;
 pub mod fiction;
@@ -20,6 +21,7 @@ pub mod voice;
 pub fn mount(api: Router<AppState>) -> Router<AppState> {
     api.nest("/novel", novel::router())
         .nest("/art", art::router())
+        .nest("/chapter", chapter::router())
         .nest("/news", news::router())
         .nest("/exam", exam::router())
         .nest("/shop", shop::router())

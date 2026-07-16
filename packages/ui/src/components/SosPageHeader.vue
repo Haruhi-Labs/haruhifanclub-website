@@ -2,6 +2,7 @@
 const props = withDefaults(
   defineProps<{
     as?: string
+    titleAs?: string
     eyebrow?: string
     title?: string
     copy?: string
@@ -9,6 +10,7 @@ const props = withDefaults(
   }>(),
   {
     as: 'header',
+    titleAs: 'h1',
     eyebrow: undefined,
     title: undefined,
     copy: undefined,
@@ -23,9 +25,13 @@ const props = withDefaults(
       <p v-if="props.eyebrow || $slots.eyebrow" class="sos-eyebrow sos-page-header__eyebrow">
         <slot name="eyebrow">{{ props.eyebrow }}</slot>
       </p>
-      <h1 v-if="props.title || $slots.title" class="sos-page-header__title">
+      <component
+        :is="props.titleAs"
+        v-if="props.title || $slots.title"
+        class="sos-page-header__title"
+      >
         <slot name="title">{{ props.title }}</slot>
-      </h1>
+      </component>
       <p v-if="props.copy || $slots.default" class="sos-page-header__copy">
         <slot>{{ props.copy }}</slot>
       </p>

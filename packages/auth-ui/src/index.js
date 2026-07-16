@@ -13,6 +13,7 @@ export { default as SettingsView } from './SettingsView.vue'
 export { default as AccountMenu } from './AccountMenu.vue'
 export { default as AccountAvatarLink } from './AccountAvatarLink.vue'
 export { default as AvatarCropper } from './AvatarCropper.vue'
+export { default as haruhiLogoUrl } from './assets/haruhi-logo-192.png'
 
 // 个人控制台（带侧边导航的「个人空间」外壳 + 各子页）
 export { default as UserConsoleLayout } from './UserConsoleLayout.vue'

@@ -40,6 +40,7 @@ fn test_config(data_dir: PathBuf, uploads_dir: PathBuf) -> Config {
         jwt_ttl_seconds: 3600,
         session_ttl_seconds: 3600,
         cookie_secure: false,
+        cookie_domain: None,
         superadmin_user: Some(ADMIN_USER.into()),
         superadmin_password: Some(ADMIN_PASS.into()),
         dashscope_api_key: None,
@@ -63,6 +64,7 @@ fn test_config(data_dir: PathBuf, uploads_dir: PathBuf) -> Config {
             smtp_pass: None,
         },
         public_site_url: "http://localhost".into(),
+        chapter_site_url: "http://chapter.localhost".into(),
         account_web_base: "http://localhost/news".into(),
         cors_origins: vec![],
         // 资源站（download）语雀同步配置：测试不启用（token None → 同步不启动）
@@ -91,6 +93,7 @@ async fn setup() -> TestApp {
     let pools = Pools::connect(&cfg).await.unwrap();
     pools.migrate().await.unwrap();
     seed::seed_superadmin(&cfg, &pools.core).await.unwrap();
+    let (chapter_timeline_tx, _) = tokio::sync::broadcast::channel(64);
 
     let state = AppState {
         cfg,
@@ -98,6 +101,7 @@ async fn setup() -> TestApp {
         login_limiter: Arc::new(RateLimiter::new(10, 600)),
         upload_limiter: Arc::new(RateLimiter::new(60, 600)),
         account_limiter: Arc::new(RateLimiter::new(5, 3600)),
+        chapter_timeline_tx,
         mailer: None,
         download: haruhi_server::modules::download::new_cache(),
         voice: haruhi_server::modules::voice::VoiceState::new(),
@@ -143,6 +147,26 @@ fn put_json(path: &str, body: Value, token: Option<&str>) -> Request<Body> {
     }
     b.body(Body::from(serde_json::to_vec(&body).unwrap()))
         .unwrap()
+}
+
+fn patch_json(path: &str, body: Value, token: Option<&str>) -> Request<Body> {
+    let mut b = Request::builder()
+        .method("PATCH")
+        .uri(path)
+        .header("content-type", "application/json");
+    if let Some(t) = token {
+        b = b.header("authorization", format!("Bearer {t}"));
+    }
+    b.body(Body::from(serde_json::to_vec(&body).unwrap()))
+        .unwrap()
+}
+
+fn delete(path: &str, token: Option<&str>) -> Request<Body> {
+    let mut b = Request::builder().method("DELETE").uri(path);
+    if let Some(t) = token {
+        b = b.header("authorization", format!("Bearer {t}"));
+    }
+    b.body(Body::empty()).unwrap()
 }
 
 async fn send(router: &Router, req: Request<Body>) -> (StatusCode, Value) {
@@ -1439,6 +1463,7 @@ async fn guild_budget_uses_manual_supplies_and_physical_spends() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
+
     assert_eq!(body["summary"]["totalSupplyCoins"], 10500);
     assert_eq!(body["summary"]["spentPhysicalCoins"], 500);
     assert_eq!(body["summary"]["currentBudgetCoins"], 10000);
@@ -2463,4 +2488,1080 @@ async fn novel_cover_thumb_validates_and_serves() {
     )
     .await;
     assert_eq!(s, StatusCode::NOT_FOUND, "封面不存在应 404");
+}
+
+#[tokio::test]
+async fn chapter_public_content_contacts_and_instance_permissions() {
+    let app = setup().await;
+    let admin = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+
+    let branch_columns: Vec<String> =
+        sqlx::query_scalar("SELECT name FROM pragma_table_info('branches')")
+            .fetch_all(&app.state.pools.chapter)
+            .await
+            .unwrap();
+    assert!(
+        !branch_columns.iter().any(|column| column == "region_code")
+            && !branch_columns.iter().any(|column| column == "timezone"),
+        "Chapter 最终 Schema 不应保留地区代码或时区字段"
+    );
+
+    let (status, created) = send(
+        &app.router,
+        post_json(
+            "/api/chapter/admin/branches",
+            json!({
+                "slug": "test-city",
+                "name": "测试市支部",
+                "summary": "用于集成测试",
+                "localityName": "测试市",
+                "status": "active"
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "超级管理员应能创建支部: {created:?}"
+    );
+    let branch_id = created["id"].as_i64().unwrap();
+
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/brand"),
+            json!({
+                "logoPath":"/uploads/chapter/test-logo.webp",
+                "logoAlt":"测试市支部 Logo",
+                "accentKey":"blue"
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "品牌配置应只需要一个 Logo");
+
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/qq-groups"),
+            json!({"items":[{"name":"主群","groupNumber":"123456789","isPrimary":true}]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/sections"),
+            json!({"items":[
+                {"sectionKey":"organization","label":"组织方式","enabled":true,"visibility":"public","sortOrder":0},
+                {"sectionKey":"members","label":"成员","enabled":false,"visibility":"public","sortOrder":2}
+            ]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "可视化栏目表单的数据形状应可保存");
+
+    let (status, branch_before_merchandise) =
+        send(&app.router, get("/api/chapter/branches/test-city", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(branch_before_merchandise["hasMerchandise"], false);
+
+    let (status, missing_merchandise_image) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/merchandise"),
+            json!({"items":[{"name":"缺图周边","status":"published"}]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "公开周边必须提供展示图片: {missing_merchandise_image:?}"
+    );
+
+    let (status, saved_merchandise) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/merchandise"),
+            json!({"items":[
+                {
+                    "name":"筹备中的徽章", "description":"尚未公开", "status":"draft",
+                    "tags":["徽章"], "sortOrder":0
+                },
+                {
+                    "name":"测试市纪念徽章", "description":"支部特色纪念品",
+                    "imagePath":"/uploads/chapter/test-merch.webp", "status":"published",
+                    "tags":["徽章","限定","徽章",""], "sortOrder":1
+                }
+            ]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "特色周边应可保存: {saved_merchandise:?}"
+    );
+    assert_eq!(saved_merchandise["items"].as_array().unwrap().len(), 2);
+    let published_merchandise_id = saved_merchandise["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["status"] == "published")
+        .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+
+    insert_active_user(&app.state, "chapter-member", "member-password").await;
+    sqlx::query("UPDATE users SET nickname='负责人甲',avatar='/uploads/avatar/member.webp' WHERE username='chapter-member'")
+        .execute(&app.state.pools.core)
+        .await
+        .unwrap();
+    let chapter_member_id: i64 =
+        sqlx::query_scalar("SELECT id FROM users WHERE username='chapter-member'")
+            .fetch_one(&app.state.pools.core)
+            .await
+            .unwrap();
+    let chapter_member = login(&app.router, "chapter-member", "member-password").await;
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            "/api/chapter/branches/test-city/join",
+            json!({"password":"member-password"}),
+            Some(&chapter_member),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "用户应能确认密码后加入支部");
+
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/members"),
+            json!({"items":[{"userId":chapter_member_id,"displayName":"会被账号昵称覆盖","bio":"首任负责人","status":"active","isPublic":true}]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, snapshot) = send(
+        &app.router,
+        get(
+            &format!("/api/chapter/admin/branches/{branch_id}"),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let member_id = snapshot["members"][0]["id"].as_i64().unwrap();
+
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/contacts"),
+            json!({"people":[{"displayName":"未授权负责人","isPublic":true,"methods":[]}]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "未确认公开授权不得公开负责人"
+    );
+
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/contacts"),
+            json!({"people":[{
+                "displayName":"负责人甲", "roleTitle":"联络人", "isPrimary":true,
+                "memberId":member_id,
+                "isPublic":true, "consentConfirmedAt":"2026-07-15T00:00:00Z",
+                "methods":[{"methodType":"qq","value":"99887766","isPublic":true}]
+            }]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/organization"),
+            json!({
+                "name":"第一届协作团队", "displayMode":"tree", "summary":"测试组织架构",
+                "units":[{"key":"coordination","name":"协调组","kind":"工作组","isPublic":true}],
+                "assignments":[{"unitKey":"coordination","memberId":member_id,"title":"召集人","isPublic":true}]
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/members"),
+            json!({"items":[{"id":member_id,"userId":chapter_member_id,"displayName":"也会被账号昵称覆盖","bio":"继续任职","status":"active","isPublic":true}]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "编辑成员时应保留成员 ID");
+    let (status, snapshot) = send(
+        &app.router,
+        get(
+            &format!("/api/chapter/admin/branches/{branch_id}"),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(snapshot["members"][0]["id"], member_id);
+    assert_eq!(snapshot["organization"]["name"], "第一届协作团队");
+    assert_eq!(
+        snapshot["organization"]["assignments"][0]["memberId"], member_id,
+        "成员编辑后组织任职不应丢失"
+    );
+
+    let (status, missing_end) = send(
+        &app.router,
+        post_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/events"),
+            json!({
+                "slug":"missing-end", "title":"缺少结束时间的活动",
+                "startsAt":"2026-08-01T14:00:00", "status":"published",
+                "visibility":"public", "aggregateMode":"inherit"
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "发布活动必须填写结束时间: {missing_end:?}"
+    );
+
+    let (status, event) = send(
+        &app.router,
+        post_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/events"),
+            json!({
+                "slug":"screening", "title":"测试观影会", "summary":"真实活动",
+                "startsAt":"2026-08-01T14:00:00", "endsAt":"2026-08-01T17:00:00",
+                "status":"published",
+                "visibility":"public", "aggregateMode":"inherit"
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "发布活动应成功: {event:?}");
+    let event_id = event["id"].as_i64().unwrap();
+    let (status, cohost_branch) = send(
+        &app.router,
+        post_json(
+            "/api/chapter/admin/branches",
+            json!({
+                "slug": "cohost-city",
+                "name": "协办市支部",
+                "summary": "用于联合主办时间线测试",
+                "localityName": "协办市",
+                "status": "active"
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let cohost_branch_id = cohost_branch["id"].as_i64().unwrap();
+    let (status, foreign_merchandise) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{cohost_branch_id}/merchandise"),
+            json!({"items":[{
+                "id":published_merchandise_id, "name":"越权移动", "status":"draft"
+            }]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "不得把其他支部的周边 ID 写入当前支部: {foreign_merchandise:?}"
+    );
+    sqlx::query(
+        "INSERT INTO branch_event_cohosts(event_id,branch_id,state,invited_by) \
+         VALUES (?,?,'accepted',1)",
+    )
+    .bind(event_id)
+    .bind(cohost_branch_id)
+    .execute(&app.state.pools.chapter)
+    .await
+    .unwrap();
+    let (status, missing_album_image) = send(
+        &app.router,
+        post_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/albums"),
+            json!({
+                "eventId":event_id,"title":"观影会合影",
+                "happenedAt":"2026-08-01T16:30:00","status":"published"
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "公开相册照片必须包含图片: {missing_album_image:?}"
+    );
+
+    let (status, album_photo) = send(
+        &app.router,
+        post_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/albums"),
+            json!({
+                "eventId":event_id,"title":"观影会合影","content":"活动结束后的集体合影",
+                "imagePath":"/uploads/chapter/test-album.webp",
+                "happenedAt":"2026-08-01T16:30:00",
+                "status":"published"
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "公开活动相册照片应成功: {album_photo:?}"
+    );
+
+    let (status, public) = send(&app.router, get("/api/chapter/branches/test-city", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(public["branch"]["name"], "测试市支部");
+    assert_eq!(public["hasMerchandise"], true);
+    assert!(
+        public["branch"].get("regionCode").is_none() && public["branch"].get("timezone").is_none(),
+        "支部接口不应继续暴露地区代码或时区"
+    );
+    assert_eq!(
+        public["brand"]["logoPath"],
+        "/uploads/chapter/test-logo.webp"
+    );
+    assert!(
+        public["brand"].get("logoLightPath").is_none()
+            && public["brand"].get("logoDarkPath").is_none(),
+        "公开接口不应继续暴露浅色或深色 Logo 字段"
+    );
+    assert_eq!(public["sections"][0]["label"], "组织方式");
+    assert!(
+        public["sections"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| item["sectionKey"] != "members"),
+        "关闭的栏目不应出现在公开导航"
+    );
+    let (status, merchandise) = send(
+        &app.router,
+        get("/api/chapter/branches/test-city/merchandise", None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(merchandise["items"].as_array().unwrap().len(), 1);
+    assert_eq!(merchandise["items"][0]["name"], "测试市纪念徽章");
+    assert_eq!(merchandise["items"][0]["tags"], json!(["徽章", "限定"]));
+    let (status, contacts) = send(
+        &app.router,
+        get("/api/chapter/branches/test-city/contacts", None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(contacts["people"][0]["displayName"], "负责人甲");
+    let (status, aggregate) = send(&app.router, get("/api/chapter/timeline", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(aggregate["items"][0]["eventSlug"], "screening");
+    assert_eq!(aggregate["items"][0]["branchLocalityName"], "测试市");
+    assert_eq!(aggregate["items"][0]["title"], "测试观影会");
+    assert_eq!(aggregate["items"][0]["startsAt"], "2026-08-01T14:00:00");
+    assert_eq!(aggregate["items"][0]["endsAt"], "2026-08-01T17:00:00");
+    assert!(aggregate["items"][0].get("content").is_none());
+    let (status, branch_timeline) = send(
+        &app.router,
+        get(
+            "/api/chapter/branches/test-city/timeline?event=screening",
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(branch_timeline["items"][0]["title"], "测试观影会");
+    assert_eq!(branch_timeline["items"][0]["eventSlug"], "screening");
+    assert_eq!(branch_timeline["items"][0]["branchLocalityName"], "测试市");
+    assert!(branch_timeline["items"][0].get("content").is_none());
+    assert!(branch_timeline["items"][0].get("locationName").is_none());
+    let (status, cohost_timeline) = send(
+        &app.router,
+        get(
+            "/api/chapter/branches/cohost-city/timeline?event=screening",
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(cohost_timeline["items"][0]["eventSlug"], "screening");
+    assert_eq!(
+        cohost_timeline["items"][0]["branchLocalityName"], "测试市",
+        "联合主办支部时间线应显示活动主办支部的地方名称"
+    );
+    let (status, photos) = send(
+        &app.router,
+        get(
+            "/api/chapter/branches/test-city/events/screening/photos",
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(photos["items"][0]["title"], "观影会合影");
+    assert_eq!(
+        photos["items"][0]["imagePath"],
+        "/uploads/chapter/test-album.webp"
+    );
+    assert_eq!(photos["items"][0]["eventId"], event_id);
+    assert!(photos["items"][0].get("status").is_none());
+
+    insert_active_user(&app.state, "branch-editor", "password123").await;
+    let editor_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username='branch-editor'")
+        .fetch_one(&app.state.pools.core)
+        .await
+        .unwrap();
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/grants"),
+            json!({"username":"branch-editor","capabilities":["branch.timeline.write"]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "支部授权应支持直接填写用户名");
+    let granted_id: i64 = sqlx::query_scalar(
+        "SELECT user_id FROM capability_grants WHERE capability='branch.timeline.write' AND scope_type='branch' AND scope_id=?",
+    )
+    .bind(branch_id.to_string())
+    .fetch_one(&app.state.pools.core)
+    .await
+    .unwrap();
+    assert_eq!(granted_id, editor_id);
+    let editor = login(&app.router, "branch-editor", "password123").await;
+    let (status, editor_snapshot) = send(
+        &app.router,
+        get(
+            &format!("/api/chapter/admin/branches/{branch_id}"),
+            Some(&editor),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(editor_snapshot["members"].as_array().unwrap().is_empty());
+    assert!(
+        editor_snapshot["contacts"]["people"]
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        "只有动态编辑能力的账号不应读取未公开管理资料"
+    );
+    assert!(editor_snapshot["organization"].is_null());
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/merchandise"),
+            json!({"items":[]}),
+            Some(&editor),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "没有资料管理权限的编辑者不得管理特色周边"
+    );
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/albums"),
+            json!({"eventId":event_id,"title":"草稿","happenedAt":"2026-08-01T13:40:00","status":"draft"}),
+            Some(&editor),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "编辑能力应允许保存草稿");
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/albums"),
+            json!({"eventId":event_id,"title":"越权发布","imagePath":"/uploads/chapter/forbidden.webp","happenedAt":"2026-08-01T13:45:00","status":"published"}),
+            Some(&editor),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "未授予发布能力时不得发布");
+}
+
+#[tokio::test]
+async fn chapter_membership_and_anonymous_event_registration_are_enforced() {
+    let app = setup().await;
+    let admin = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let mut branch_ids = Vec::new();
+    for (slug, name) in [("alpha-city", "甲市支部"), ("beta-city", "乙市支部")] {
+        let (status, body) = send(
+            &app.router,
+            post_json(
+                "/api/chapter/admin/branches",
+                json!({"slug":slug,"name":name,"status":"active"}),
+                Some(&admin),
+            ),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        branch_ids.push(body["id"].as_i64().unwrap());
+    }
+    let alpha_id = branch_ids[0];
+
+    insert_active_user(&app.state, "chapter-joiner", "join-password").await;
+    sqlx::query("UPDATE users SET nickname='小凉',avatar='/uploads/avatar/liang.webp',email='liang@example.test',email_verified=1 WHERE username='chapter-joiner'")
+        .execute(&app.state.pools.core)
+        .await
+        .unwrap();
+    let user_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username='chapter-joiner'")
+        .fetch_one(&app.state.pools.core)
+        .await
+        .unwrap();
+    let user = login(&app.router, "chapter-joiner", "join-password").await;
+
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            "/api/chapter/branches/alpha-city/join",
+            json!({"password":"wrong-password"}),
+            Some(&user),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "加入支部必须再次验证当前密码"
+    );
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            "/api/chapter/branches/alpha-city/join",
+            json!({"password":"join-password"}),
+            Some(&user),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, body) = send(
+        &app.router,
+        post_json(
+            "/api/chapter/branches/beta-city/join",
+            json!({"password":"join-password"}),
+            Some(&user),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::CONFLICT,
+        "同一账号不能同时加入两个线下支部"
+    );
+    assert!(body.to_string().contains("甲市支部"));
+
+    let (status, public_members) = send(
+        &app.router,
+        get("/api/chapter/branches/alpha-city/members?q=小凉", None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(public_members["items"][0]["displayName"], "小凉");
+    assert_eq!(public_members["total"], 1);
+
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{alpha_id}/members"),
+            json!({"items":[{"userId":99999,"displayName":"无效成员","status":"active"}]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "未加入用户不能被设为在任成员"
+    );
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{alpha_id}/members"),
+            json!({"items":[{"userId":user_id,"displayName":"伪造昵称","avatarPath":"/fake.webp","status":"active","isPublic":true}]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let stored: (String, Option<String>) = sqlx::query_as(
+        "SELECT display_name,avatar_path FROM branch_members WHERE branch_id=? AND user_id=?",
+    )
+    .bind(alpha_id)
+    .bind(user_id)
+    .fetch_one(&app.state.pools.chapter)
+    .await
+    .unwrap();
+    assert_eq!(stored.0, "小凉");
+    assert_eq!(stored.1.as_deref(), Some("/uploads/avatar/liang.webp"));
+
+    let (status, ordinary_members) = send(
+        &app.router,
+        get("/api/chapter/branches/alpha-city/members", None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        ordinary_members["total"], 0,
+        "在任成员不应在普通成员列表重复出现"
+    );
+    let (status, member_summary) = send(
+        &app.router,
+        get("/api/chapter/branches/alpha-city/membership-summary", None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(member_summary["memberCount"], 1);
+    assert_eq!(member_summary["ordinaryMemberCount"], 0);
+    assert_eq!(member_summary["activeMemberCount"], 1);
+    assert_eq!(member_summary["alumniMemberCount"], 0);
+
+    let (status, event) = send(
+        &app.router,
+        post_json(
+            &format!("/api/chapter/admin/branches/{alpha_id}/events"),
+            json!({
+                "slug":"summer-tabletop","title":"夏日桌游会","eventType":"桌游",
+                "startsAt":"2099-08-01T14:00:00","endsAt":"2099-08-01T18:00:00",
+                "registrationMode":"internal","admissionMode":"automatic","capacity":20,
+                "status":"published","visibility":"public","aggregateMode":"include"
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let event_id = event["id"].as_i64().unwrap();
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{alpha_id}/events/{event_id}/operations"),
+            json!({
+                "topics":["桌游","线下交流"],
+                "questions":[{"questionType":"single","label":"是否第一次参加？","required":true,"options":["是","否"]}]
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, detail) = send(
+        &app.router,
+        get(
+            "/api/chapter/branches/alpha-city/events/summer-tabletop",
+            None,
+        ),
+    )
+    .await;
+    let question_id = detail["operations"]["questions"][0]["id"].as_i64().unwrap();
+    let (status, registration) = send(
+        &app.router,
+        post_json(
+            "/api/chapter/branches/alpha-city/events/summer-tabletop/registration",
+            json!({"publicMode":"anonymous","answers":{(question_id.to_string()):"是"}}),
+            Some(&user),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(registration["state"], "confirmed");
+    let registration_id = registration["id"].as_i64().unwrap();
+
+    let (status, public_detail) = send(
+        &app.router,
+        get(
+            "/api/chapter/branches/alpha-city/events/summer-tabletop",
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(public_detail["registration"]["confirmed"], 1);
+    assert_eq!(
+        public_detail["attendees"][0]["displayName"],
+        "匿名参与者 001"
+    );
+    assert!(public_detail["attendees"][0]["avatar"].is_null());
+
+    let (status, admin_registrations) = send(
+        &app.router,
+        get(
+            &format!("/api/chapter/admin/branches/{alpha_id}/events/{event_id}/registrations"),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(admin_registrations["items"][0]["displayName"], "小凉");
+    assert_eq!(
+        admin_registrations["items"][0]["email"],
+        "liang@example.test"
+    );
+    let (status, _) = send(
+        &app.router,
+        patch_json(
+            &format!("/api/chapter/admin/branches/{alpha_id}/events/{event_id}/registrations/{registration_id}"),
+            json!({"action":"checkin"}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "管理员应能手动签到已确认参与者");
+
+    let (status, _) = send(
+        &app.router,
+        delete(
+            &format!("/api/chapter/admin/branches/{alpha_id}/events/{event_id}"),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, admin_events) = send(
+        &app.router,
+        get(
+            &format!("/api/chapter/admin/branches/{alpha_id}/events"),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        admin_events["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| item["id"] != event_id),
+        "soft-deleted events must not remain in the admin event list"
+    );
+
+    let (status, leave) = send(
+        &app.router,
+        post_json(
+            "/api/chapter/membership/leave-request",
+            json!({"reason":"迁居其他城市"}),
+            Some(&user),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let leave_id = leave["id"].as_i64().unwrap();
+    let (status, _) = send(
+        &app.router,
+        patch_json(
+            &format!("/api/chapter/admin/branches/{alpha_id}/leave-requests/{leave_id}"),
+            json!({"action":"approve","reviewNote":"已核实"}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            "/api/chapter/branches/beta-city/join",
+            json!({"password":"join-password"}),
+            Some(&user),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "管理员批准退出后才可加入其他支部");
+}
+
+#[tokio::test]
+async fn chapter_cross_branch_access_requires_current_super_password() {
+    let app = setup().await;
+    let admin = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+
+    let (status, first) = send(
+        &app.router,
+        post_json(
+            "/api/chapter/admin/branches",
+            json!({"slug":"first-branch","name":"第一支部","status":"active"}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let first_id = first["id"].as_i64().unwrap();
+    let (status, second) = send(
+        &app.router,
+        post_json(
+            "/api/chapter/admin/branches",
+            json!({"slug":"second-branch","name":"第二支部","status":"active"}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let second_id = second["id"].as_i64().unwrap();
+
+    insert_active_user(&app.state, "one-branch-admin", "local-password").await;
+    insert_active_user(&app.state, "permission-admin", "permission-password").await;
+    insert_active_user(&app.state, "second-branch-admin", "second-password").await;
+    insert_active_user(&app.state, "other-super", "other-super-password").await;
+    sqlx::query("UPDATE users SET is_super_admin=1 WHERE username='other-super'")
+        .execute(&app.state.pools.core)
+        .await
+        .unwrap();
+
+    let grant_path = |branch_id| format!("/api/chapter/admin/branches/{branch_id}/grants");
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &grant_path(first_id),
+            json!({"username":"one-branch-admin","capabilities":["branch.timeline.write"]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "首次绑定支部不需要超管密码");
+
+    let (status, body) = send(
+        &app.router,
+        put_json(
+            &grant_path(second_id),
+            json!({"username":"one-branch-admin","capabilities":["branch.timeline.write"]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "第二支部必须二次确认");
+    assert!(body.to_string().contains("超管账号密码"));
+
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &grant_path(second_id),
+            json!({
+                "username":"one-branch-admin",
+                "capabilities":["branch.timeline.write"],
+                "superPassword":"wrong-password"
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "错误超管密码不得越权");
+
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &grant_path(second_id),
+            json!({
+                "username":"one-branch-admin",
+                "capabilities":["branch.timeline.write"],
+                "superPassword":ADMIN_PASS
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "总负责人本人确认后可授予第二支部");
+
+    let managed_branch_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(DISTINCT scope_id) FROM capability_grants \
+         WHERE user_id=(SELECT id FROM users WHERE username='one-branch-admin') \
+         AND scope_type='branch'",
+    )
+    .fetch_one(&app.state.pools.core)
+    .await
+    .unwrap();
+    assert_eq!(managed_branch_count, 2);
+
+    for (branch_id, username, capabilities) in [
+        (
+            first_id,
+            "permission-admin",
+            json!(["branch.permissions.manage"]),
+        ),
+        (
+            second_id,
+            "second-branch-admin",
+            json!(["branch.timeline.write"]),
+        ),
+    ] {
+        let (status, _) = send(
+            &app.router,
+            put_json(
+                &grant_path(branch_id),
+                json!({"username":username,"capabilities":capabilities}),
+                Some(&admin),
+            ),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+    }
+
+    let permission_admin = login(&app.router, "permission-admin", "permission-password").await;
+    let (status, body) = send(
+        &app.router,
+        put_json(
+            &grant_path(first_id),
+            json!({
+                "username":"second-branch-admin",
+                "capabilities":["branch.timeline.write"],
+                "superPassword":ADMIN_PASS
+            }),
+            Some(&permission_admin),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "地方管理员即使知道密码也不能代替总负责人确认"
+    );
+    assert!(body.to_string().contains("总负责人"));
+
+    let other_super = login(&app.router, "other-super", "other-super-password").await;
+    let (status, body) = send(
+        &app.router,
+        put_json(
+            &grant_path(first_id),
+            json!({
+                "username":"second-branch-admin",
+                "capabilities":["branch.timeline.write"],
+                "superPassword":"other-super-password"
+            }),
+            Some(&other_super),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "非配置指定的超管账号也不能代替总负责人确认"
+    );
+    assert!(body.to_string().contains("总负责人账号"));
+
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            &format!("/api/chapter/admin/branches/{first_id}/handover"),
+            json!({"toUsername":"second-branch-admin"}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "跨支部交接必须二次确认");
+    let (status, _) = send(
+        &app.router,
+        post_json(
+            &format!("/api/chapter/admin/branches/{first_id}/handover"),
+            json!({
+                "toUsername":"second-branch-admin",
+                "superPassword":ADMIN_PASS,
+                "note":"集成测试交接"
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let platform_body = json!({
+        "username":"one-branch-admin",
+        "capabilities":["branch.lifecycle.manage"]
+    });
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            "/api/chapter/admin/platform/grants",
+            platform_body,
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "平台级授权必须二次确认");
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            "/api/chapter/admin/platform/grants",
+            json!({
+                "username":"one-branch-admin",
+                "capabilities":["branch.lifecycle.manage"],
+                "superPassword":ADMIN_PASS
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let one_branch_admin_id: i64 =
+        sqlx::query_scalar("SELECT id FROM users WHERE username='one-branch-admin'")
+            .fetch_one(&app.state.pools.core)
+            .await
+            .unwrap();
+    let audit_detail: String = sqlx::query_scalar(
+        "SELECT detail_json FROM branch_audit_log WHERE branch_id=? AND action='grants.replace' \
+         AND entity_id=? ORDER BY id DESC LIMIT 1",
+    )
+    .bind(second_id)
+    .bind(one_branch_admin_id)
+    .fetch_one(&app.state.pools.chapter)
+    .await
+    .unwrap();
+    assert!(audit_detail.contains("multiBranchOverride"));
+    assert!(
+        !audit_detail.contains(ADMIN_PASS),
+        "审计记录不得包含超管密码"
+    );
+
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &grant_path(second_id),
+            json!({"username":"one-branch-admin","capabilities":[]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "撤销授权不应被二次确认阻塞");
 }

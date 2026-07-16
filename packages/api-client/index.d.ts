@@ -36,6 +36,14 @@ export interface CurrentUser {
   bio?: string | null
   isSuperAdmin: boolean
   apps: Record<string, AppRole>
+  capabilities?: CapabilityGrant[]
+}
+
+export interface CapabilityGrant {
+  capability: string
+  scopeType: 'platform' | 'branch'
+  scopeId: string
+  expiresAt: string | null
 }
 
 export interface Passkey {
@@ -102,4 +110,10 @@ export function hasLevel(
   user: CurrentUser | null | undefined,
   scope: string,
   minLevel: number
+): boolean
+export function hasCapability(
+  user: CurrentUser | null | undefined,
+  capability: string,
+  scopeType?: 'platform' | 'branch',
+  scopeId?: string | number
 ): boolean

@@ -28,6 +28,7 @@ haruhi-mail = { path = "backend/crates/mail" }
 
 # --- 异步运行时 / Web ---
 tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
 axum = { version = "0.8", features = ["multipart", "macros"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "fs", "trace", "limit"] }

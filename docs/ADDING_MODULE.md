@@ -258,6 +258,7 @@ export default defineConfig({
 | shop          | 5205 |
 | design-system | 5206 |
 | fiction       | 5207 |
+| chapter       | 5208 |
 | download      | 5210 |
 | voice         | 5211 |
 

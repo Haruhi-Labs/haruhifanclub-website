@@ -250,3 +250,55 @@ pub async fn sitemap_art(State(state): State<AppState>) -> AppResult<Response> {
     }
     Ok(xml_response(urlset(urls)))
 }
+
+/// Chapter 独立子域 sitemap；Nginx 将 chapter 子域的 /sitemap.xml 映射到这里。
+pub async fn sitemap_chapter(State(state): State<AppState>) -> AppResult<Response> {
+    let base = state.cfg.chapter_site_url.trim_end_matches('/');
+    let branches: Vec<(String, Option<String>)> = sqlx::query_as(
+        "SELECT slug, updated_at FROM branches WHERE status IN ('active','paused') ORDER BY slug",
+    )
+    .fetch_all(&state.pools.chapter)
+    .await?;
+    let posts: Vec<(String, String, Option<String>)> = sqlx::query_as(
+        "SELECT b.slug, p.slug, p.updated_at FROM branch_posts p JOIN branches b ON b.id=p.branch_id \
+         WHERE b.status='active' AND p.status='published' AND p.visibility='public' \
+         AND p.moderation_state='normal' ORDER BY p.id LIMIT ?",
+    )
+    .bind(MAX_URLS)
+    .fetch_all(&state.pools.chapter)
+    .await?;
+    let events: Vec<(String, String, Option<String>)> = sqlx::query_as(
+        "SELECT b.slug, e.slug, e.updated_at FROM branch_events e JOIN branches b ON b.id=e.branch_id \
+         WHERE b.status='active' AND e.status='published' AND e.visibility='public' \
+         AND e.moderation_state='normal' ORDER BY e.id LIMIT ?",
+    )
+    .bind(MAX_URLS)
+    .fetch_all(&state.pools.chapter)
+    .await?;
+    let mut urls = String::new();
+    push_url(&mut urls, &format!("{base}/"), None);
+    push_url(&mut urls, &format!("{base}/posts"), None);
+    push_url(&mut urls, &format!("{base}/events"), None);
+    for (slug, updated_at) in branches {
+        push_url(
+            &mut urls,
+            &format!("{base}/branches/{slug}"),
+            updated_at.as_deref(),
+        );
+    }
+    for (branch, slug, updated_at) in posts {
+        push_url(
+            &mut urls,
+            &format!("{base}/branches/{branch}/posts/{slug}"),
+            updated_at.as_deref(),
+        );
+    }
+    for (branch, slug, updated_at) in events {
+        push_url(
+            &mut urls,
+            &format!("{base}/branches/{branch}/events/{slug}"),
+            updated_at.as_deref(),
+        );
+    }
+    Ok(xml_response(urlset(urls)))
+}

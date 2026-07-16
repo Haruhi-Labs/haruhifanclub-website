@@ -47,6 +47,16 @@ pub struct AuthUser {
     pub is_super: bool,
 }
 
+/// 实例级能力授权，供地方支部等多租户模块使用。
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct CapabilityGrant {
+    pub capability: String,
+    pub scope_type: String,
+    pub scope_id: String,
+    pub expires_at: Option<String>,
+}
+
 // ---------- 令牌 ----------
 
 pub fn issue_token(
@@ -168,6 +178,56 @@ pub async fn authorize(
     } else {
         Err(AppError::Forbidden)
     }
+}
+
+/// 能力授权检查：超级管理员全通；普通账号必须 active，并持有精确实例授权，
+/// 或持有 chapter 平台作用域下的同名能力。
+pub async fn authorize_capability(
+    core: &SqlitePool,
+    user: &AuthUser,
+    capability: &str,
+    scope_type: &str,
+    scope_id: &str,
+) -> AppResult<()> {
+    if user.is_super {
+        return Ok(());
+    }
+    let status: Option<String> = sqlx::query_scalar("SELECT status FROM users WHERE id = ?")
+        .bind(user.id)
+        .fetch_optional(core)
+        .await?;
+    if status.as_deref() != Some("active") {
+        return Err(AppError::Forbidden);
+    }
+    let allowed: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM capability_grants \
+         WHERE user_id = ? AND capability = ? \
+           AND (expires_at IS NULL OR expires_at > datetime('now')) \
+           AND ((scope_type = ? AND scope_id = ?) \
+                OR (scope_type = 'platform' AND scope_id = 'chapter'))",
+    )
+    .bind(user.id)
+    .bind(capability)
+    .bind(scope_type)
+    .bind(scope_id)
+    .fetch_one(core)
+    .await?;
+    if allowed > 0 {
+        Ok(())
+    } else {
+        Err(AppError::Forbidden)
+    }
+}
+
+pub async fn capability_grants(core: &SqlitePool, user_id: i64) -> AppResult<Vec<CapabilityGrant>> {
+    Ok(sqlx::query_as(
+        "SELECT capability, scope_type, scope_id, expires_at FROM capability_grants \
+         WHERE user_id = ? AND (expires_at IS NULL OR expires_at > datetime('now')) \
+         ORDER BY scope_type, scope_id, capability",
+    )
+    .bind(user_id)
+    .fetch_all(core)
+    .await?)
 }
 
 /// 作用域链：从最具体到最顶层。"news.activity" -> ["news.activity", "news"]；"news" -> ["news"]。
@@ -304,6 +364,7 @@ mod tests {
             "CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT, password_hash TEXT, is_super_admin INTEGER DEFAULT 0, status TEXT DEFAULT 'active')",
             "CREATE TABLE roles (id INTEGER PRIMARY KEY, key TEXT, name TEXT, level INTEGER)",
             "CREATE TABLE user_app_roles (user_id INTEGER, app TEXT, role_id INTEGER, PRIMARY KEY(user_id,app))",
+            "CREATE TABLE capability_grants (id INTEGER PRIMARY KEY, user_id INTEGER, capability TEXT, scope_type TEXT, scope_id TEXT, expires_at TEXT)",
             "INSERT INTO roles (id,key,name,level) VALUES (3,'moderator','审核',3),(4,'admin','管理',4)",
         ] {
             sqlx::query(ddl).execute(&pool).await.unwrap();
@@ -385,5 +446,32 @@ mod tests {
         };
         assert!(authorize(&pool, &m, "art", Action::Moderate).await.is_ok());
         assert!(authorize(&pool, &m, "art", Action::Manage).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn capability_grants_isolate_branch_and_allow_platform_inheritance() {
+        let pool = mem_pool().await;
+        add_user(&pool, 8, "active", "news", 1).await;
+        sqlx::query("INSERT INTO capability_grants (user_id,capability,scope_type,scope_id) VALUES (8,'branch.posts.write','branch','12'),(8,'branch.audit.read','platform','chapter')")
+            .execute(&pool).await.unwrap();
+        let user = AuthUser {
+            id: 8,
+            is_super: false,
+        };
+        assert!(
+            authorize_capability(&pool, &user, "branch.posts.write", "branch", "12")
+                .await
+                .is_ok()
+        );
+        assert!(
+            authorize_capability(&pool, &user, "branch.posts.write", "branch", "13")
+                .await
+                .is_err()
+        );
+        assert!(
+            authorize_capability(&pool, &user, "branch.audit.read", "branch", "13")
+                .await
+                .is_ok()
+        );
     }
 }

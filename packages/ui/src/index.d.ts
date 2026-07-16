@@ -37,6 +37,7 @@ export interface SosTabItem {
   value: string | number
   label: string
   disabled?: boolean
+  controls?: string
 }
 export interface SosCrumb {
   label: string
@@ -47,6 +48,16 @@ export interface SosColumn {
   label: string
   numeric?: boolean
 }
+export interface SosFooterLink {
+  label: string
+  href: string
+  brand?: string
+}
+export interface SosFooterGroup {
+  title: string
+  links: SosFooterLink[]
+}
+export const defaultSiteFooterGroups: SosFooterGroup[]
 
 /* Layout & page structure */
 export const SosPage: DefineComponent<{
@@ -59,6 +70,7 @@ export const SosPage: DefineComponent<{
 }>
 export const SosPageHeader: DefineComponent<{
   as?: string
+  titleAs?: string
   eyebrow?: string
   title?: string
   copy?: string
@@ -118,6 +130,7 @@ export const SosTabs: DefineComponent<{
   modelValue?: string | number
   items?: SosTabItem[]
   variant?: SosTabsVariant
+  label?: string
 }>
 
 /* Forms */
@@ -226,6 +239,16 @@ export const SosHeaderBrand: DefineComponent<{
   title: string
   subtitle?: string
   compact?: boolean
+}>
+export const SosSiteFooter: DefineComponent<{
+  logoSrc?: string
+  logoAlt?: string
+  brandTitle?: string
+  brandSubtitle?: string
+  tagline?: string
+  groups?: SosFooterGroup[]
+  socialLinks?: SosFooterLink[]
+  bottomLinks?: SosFooterLink[]
 }>
 
 /* Overlay */

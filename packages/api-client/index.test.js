@@ -5,12 +5,33 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import {
   resolveUploadUrl,
   hasScope,
+  hasCapability,
   createAdminAuth,
   createAuth,
   setToken,
   getToken,
   clearToken,
 } from './index.js'
+
+describe('hasCapability', () => {
+  const user = {
+    capabilities: [
+      { capability: 'branch.posts.write', scopeType: 'branch', scopeId: '7' },
+      { capability: 'branch.audit.read', scopeType: 'platform', scopeId: 'chapter' },
+    ],
+  }
+
+  it('隔离支部实例并继承 Chapter 平台能力', () => {
+    expect(hasCapability(user, 'branch.posts.write', 'branch', 7)).toBe(true)
+    expect(hasCapability(user, 'branch.posts.write', 'branch', 8)).toBe(false)
+    expect(hasCapability(user, 'branch.audit.read', 'branch', 8)).toBe(true)
+  })
+
+  it('超级管理员全通，匿名用户拒绝', () => {
+    expect(hasCapability({ isSuperAdmin: true }, 'anything', 'branch', 1)).toBe(true)
+    expect(hasCapability(null, 'branch.posts.write', 'branch', 1)).toBe(false)
+  })
+})
 
 describe('resolveUploadUrl', () => {
   it('空值 → 空串', () => {
