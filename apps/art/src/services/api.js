@@ -21,7 +21,7 @@ function buildUrl(path, params) {
   return url.pathname + url.search
 }
 
-async function request(method, path, { params, body, isForm, headers } = {}) {
+async function request(method, path, { params, body, isForm, headers, keepalive = false } = {}) {
   const url = buildUrl(path, params)
 
   // 统一 JWT：若已登录则自动带上 Bearer token（替换旧的 x-admin-password 头）
@@ -40,6 +40,7 @@ async function request(method, path, { params, body, isForm, headers } = {}) {
       ...csrfHeaders,
       ...(headers || {}),
     },
+    keepalive,
   }
 
   if (method !== 'GET' && method !== 'HEAD') {
@@ -129,6 +130,27 @@ export const api = {
     if (data.data) data.data = data.data.map(transformArtwork)
     return data
   },
+  recommendations: async (limit = 8) => {
+    const data = await request('GET', `${API_PREFIX}/recommendations`, { params: { limit } })
+    if (data.data) data.data = data.data.map(transformArtwork)
+    return data
+  },
+  creatorExhibits: async () => {
+    const data = await request('GET', `${API_PREFIX}/creator-exhibits`)
+    if (data.data) {
+      data.data = data.data.map(group => ({
+        ...group,
+        avatar: fixPath(group.avatar),
+        items: (group.items || []).map(transformArtwork),
+      }))
+    }
+    return data
+  },
+  recordRecommendationEvents: (events, sessionId, keepalive = false) =>
+    request('POST', `${API_PREFIX}/recommendation-events`, {
+      body: { session_id: sessionId, events },
+      keepalive,
+    }),
   getArtwork: async (id) => {
     if (USE_DEV_SEED_ONLY) {
       const data = seedArtworks.find((item) => String(item.id) === String(id))

@@ -1,412 +1,126 @@
 <template>
-  <section class="container-card">
-    <FilterPanel
-      v-if="!activeTag && !activeAuthor"
-      :content="store.content"
-      :sourceMode="store.sourceMode"
-      :sortMode="store.sortMode"
-      :q="store.q"
-      :searchField="store.searchField"
-      @update:content="v => { store.setFilters({ content: v }); reload() }"
-      @update:sourceMode="v => { store.setFilters({ sourceMode: v }); reload() }"
-      @update:sortMode="v => { store.setFilters({ sortMode: v }); reload() }"
-      @update:q="v => store.setFilters({ q: v })"
-      @update:searchField="v => store.setFilters({ searchField: v })"
-      @search="reload"
-      @clear="store.setFilters({ searchField: 'all' })"
-    />
-
-    <div v-else class="tag-header">
-      <div class="tag-info">
-        <h2 v-if="activeTag" class="tag-title">标签：{{ activeTag }}</h2>
-        <h2 v-else-if="activeAuthor" class="tag-title author-title">
-          <span>作者：</span>
-          <span class="highlight">{{ activeAuthor.name }}</span>
-        </h2>
-      </div>
-      <button class="btn-return" @click="exitMode">
-        <span class="icon">↩</span> 返回画廊
-      </button>
-    </div>
-
-    <div v-if="store.error" class="errorBox">{{ store.error }}</div>
-
-    <ArtworkGrid
-      v-else
-      class="main-grid"
-      :items="store.list"
-      :page="store.page"
-      :pageCount="pageCount"
-      :hasMore="store.hasMore"
-      :loading="store.loading"
+  <div class="gallery-page">
+    <div v-if="store.sectionsError" class="gallery-error-box">{{ store.sectionsError }}</div>
+    <CuratedGalleryHome
+      :sections="store.sections"
+      :creator-exhibits="store.creatorExhibits"
+      :loading="store.sectionsLoading"
+      :personalized="store.recommendationsPersonalized"
       @open="openItem"
-      @like="likeItem"
-      @tag="onTag"
-      @author="onAuthor"
-      @prevPage="handlePrevPage"
-      @nextPage="handleNextPage"
-      @goPage="handleGoPage"
+      @refresh="store.refreshRecommendations()"
+      @view-all="openCatalog"
+      @creator="openCreatorPage"
     />
+    <GalleryCatalog @open="openItem" />
+  </div>
 
-    <div class="statusRow footer-mode">
-      <div class="left">
-        <span class="muted">排序：{{ sortLabel }}</span>
-        <span class="muted">· 第 {{ store.page }} 页</span>
-        <span class="muted">· 共 {{ store.total }} 条</span>
-        <span class="muted" v-if="store.usingSeed"></span>
-      </div>
-    </div>
-
-    <ArtworkModal
-      :model-value="modalOpen"
-      :item="activeItem"
-      @update:model-value="val => !val && closeModal()"
-      @tag="onTag"
-      @author="onAuthor"
-      @close="closeModal"
-    />
-  </section>
+  <ArtworkModal
+    :model-value="modalOpen"
+    :item="activeItem"
+    @update:model-value="value => !value && closeModal()"
+    @tag="searchTag"
+    @author="openAuthor"
+    @close="closeModal"
+  />
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, watch, computed } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useGalleryStore } from '../stores/galleryStore.js'
-import FilterPanel from '../components/FilterPanel.vue'
-import ArtworkGrid from '../components/ArtworkGrid.vue'
 import ArtworkModal from '../components/ArtworkModal.vue'
-import { useSession } from '@haruhi/auth-ui'
+import CuratedGalleryHome from '../components/CuratedGalleryHome.vue'
+import GalleryCatalog from '../components/GalleryCatalog.vue'
 
-const store = useGalleryStore()
 const route = useRoute()
 const router = useRouter()
-const session = useSession('/api')
+const store = useGalleryStore()
 
 const modalOpen = ref(false)
 const activeItem = ref(null)
-const activeTag = ref('')
-const activeAuthor = ref(null) // { uid, name }
 
-const sortLabel = computed(() => {
-  const m = store.sortMode
-  if (m === 'likes') return '点赞最高'
-  if (m === 'time') return '最新'
-  return '随机'
-})
-
-// 总页数：由总条数 / 每页数推导，供统一分页组件使用
-const pageCount = computed(() => {
-  const limit = store.limit || 12
-  return Math.max(1, Math.ceil((store.total || 0) / limit))
-})
-
-// --- 翻页处理 ---
-async function handlePrevPage() {
-  if (store.page > 1) {
-    store.page--
-    await store.load()
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
+function openItem(item) {
+  router.push({ query: { ...route.query, artwork: item.id } })
 }
 
-async function handleNextPage() {
-  if (store.hasMore) {
-    store.page++
-    await store.load()
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-}
-
-// 跳转到指定页（统一分页组件 .sos-pagination 触发）
-async function handleGoPage(p) {
-  const target = Math.min(Math.max(1, p), pageCount.value)
-  if (target === store.page) return
-  store.page = target
-  await store.load()
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-
-// --- 响应式 PageSize 逻辑 ---
-function updatePageSize(allowedToReload = true) {
-  const isMobile = window.innerWidth <= 768
-  const targetSize = isMobile ? 8 : 12
-
-  if (store.limit !== targetSize) {
-    store.limit = targetSize
-    if (allowedToReload) {
-      reload()
-    }
-  }
-}
-
-function reload() {
-  store.page = 1
-  store.load()
-}
-
-function likeItem(it) {
-  store.likeArtwork(it)
-}
-
-// ---------------------------------------------------------
-// URL 驱动的核心逻辑
-// ---------------------------------------------------------
-
-function onTag(t) {
-  router.push({ query: { ...route.query, tag: t, author: undefined, artwork: undefined } })
-}
-
-function onAuthor(authorInfo) {
-  if (!authorInfo?.uid) return
-  router.push({ name: 'adventurer-profile', params: { uid: authorInfo.uid } })
-}
-
-function openItem(it) {
-  router.push({ query: { ...route.query, artwork: it.id } })
-}
-
-function closeModal() {
-  const q = { ...route.query }
-  delete q.artwork
-  router.push({ query: q })
-}
-
-function exitMode() {
-  router.push({ query: {} })
-}
-
-// --- 核心：将路由解析逻辑提取出来 ---
-// 可选的 listItem：列表已加载完该作品时直接用它打开弹窗，避免与 syncStateFromRoute
-// 的详情请求对同一作品重复打后端。浏览进度由 syncStateFromRoute 那次 fetch 负责记录，
-// 凡进入本路径的 artwork 都已被它请求过，这里跳过 fetch 不会漏记 browse 事件。
-function openArtworkById(id, listItem) {
-  if (listItem) {
-    if (String(route.query.artwork || '') !== String(id)) return
-    activeItem.value = listItem
-    modalOpen.value = true
-    return
-  }
-  store.fetchArtworkById(id).then(item => {
-    if (String(route.query.artwork || '') !== String(id)) return
-    if (item) {
-      activeItem.value = item
-      modalOpen.value = true
-    }
+async function openCatalog({ category, range }) {
+  await router.push({
+    name: 'gallery',
+    query: {
+      category,
+      range: category === 'popular' && range !== 'history' ? range : undefined,
+    },
+    hash: '#gallery-catalog',
+  })
+  await nextTick()
+  window.requestAnimationFrame(() => {
+    document.querySelector('#gallery-catalog')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   })
 }
 
-function syncStateFromRoute(q) {
-  const newTag = q.tag
-  const newAuthorUid = q.author
-  const newArtworkId = q.artwork
+function closeModal() {
+  const nextQuery = { ...route.query }
+  delete nextQuery.artwork
+  router.push({ query: nextQuery })
+}
 
-  let needsReload = false
+function searchTag(tag) {
+  router.push({ name: 'gallery-search', query: { q: tag, field: 'tag' } })
+}
 
-  // A. 处理标签模式变化
-  if (newTag && newTag !== activeTag.value) {
-    activeTag.value = newTag
-    activeAuthor.value = null
-    store.setFilters({ q: newTag, searchField: 'tag' })
-    needsReload = true
-  } else if (!newTag && activeTag.value) {
-    activeTag.value = ''
-    if (!newAuthorUid) {
-      store.setFilters({ q: '', searchField: 'all' })
-      needsReload = true
-    }
-  }
+function openAuthor(author) {
+  if (!author?.uid) return
+  router.push({ name: 'adventurer-profile', params: { uid: author.uid } })
+}
 
-  // B. 处理作者模式变化
-  if (newAuthorUid) {
-    if (!activeAuthor.value || activeAuthor.value.uid !== newAuthorUid) {
-      activeAuthor.value = { uid: newAuthorUid, name: newAuthorUid }
-      activeTag.value = ''
-      store.setFilters({ q: newAuthorUid, searchField: 'uid' })
-      needsReload = true
-    }
-  } else if (!newAuthorUid && activeAuthor.value) {
-    activeAuthor.value = null
-    if (!newTag) {
-      store.setFilters({ q: '', searchField: 'all' })
-      needsReload = true
-    }
-  }
+function openCreatorPage(author) {
+  if (!author?.uid) return
+  const target = router.resolve({
+    name: 'adventurer-profile',
+    params: { uid: author.uid },
+    query: { from: 'gallery' },
+  })
+  window.open(target.href, '_blank', 'noopener,noreferrer')
+}
 
-  // C. 处理详情弹窗
-  if (newArtworkId) {
-    // Always fetch detail to ensure we have full images list and record guild browse progress.
-    openArtworkById(newArtworkId)
-  } else {
+async function syncArtwork(id) {
+  if (!id) {
     modalOpen.value = false
     activeItem.value = null
+    return
   }
 
-  // 普通搜索参数 q
-  if (q.q && q.q !== store.q) {
-    store.setFilters({ q: q.q })
-    needsReload = true
+  const item = await store.fetchArtworkById(id)
+  if (String(route.query.artwork || '') !== String(id)) return
+  if (item) {
+    activeItem.value = item
+    modalOpen.value = true
   }
-
-  return needsReload
 }
 
-// 监听路由变化
-watch(() => route.query, (newQ) => {
-  const shouldLoad = syncStateFromRoute(newQ)
-  if (shouldLoad) reload()
-}, { immediate: false })
+watch(() => route.query.artwork, syncArtwork)
 
-// 监听列表数据变化（修正作者名/打开详情）
-watch(() => store.list, (list) => {
-  if (!list || list.length === 0) return
-
-  if (activeAuthor.value && activeAuthor.value.name === activeAuthor.value.uid) {
-    const first = list[0]
-    if (first && first.uploader_name) {
-      activeAuthor.value.name = first.uploader_name
-    } else if (activeAuthor.value.uid === `u${session.state.user?.id}` && session.state.user?.nickname) {
-      activeAuthor.value.name = session.state.user.nickname
-    }
-  }
-
-  const targetId = route.query.artwork
-  if (targetId && !modalOpen.value) {
-    const target = list.find(i => String(i.id) === String(targetId))
-    if (target) {
-      // 列表里已有该作品，直接用列表项打开（不再二次请求详情，详情已由 syncStateFromRoute 请求）
-      openArtworkById(targetId, target)
-    }
-  }
-})
-
-// ✅ 修复：必须用同一个函数引用，remove 才有效
-let _resizeTimer = null
-const onResize = () => {
-  clearTimeout(_resizeTimer)
-  _resizeTimer = setTimeout(() => updatePageSize(true), 150)
-}
-
-// --- 初始化顺序修复 ---
 onMounted(() => {
-  // 1. 先确定尺寸（不触发 reload）
-  updatePageSize(false)
-
-  // 2. 再根据 URL 设置 Filter
-  const needsReload = syncStateFromRoute(route.query)
-
-  // 3. 最后统一加载一次
-  if (needsReload || store.list.length === 0) {
-    reload()
+  store.loadSections()
+  syncArtwork(route.query.artwork)
+  if (route.hash === '#gallery-catalog') {
+    nextTick(() => document.querySelector('#gallery-catalog')?.scrollIntoView({ block: 'start' }))
   }
-
-  // 4. 绑定监听
-  window.addEventListener('resize', onResize)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', onResize)
-  clearTimeout(_resizeTimer)
 })
 </script>
 
 <style scoped>
-.container-card {
-  max-width: 1450px;
-  margin: 0 auto;
-  position: relative;
-}
-
-.main-grid { margin-top: 90px; }
-
-.statusRow { margin:14px 0; display:flex; justify-content:space-between; align-items:center; }
-.statusRow.footer-mode { margin-top: 30px; border-top: 1px dashed rgba(0,0,0,0.08); padding-top: 20px; }
-.left{ display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
-.errorBox{ padding:12px; background:#fee; color:red; border-radius:8px; }
-.muted{ color:var(--sos-text-tertiary); font-size:12px; }
-
-.tag-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 0;
-  margin-bottom: 20px;
-  border-bottom: 1px dashed rgba(0,0,0,0.08);
-  animation: fadeIn 0.4s ease;
-}
-
-.tag-title {
-  font-size: 26px;
-  font-weight: 950;
-  color: #1a1a1a;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.tag-title::before {
-  content: '#';
-  color: var(--neon-cyan, #00f2ff);
-  font-size: 32px;
-  font-weight: 300;
-  transform: translateY(-2px);
-}
-
-.author-title::before {
-  content: '@';
-  color: #e9b5fd;
-}
-.author-title .highlight {
-  color: #1a1a1a;
-}
-
-.btn-return {
-  padding: 10px 20px;
-  background: var(--sos-bg-surface);
-  border: 1px solid var(--sos-border-default);
-  border-radius: 99px;
-  cursor: pointer;
-  font-weight: 800;
-  color: #555;
-  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.03);
-}
-
-.btn-return:hover {
-  background: var(--sos-bg-surface);
-  color: #000;
-  border-color: var(--sos-border-strong);
-  transform: translateX(-4px);
-  box-shadow: 0 6px 15px rgba(0,0,0,0.08);
-}
-
-.btn-return:active {
-  transform: translateX(-4px) scale(0.96);
-}
-
-.icon {
-  font-size: 18px;
-  line-height: 1;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+.gallery-error-box {
+  width: min(1480px, calc(100% - 80px));
+  margin: 0 auto 16px;
+  padding: 12px;
+  color: #a31621;
+  background: #fff0f1;
+  border: 1px solid #ffc8cd;
+  border-radius: 8px;
 }
 
 @media (max-width: 768px) {
-  .tag-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-    padding: 16px 0;
-  }
-  .btn-return {
-    width: 100%;
-    justify-content: center;
-  }
+  .gallery-error-box { width: calc(100% - 28px); }
 }
 </style>

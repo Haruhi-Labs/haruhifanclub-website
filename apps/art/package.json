@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:real": "VITE_ART_USE_BACKEND=1 VITE_ART_PROXY_TARGET=https://haruyuki.cn VITE_ART_PROXY_READ_ONLY=1 vite --port 5202",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -14,6 +15,8 @@
     "@haruhi/design-system": "workspace:*",
     "@haruhi/seo": "workspace:*",
     "@haruhi/ui": "workspace:*",
+    "justified-layout": "^4.1.0",
+    "lucide-vue-next": "^1.0.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.22",
     "vue-router": "^4.6.3"

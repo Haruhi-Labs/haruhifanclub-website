@@ -14,6 +14,7 @@
     "build:backend": "cargo build --release -p haruhi-server",
     "dev:news": "pnpm --filter @haruhi/news dev",
     "dev:art": "pnpm --filter @haruhi/art dev",
+    "dev:art:real": "pnpm --filter @haruhi/art dev:real",
     "dev:exam": "pnpm --filter @haruhi/exam dev",
     "dev:novel": "pnpm --filter @haruhi/novel dev",
     "dev:fiction": "pnpm --filter @haruhi/fiction dev",

@@ -212,6 +212,7 @@ import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSession } from '@haruhi/auth-ui'
 import { api, thumbUrl } from '../services/api.js'
+import { finishArtworkView, startArtworkView } from '../services/recommendationTracker.js'
 
 // 登录态：已登录用户评论自动署名为账号昵称、无需填写；未登录用户不可评论，仅给登录引导。
 const session = useSession('/api')
@@ -610,6 +611,7 @@ const commentBody = ref('')
 const posting = ref(false)
 
 function close(){
+  finishArtworkView()
   emit('update:modelValue', false)
   emit('close')
   // 关闭时重置状态
@@ -685,8 +687,16 @@ watch(visible, (v) => {
   }
 })
 
+watch([visible, () => art.value?.id], ([isVisible]) => {
+  if (isVisible && art.value?.id) startArtworkView(art.value)
+  else finishArtworkView()
+})
+
 // 弹窗开着时组件被直接卸载（如切路由）也要回滚全局状态，防止滚动锁/暂停态泄漏
-onBeforeUnmount(restoreGlobalModalState)
+onBeforeUnmount(() => {
+  finishArtworkView()
+  restoreGlobalModalState()
+})
 
 onMounted(() => {
   if(!session.state.ready) session.refresh()

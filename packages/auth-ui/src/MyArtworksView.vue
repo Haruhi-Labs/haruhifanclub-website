@@ -12,6 +12,7 @@ import {
   SosField,
   SosInput,
   SosTextarea,
+  SosSwitch,
 } from '@haruhi/ui'
 import { useUserHub } from './useUserHub.js'
 import { useConsoleContext } from './console-context.js'
@@ -34,6 +35,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize))
 const loading = ref(true)
 const error = ref('')
 const okMsg = ref('')
+const exhibitSaving = ref(new Set())
 
 function imgUrl(u) {
   if (!u) return undefined
@@ -136,6 +138,25 @@ async function claimHistory() {
     claiming.value = false
   }
 }
+
+async function toggleExhibit(artwork, enabled) {
+  if (exhibitSaving.value.has(artwork.id)) return
+  const previous = Boolean(artwork.exhibit_enabled)
+  artwork.exhibit_enabled = enabled
+  exhibitSaving.value = new Set(exhibitSaving.value).add(artwork.id)
+  error.value = ''
+  try {
+    const result = await hub.art.updateArtwork(artwork.id, { exhibit_enabled: enabled })
+    artwork.exhibit_enabled = Boolean(result.exhibit_enabled)
+  } catch (e) {
+    artwork.exhibit_enabled = previous
+    error.value = e?.message || '展位状态更新失败'
+  } finally {
+    const next = new Set(exhibitSaving.value)
+    next.delete(artwork.id)
+    exhibitSaving.value = next
+  }
+}
 </script>
 
 <template>
@@ -183,6 +204,15 @@ async function claimHistory() {
           <h3 class="huc-mcard__title">{{ a.title || '未命名' }}</h3>
           <div v-if="a.tags && a.tags.length" class="huc-mcard__tags">
             <span v-for="t in a.tags.slice(0, 3)" :key="t">{{ t }}</span>
+          </div>
+          <div v-if="a.exhibit_eligible" class="huc-mcard__exhibit">
+            <SosSwitch
+              :model-value="Boolean(a.exhibit_enabled)"
+              :disabled="exhibitSaving.has(a.id)"
+              @update:model-value="value => toggleExhibit(a, value)"
+            >
+              展位展示
+            </SosSwitch>
           </div>
           <div class="huc-mcard__foot">
             <span class="huc-mcard__likes">♥ {{ a.like_total ?? 0 }}</span>

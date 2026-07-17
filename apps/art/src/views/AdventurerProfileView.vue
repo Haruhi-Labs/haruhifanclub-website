@@ -83,8 +83,9 @@
           v-if="!isTerminal"
           class="sos-button sos-button--ghost sos-button--sm adv-id__back"
           :to="backTarget"
-          >返回公会指挥台</RouterLink
         >
+          {{ backLabel }}
+        </RouterLink>
       </aside>
 
       <!-- ===== 右：档案正文 ===== -->
@@ -259,11 +260,12 @@ const coinsHistory = ref([])
 const redemptions = ref([])
 
 const isTerminal = computed(() => route.name === 'terminal')
-const backTarget = computed(() =>
-  route.query.from === 'ranking'
-    ? { name: 'exchange', query: { tab: 'ranking' } }
-    : { name: 'exchange' }
-)
+const backTarget = computed(() => {
+  if (route.query.from === 'gallery') return { name: 'gallery' }
+  if (route.query.from === 'ranking') return { name: 'exchange', query: { tab: 'ranking' } }
+  return { name: 'exchange' }
+})
+const backLabel = computed(() => route.query.from === 'gallery' ? '返回画廊' : '返回公会指挥台')
 const displayName = computed(
   () =>
     userInfo.value.displayName ||

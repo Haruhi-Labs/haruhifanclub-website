@@ -121,6 +121,12 @@ fn get(path: &str, token: Option<&str>) -> Request<Body> {
     b.body(Body::empty()).unwrap()
 }
 
+fn get_with_cookie(path: &str, cookie: &str) -> Request<Body> {
+    let mut req = get(path, None);
+    req.headers_mut().insert(COOKIE, cookie.parse().unwrap());
+    req
+}
+
 fn post_json(path: &str, body: Value, token: Option<&str>) -> Request<Body> {
     let mut b = Request::builder()
         .method("POST")
@@ -136,6 +142,18 @@ fn post_json(path: &str, body: Value, token: Option<&str>) -> Request<Body> {
 fn put_json(path: &str, body: Value, token: Option<&str>) -> Request<Body> {
     let mut b = Request::builder()
         .method("PUT")
+        .uri(path)
+        .header("content-type", "application/json");
+    if let Some(t) = token {
+        b = b.header("authorization", format!("Bearer {t}"));
+    }
+    b.body(Body::from(serde_json::to_vec(&body).unwrap()))
+        .unwrap()
+}
+
+fn patch_json(path: &str, body: Value, token: Option<&str>) -> Request<Body> {
+    let mut b = Request::builder()
+        .method("PATCH")
         .uri(path)
         .header("content-type", "application/json");
     if let Some(t) = token {
@@ -574,6 +592,95 @@ async fn art_list_pagination_math() {
 }
 
 #[tokio::test]
+async fn every_public_artwork_preview_includes_history_popularity() {
+    let app = setup().await;
+    seed_artwork(
+        &app.state,
+        "latest-with-popularity",
+        "approved",
+        "2026-07-01 00:00:00",
+    )
+    .await;
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/artworks?sort=time&pageSize=6", None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let item = &body["data"][0];
+    assert_eq!(item["popularity"]["range"], "history");
+    assert!(item["popularity_score"].as_i64().is_some());
+}
+
+#[tokio::test]
+async fn creator_exhibits_default_to_top_three_then_honor_explicit_selection() {
+    let app = setup().await;
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    for index in 1..=4_i64 {
+        sqlx::query(
+            "INSERT INTO artworks(\
+                title, uploader_name, uploader_uid, author_user_id, source_type, content_type, \
+                status, like_total, created_at, reviewed_at, random_key\
+             ) VALUES(?, '测试作者', 'u1', 1, 'personal', 'haruhi', 'approved', ?, \
+                      '2026-07-01 00:00:00', '2026-07-01 00:00:00', ?)",
+        )
+        .bind(format!("展位作品{index}"))
+        .bind(index * 10)
+        .bind(index)
+        .execute(&app.state.pools.art)
+        .await
+        .unwrap();
+    }
+
+    let (status, initial) = send(&app.router, get("/api/art/creator-exhibits", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    let initial_items = initial["data"][0]["items"].as_array().unwrap();
+    assert_eq!(initial_items.len(), 3);
+    assert_eq!(initial_items[0]["title"], "展位作品4");
+    assert!(initial_items
+        .iter()
+        .all(|item| item["popularity_score"].is_i64()));
+
+    let top_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title='展位作品4'")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+    let (status, toggled) = send(
+        &app.router,
+        patch_json(
+            &format!("/api/art/me/artworks/{top_id}"),
+            json!({ "exhibit_enabled": false }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "首次调整应固化默认选择: {toggled:?}"
+    );
+
+    let (_, after) = send(&app.router, get("/api/art/creator-exhibits", None)).await;
+    let after_items = after["data"][0]["items"].as_array().unwrap();
+    assert_eq!(after_items.len(), 2);
+    assert!(after_items.iter().all(|item| item["title"] != "展位作品4"));
+
+    let (_, mine) = send(
+        &app.router,
+        get("/api/art/me/artworks?pageSize=24", Some(&token)),
+    )
+    .await;
+    let enabled_count = mine["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|item| item["exhibit_enabled"] == true)
+        .count();
+    assert_eq!(enabled_count, 2);
+}
+
+#[tokio::test]
 async fn art_random_list_uses_stable_pagination() {
     let app = setup().await;
     for i in 0..12 {
@@ -629,6 +736,285 @@ async fn art_random_list_uses_stable_pagination() {
     assert_eq!(ids1.len(), 6);
     assert_eq!(ids2.len(), 6);
     assert!(ids1.is_disjoint(&ids2), "随机分页不应在相邻页重复");
+}
+
+#[tokio::test]
+async fn art_recommendations_keep_anonymous_identity_and_avoid_recent_batch_repeats() {
+    let app = setup().await;
+    for i in 0..20 {
+        seed_artwork(
+            &app.state,
+            &format!("recommendation-art-{i}"),
+            "approved",
+            &format!("2026-06-{:02} 00:00:00", i + 1),
+        )
+        .await;
+    }
+
+    let (status, headers, first) =
+        send_full(&app.router, get("/api/art/recommendations?limit=8", None)).await;
+    assert_eq!(status, StatusCode::OK, "首次推荐应成功: {first:?}");
+    assert_eq!(first["algorithmVersion"], "hybrid-v1");
+    assert_eq!(first["data"].as_array().unwrap().len(), 8);
+    assert!(first["batchId"].as_str().is_some());
+    let cookie = cookie_header_from_set_cookie(&headers);
+    assert!(cookie.contains("haruhi_anon="));
+
+    let first_ids: std::collections::HashSet<i64> = first["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["id"].as_i64())
+        .collect();
+    let served_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(1) FROM recommendation_events WHERE event_type='served'")
+            .fetch_one(&app.state.pools.art)
+            .await
+            .unwrap();
+    assert_eq!(served_count, 8);
+
+    let (status, second) = send(
+        &app.router,
+        get_with_cookie("/api/art/recommendations?limit=8", &cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let second_ids: std::collections::HashSet<i64> = second["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["id"].as_i64())
+        .collect();
+    assert!(
+        first_ids.is_disjoint(&second_ids),
+        "作品池充足时，相邻推荐批次不应重复"
+    );
+}
+
+#[tokio::test]
+async fn art_recommendations_learn_tag_affinity_from_open_and_dwell() {
+    let app = setup().await;
+    for i in 0..24 {
+        let title = if i < 10 {
+            format!("favorite-{i}")
+        } else {
+            format!("other-{i}")
+        };
+        seed_artwork(
+            &app.state,
+            &title,
+            "approved",
+            &format!("2026-05-{:02} 00:00:00", (i % 28) + 1),
+        )
+        .await;
+        let tag = if i < 10 { "favorite" } else { "other" };
+        sqlx::query("UPDATE artworks SET tags_json=?, tags_norm=?, uploader_uid=? WHERE title=?")
+            .bind(format!("[\"{tag}\"]"))
+            .bind(format!(" {tag} "))
+            .bind(format!("creator-{i}"))
+            .bind(&title)
+            .execute(&app.state.pools.art)
+            .await
+            .unwrap();
+    }
+
+    let (_, headers, _) =
+        send_full(&app.router, get("/api/art/recommendations?limit=8", None)).await;
+    let cookie = cookie_header_from_set_cookie(&headers);
+    let favorite_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title='favorite-0'")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+    let (status, recorded) = send(
+        &app.router,
+        post_json_with_cookie(
+            "/api/art/recommendation-events",
+            json!({
+                "session_id": "recommendation-test",
+                "events": [
+                    { "artwork_id": favorite_id, "event_type": "open", "source": "test" },
+                    { "artwork_id": favorite_id, "event_type": "dwell", "dwell_ms": 120000, "source": "test" }
+                ]
+            }),
+            &cookie,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "行为记录应成功: {recorded:?}");
+    assert_eq!(recorded["accepted"], 2);
+
+    let (status, personalized) = send(
+        &app.router,
+        get_with_cookie("/api/art/recommendations?limit=8", &cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(personalized["personalized"], true);
+    let first_two = &personalized["data"].as_array().unwrap()[..2];
+    assert!(
+        first_two.iter().all(|item| item["title"]
+            .as_str()
+            .unwrap_or("")
+            .starts_with("favorite-")),
+        "偏好通道前两位应优先召回同标签作品: {first_two:?}"
+    );
+}
+
+#[tokio::test]
+async fn art_popular_list_uses_windowed_views_and_unique_engagement() {
+    let app = setup().await;
+    let pool = &app.state.pools.art;
+    for title in ["week-popular", "year-popular", "history-popular"] {
+        seed_artwork(&app.state, title, "approved", "2024-04-01 00:00:00").await;
+    }
+
+    let activity = [
+        ("week-popular", "week", 40_i64, 8_i64, 4_i64, "-1 day"),
+        ("year-popular", "year", 200, 30, 10, "-30 days"),
+        ("history-popular", "history", 600, 60, 18, "-500 days"),
+    ];
+    for (title, actor_prefix, views, likes, comments, age) in activity {
+        let artwork_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title=?")
+            .bind(title)
+            .fetch_one(pool)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE artworks SET like_total=? WHERE id=?")
+            .bind(likes)
+            .bind(artwork_id)
+            .execute(pool)
+            .await
+            .unwrap();
+        for index in 0..views {
+            sqlx::query(
+                "INSERT INTO artwork_views(artwork_id, actor_key, view_bucket, viewed_at) VALUES(?,?,?,datetime('now', ?))",
+            )
+            .bind(artwork_id)
+            .bind(format!("{actor_prefix}-viewer-{index}"))
+            .bind(index)
+            .bind(age)
+            .execute(pool)
+            .await
+            .unwrap();
+        }
+        for index in 0..likes {
+            sqlx::query(
+                "INSERT INTO likes_daily(anon_id, target_type, target_id, day, count, created_at, updated_at) VALUES(?, 'artwork', ?, date('now', ?), 1, datetime('now', ?), datetime('now', ?))",
+            )
+            .bind(format!("{actor_prefix}-liker-{index}"))
+            .bind(artwork_id)
+            .bind(age)
+            .bind(age)
+            .bind(age)
+            .execute(pool)
+            .await
+            .unwrap();
+        }
+        for index in 0..comments {
+            sqlx::query(
+                "INSERT INTO comments(artwork_id, anon_id, body, status, created_at) VALUES(?, ?, '公开评论', 'public', datetime('now', ?))",
+            )
+            .bind(artwork_id)
+            .bind(format!("{actor_prefix}-commenter-{index}"))
+            .bind(age)
+            .execute(pool)
+            .await
+            .unwrap();
+        }
+    }
+
+    for (range, expected, views, likes, comments) in [
+        ("week", "week-popular", 40, 8, 4),
+        ("year", "year-popular", 200, 30, 10),
+        ("history", "history-popular", 600, 60, 18),
+    ] {
+        let path = format!("/api/art/artworks?sort=popular&range={range}&pageSize=6");
+        let (status, body) = send(&app.router, get(&path, None)).await;
+        assert_eq!(status, StatusCode::OK);
+        let first = &body["data"][0];
+        assert_eq!(first["title"], expected, "{range} 榜首应使用对应窗口");
+        assert_eq!(first["popularity"]["range"], range);
+        assert_eq!(first["popularity"]["views"], views);
+        assert_eq!(first["popularity"]["likes"], likes);
+        assert_eq!(first["popularity"]["comments"], comments);
+        assert!(first["popularity_score"].as_i64().unwrap_or(0) > 0);
+    }
+}
+
+#[tokio::test]
+async fn artwork_views_dedupe_the_same_visitor_within_thirty_minutes() {
+    let app = setup().await;
+    seed_artwork(
+        &app.state,
+        "deduped-view",
+        "approved",
+        "2026-07-01 00:00:00",
+    )
+    .await;
+    let artwork_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title='deduped-view'")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+
+    let detail_path = format!("/api/art/artworks/{artwork_id}");
+    let (status, headers, _) = send_full(&app.router, get(&detail_path, None)).await;
+    assert_eq!(status, StatusCode::OK);
+    let cookie = cookie_header_from_set_cookie(&headers);
+    let (status, _) = send(&app.router, get_with_cookie(&detail_path, &cookie)).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (_, body) = send(
+        &app.router,
+        get("/api/art/artworks?sort=popular&range=week&pageSize=6", None),
+    )
+    .await;
+    assert_eq!(body["data"][0]["title"], "deduped-view");
+    assert_eq!(body["data"][0]["popularity"]["views"], 1);
+}
+
+#[tokio::test]
+async fn art_latest_list_uses_review_time_instead_of_upload_time() {
+    let app = setup().await;
+    seed_artwork(
+        &app.state,
+        "uploaded-later",
+        "approved",
+        "2024-05-10 00:00:00",
+    )
+    .await;
+    seed_artwork(
+        &app.state,
+        "approved-later",
+        "approved",
+        "2024-05-01 00:00:00",
+    )
+    .await;
+    sqlx::query(
+        "UPDATE artworks SET reviewed_at='2024-05-11 00:00:00' WHERE title='approved-later'",
+    )
+    .execute(&app.state.pools.art)
+    .await
+    .unwrap();
+    sqlx::query(
+        "UPDATE artworks SET reviewed_at='2024-05-10 00:00:00' WHERE title='uploaded-later'",
+    )
+    .execute(&app.state.pools.art)
+    .await
+    .unwrap();
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/artworks?sort=time&pageSize=6", None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let titles: Vec<&str> = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|artwork| artwork["title"].as_str())
+        .collect();
+    assert_eq!(titles, ["approved-later", "uploaded-later"]);
 }
 
 #[tokio::test]

@@ -96,7 +96,7 @@ export function playUiClick(){
   })
 }
 
-// ✅ 你很多组件在用这个（FilterPanel/Header等），必须提供同名导出
+// 多个交互组件会调用该方法，必须保留同名导出。
 export function playClick(){
   playUiClick()
 }

@@ -16,6 +16,7 @@ import {
 
 import HomeView from '../views/HomeView.vue'
 import GalleryView from '../views/GalleryView.vue'
+import GallerySearchView from '../views/GallerySearchView.vue'
 import UploadView from '../views/UploadView.vue'
 import AnnouncementView from '../views/AnnouncementView.vue'
 import ExchangeView from '../views/ExchangeView.vue'
@@ -40,6 +41,17 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/gallery', name: 'gallery', component: GalleryView, meta: { title: '画廊' } },
+    {
+      path: '/categories',
+      name: 'gallery-categories',
+      redirect: to => ({ name: 'gallery', query: to.query, hash: '#gallery-catalog' })
+    },
+    {
+      path: '/gallery/search',
+      name: 'gallery-search',
+      component: GallerySearchView,
+      meta: { title: '搜索作品' }
+    },
     { path: '/upload', name: 'upload', component: UploadView, meta: { title: '投稿', noindex: true } },
     {
       path: '/admin',

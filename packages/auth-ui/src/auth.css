@@ -644,6 +644,20 @@
   color: var(--sos-text-secondary);
   font-variant-numeric: var(--sos-numeric-tabular);
 }
+.huc-mcard__exhibit {
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  padding: var(--sos-space-2) 0;
+  border-top: 1px solid var(--sos-border-subtle);
+  border-bottom: 1px solid var(--sos-border-subtle);
+  color: var(--sos-text-secondary);
+}
+.huc-mcard__exhibit .sos-switch {
+  justify-content: space-between;
+  width: 100%;
+  font-weight: var(--sos-weight-semibold);
+}
 
 /* 兑换奖品卡 */
 .huc-prize {

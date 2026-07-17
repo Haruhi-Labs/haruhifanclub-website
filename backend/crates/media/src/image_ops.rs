@@ -3,6 +3,13 @@
 
 use std::path::Path;
 
+/// 只读取图片头获取像素尺寸，不解码整张图。画廊用它持久化封面比例，避免列表首屏布局跳动。
+pub fn image_dimensions(path: &Path) -> anyhow::Result<(u32, u32)> {
+    Ok(image::ImageReader::open(path)?
+        .with_guessed_format()?
+        .into_dimensions()?)
+}
+
 /// 把图片字节编码为 WebP，quality 0-100（与 sharp 的 webp({quality}) 对齐）。
 pub fn encode_webp(input: &[u8], quality: f32) -> anyhow::Result<Vec<u8>> {
     let img = image::load_from_memory(input).map_err(|e| anyhow::anyhow!("图片解码失败: {e}"))?;
@@ -109,5 +116,16 @@ mod tests {
     #[test]
     fn square_avatar_rejects_non_image() {
         assert!(square_avatar_webp(b"not an image", 128, 80.0).is_err());
+    }
+
+    #[test]
+    fn reads_dimensions_from_image_header() {
+        let path =
+            std::env::temp_dir().join(format!("haruhi-dimensions-{}.png", uuid::Uuid::new_v4()));
+        image::RgbImage::from_pixel(321, 654, image::Rgb([20, 40, 60]))
+            .save(&path)
+            .unwrap();
+        assert_eq!(image_dimensions(&path).unwrap(), (321, 654));
+        std::fs::remove_file(path).unwrap();
     }
 }

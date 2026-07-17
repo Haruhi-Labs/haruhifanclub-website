@@ -38,6 +38,9 @@ pub fn router() -> Router<AppState> {
         .route("/announcements", get(list_announcements))
         .route("/artworks", get(list_artworks).post(create_artwork))
         .route("/artworks/{id}", get(get_artwork))
+        .route("/creator-exhibits", get(creator_exhibits))
+        .route("/recommendations", get(recommend_artworks))
+        .route("/recommendation-events", post(record_recommendation_events))
         .route("/thumb", get(get_thumb))
         .route("/comments", get(list_comments).post(create_comment))
         .route("/likes/artwork/{id}", post(like_artwork))
@@ -293,7 +296,7 @@ fn parse_licenses(raw: Option<&str>) -> Vec<String> {
 
 // ---- artworks 行结构（SELECT a.*, c.avatar_url AS uploader_avatar）----
 // 字段名须与 SELECT_ART 列别名一致（21 列超出 sqlx 元组 16 上限，故用 FromRow 结构体）。
-#[derive(sqlx::FromRow)]
+#[derive(Clone, sqlx::FromRow)]
 struct ArtRow {
     id: i64,
     title: Option<String>,
@@ -317,12 +320,181 @@ struct ArtRow {
     images_json: Option<String>,
     ai_reason: Option<String>,
     uploader_avatar: Option<String>,
+    exhibit_enabled: Option<i64>,
+}
+
+#[derive(Clone, Copy, Default)]
+struct PopularityStats {
+    views: i64,
+    likes: i64,
+    comments: i64,
+    score: f64,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PopularityRange {
+    Week,
+    Year,
+    History,
+}
+
+impl PopularityRange {
+    fn parse(raw: Option<&str>) -> Self {
+        match raw.unwrap_or("history") {
+            "week" => Self::Week,
+            "year" => Self::Year,
+            _ => Self::History,
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Week => "week",
+            Self::Year => "year",
+            Self::History => "history",
+        }
+    }
+}
+
+/// 有效浏览提供覆盖规模，点赞/评论按转化率放大覆盖规模。
+/// Wilson 下界抑制小样本偶然高转化；保守曝光基数兼容启用浏览统计前的历史互动。
+fn popularity_score(views: i64, likes: i64, comments: i64) -> f64 {
+    let views = views.max(0) as f64;
+    let likes = likes.max(0) as f64;
+    let comments = comments.max(0) as f64;
+    if views + likes + comments == 0.0 {
+        return 0.0;
+    }
+
+    let audience = views.max(likes * 5.0).max(comments * 12.0).max(1.0);
+    let reach = (1.0 + audience).ln();
+    let like_confidence = wilson_lower_bound(likes.min(audience), audience);
+    let comment_confidence = wilson_lower_bound(comments.min(audience), audience);
+    100.0 * reach * (1.0 + 3.0 * like_confidence + 6.0 * comment_confidence)
+}
+
+fn wilson_lower_bound(successes: f64, trials: f64) -> f64 {
+    if trials <= 0.0 {
+        return 0.0;
+    }
+    let z = 1.96_f64;
+    let z2 = z * z;
+    let p = (successes / trials).clamp(0.0, 1.0);
+    let denominator = 1.0 + z2 / trials;
+    let centre = p + z2 / (2.0 * trials);
+    let margin = z * ((p * (1.0 - p) + z2 / (4.0 * trials)) / trials).sqrt();
+    ((centre - margin) / denominator).max(0.0)
+}
+
+#[cfg(test)]
+mod popularity_score_tests {
+    use super::{popularity_score, PopularityRange};
+
+    #[test]
+    fn empty_activity_has_no_popularity() {
+        assert_eq!(popularity_score(0, 0, 0), 0.0);
+    }
+
+    #[test]
+    fn stronger_intent_increases_score_at_equal_reach() {
+        let viewed = popularity_score(200, 0, 0);
+        let liked = popularity_score(200, 20, 0);
+        let discussed = popularity_score(200, 20, 8);
+        assert!(viewed < liked);
+        assert!(liked < discussed);
+    }
+
+    #[test]
+    fn confidence_and_reach_beat_a_tiny_perfect_sample() {
+        let tiny = popularity_score(2, 2, 1);
+        let established = popularity_score(200, 40, 10);
+        assert!(tiny < established);
+    }
+
+    #[test]
+    fn legacy_interactions_still_rank_before_view_collection_begins() {
+        assert!(popularity_score(0, 12, 3) > 0.0);
+    }
+
+    #[test]
+    fn unsupported_range_falls_back_to_history() {
+        assert!(matches!(
+            PopularityRange::parse(Some("unknown")),
+            PopularityRange::History
+        ));
+    }
+}
+
+async fn popularity_stats(
+    state: &AppState,
+    range: PopularityRange,
+) -> AppResult<std::collections::HashMap<i64, PopularityStats>> {
+    let view_sql = match range {
+        PopularityRange::Week => "SELECT artwork_id, COUNT(1) FROM artwork_views WHERE datetime(viewed_at) >= datetime('now', '-7 days') GROUP BY artwork_id",
+        PopularityRange::Year => "SELECT artwork_id, COUNT(1) FROM artwork_views WHERE datetime(viewed_at) >= datetime('now', '-365 days') GROUP BY artwork_id",
+        PopularityRange::History => "SELECT artwork_id, COUNT(1) FROM artwork_views GROUP BY artwork_id",
+    };
+    let like_sql = match range {
+        PopularityRange::Week => "SELECT target_id, COUNT(DISTINCT anon_id) FROM likes_daily WHERE target_type='artwork' AND date(day) >= date('now', '-7 days') GROUP BY target_id",
+        PopularityRange::Year => "SELECT target_id, COUNT(DISTINCT anon_id) FROM likes_daily WHERE target_type='artwork' AND date(day) >= date('now', '-365 days') GROUP BY target_id",
+        PopularityRange::History => "SELECT target_id, COUNT(DISTINCT anon_id) FROM likes_daily WHERE target_type='artwork' GROUP BY target_id",
+    };
+    let comment_sql = match range {
+        PopularityRange::Week => "SELECT artwork_id, COUNT(DISTINCT CASE WHEN TRIM(COALESCE(anon_id, ''))='' THEN 'comment:' || id ELSE anon_id END) FROM comments WHERE status='public' AND datetime(created_at) >= datetime('now', '-7 days') GROUP BY artwork_id",
+        PopularityRange::Year => "SELECT artwork_id, COUNT(DISTINCT CASE WHEN TRIM(COALESCE(anon_id, ''))='' THEN 'comment:' || id ELSE anon_id END) FROM comments WHERE status='public' AND datetime(created_at) >= datetime('now', '-365 days') GROUP BY artwork_id",
+        PopularityRange::History => "SELECT artwork_id, COUNT(DISTINCT CASE WHEN TRIM(COALESCE(anon_id, ''))='' THEN 'comment:' || id ELSE anon_id END) FROM comments WHERE status='public' GROUP BY artwork_id",
+    };
+
+    let (view_rows, like_rows, comment_rows) = tokio::try_join!(
+        sqlx::query_as::<_, (i64, i64)>(view_sql).fetch_all(&state.pools.art),
+        sqlx::query_as::<_, (i64, i64)>(like_sql).fetch_all(&state.pools.art),
+        sqlx::query_as::<_, (i64, i64)>(comment_sql).fetch_all(&state.pools.art),
+    )?;
+    let mut out = std::collections::HashMap::<i64, PopularityStats>::new();
+    for (id, views) in view_rows {
+        out.entry(id).or_default().views = views;
+    }
+    for (id, likes) in like_rows {
+        out.entry(id).or_default().likes = likes;
+    }
+    for (id, comments) in comment_rows {
+        out.entry(id).or_default().comments = comments;
+    }
+    for stats in out.values_mut() {
+        stats.score = popularity_score(stats.views, stats.likes, stats.comments);
+    }
+    Ok(out)
+}
+
+async fn record_artwork_view(
+    state: &AppState,
+    user_id: Option<i64>,
+    anon_id: &str,
+    artwork_id: i64,
+) {
+    let actor_key = user_id
+        .map(|id| format!("user:{id}"))
+        .unwrap_or_else(|| format!("anon:{anon_id}"));
+    let now = chrono::Utc::now();
+    let bucket = now.timestamp() / (30 * 60);
+    if let Err(error) = sqlx::query(
+        "INSERT OR IGNORE INTO artwork_views(artwork_id, actor_key, view_bucket, viewed_at) VALUES(?,?,?,?)",
+    )
+    .bind(artwork_id)
+    .bind(actor_key)
+    .bind(bucket)
+    .bind(now.to_rfc3339_opts(chrono::SecondsFormat::Millis, true))
+    .execute(&state.pools.art)
+    .await
+    {
+        tracing::warn!(?error, artwork_id, "记录画廊有效浏览失败");
+    }
 }
 
 const SELECT_ART: &str = "SELECT a.id, a.title, a.description, a.uploader_name, a.uploader_uid, \
     a.source_type, a.content_type, a.tags_json, a.tags_norm, a.origin_url, a.file_path, \
     a.file_path_original, a.status, a.review_note, a.reviewed_at, a.created_at, a.licenses_json, \
-    COALESCE(CAST(NULLIF(TRIM(a.like_total), '') AS INTEGER), 0) AS like_total, a.images_json, a.ai_reason, c.avatar_url AS uploader_avatar \
+    COALESCE(CAST(NULLIF(TRIM(a.like_total), '') AS INTEGER), 0) AS like_total, a.images_json, a.ai_reason, c.avatar_url AS uploader_avatar, a.exhibit_enabled \
     FROM artworks a LEFT JOIN creators c ON a.uploader_uid = c.uid";
 
 /// 映射作品行为响应 JSON（忠实对齐 mapArtworkRow，含单图/多图逻辑）。
@@ -350,7 +522,16 @@ fn map_artwork_row(r: &ArtRow) -> Value {
                     Some(o) => format!("uploads/{o}"),
                     None => path.map(|p| format!("uploads/{p}")).unwrap_or_default(),
                 };
-                json!({ "image_url": image_url, "original_url": original_url })
+                let mut image = json!({ "image_url": image_url, "original_url": original_url });
+                if let Some(obj) = image.as_object_mut() {
+                    if let Some(width) = img.get("width").and_then(Value::as_u64) {
+                        obj.insert("width".into(), json!(width));
+                    }
+                    if let Some(height) = img.get("height").and_then(Value::as_u64) {
+                        obj.insert("height".into(), json!(height));
+                    }
+                }
+                image
             })
             .collect()
     };
@@ -367,6 +548,14 @@ fn map_artwork_row(r: &ArtRow) -> Value {
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string();
+    let first_image_width = images
+        .first()
+        .and_then(|value| value.get("width"))
+        .and_then(Value::as_u64);
+    let first_image_height = images
+        .first()
+        .and_then(|value| value.get("height"))
+        .and_then(Value::as_u64);
 
     let image_url = match r.file_path.as_deref() {
         Some(fp) => format!("uploads/{fp}"),
@@ -396,9 +585,30 @@ fn map_artwork_row(r: &ArtRow) -> Value {
         "like_total": r.like_total,
         "image_url": image_url,
         "original_url": original_url,
+        "image_width": first_image_width,
+        "image_height": first_image_height,
         "images": images,
         "ai_reason": r.ai_reason.clone().unwrap_or_default(),
+        "exhibit_enabled": r.exhibit_enabled.map(|value| value != 0),
     })
+}
+
+fn insert_popularity(value: &mut Value, stats: PopularityStats, range: PopularityRange) {
+    let Some(obj) = value.as_object_mut() else {
+        return;
+    };
+    let score = stats.score.round() as i64;
+    obj.insert("popularity_score".into(), json!(score));
+    obj.insert(
+        "popularity".into(),
+        json!({
+            "score": score,
+            "views": stats.views,
+            "likes": stats.likes,
+            "comments": stats.comments,
+            "range": range.as_str(),
+        }),
+    );
 }
 
 fn now_iso() -> String {
@@ -868,6 +1078,109 @@ async fn creators_verify(
     ))
 }
 
+// 4.5 创作者展位：未配置过的作者默认展示历史人气最高的三件已通过个人作品；
+// 一旦作者在个人中心调整过，则严格使用其显式选择。
+async fn creator_exhibits(State(state): State<AppState>) -> AppResult<Json<Value>> {
+    let rows: Vec<ArtRow> = sqlx::query_as(&format!(
+        "{SELECT_ART} WHERE a.status='approved' AND a.source_type='personal' \
+         AND TRIM(COALESCE(a.uploader_uid, '')) <> '' ORDER BY a.id DESC"
+    ))
+    .fetch_all(&state.pools.art)
+    .await?;
+    let mut stats_by_id = popularity_stats(&state, PopularityRange::History).await?;
+    for row in &rows {
+        let stats = stats_by_id.entry(row.id).or_default();
+        stats.likes = stats.likes.max(row.like_total.max(0));
+        stats.score = popularity_score(stats.views, stats.likes, stats.comments);
+    }
+
+    let uids: Vec<String> = rows
+        .iter()
+        .filter_map(|row| row.uploader_uid.clone())
+        .collect();
+    let names = member_display_names(&state.pools.core, &uids).await;
+    let mut grouped = std::collections::BTreeMap::<String, Vec<&ArtRow>>::new();
+    for row in &rows {
+        if let Some(uid) = row
+            .uploader_uid
+            .as_deref()
+            .filter(|uid| !uid.trim().is_empty())
+        {
+            grouped.entry(uid.to_string()).or_default().push(row);
+        }
+    }
+
+    let mut data = Vec::new();
+    for (uid, creator_rows) in grouped {
+        let configured = creator_rows.iter().any(|row| row.exhibit_enabled.is_some());
+        let mut selected: Vec<&ArtRow> = if configured {
+            creator_rows
+                .iter()
+                .copied()
+                .filter(|row| row.exhibit_enabled == Some(1))
+                .collect()
+        } else {
+            let mut ranked = creator_rows.clone();
+            ranked.sort_by(|a, b| {
+                let a_stats = stats_by_id.get(&a.id).copied().unwrap_or_default();
+                let b_stats = stats_by_id.get(&b.id).copied().unwrap_or_default();
+                b_stats
+                    .score
+                    .total_cmp(&a_stats.score)
+                    .then_with(|| b.like_total.cmp(&a.like_total))
+                    .then_with(|| b.id.cmp(&a.id))
+            });
+            ranked.into_iter().take(3).collect()
+        };
+        if selected.is_empty() {
+            continue;
+        }
+        selected.sort_by(|a, b| {
+            let a_stats = stats_by_id.get(&a.id).copied().unwrap_or_default();
+            let b_stats = stats_by_id.get(&b.id).copied().unwrap_or_default();
+            b_stats
+                .score
+                .total_cmp(&a_stats.score)
+                .then_with(|| b.id.cmp(&a.id))
+        });
+        let creator_name = names
+            .get(&uid)
+            .cloned()
+            .or_else(|| selected.iter().find_map(|row| row.uploader_name.clone()))
+            .unwrap_or_else(|| uid.clone());
+        let avatar = selected
+            .iter()
+            .find_map(|row| row.uploader_avatar.clone())
+            .unwrap_or_default();
+        let items: Vec<Value> = selected
+            .iter()
+            .map(|row| {
+                let mut value = map_artwork_row(row);
+                if let Some(obj) = value.as_object_mut() {
+                    obj.insert("uploader_display_name".into(), json!(creator_name.clone()));
+                    obj.insert("exhibit_enabled".into(), json!(true));
+                }
+                insert_popularity(
+                    &mut value,
+                    stats_by_id.get(&row.id).copied().unwrap_or_default(),
+                    PopularityRange::History,
+                );
+                value
+            })
+            .collect();
+        data.push(json!({
+            "uid": uid,
+            "name": creator_name,
+            "avatar": avatar,
+            "items": items,
+        }));
+    }
+
+    Ok(Json(
+        json!({ "ok": true, "total": data.len(), "data": data }),
+    ))
+}
+
 // 5. 作品列表（过滤/搜索/排序/分页）
 async fn list_artworks(
     State(state): State<AppState>,
@@ -880,6 +1193,7 @@ async fn list_artworks(
     let source_type = getq("source_type").unwrap_or("all").to_string();
     let uploader_uid = getq("uploader_uid").unwrap_or("").trim().to_string();
     let sort = getq("sort").unwrap_or("time").to_string();
+    let popularity_range = PopularityRange::parse(getq("range"));
     let q_raw = getq("q").unwrap_or("").trim().to_string();
     let search_field = getq("searchField").unwrap_or("all").to_string();
     let page = clamp_int(getq("page"), 1, 9999, 1);
@@ -948,12 +1262,17 @@ async fn list_artworks(
     let mut order_by = String::from("ORDER BY datetime(a.created_at) DESC, a.id DESC");
     let mut seed_used: Option<i64> = None;
 
-    if sort == "likes" {
-        order_by =
-            "ORDER BY COALESCE(CAST(NULLIF(TRIM(a.like_total), '') AS INTEGER), 0) DESC, datetime(a.created_at) DESC, a.id DESC".into();
+    if sort == "popular" || sort == "likes" {
+        order_by = "ORDER BY (\
+            COALESCE(CAST(NULLIF(TRIM(a.like_total), '') AS INTEGER), 0) + \
+            8 * (SELECT COUNT(1) FROM comments cm \
+                 WHERE cm.artwork_id = a.id AND cm.status = 'public')\
+        ) DESC, datetime(COALESCE(a.reviewed_at, a.created_at)) DESC, a.id DESC"
+            .into();
     } else if sort == "time" {
-        order_by = "ORDER BY datetime(a.created_at) DESC, a.id DESC".into();
-    } else if sort == "random" {
+        order_by =
+            "ORDER BY datetime(COALESCE(a.reviewed_at, a.created_at)) DESC, a.id DESC".into();
+    } else if sort == "recommended" || sort == "random" {
         let seed = match getq("seed") {
             Some(s) if !s.trim().is_empty() => clamp_int(Some(s), 0, 2147483647, 0),
             _ => rand_int(0, 2147483647),
@@ -961,7 +1280,51 @@ async fn list_artworks(
         seed_used = Some(seed);
     }
 
-    let rows: Vec<ArtRow> = if let Some(seed) = seed_used {
+    let mut popularity_by_id = std::collections::HashMap::<i64, PopularityStats>::new();
+    let rows: Vec<ArtRow> = if sort == "popular" || sort == "likes" {
+        let list_sql = format!("{SELECT_ART} {where_sql}");
+        let mut list_q = sqlx::query_as::<_, ArtRow>(&list_sql);
+        for p in &params {
+            list_q = list_q.bind(p);
+        }
+        let mut ranked_rows = list_q.fetch_all(&state.pools.art).await?;
+        popularity_by_id = popularity_stats(&state, popularity_range).await?;
+        for row in &ranked_rows {
+            let stats = popularity_by_id.entry(row.id).or_default();
+            if popularity_range == PopularityRange::History {
+                stats.likes = stats.likes.max(row.like_total.max(0));
+            }
+            stats.score = popularity_score(stats.views, stats.likes, stats.comments);
+        }
+        ranked_rows.sort_by(|a, b| {
+            let a_stats = popularity_by_id.get(&a.id).copied().unwrap_or_default();
+            let b_stats = popularity_by_id.get(&b.id).copied().unwrap_or_default();
+            b_stats
+                .score
+                .total_cmp(&a_stats.score)
+                .then_with(|| b_stats.views.cmp(&a_stats.views))
+                .then_with(|| b_stats.likes.cmp(&a_stats.likes))
+                .then_with(|| b_stats.comments.cmp(&a_stats.comments))
+                .then_with(|| {
+                    b.reviewed_at
+                        .as_deref()
+                        .or(b.created_at.as_deref())
+                        .unwrap_or("")
+                        .cmp(
+                            a.reviewed_at
+                                .as_deref()
+                                .or(a.created_at.as_deref())
+                                .unwrap_or(""),
+                        )
+                })
+                .then_with(|| b.id.cmp(&a.id))
+        });
+        ranked_rows
+            .into_iter()
+            .skip(offset as usize)
+            .take(page_size as usize)
+            .collect()
+    } else if let Some(seed) = seed_used {
         fetch_random_artworks(
             &state.pools.art,
             &where_sql,
@@ -980,6 +1343,19 @@ async fn list_artworks(
         list_q = list_q.bind(page_size).bind(offset);
         list_q.fetch_all(&state.pools.art).await?
     };
+    let display_popularity_range = if sort == "popular" || sort == "likes" {
+        popularity_range
+    } else {
+        PopularityRange::History
+    };
+    if sort != "popular" && sort != "likes" {
+        popularity_by_id = popularity_stats(&state, PopularityRange::History).await?;
+        for row in &rows {
+            let stats = popularity_by_id.entry(row.id).or_default();
+            stats.likes = stats.likes.max(row.like_total.max(0));
+            stats.score = popularity_score(stats.views, stats.likes, stats.comments);
+        }
+    }
     // 批量取作者公会徽章，避免逐行 N+1（一次 IN 查询、不建档）。
     let uids: Vec<String> = rows.iter().filter_map(|r| r.uploader_uid.clone()).collect();
     let guild_map = super::art_guild::guild_summaries_for_uids(&state, &uids).await;
@@ -989,8 +1365,8 @@ async fn list_artworks(
         .map(|row| {
             let mut value = map_artwork_row(row);
             let uid = row.uploader_uid.as_deref().unwrap_or("").trim();
-            if !uid.is_empty() {
-                if let Some(obj) = value.as_object_mut() {
+            if let Some(obj) = value.as_object_mut() {
+                if !uid.is_empty() {
                     if let Some(summary) = guild_map.get(uid) {
                         obj.insert("guild".into(), summary.clone());
                     }
@@ -999,6 +1375,11 @@ async fn list_artworks(
                     }
                 }
             }
+            insert_popularity(
+                &mut value,
+                popularity_by_id.get(&row.id).copied().unwrap_or_default(),
+                display_popularity_range,
+            );
             value
         })
         .collect();
@@ -1008,9 +1389,640 @@ async fn list_artworks(
         "data": data,
         "total": total,
         "sortUsed": sort,
+        "popularityRange": popularity_range.as_str(),
         "seedUsed": seed_used,
         "debugId": chrono::Utc::now().timestamp_millis(),
     })))
+}
+
+// 5.5 个性化推荐：内容画像 + 质量/新鲜度 + 探索，多路召回后做去重和多样性约束。
+const RECOMMENDATION_VERSION: &str = "hybrid-v1";
+const RECOMMENDATION_HISTORY_DAYS: i64 = 180;
+const RECOMMENDATION_DAILY_EVENT_LIMIT: i64 = 2_000;
+
+#[derive(sqlx::FromRow)]
+struct RecommendationHistoryRow {
+    artwork_id: i64,
+    event_type: String,
+    dwell_ms: Option<i64>,
+    batch_id: Option<String>,
+    created_at: String,
+    tags_json: Option<String>,
+    content_type: Option<String>,
+    source_type: Option<String>,
+    uploader_uid: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+struct RecommendationQuery {
+    limit: Option<i64>,
+}
+
+#[derive(serde::Deserialize)]
+struct RecommendationEventsBody {
+    #[serde(default)]
+    session_id: Option<String>,
+    #[serde(default)]
+    events: Vec<RecommendationEventInput>,
+}
+
+#[derive(serde::Deserialize)]
+struct RecommendationEventInput {
+    artwork_id: i64,
+    event_type: String,
+    #[serde(default)]
+    batch_id: Option<String>,
+    #[serde(default)]
+    source: Option<String>,
+    #[serde(default)]
+    position: Option<i64>,
+    #[serde(default)]
+    dwell_ms: Option<i64>,
+}
+
+struct RecommendationCandidate {
+    row_index: usize,
+    quality: f64,
+    freshness: f64,
+    exploration: f64,
+    blended: f64,
+    creator: String,
+    primary_tag: String,
+}
+
+fn recommendation_tags(raw: Option<&str>) -> Vec<String> {
+    safe_json_arr(raw)
+        .into_iter()
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_lowercase()))
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+fn recommendation_bounded_text(raw: &str, max_chars: usize) -> String {
+    safe_text(Some(raw)).chars().take(max_chars).collect()
+}
+
+fn recommendation_age_days(raw: Option<&str>) -> f64 {
+    let Some(raw) = raw.filter(|s| !s.trim().is_empty()) else {
+        return 365.0;
+    };
+    let parsed = chrono::DateTime::parse_from_rfc3339(raw)
+        .map(|dt| dt.with_timezone(&chrono::Utc))
+        .or_else(|_| {
+            chrono::NaiveDateTime::parse_from_str(raw, "%Y-%m-%d %H:%M:%S").map(|dt| dt.and_utc())
+        });
+    parsed
+        .map(|dt| (chrono::Utc::now() - dt).num_seconds().max(0) as f64 / 86_400.0)
+        .unwrap_or(365.0)
+}
+
+fn recommendation_event_weight(event_type: &str, dwell_ms: Option<i64>) -> Option<f64> {
+    match event_type {
+        "open" => Some(1.0),
+        "like" => Some(6.0),
+        "comment" => Some(8.0),
+        "hide" => Some(-8.0),
+        "dwell" => match dwell_ms.unwrap_or(0) {
+            0..=2_999 => Some(-0.5),
+            3_000..=9_999 => Some(0.4),
+            10_000..=29_999 => Some(1.5),
+            30_000..=89_999 => Some(2.5),
+            _ => Some(3.5),
+        },
+        _ => None,
+    }
+}
+
+fn recommendation_event_cap(event_type: &str) -> usize {
+    match event_type {
+        "like" | "hide" => 1,
+        "comment" => 2,
+        "open" | "dwell" => 3,
+        _ => 0,
+    }
+}
+
+fn add_profile_weight(
+    profile: &mut std::collections::HashMap<String, f64>,
+    key: String,
+    weight: f64,
+) {
+    *profile.entry(key).or_insert(0.0) += weight;
+}
+
+fn recommendation_noise(entropy: &str, artwork_id: i64) -> f64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    entropy.hash(&mut hasher);
+    artwork_id.hash(&mut hasher);
+    (hasher.finish() % 1_000_000) as f64 / 999_999.0
+}
+
+fn recommendation_channel_score(candidate: &RecommendationCandidate, channel: &str) -> f64 {
+    match channel {
+        "quality" => {
+            candidate.quality * 0.65 + candidate.freshness * 0.20 + candidate.exploration * 0.15
+        }
+        "fresh" => {
+            candidate.freshness * 0.70 + candidate.quality * 0.20 + candidate.exploration * 0.10
+        }
+        "explore" => {
+            candidate.exploration * 0.75 + candidate.quality * 0.15 + candidate.freshness * 0.10
+        }
+        _ => candidate.blended,
+    }
+}
+
+async fn recommendation_history(
+    state: &AppState,
+    user_id: Option<i64>,
+    anon_id: &str,
+) -> AppResult<Vec<RecommendationHistoryRow>> {
+    Ok(sqlx::query_as::<_, RecommendationHistoryRow>(
+        "SELECT re.artwork_id, re.event_type, re.dwell_ms, re.batch_id, re.created_at, \
+                a.tags_json, a.content_type, a.source_type, a.uploader_uid \
+         FROM recommendation_events re \
+         JOIN artworks a ON a.id=re.artwork_id \
+         WHERE (re.user_id=? OR re.anon_id=?) \
+           AND datetime(re.created_at) >= datetime('now', ?) \
+         ORDER BY datetime(re.created_at) DESC, re.id DESC LIMIT 5000",
+    )
+    .bind(user_id)
+    .bind(anon_id)
+    .bind(format!("-{RECOMMENDATION_HISTORY_DAYS} days"))
+    .fetch_all(&state.pools.art)
+    .await?)
+}
+
+async fn maybe_cleanup_recommendation_events(state: &AppState) {
+    let now = now_iso();
+    let claimed = sqlx::query(
+        "UPDATE recommendation_maintenance SET last_cleanup_at=? \
+         WHERE id=1 AND (last_cleanup_at IS NULL OR datetime(last_cleanup_at) < datetime('now', '-1 day'))",
+    )
+    .bind(&now)
+    .execute(&state.pools.art)
+    .await;
+    let should_cleanup = claimed
+        .as_ref()
+        .map(|result| result.rows_affected() > 0)
+        .unwrap_or(false);
+    if should_cleanup {
+        if let Err(error) = sqlx::query(
+            "DELETE FROM recommendation_events \
+             WHERE datetime(created_at) < datetime('now', '-400 days')",
+        )
+        .execute(&state.pools.art)
+        .await
+        {
+            tracing::warn!(?error, "清理过期画廊推荐事件失败");
+        }
+    } else if let Err(error) = claimed {
+        tracing::warn!(?error, "检查画廊推荐事件清理周期失败");
+    }
+}
+
+async fn recommend_artworks(
+    State(state): State<AppState>,
+    Query(q): Query<RecommendationQuery>,
+    user: Option<AuthUser>,
+    headers: HeaderMap,
+) -> AppResult<Response> {
+    let limit = q.limit.unwrap_or(8).clamp(4, 24) as usize;
+    let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
+    maybe_cleanup_recommendation_events(&state).await;
+    let user_id = user.map(|u| u.id);
+    let actor_entropy = user_id
+        .map(|id| format!("user:{id}"))
+        .unwrap_or_else(|| format!("anon:{anon_id}"));
+    let batch_id = uuid::Uuid::new_v4().to_string();
+
+    let rows: Vec<ArtRow> = sqlx::query_as(&format!(
+        "{SELECT_ART} WHERE a.status='approved' ORDER BY a.id DESC LIMIT 5000"
+    ))
+    .fetch_all(&state.pools.art)
+    .await?;
+    if rows.is_empty() {
+        return Ok(json_with_cookie(
+            json!({
+                "ok": true, "data": [], "total": 0, "batchId": batch_id,
+                "algorithmVersion": RECOMMENDATION_VERSION, "personalized": false
+            }),
+            set,
+        ));
+    }
+
+    let mut quality_stats = popularity_stats(&state, PopularityRange::History).await?;
+    for row in &rows {
+        let stats = quality_stats.entry(row.id).or_default();
+        stats.likes = stats.likes.max(row.like_total.max(0));
+        stats.score = popularity_score(stats.views, stats.likes, stats.comments);
+    }
+    let history = recommendation_history(&state, user_id, &anon_id).await?;
+
+    let mut profile: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+    let mut signal_counts: std::collections::HashMap<(i64, String), usize> =
+        std::collections::HashMap::new();
+    let mut learned_signals = 0usize;
+    let mut recent_batch_ids = Vec::new();
+    let mut recent_batch_seen = std::collections::HashSet::new();
+    let mut last_seen_age: std::collections::HashMap<i64, f64> = std::collections::HashMap::new();
+
+    for event in &history {
+        let age_days = recommendation_age_days(Some(&event.created_at));
+        last_seen_age
+            .entry(event.artwork_id)
+            .and_modify(|age| *age = age.min(age_days))
+            .or_insert(age_days);
+
+        if event.event_type == "served" {
+            if let Some(batch) = event.batch_id.as_ref() {
+                if !recent_batch_ids.contains(batch) && recent_batch_ids.len() < 3 {
+                    recent_batch_ids.push(batch.clone());
+                }
+                if recent_batch_ids.contains(batch) {
+                    recent_batch_seen.insert(event.artwork_id);
+                }
+            }
+        }
+
+        let Some(base_weight) = recommendation_event_weight(&event.event_type, event.dwell_ms)
+        else {
+            continue;
+        };
+        let cap = recommendation_event_cap(&event.event_type);
+        let count = signal_counts
+            .entry((event.artwork_id, event.event_type.clone()))
+            .or_insert(0);
+        if *count >= cap {
+            continue;
+        }
+        *count += 1;
+        learned_signals += 1;
+
+        let decay = 0.5_f64.powf(age_days / 45.0);
+        let weight = base_weight * decay;
+        let tags = recommendation_tags(event.tags_json.as_deref());
+        let tag_scale = (tags.len().max(1) as f64).sqrt();
+        for tag in tags {
+            add_profile_weight(&mut profile, format!("tag:{tag}"), weight / tag_scale);
+        }
+        if let Some(uid) = event.uploader_uid.as_deref().filter(|s| !s.is_empty()) {
+            add_profile_weight(&mut profile, format!("creator:{uid}"), weight * 0.65);
+        }
+        if let Some(content) = event.content_type.as_deref().filter(|s| !s.is_empty()) {
+            add_profile_weight(&mut profile, format!("content:{content}"), weight * 0.35);
+        }
+        if let Some(source) = event.source_type.as_deref().filter(|s| !s.is_empty()) {
+            add_profile_weight(&mut profile, format!("source:{source}"), weight * 0.25);
+        }
+    }
+
+    let personalized = learned_signals >= 2;
+    let max_quality_raw = rows
+        .iter()
+        .map(|row| {
+            let score = quality_stats
+                .get(&row.id)
+                .map(|stats| stats.score)
+                .unwrap_or(0.0);
+            (score + 1.0).ln()
+        })
+        .fold(1.0_f64, f64::max);
+    let entropy = format!("{actor_entropy}:{batch_id}");
+    let own_uid = user_id.map(crate::auth_routes::member_uid);
+    let can_exclude_recent = rows
+        .iter()
+        .filter(|row| !recent_batch_seen.contains(&row.id))
+        .count()
+        >= limit;
+
+    let mut candidates = Vec::with_capacity(rows.len());
+    for (row_index, row) in rows.iter().enumerate() {
+        if can_exclude_recent && recent_batch_seen.contains(&row.id) {
+            continue;
+        }
+        let tags = recommendation_tags(row.tags_json.as_deref());
+        let tag_affinity = if tags.is_empty() {
+            0.0
+        } else {
+            tags.iter()
+                .map(|tag| *profile.get(&format!("tag:{tag}")).unwrap_or(&0.0))
+                .sum::<f64>()
+                / (tags.len() as f64).sqrt()
+        };
+        let creator = row.uploader_uid.clone().unwrap_or_default();
+        let creator_affinity = if creator.is_empty() {
+            0.0
+        } else {
+            *profile.get(&format!("creator:{creator}")).unwrap_or(&0.0)
+        };
+        let content_affinity = row
+            .content_type
+            .as_deref()
+            .and_then(|v| profile.get(&format!("content:{v}")))
+            .copied()
+            .unwrap_or(0.0);
+        let source_affinity = row
+            .source_type
+            .as_deref()
+            .and_then(|v| profile.get(&format!("source:{v}")))
+            .copied()
+            .unwrap_or(0.0);
+        let affinity_raw = tag_affinity + creator_affinity + content_affinity + source_affinity;
+        let affinity = (affinity_raw / 8.0).tanh();
+        let quality_raw = quality_stats
+            .get(&row.id)
+            .map(|stats| stats.score)
+            .unwrap_or(0.0);
+        let quality = ((quality_raw + 1.0).ln() / max_quality_raw).clamp(0.0, 1.0);
+        let age_days =
+            recommendation_age_days(row.reviewed_at.as_deref().or(row.created_at.as_deref()));
+        let freshness = (-age_days / 120.0).exp().clamp(0.0, 1.0);
+        let exploration = recommendation_noise(&entropy, row.id);
+        let seen_penalty = match last_seen_age.get(&row.id).copied() {
+            Some(age) if age < 1.0 => 0.45,
+            Some(age) if age < 7.0 => 0.25,
+            Some(age) if age < 30.0 => 0.10,
+            _ => 0.0,
+        };
+        let own_work_penalty = if own_uid.as_deref() == Some(creator.as_str()) {
+            0.10
+        } else {
+            0.0
+        };
+        let blended = if personalized {
+            affinity * 0.50 + quality * 0.20 + freshness * 0.12 + exploration * 0.18
+        } else {
+            quality * 0.40 + freshness * 0.30 + exploration * 0.30
+        } - seen_penalty
+            - own_work_penalty;
+
+        candidates.push(RecommendationCandidate {
+            row_index,
+            quality,
+            freshness,
+            exploration,
+            blended,
+            creator,
+            primary_tag: tags.first().cloned().unwrap_or_default(),
+        });
+    }
+
+    let mut selected = Vec::with_capacity(limit);
+    let mut selected_ids = std::collections::HashSet::new();
+    let mut creator_counts: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+    let mut tag_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let channel_pattern = [
+        "blend", "blend", "quality", "blend", "fresh", "blend", "explore", "blend",
+    ];
+
+    for position in 0..limit.min(candidates.len()) {
+        let channel = channel_pattern[position % channel_pattern.len()];
+        let mut best: Option<(usize, f64)> = None;
+        for relaxed in [false, true] {
+            for (candidate_index, candidate) in candidates.iter().enumerate() {
+                let row = &rows[candidate.row_index];
+                if selected_ids.contains(&row.id) {
+                    continue;
+                }
+                let creator_count = if candidate.creator.is_empty() {
+                    0
+                } else {
+                    *creator_counts.get(&candidate.creator).unwrap_or(&0)
+                };
+                let tag_count = if candidate.primary_tag.is_empty() {
+                    0
+                } else {
+                    *tag_counts.get(&candidate.primary_tag).unwrap_or(&0)
+                };
+                if !relaxed && (creator_count >= 2 || tag_count >= 3) {
+                    continue;
+                }
+                let diversity_penalty = creator_count as f64 * 0.12 + tag_count as f64 * 0.05;
+                let score = recommendation_channel_score(candidate, channel) - diversity_penalty;
+                if best.map(|(_, current)| score > current).unwrap_or(true) {
+                    best = Some((candidate_index, score));
+                }
+            }
+            if best.is_some() {
+                break;
+            }
+        }
+        let Some((candidate_index, _)) = best else {
+            break;
+        };
+        let candidate = &candidates[candidate_index];
+        let row = &rows[candidate.row_index];
+        selected_ids.insert(row.id);
+        if !candidate.creator.is_empty() {
+            *creator_counts.entry(candidate.creator.clone()).or_insert(0) += 1;
+        }
+        if !candidate.primary_tag.is_empty() {
+            *tag_counts.entry(candidate.primary_tag.clone()).or_insert(0) += 1;
+        }
+        selected.push(candidate.row_index);
+    }
+
+    let now = now_iso();
+    let mut tx = state.pools.art.begin().await?;
+    for (position, row_index) in selected.iter().enumerate() {
+        sqlx::query(
+            "INSERT OR IGNORE INTO recommendation_events(\
+                user_id, anon_id, artwork_id, batch_id, event_type, source, position, created_at\
+             ) VALUES(?,?,?,?, 'served', 'recommendation', ?, ?)",
+        )
+        .bind(user_id)
+        .bind(&anon_id)
+        .bind(rows[*row_index].id)
+        .bind(&batch_id)
+        .bind(position as i64)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+
+    let selected_rows: Vec<ArtRow> = selected.iter().map(|index| rows[*index].clone()).collect();
+    let uids: Vec<String> = selected_rows
+        .iter()
+        .filter_map(|row| row.uploader_uid.clone())
+        .collect();
+    let guild_map = super::art_guild::guild_summaries_for_uids(&state, &uids).await;
+    let names = member_display_names(&state.pools.core, &uids).await;
+    let data: Vec<Value> = selected_rows
+        .iter()
+        .enumerate()
+        .map(|(position, row)| {
+            let mut value = map_artwork_row(row);
+            let uid = row.uploader_uid.as_deref().unwrap_or("").trim();
+            if let Some(obj) = value.as_object_mut() {
+                if !uid.is_empty() {
+                    if let Some(summary) = guild_map.get(uid) {
+                        obj.insert("guild".into(), summary.clone());
+                    }
+                    if let Some(name) = names.get(uid) {
+                        obj.insert("uploader_display_name".into(), json!(name));
+                    }
+                }
+                obj.insert(
+                    "recommendation".into(),
+                    json!({ "batch_id": batch_id, "position": position }),
+                );
+            }
+            insert_popularity(
+                &mut value,
+                quality_stats.get(&row.id).copied().unwrap_or_default(),
+                PopularityRange::History,
+            );
+            value
+        })
+        .collect();
+
+    Ok(json_with_cookie(
+        json!({
+            "ok": true,
+            "data": data,
+            "total": rows.len(),
+            "batchId": batch_id,
+            "algorithmVersion": RECOMMENDATION_VERSION,
+            "personalized": personalized
+        }),
+        set,
+    ))
+}
+
+async fn record_recommendation_events(
+    State(state): State<AppState>,
+    user: Option<AuthUser>,
+    headers: HeaderMap,
+    Json(body): Json<RecommendationEventsBody>,
+) -> AppResult<Response> {
+    let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
+    let user_id = user.map(|u| u.id);
+    let session_id = body
+        .session_id
+        .as_deref()
+        .map(|value| recommendation_bounded_text(value, 80))
+        .filter(|value| !value.is_empty());
+    let already_recorded: i64 = if let Some(id) = user_id {
+        sqlx::query_scalar(
+            "SELECT COUNT(1) FROM recommendation_events \
+             WHERE user_id=? AND date(created_at)=date('now')",
+        )
+        .bind(id)
+        .fetch_one(&state.pools.art)
+        .await?
+    } else {
+        sqlx::query_scalar(
+            "SELECT COUNT(1) FROM recommendation_events \
+             WHERE anon_id=? AND date(created_at)=date('now')",
+        )
+        .bind(&anon_id)
+        .fetch_one(&state.pools.art)
+        .await?
+    };
+    let remaining = (RECOMMENDATION_DAILY_EVENT_LIMIT - already_recorded).max(0) as usize;
+    let now = now_iso();
+    let mut accepted = 0u64;
+    let mut tx = state.pools.art.begin().await?;
+
+    for event in body.events.into_iter().take(50).take(remaining) {
+        let event_type = event.event_type.trim().to_lowercase();
+        if event.artwork_id <= 0
+            || !matches!(
+                event_type.as_str(),
+                "impression" | "open" | "dwell" | "hide"
+            )
+        {
+            continue;
+        }
+        let batch_id = event
+            .batch_id
+            .as_deref()
+            .map(|value| recommendation_bounded_text(value, 80))
+            .filter(|value| !value.is_empty());
+        let source = event
+            .source
+            .as_deref()
+            .map(|value| recommendation_bounded_text(value, 32))
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| "gallery".to_string());
+        let position = event.position.map(|value| value.clamp(0, 200));
+        let dwell_ms = if event_type == "dwell" {
+            Some(event.dwell_ms.unwrap_or(0).clamp(0, 600_000))
+        } else {
+            None
+        };
+        let result = sqlx::query(
+            "INSERT OR IGNORE INTO recommendation_events(\
+                user_id, anon_id, session_id, artwork_id, batch_id, event_type, source, \
+                position, dwell_ms, created_at\
+             ) SELECT ?,?,?,?,?,?,?,?,?,? \
+               WHERE EXISTS(SELECT 1 FROM artworks WHERE id=? AND status='approved')",
+        )
+        .bind(user_id)
+        .bind(&anon_id)
+        .bind(session_id.as_deref())
+        .bind(event.artwork_id)
+        .bind(batch_id)
+        .bind(event_type)
+        .bind(source)
+        .bind(position)
+        .bind(dwell_ms)
+        .bind(&now)
+        .bind(event.artwork_id)
+        .execute(&mut *tx)
+        .await?;
+        accepted += result.rows_affected();
+    }
+    tx.commit().await?;
+
+    Ok(json_with_cookie(
+        json!({ "ok": true, "accepted": accepted }),
+        set,
+    ))
+}
+
+async fn record_recommendation_signal(
+    state: &AppState,
+    user_id: i64,
+    artwork_id: i64,
+    event_type: &str,
+) {
+    let actor_uid = crate::auth_routes::member_uid(user_id);
+    let result = sqlx::query(
+        "INSERT INTO recommendation_events(\
+            user_id, anon_id, artwork_id, event_type, source, created_at\
+         ) SELECT ?,?,?,?,?,? \
+           WHERE EXISTS(SELECT 1 FROM artworks WHERE id=? AND status='approved') \
+             AND NOT EXISTS(\
+                SELECT 1 FROM recommendation_events \
+                WHERE user_id=? AND artwork_id=? AND event_type=?\
+             )",
+    )
+    .bind(user_id)
+    .bind(&actor_uid)
+    .bind(artwork_id)
+    .bind(event_type)
+    .bind("interaction")
+    .bind(now_iso())
+    .bind(artwork_id)
+    .bind(user_id)
+    .bind(artwork_id)
+    .bind(event_type)
+    .execute(&state.pools.art)
+    .await;
+    if let Err(error) = result {
+        tracing::warn!(
+            ?error,
+            user_id,
+            artwork_id,
+            event_type,
+            "记录画廊推荐信号失败"
+        );
+    }
 }
 
 // 6. 作品详情
@@ -1021,6 +2033,7 @@ async fn get_artwork(
     headers: HeaderMap,
 ) -> AppResult<Response> {
     let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
+    let user_id = user.as_ref().map(|value| value.id);
 
     let row: Option<ArtRow> = sqlx::query_as(&format!("{SELECT_ART} WHERE a.id = ?"))
         .bind(id)
@@ -1052,6 +2065,9 @@ async fn get_artwork(
             .into_response());
     }
 
+    if status == "approved" {
+        record_artwork_view(&state, user_id, &anon_id, id).await;
+    }
     super::art_guild::record_user_event(&state, user, "browse_artwork", Some(id)).await;
 
     let mut value = map_artwork_row(&row);
@@ -1284,7 +2300,18 @@ async fn create_artwork(
             cover_disp_rel = rel_disp.clone();
             cover_orig_rel = rel_orig.clone();
         }
-        images_list.push(json!({ "path": rel_disp, "original": rel_orig }));
+        let dimension_path = disp.path.clone();
+        let dimensions =
+            tokio::task::spawn_blocking(move || haruhi_media::image_dimensions(&dimension_path))
+                .await
+                .ok()
+                .and_then(Result::ok);
+        let mut image = json!({ "path": rel_disp, "original": rel_orig });
+        if let (Some((width, height)), Some(obj)) = (dimensions, image.as_object_mut()) {
+            obj.insert("width".into(), json!(width));
+            obj.insert("height".into(), json!(height));
+        }
+        images_list.push(image);
     }
 
     let images_json = serde_json::to_string(&images_list).unwrap_or_else(|_| "[]".into());
@@ -1671,6 +2698,7 @@ async fn create_comment(
             Some(artwork_id),
         )
         .await;
+        record_recommendation_signal(&state, user.id, artwork_id, "comment").await;
         Ok(json_with_cookie(
             json!({ "ok": true, "data": {
                 "id": last_id, "artwork_id": artwork_id, "user_name": user_name,
@@ -1807,6 +2835,7 @@ async fn like_artwork(
     let (status, body) = like_target(&state, &anon_id, "artwork", id).await;
     if status.is_success() {
         super::art_guild::record_user_event(&state, Some(user), "like_artwork", Some(id)).await;
+        record_recommendation_signal(&state, user.id, id, "like").await;
     }
     Ok((status, Json(body)).into_response())
 }
@@ -1861,6 +2890,49 @@ async fn claim_anon(
 // 个人中心（需登录；一律按 author_user_id 限定为本人内容）
 // ============================================================
 
+async fn effective_creator_exhibit_ids(
+    state: &AppState,
+    author_user_id: i64,
+) -> AppResult<std::collections::HashSet<i64>> {
+    let rows: Vec<ArtRow> = sqlx::query_as(&format!(
+        "{SELECT_ART} WHERE a.author_user_id=? ORDER BY a.id DESC"
+    ))
+    .bind(author_user_id)
+    .fetch_all(&state.pools.art)
+    .await?;
+    if rows.iter().any(|row| row.exhibit_enabled.is_some()) {
+        return Ok(rows
+            .iter()
+            .filter(|row| row.exhibit_enabled == Some(1))
+            .map(|row| row.id)
+            .collect());
+    }
+
+    let mut eligible: Vec<&ArtRow> = rows
+        .iter()
+        .filter(|row| {
+            row.status.as_deref() == Some("approved")
+                && row.source_type.as_deref() == Some("personal")
+        })
+        .collect();
+    let mut stats_by_id = popularity_stats(state, PopularityRange::History).await?;
+    for row in &eligible {
+        let stats = stats_by_id.entry(row.id).or_default();
+        stats.likes = stats.likes.max(row.like_total.max(0));
+        stats.score = popularity_score(stats.views, stats.likes, stats.comments);
+    }
+    eligible.sort_by(|a, b| {
+        let a_stats = stats_by_id.get(&a.id).copied().unwrap_or_default();
+        let b_stats = stats_by_id.get(&b.id).copied().unwrap_or_default();
+        b_stats
+            .score
+            .total_cmp(&a_stats.score)
+            .then_with(|| b.like_total.cmp(&a.like_total))
+            .then_with(|| b.id.cmp(&a.id))
+    });
+    Ok(eligible.into_iter().take(3).map(|row| row.id).collect())
+}
+
 /// GET /api/art/me/artworks —— 我的作品（按 author_user_id 归属本人，分页 + 可选状态筛选）。
 /// 与公开 list_artworks 不同：不限 approved，作者能看到自己 pending/flagged/hidden 的全部作品。
 async fn my_artworks(
@@ -1895,7 +2967,27 @@ async fn my_artworks(
     }
     list_q = list_q.bind(page_size).bind(offset);
     let rows: Vec<ArtRow> = list_q.fetch_all(&state.pools.art).await?;
-    let data: Vec<Value> = rows.iter().map(map_artwork_row).collect();
+    let exhibit_ids = effective_creator_exhibit_ids(&state, user.id).await?;
+    let data: Vec<Value> = rows
+        .iter()
+        .map(|row| {
+            let mut value = map_artwork_row(row);
+            if let Some(obj) = value.as_object_mut() {
+                obj.insert(
+                    "exhibit_enabled".into(),
+                    json!(exhibit_ids.contains(&row.id)),
+                );
+                obj.insert(
+                    "exhibit_eligible".into(),
+                    json!(
+                        row.status.as_deref() == Some("approved")
+                            && row.source_type.as_deref() == Some("personal")
+                    ),
+                );
+            }
+            value
+        })
+        .collect();
 
     Ok(Json(json!({ "ok": true, "data": data, "total": total })))
 }
@@ -2022,6 +3114,67 @@ async fn update_my_artwork(
             )
                 .into_response())
         }
+    }
+
+    if let Some(exhibit_enabled) = body.get("exhibit_enabled") {
+        let Some(enabled) = exhibit_enabled.as_bool() else {
+            return Ok((
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "ok": false, "message": "展位状态格式不正确" })),
+            )
+                .into_response());
+        };
+        let eligibility: Option<(Option<String>, Option<String>)> = sqlx::query_as(
+            "SELECT status, source_type FROM artworks WHERE id=? AND author_user_id=?",
+        )
+        .bind(id)
+        .bind(user.id)
+        .fetch_optional(&state.pools.art)
+        .await?;
+        if !matches!(eligibility, Some((Some(ref status), Some(ref source))) if status == "approved" && source == "personal")
+        {
+            return Ok((
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "ok": false, "message": "仅已发布的个人作品可加入创作者展位" })),
+            )
+                .into_response());
+        }
+
+        let configured: i64 = sqlx::query_scalar(
+            "SELECT COUNT(1) FROM artworks WHERE author_user_id=? AND exhibit_enabled IS NOT NULL",
+        )
+        .bind(user.id)
+        .fetch_one(&state.pools.art)
+        .await?;
+        let defaults = if configured == 0 {
+            effective_creator_exhibit_ids(&state, user.id).await?
+        } else {
+            std::collections::HashSet::new()
+        };
+        let mut tx = state.pools.art.begin().await?;
+        if configured == 0 {
+            sqlx::query("UPDATE artworks SET exhibit_enabled=0 WHERE author_user_id=?")
+                .bind(user.id)
+                .execute(&mut *tx)
+                .await?;
+            for default_id in defaults {
+                sqlx::query(
+                    "UPDATE artworks SET exhibit_enabled=1 WHERE id=? AND author_user_id=?",
+                )
+                .bind(default_id)
+                .bind(user.id)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+        sqlx::query("UPDATE artworks SET exhibit_enabled=? WHERE id=? AND author_user_id=?")
+            .bind(if enabled { 1 } else { 0 })
+            .bind(id)
+            .bind(user.id)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        return Ok(Json(json!({ "ok": true, "exhibit_enabled": enabled })).into_response());
     }
 
     let s = |k: &str| body.get(k).and_then(|v| v.as_str());
