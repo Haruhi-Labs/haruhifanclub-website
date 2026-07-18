@@ -187,12 +187,18 @@
               {{ creatorSocial.isFollowing ? '已关注' : '关注' }}
             </button>
           </header>
-          <div v-if="creatorSequenceWorks.length" ref="creatorStrip" class="work-creator__works">
+          <div v-if="creatorTimelineWorks.length" class="work-creator__timeline-head" aria-hidden="true">
+            <span>← 更新作品</span>
+            <b>{{ creatorTimelineWorks.length }} 件公开作品</b>
+            <span>更早作品 →</span>
+          </div>
+          <div v-if="creatorTimelineWorks.length" ref="creatorStrip" class="work-creator__works">
             <button
-              v-for="item in creatorSequenceWorks"
+              v-for="item in creatorTimelineWorks"
               :key="item.id"
               type="button"
               :class="{ 'is-current': String(item.id) === String(art.id) }"
+              :aria-current="String(item.id) === String(art.id) ? 'true' : undefined"
               :title="item.title || '未命名作品'"
               :aria-label="`查看作品：${item.title || '未命名作品'}`"
               @click="openSequenceWork(item)"
@@ -363,7 +369,7 @@ const loading = ref(!initialArtwork)
 const error = ref('')
 const comments = ref([])
 const loadingComments = ref(false)
-const creatorSequenceWorks = ref([])
+const creatorTimelineWorks = ref([])
 const relatedWorks = ref([])
 const commentBody = ref('')
 const posting = ref(false)
@@ -503,7 +509,7 @@ async function loadComments(id, version) {
 async function loadDiscovery(current, version) {
   const [relatedResult, creatorResult, profileResult] = await Promise.allSettled([
     api.relatedArtworks(current.id, 8),
-    api.creatorNeighbors(current),
+    api.creatorTimeline(current),
     current.uploader_uid
       ? api.guildProfile(current.uploader_uid)
       : Promise.resolve({ social: {} }),
@@ -512,8 +518,8 @@ async function loadDiscovery(current, version) {
   relatedWorks.value = relatedResult.status === 'fulfilled'
     ? (relatedResult.value.data || []).filter((item) => String(item.id) !== String(current.id)).slice(0, 8)
     : []
-  creatorSequenceWorks.value = creatorResult.status === 'fulfilled'
-    ? (creatorResult.value.data || []).slice(0, 3)
+  creatorTimelineWorks.value = creatorResult.status === 'fulfilled'
+    ? (creatorResult.value.data || [])
     : []
   creatorSocial.value = profileResult.status === 'fulfilled'
     ? { ...creatorSocial.value, ...(profileResult.value.social || {}) }
@@ -532,7 +538,7 @@ async function loadArtwork() {
   art.value = cached
   comments.value = []
   relatedWorks.value = []
-  creatorSequenceWorks.value = []
+  creatorTimelineWorks.value = []
   creatorSocial.value = { isFollowing: false, isSelf: false, followerCount: 0 }
   commentBody.value = ''
   commentNotice.value = ''
@@ -1239,6 +1245,26 @@ button.work-metric { cursor: pointer; }
 
 .work-follow:disabled { cursor: wait; opacity: 0.64; }
 
+.work-creator__timeline-head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+  margin: 2px 2px 8px;
+  color: var(--sos-text-tertiary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.work-creator__timeline-head b {
+  color: var(--sos-text-secondary);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.work-creator__timeline-head span:last-child { text-align: right; }
+
 .work-creator__works {
   display: flex;
   gap: 8px;
@@ -1268,6 +1294,21 @@ button.work-metric { cursor: pointer; }
 .work-creator__works button.is-current {
   border-color: color-mix(in srgb, var(--sos-accent) 76%, white);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sos-accent) 18%, transparent);
+}
+
+.work-creator__works button.is-current::after {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  z-index: 2;
+  padding: 3px 6px;
+  color: white;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+  content: '当前';
+  background: var(--sos-accent);
+  border-radius: 999px;
 }
 
 .work-creator__works button > span {
