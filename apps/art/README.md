@@ -23,6 +23,8 @@ pnpm --filter @haruhi/art preview
 
 访问 `http://localhost:5201/art/`。
 
+画廊始终读取统一后端的真实数据，不提供模拟数据或只读代理模式。接口不可用时，页面显示空态或错误提示。
+
 ## 目录
 
 ```text
@@ -49,7 +51,6 @@ src/
     imageCompressor.js
     uiSound.js
     Sound.js             旧命名兼容层
-  mock/seedData.js       后端不可用时的本地兜底数据
 ```
 
 ## 功能范围
@@ -74,4 +75,4 @@ src/
 
 - Vite `base` 是 `/art/`。
 - `AdminView.vue`、`ArtworkModal.vue`、`UploadView.vue` 体量较大，改动时优先保持局部变更。
-- `galleryStore` 在接口失败时会使用 `mock/seedData.js`，排查“数据为何还能显示”时注意这层兜底。
+- 作品、公告、公会、积分和互动数据均以真实后端为唯一数据源。

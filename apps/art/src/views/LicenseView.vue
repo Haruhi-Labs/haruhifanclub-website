@@ -11,7 +11,7 @@
       </div>
       <div class="decoration">
         <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
         </svg>
       </div>
     </div>
@@ -38,9 +38,10 @@
         v-for="item in list" 
         :key="item.id" 
         class="row item-row"
-        @click="openItem(item)"
         role="button"
         tabindex="0"
+        @click="openItem(item)"
+        @keydown.enter="openItem(item)"
       >
         <div class="col-img">
           <div class="thumb-box">
@@ -71,31 +72,16 @@
       </div>
     </div>
   </div>
-
-  <!-- 
-    核心修复：
-    使用 <Teleport to="body"> 将弹窗挂载到 body 标签下。
-    这样可以跳过 .page-container 的 backdrop-filter 产生的包含块限制，
-    确保 position: fixed 能相对于整个浏览器窗口定位。
-  -->
-  <Teleport to="body">
-    <ArtworkModal
-      v-model="modalOpen"
-      :item="activeItem"
-      @close="activeItem = null"
-    />
-  </Teleport>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { api } from '../services/api.js'
-import ArtworkModal from '../components/ArtworkModal.vue'
 
+const router = useRouter()
 const list = ref([])
 const loading = ref(true)
-const modalOpen = ref(false)
-const activeItem = ref(null)
 
 // 获取数据：只拉取 source_type='personal' 的作品，然后在前端筛选有 GROUP 授权的
 async function loadData() {
@@ -135,8 +121,7 @@ function truncate(str, len) {
 }
 
 function openItem(item) {
-  activeItem.value = item
-  modalOpen.value = true
+  router.push({ name: 'artwork-detail', params: { id: item.id } })
 }
 
 onMounted(() => {

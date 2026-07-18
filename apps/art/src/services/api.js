@@ -1,4 +1,3 @@
-import { seedArtworks, seedComments } from '../mock/seedData.js'
 import { getCsrfToken, getToken, resolveUploadUrl } from '@haruhi/api-client'
 
 // 统一后端约定：
@@ -9,7 +8,6 @@ import { getCsrfToken, getToken, resolveUploadUrl } from '@haruhi/api-client'
 const API_PREFIX = '/api/art'
 // 静态资源根：后端库里存的是相对 uploads 根的路径（如 art/2025-11/x.webp）
 const ASSET_BASE = '/uploads'
-const USE_DEV_SEED_ONLY = import.meta.env.DEV && import.meta.env.VITE_ART_USE_BACKEND !== '1'
 
 function buildUrl(path, params) {
   const url = new URL(path, window.location.origin)
@@ -21,7 +19,7 @@ function buildUrl(path, params) {
   return url.pathname + url.search
 }
 
-async function request(method, path, { params, body, isForm, headers } = {}) {
+async function request(method, path, { params, body, isForm, headers, keepalive = false } = {}) {
   const url = buildUrl(path, params)
 
   // 统一 JWT：若已登录则自动带上 Bearer token（替换旧的 x-admin-password 头）
@@ -40,6 +38,7 @@ async function request(method, path, { params, body, isForm, headers } = {}) {
       ...csrfHeaders,
       ...(headers || {}),
     },
+    keepalive,
   }
 
   if (method !== 'GET' && method !== 'HEAD') {
@@ -60,7 +59,9 @@ async function request(method, path, { params, body, isForm, headers } = {}) {
     throw new Error(`HTTP ${res.status}`)
   }
 
-  if (!res.ok || data?.ok === false) throw new Error(data?.message || `HTTP ${res.status}`)
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.message || data?.error || `HTTP ${res.status}`)
+  }
   return data
 }
 
@@ -103,6 +104,22 @@ function transformArtwork(a) {
   return a
 }
 
+function transformSocialPayload(data) {
+  if (!data) return data
+  if (data.profile) data.profile.avatar_url = fixPath(data.profile.avatar_url)
+  if (Array.isArray(data.artworks)) data.artworks = data.artworks.map(transformArtwork)
+  if (Array.isArray(data.favorites)) data.favorites = data.favorites.map(transformArtwork)
+  for (const key of ['followers', 'following']) {
+    if (Array.isArray(data.social?.[key])) {
+      data.social[key] = data.social[key].map(item => ({
+        ...item,
+        avatar_url: fixPath(item.avatar_url),
+      }))
+    }
+  }
+  return data
+}
+
 function transformGuildReward(reward) {
   if (!reward) return reward
   reward.imageUrl = fixPath(reward.imageUrl)
@@ -129,14 +146,44 @@ export const api = {
     if (data.data) data.data = data.data.map(transformArtwork)
     return data
   },
-  getArtwork: async (id) => {
-    if (USE_DEV_SEED_ONLY) {
-      const data = seedArtworks.find((item) => String(item.id) === String(id))
-      return { ok: Boolean(data), data: data ? transformArtwork({ ...data }) : null }
+  recommendations: async (limit = 8) => {
+    const data = await request('GET', `${API_PREFIX}/recommendations`, { params: { limit } })
+    if (data.data) data.data = data.data.map(transformArtwork)
+    return data
+  },
+  creatorExhibits: async () => {
+    const data = await request('GET', `${API_PREFIX}/creator-exhibits`)
+    if (data.data) {
+      data.data = data.data.map(group => ({
+        ...group,
+        avatar: fixPath(group.avatar),
+        items: (group.items || []).map(transformArtwork),
+      }))
     }
+    return data
+  },
+  recordRecommendationEvents: (events, sessionId, keepalive = false) =>
+    request('POST', `${API_PREFIX}/recommendation-events`, {
+      body: { session_id: sessionId, events },
+      keepalive,
+    }),
+  getArtwork: async (id) => {
     const data = await request('GET', `${API_PREFIX}/artworks/${id}`)
     if (data.data) data.data = transformArtwork(data.data)
     return data
+  },
+  relatedArtworks: async (id, limit = 8) => {
+    const data = await request('GET', `${API_PREFIX}/artworks/${id}/related`, { params: { limit } })
+    if (data.data) data.data = data.data.map(transformArtwork)
+    return data
+  },
+  creatorNeighbors: async (current) => {
+    if (!current?.id || !current?.uploader_uid) return { ok: true, data: [] }
+    const response = await request('GET', `${API_PREFIX}/artworks/${current.id}/creator-neighbors`)
+    return {
+      ...response,
+      data: (response.data || []).map(transformArtwork),
+    }
   },
   creatorProfile: async (uid) => {
     const data = await request('GET', `${API_PREFIX}/creators/${encodeURIComponent(uid)}`)
@@ -160,16 +207,11 @@ export const api = {
 
   // Interaction
   likeArtwork: (id) => request('POST', `${API_PREFIX}/likes/artwork/${id}`, { body: {} }),
+  toggleArtworkFavorite: (id) =>
+    request('POST', `${API_PREFIX}/artworks/${id}/favorite`, { body: {} }),
   likeComment: (id) => request('POST', `${API_PREFIX}/likes/comment/${id}`, { body: {} }),
-  listComments: async (artworkId) => {
-    if (USE_DEV_SEED_ONLY) {
-      return {
-        ok: true,
-        data: seedComments.filter((item) => String(item.artwork_id) === String(artworkId)),
-      }
-    }
-    return request('GET', `${API_PREFIX}/comments`, { params: { artwork_id: artworkId } })
-  },
+  listComments: (artworkId) =>
+    request('GET', `${API_PREFIX}/comments`, { params: { artwork_id: artworkId } }),
   postComment: (body) => request('POST', `${API_PREFIX}/comments`, { body }),
 
   // Announcements（公告：公开只读 + 后台 CRUD）
@@ -201,6 +243,12 @@ export const api = {
   adminListComments: (status) => request('GET', `${API_PREFIX}/admin/comments`, { params: { status } }),
   adminUpdateCommentStatus: (id, status) => request('POST', `${API_PREFIX}/admin/comments/${id}/status`, { body: { status } }),
   adminDeleteComment: (id) => request('DELETE', `${API_PREFIX}/admin/comments/${id}`),
+  adminListProfileMessages: (status) =>
+    request('GET', `${API_PREFIX}/admin/guild/profile-messages`, { params: { status } }),
+  adminUpdateProfileMessageStatus: (id, status) =>
+    request('POST', `${API_PREFIX}/admin/guild/profile-messages/${id}/status`, {
+      body: { status },
+    }),
 
   // Admin - Creators & Points
   adminPointsLedger: (params) => request('GET', `${API_PREFIX}/admin/points-ledger`, { params }),
@@ -241,18 +289,41 @@ export const api = {
   guildMe: () => request('GET', `${API_PREFIX}/guild/me`),
   guildTerminal: async () => {
     const data = await request('GET', `${API_PREFIX}/guild/terminal`)
-    if (data.profile) data.profile.avatar_url = fixPath(data.profile.avatar_url)
-    if (Array.isArray(data.artworks)) data.artworks = data.artworks.map(transformArtwork)
-    return data
+    return transformSocialPayload(data)
   },
   guildProfile: async (uid) => {
     const data = await request('GET', `${API_PREFIX}/guild/profile/${encodeURIComponent(uid)}`)
-    if (data.profile) data.profile.avatar_url = fixPath(data.profile.avatar_url)
-    if (Array.isArray(data.artworks)) data.artworks = data.artworks.map(transformArtwork)
-    return data
+    return transformSocialPayload(data)
   },
   guildProfileArtworks: async (uid, params = {}) => {
     const data = await request('GET', `${API_PREFIX}/guild/profile/${encodeURIComponent(uid)}/artworks`, { params })
+    if (Array.isArray(data.data)) data.data = data.data.map(transformArtwork)
+    return data
+  },
+  guildProfileMessages: (uid, params = {}) =>
+    request('GET', `${API_PREFIX}/guild/profile/${encodeURIComponent(uid)}/messages`, { params }),
+  postGuildProfileMessage: (uid, body) =>
+    request('POST', `${API_PREFIX}/guild/profile/${encodeURIComponent(uid)}/messages`, {
+      body: { body },
+    }),
+  toggleGuildFollow: (uid) =>
+    request('POST', `${API_PREFIX}/guild/profile/${encodeURIComponent(uid)}/follow`, { body: {} }),
+  guildProfileConnections: async (uid, params = {}) => {
+    const data = await request(
+      'GET',
+      `${API_PREFIX}/guild/profile/${encodeURIComponent(uid)}/connections`,
+      { params },
+    )
+    if (Array.isArray(data.data)) {
+      data.data = data.data.map(item => ({
+        ...item,
+        avatar_url: fixPath(item.avatar_url),
+      }))
+    }
+    return data
+  },
+  guildProfileFavorites: async (uid, params = {}) => {
+    const data = await request('GET', `${API_PREFIX}/guild/profile/${encodeURIComponent(uid)}/favorites`, { params })
     if (Array.isArray(data.data)) data.data = data.data.map(transformArtwork)
     return data
   },

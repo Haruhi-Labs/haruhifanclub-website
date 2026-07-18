@@ -9,6 +9,7 @@ const props = defineProps({
   apiBase: { type: String, default: '/api' },
   loginPath: { type: String, default: '/login' },
   profilePath: { type: String, default: '/account' },
+  publicProfilePath: { type: String, default: '' },
   settingsPath: { type: String, default: '/account/settings' },
   home: { type: String, default: '/' },
 })
@@ -63,6 +64,10 @@ function goAccount() {
   open.value = false
   router.push(props.profilePath)
 }
+function goPublicProfile() {
+  open.value = false
+  router.push(props.publicProfilePath || props.profilePath)
+}
 function go(path) {
   open.value = false
   router.push(path)
@@ -93,15 +98,16 @@ async function logout() {
       登录 / 注册
     </button>
 
-    <!-- 已登录：点头像直达个人中心；悬浮展开快捷菜单 -->
+    <!-- 已登录：点头像/ID 直达公开个人主页；悬浮展开快捷菜单 -->
     <template v-else>
       <button
         type="button"
         class="hauth-trigger"
+        data-sos-close-drawer
         aria-haspopup="menu"
         :aria-expanded="open"
-        title="进入个人中心"
-        @click="goAccount"
+        :title="publicProfilePath ? '进入个人主页' : '进入个人中心'"
+        @click="goPublicProfile"
         @focus="openMenu"
       >
         <SosAvatar :src="user.avatar || undefined" :name="accountLabel || 'U'" size="sm" />

@@ -3,11 +3,19 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import TopBar from './components/TopBar.vue'
 import SiteFooter from './components/SiteFooter.vue'
+import ArtSpatialField from './components/ArtSpatialField.vue'
 
 const LIGHTS_OUT_KEY = 'haruhi-art-lights-out'
 const lightsOut = ref(false)
 const route = useRoute()
 const isHomeRoute = computed(() => route.path === '/')
+const atmosphereVariant = computed(() => {
+  if (['gallery', 'gallery-search', 'artwork-detail', 'announcements', 'adventurer-profile'].includes(route.name)) {
+    return 'gallery'
+  }
+  if (['upload', 'exchange', 'terminal'].includes(route.name)) return 'upload'
+  return ''
+})
 let lightsApplyFrame = 0
 let homeRouteApplyFrame = 0
 let cancelLightsPersist = null
@@ -140,19 +148,23 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="bg-layer gallery-bg"></div>
-  <div class="bg-layer gallery-mask"></div>
+  <div class="bg-layer gallery-bg" :class="{ 'is-spatial': atmosphereVariant }"></div>
+  <div class="bg-layer gallery-mask" :class="{ 'is-spatial': atmosphereVariant }"></div>
+  <ArtSpatialField v-if="atmosphereVariant" :variant="atmosphereVariant" />
 
-  <div class="app-shell sos-scope" :class="{ 'is-home-route': isHomeRoute }" data-sos-site="art">
+  <div
+    class="app-shell sos-scope"
+    :class="{ 'is-home-route': isHomeRoute, 'has-art-space': atmosphereVariant }"
+    data-sos-site="art"
+  >
     <TopBar />
 
     <main class="main" :class="{ 'is-home-route': isHomeRoute }">
-      <!-- key 用 route.path（不含 query）：画廊靠 query(?artwork/?tag/?author) 驱动弹窗与筛选并通过
-           watch 响应，绝不能因 query 变化重挂整个视图——否则会重置 imgStyle，点开作品时缩略图会闪一下
-           （contain→cover→contain）。注释须放在 KeepAlive 外，否则 KeepAlive 会被判定有多个子节点。 -->
-      <router-view v-slot="{ Component, route }">
+      <!-- key 用 route.path（不含 query）：画廊首页与搜索页都靠 query 驱动弹窗或结果分页，
+           query 变化不能重挂整个视图。注释须放在 KeepAlive 外，否则 KeepAlive 会被判定有多个子节点。 -->
+      <router-view v-slot="{ Component, route: viewRoute }">
         <KeepAlive include="HomeView">
-          <component :is="Component" :key="route.name === 'home' ? 'home' : route.path" />
+          <component :is="Component" :key="viewRoute.name === 'home' ? 'home' : viewRoute.path" />
         </KeepAlive>
       </router-view>
     </main>
@@ -178,6 +190,57 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
+}
+
+.app-shell.has-art-space {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+.gallery-bg.is-spatial {
+  top: -22vh;
+  bottom: -22vh;
+  background-size: cover;
+  background-position: center;
+  will-change: transform;
+  animation: art-spatial-backdrop-drift 34s cubic-bezier(0.42, 0, 0.3, 1) infinite alternate;
+}
+
+.gallery-mask.is-spatial {
+  top: -20vh;
+  bottom: -20vh;
+  background-image:
+    radial-gradient(circle at 18% 22%, rgba(224, 255, 248, 0.14), transparent 36%),
+    radial-gradient(circle at 82% 74%, rgba(255, 226, 211, 0.1), transparent 40%);
+  background-size: 140% 135%, 132% 142%;
+  will-change: transform;
+  animation: art-spatial-light-drift 29s ease-in-out infinite alternate;
+}
+
+@keyframes art-spatial-backdrop-drift {
+  0% {
+    transform: translate3d(calc(-1.2% + var(--art-backdrop-x, 0px)), -0.7%, 0) rotate(var(--art-backdrop-tilt, 0deg)) scale(1.08);
+  }
+  45% {
+    transform: translate3d(calc(0.8% + var(--art-backdrop-x, 0px)), 0.9%, 0) rotate(var(--art-backdrop-tilt, 0deg)) scale(1.12);
+  }
+  100% {
+    transform: translate3d(calc(1.4% + var(--art-backdrop-x, 0px)), -0.4%, 0) rotate(var(--art-backdrop-tilt, 0deg)) scale(1.09);
+  }
+}
+
+@keyframes art-spatial-light-drift {
+  0% { transform: translate3d(calc(-1.4% + var(--art-mask-x, 0px)), -0.8%, 0) scale(1.03); }
+  50% { transform: translate3d(calc(1% + var(--art-mask-x, 0px)), 1.2%, 0) scale(1.07); }
+  100% { transform: translate3d(calc(1.8% + var(--art-mask-x, 0px)), -0.4%, 0) scale(1.04); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-bg.is-spatial,
+  .gallery-mask.is-spatial {
+    animation: none;
+  }
 }
 
 .app-shell > .main {

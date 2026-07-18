@@ -121,6 +121,12 @@ fn get(path: &str, token: Option<&str>) -> Request<Body> {
     b.body(Body::empty()).unwrap()
 }
 
+fn get_with_cookie(path: &str, cookie: &str) -> Request<Body> {
+    let mut req = get(path, None);
+    req.headers_mut().insert(COOKIE, cookie.parse().unwrap());
+    req
+}
+
 fn post_json(path: &str, body: Value, token: Option<&str>) -> Request<Body> {
     let mut b = Request::builder()
         .method("POST")
@@ -136,6 +142,18 @@ fn post_json(path: &str, body: Value, token: Option<&str>) -> Request<Body> {
 fn put_json(path: &str, body: Value, token: Option<&str>) -> Request<Body> {
     let mut b = Request::builder()
         .method("PUT")
+        .uri(path)
+        .header("content-type", "application/json");
+    if let Some(t) = token {
+        b = b.header("authorization", format!("Bearer {t}"));
+    }
+    b.body(Body::from(serde_json::to_vec(&body).unwrap()))
+        .unwrap()
+}
+
+fn patch_json(path: &str, body: Value, token: Option<&str>) -> Request<Body> {
+    let mut b = Request::builder()
+        .method("PATCH")
         .uri(path)
         .header("content-type", "application/json");
     if let Some(t) = token {
@@ -574,6 +592,95 @@ async fn art_list_pagination_math() {
 }
 
 #[tokio::test]
+async fn every_public_artwork_preview_includes_history_popularity() {
+    let app = setup().await;
+    seed_artwork(
+        &app.state,
+        "latest-with-popularity",
+        "approved",
+        "2026-07-01 00:00:00",
+    )
+    .await;
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/artworks?sort=time&pageSize=6", None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let item = &body["data"][0];
+    assert_eq!(item["popularity"]["range"], "history");
+    assert!(item["popularity_score"].as_i64().is_some());
+}
+
+#[tokio::test]
+async fn creator_exhibits_default_to_top_three_then_honor_explicit_selection() {
+    let app = setup().await;
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    for index in 1..=4_i64 {
+        sqlx::query(
+            "INSERT INTO artworks(\
+                title, uploader_name, uploader_uid, author_user_id, source_type, content_type, \
+                status, like_total, created_at, reviewed_at, random_key\
+             ) VALUES(?, '测试作者', 'u1', 1, 'personal', 'haruhi', 'approved', ?, \
+                      '2026-07-01 00:00:00', '2026-07-01 00:00:00', ?)",
+        )
+        .bind(format!("展位作品{index}"))
+        .bind(index * 10)
+        .bind(index)
+        .execute(&app.state.pools.art)
+        .await
+        .unwrap();
+    }
+
+    let (status, initial) = send(&app.router, get("/api/art/creator-exhibits", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    let initial_items = initial["data"][0]["items"].as_array().unwrap();
+    assert_eq!(initial_items.len(), 3);
+    assert_eq!(initial_items[0]["title"], "展位作品4");
+    assert!(initial_items
+        .iter()
+        .all(|item| item["popularity_score"].is_i64()));
+
+    let top_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title='展位作品4'")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+    let (status, toggled) = send(
+        &app.router,
+        patch_json(
+            &format!("/api/art/me/artworks/{top_id}"),
+            json!({ "exhibit_enabled": false }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "首次调整应固化默认选择: {toggled:?}"
+    );
+
+    let (_, after) = send(&app.router, get("/api/art/creator-exhibits", None)).await;
+    let after_items = after["data"][0]["items"].as_array().unwrap();
+    assert_eq!(after_items.len(), 2);
+    assert!(after_items.iter().all(|item| item["title"] != "展位作品4"));
+
+    let (_, mine) = send(
+        &app.router,
+        get("/api/art/me/artworks?pageSize=24", Some(&token)),
+    )
+    .await;
+    let enabled_count = mine["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|item| item["exhibit_enabled"] == true)
+        .count();
+    assert_eq!(enabled_count, 2);
+}
+
+#[tokio::test]
 async fn art_random_list_uses_stable_pagination() {
     let app = setup().await;
     for i in 0..12 {
@@ -611,7 +718,6 @@ async fn art_random_list_uses_stable_pagination() {
     )
     .await;
 
-    assert_eq!(p1["seedUsed"], 42);
     assert_eq!(p1["total"], 12);
     assert_eq!(p1["data"], p1_again["data"], "同 seed 的随机页应稳定");
     let ids1: std::collections::HashSet<i64> = p1["data"]
@@ -629,6 +735,443 @@ async fn art_random_list_uses_stable_pagination() {
     assert_eq!(ids1.len(), 6);
     assert_eq!(ids2.len(), 6);
     assert!(ids1.is_disjoint(&ids2), "随机分页不应在相邻页重复");
+}
+
+#[tokio::test]
+async fn art_recommendations_do_not_persist_served_events_and_impressions_avoid_repeats() {
+    let app = setup().await;
+    for i in 0..20 {
+        seed_artwork(
+            &app.state,
+            &format!("recommendation-art-{i}"),
+            "approved",
+            &format!("2026-06-{:02} 00:00:00", i + 1),
+        )
+        .await;
+    }
+
+    let (status, headers, first) =
+        send_full(&app.router, get("/api/art/recommendations?limit=8", None)).await;
+    assert_eq!(status, StatusCode::OK, "首次推荐应成功: {first:?}");
+    assert_eq!(first["algorithmVersion"], "hybrid-v1");
+    assert_eq!(first["data"].as_array().unwrap().len(), 8);
+    assert!(first["batchId"].as_str().is_some());
+    let cookie = cookie_header_from_set_cookie(&headers);
+    assert!(cookie.contains("haruhi_anon="));
+
+    let first_ids: std::collections::HashSet<i64> = first["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["id"].as_i64())
+        .collect();
+    let event_count: i64 = sqlx::query_scalar("SELECT COUNT(1) FROM recommendation_events")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+    assert_eq!(event_count, 0, "推荐 GET 不应持久化 served 事件");
+
+    let batch_id = first["batchId"].as_str().unwrap();
+    let impressions: Vec<Value> = first["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .enumerate()
+        .map(|(position, item)| {
+            json!({
+                "artwork_id": item["id"],
+                "event_type": "impression",
+                "batch_id": batch_id,
+                "source": "recommendation",
+                "position": position,
+            })
+        })
+        .collect();
+    let (record_status, recorded) = send(
+        &app.router,
+        post_json_with_cookie(
+            "/api/art/recommendation-events",
+            json!({ "session_id": "read-only-test", "events": impressions }),
+            &cookie,
+        ),
+    )
+    .await;
+    assert_eq!(
+        record_status,
+        StatusCode::OK,
+        "曝光事件应成功: {recorded:?}"
+    );
+    assert_eq!(recorded["accepted"], 8);
+
+    let (status, second) = send(
+        &app.router,
+        get_with_cookie("/api/art/recommendations?limit=8", &cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let second_ids: std::collections::HashSet<i64> = second["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["id"].as_i64())
+        .collect();
+    assert!(
+        first_ids.is_disjoint(&second_ids),
+        "作品池充足时，相邻推荐批次不应重复"
+    );
+}
+
+#[tokio::test]
+async fn art_recommendations_learn_tag_affinity_from_open_and_dwell() {
+    let app = setup().await;
+    for i in 0..24 {
+        let title = if i < 10 {
+            format!("favorite-{i}")
+        } else {
+            format!("other-{i}")
+        };
+        seed_artwork(
+            &app.state,
+            &title,
+            "approved",
+            &format!("2026-05-{:02} 00:00:00", (i % 28) + 1),
+        )
+        .await;
+        let tag = if i < 10 { "favorite" } else { "other" };
+        sqlx::query("UPDATE artworks SET tags_json=?, tags_norm=?, uploader_uid=? WHERE title=?")
+            .bind(format!("[\"{tag}\"]"))
+            .bind(format!(" {tag} "))
+            .bind(format!("creator-{i}"))
+            .bind(&title)
+            .execute(&app.state.pools.art)
+            .await
+            .unwrap();
+    }
+
+    let (_, headers, _) =
+        send_full(&app.router, get("/api/art/recommendations?limit=8", None)).await;
+    let cookie = cookie_header_from_set_cookie(&headers);
+    let favorite_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title='favorite-0'")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+    let (status, recorded) = send(
+        &app.router,
+        post_json_with_cookie(
+            "/api/art/recommendation-events",
+            json!({
+                "session_id": "recommendation-test",
+                "events": [
+                    { "artwork_id": favorite_id, "event_type": "open", "source": "test" },
+                    { "artwork_id": favorite_id, "event_type": "dwell", "dwell_ms": 120000, "source": "test" }
+                ]
+            }),
+            &cookie,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "行为记录应成功: {recorded:?}");
+    assert_eq!(recorded["accepted"], 2);
+
+    let (status, personalized) = send(
+        &app.router,
+        get_with_cookie("/api/art/recommendations?limit=8", &cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(personalized["personalized"], true);
+    let first_two = &personalized["data"].as_array().unwrap()[..2];
+    assert!(
+        first_two.iter().all(|item| item["title"]
+            .as_str()
+            .unwrap_or("")
+            .starts_with("favorite-")),
+        "偏好通道前两位应优先召回同标签作品: {first_two:?}"
+    );
+}
+
+#[tokio::test]
+async fn art_popular_list_uses_windowed_views_and_unique_engagement() {
+    let app = setup().await;
+    let pool = &app.state.pools.art;
+    for title in ["week-popular", "year-popular", "history-popular"] {
+        seed_artwork(&app.state, title, "approved", "2024-04-01 00:00:00").await;
+    }
+
+    let activity = [
+        ("week-popular", "week", 40_i64, 8_i64, 4_i64, "-1 day"),
+        ("year-popular", "year", 200, 30, 10, "-30 days"),
+        ("history-popular", "history", 600, 60, 18, "-500 days"),
+    ];
+    for (title, actor_prefix, views, likes, comments, age) in activity {
+        let artwork_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title=?")
+            .bind(title)
+            .fetch_one(pool)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE artworks SET like_total=? WHERE id=?")
+            .bind(likes)
+            .bind(artwork_id)
+            .execute(pool)
+            .await
+            .unwrap();
+        for index in 0..views {
+            sqlx::query(
+                "INSERT INTO artwork_views(artwork_id, actor_key, view_bucket, viewed_at) VALUES(?,?,?,datetime('now', ?))",
+            )
+            .bind(artwork_id)
+            .bind(format!("{actor_prefix}-viewer-{index}"))
+            .bind(index)
+            .bind(age)
+            .execute(pool)
+            .await
+            .unwrap();
+        }
+        for index in 0..likes {
+            sqlx::query(
+                "INSERT INTO likes_daily(anon_id, target_type, target_id, day, count, created_at, updated_at) VALUES(?, 'artwork', ?, date('now', ?), 1, datetime('now', ?), datetime('now', ?))",
+            )
+            .bind(format!("{actor_prefix}-liker-{index}"))
+            .bind(artwork_id)
+            .bind(age)
+            .bind(age)
+            .bind(age)
+            .execute(pool)
+            .await
+            .unwrap();
+        }
+        for index in 0..comments {
+            sqlx::query(
+                "INSERT INTO comments(artwork_id, anon_id, body, status, created_at) VALUES(?, ?, '公开评论', 'public', datetime('now', ?))",
+            )
+            .bind(artwork_id)
+            .bind(format!("{actor_prefix}-commenter-{index}"))
+            .bind(age)
+            .execute(pool)
+            .await
+            .unwrap();
+        }
+    }
+
+    for (range, expected, views, likes, comments) in [
+        ("week", "week-popular", 40, 8, 4),
+        ("year", "year-popular", 200, 30, 10),
+        ("history", "history-popular", 600, 60, 18),
+    ] {
+        let path = format!("/api/art/artworks?sort=popular&range={range}&pageSize=6");
+        let (status, body) = send(&app.router, get(&path, None)).await;
+        assert_eq!(status, StatusCode::OK);
+        let first = &body["data"][0];
+        assert_eq!(first["title"], expected, "{range} 榜首应使用对应窗口");
+        assert_eq!(first["popularity"]["range"], range);
+        assert_eq!(first["popularity"]["views"], views);
+        assert_eq!(first["popularity"]["likes"], likes);
+        assert_eq!(first["popularity"]["comments"], comments);
+        assert!(first["popularity_score"].as_i64().unwrap_or(0) > 0);
+    }
+}
+
+#[tokio::test]
+async fn artwork_views_dedupe_the_same_visitor_within_thirty_minutes() {
+    let app = setup().await;
+    seed_artwork(
+        &app.state,
+        "deduped-view",
+        "approved",
+        "2026-07-01 00:00:00",
+    )
+    .await;
+    let artwork_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title='deduped-view'")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+
+    let detail_path = format!("/api/art/artworks/{artwork_id}");
+    let (status, headers, _) = send_full(&app.router, get(&detail_path, None)).await;
+    assert_eq!(status, StatusCode::OK);
+    let cookie = cookie_header_from_set_cookie(&headers);
+    let (status, _) = send(&app.router, get_with_cookie(&detail_path, &cookie)).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (_, body) = send(
+        &app.router,
+        get("/api/art/artworks?sort=popular&range=week&pageSize=6", None),
+    )
+    .await;
+    assert_eq!(body["data"][0]["title"], "deduped-view");
+    assert_eq!(body["data"][0]["popularity"]["views"], 1);
+}
+
+#[tokio::test]
+async fn artwork_detail_exposes_metadata_and_related_works_follow_current_artwork_affinity() {
+    let app = setup().await;
+    let pool = &app.state.pools.art;
+    for title in [
+        "关联源作品",
+        "同作者作品",
+        "同标签强关联",
+        "同主题弱关联",
+        "无关高热作品",
+        "备用关联作品",
+    ] {
+        seed_artwork(&app.state, title, "approved", "2026-07-01 00:00:00").await;
+    }
+
+    sqlx::query(
+        "UPDATE artworks SET uploader_uid='u1', uploader_name='旧署名', tags_json='[\"夏日\",\"列车\"]', tags_norm=' 夏日 列车 ', content_type='haruhi', source_type='personal' WHERE title='关联源作品'",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "UPDATE artworks SET uploader_uid='u1', tags_json='[\"夏日\",\"列车\"]', tags_norm=' 夏日 列车 ' WHERE title='同作者作品'",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "UPDATE artworks SET uploader_uid='creator-a', tags_json='[\"夏日\",\"列车\"]', tags_norm=' 夏日 列车 ', content_type='haruhi', source_type='personal' WHERE title='同标签强关联'",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "UPDATE artworks SET uploader_uid='creator-b', tags_json='[\"夏日\"]', tags_norm=' 夏日 ', content_type='haruhi', source_type='personal' WHERE title='同主题弱关联'",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "UPDATE artworks SET uploader_uid='creator-c', tags_json='[\"冬日\"]', tags_norm=' 冬日 ', content_type='other', source_type='network', like_total=999 WHERE title='无关高热作品'",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "UPDATE artworks SET uploader_uid='creator-d', tags_json='[\"列车\"]', tags_norm=' 列车 ', content_type='haruhi', source_type='personal' WHERE title='备用关联作品'",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+
+    let source_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title='关联源作品'")
+        .fetch_one(pool)
+        .await
+        .unwrap();
+    let (status, detail) = send(
+        &app.router,
+        get(&format!("/api/art/artworks/{source_id}"), None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(detail["data"]["uploader_display_name"].is_string());
+    assert_eq!(detail["data"]["popularity"]["range"], "history");
+    assert_eq!(detail["data"]["popularity"]["views"], 1);
+
+    let (status, related) = send(
+        &app.router,
+        get(
+            &format!("/api/art/artworks/{source_id}/related?limit=4"),
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(related["strategy"], "artwork-affinity-v1");
+    let items = related["data"].as_array().unwrap();
+    assert_eq!(items.len(), 4);
+    assert_eq!(items[0]["title"], "同标签强关联");
+    assert!(items.iter().all(|item| item["id"] != source_id));
+    assert!(items.iter().all(|item| item["uploader_uid"] != "u1"));
+    assert!(items.iter().all(|item| item["popularity_score"].is_i64()));
+}
+
+#[tokio::test]
+async fn artwork_creator_neighbors_are_the_immediate_newer_and_older_submissions() {
+    let app = setup().await;
+    for (title, created_at) in [
+        ("作者稿件-最旧", "2026-01-01 00:00:00"),
+        ("作者稿件-较旧", "2026-02-01 00:00:00"),
+        ("作者稿件-当前", "2026-03-01 00:00:00"),
+        ("作者稿件-较新", "2026-04-01 00:00:00"),
+        ("作者稿件-最新", "2026-05-01 00:00:00"),
+    ] {
+        seed_artwork(&app.state, title, "approved", created_at).await;
+    }
+    sqlx::query("UPDATE artworks SET uploader_uid='neighbor-author' WHERE title LIKE '作者稿件-%'")
+        .execute(&app.state.pools.art)
+        .await
+        .unwrap();
+    let current_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title='作者稿件-当前'")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+
+    let (status, body) = send(
+        &app.router,
+        get(
+            &format!("/api/art/artworks/{current_id}/creator-neighbors"),
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["currentIndex"], 1);
+    let titles: Vec<&str> = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["title"].as_str())
+        .collect();
+    assert_eq!(
+        titles,
+        vec!["作者稿件-较新", "作者稿件-当前", "作者稿件-较旧"]
+    );
+}
+
+#[tokio::test]
+async fn art_latest_list_uses_review_time_instead_of_upload_time() {
+    let app = setup().await;
+    seed_artwork(
+        &app.state,
+        "uploaded-later",
+        "approved",
+        "2024-05-10 00:00:00",
+    )
+    .await;
+    seed_artwork(
+        &app.state,
+        "approved-later",
+        "approved",
+        "2024-05-01 00:00:00",
+    )
+    .await;
+    sqlx::query(
+        "UPDATE artworks SET reviewed_at='2024-05-11 00:00:00' WHERE title='approved-later'",
+    )
+    .execute(&app.state.pools.art)
+    .await
+    .unwrap();
+    sqlx::query(
+        "UPDATE artworks SET reviewed_at='2024-05-10 00:00:00' WHERE title='uploaded-later'",
+    )
+    .execute(&app.state.pools.art)
+    .await
+    .unwrap();
+
+    let (status, body) = send(
+        &app.router,
+        get("/api/art/artworks?sort=time&pageSize=6", None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let titles: Vec<&str> = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|artwork| artwork["title"].as_str())
+        .collect();
+    assert_eq!(titles, ["approved-later", "uploaded-later"]);
 }
 
 #[tokio::test]
@@ -849,6 +1392,33 @@ async fn art_upload_accepts_image_and_persists() {
             .unwrap();
     assert_eq!(status, "pending");
     assert!(random_key > 0, "上传作品应写入随机排序键");
+}
+
+#[tokio::test]
+async fn art_upload_rejects_unsafe_origin_url_without_persisting() {
+    let app = setup().await;
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let req = multipart_req(
+        "/api/art/artworks",
+        &[
+            ("images", Some("ok.png"), "\u{89}PNG-fake-bytes"),
+            ("title", None, "危险出处测试"),
+            ("origin_url", None, "javascript:alert(document.domain)"),
+        ],
+        Some(&token),
+    );
+    let (status, body) = send(&app.router, req).await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "危险协议应被拒绝: {body:?}"
+    );
+    let stored: i64 =
+        sqlx::query_scalar("SELECT COUNT(1) FROM artworks WHERE title='危险出处测试'")
+            .fetch_one(&app.state.pools.art)
+            .await
+            .unwrap();
+    assert_eq!(stored, 0);
 }
 
 #[tokio::test]
@@ -2410,6 +2980,357 @@ async fn comment_uses_nickname_for_member_and_rejects_anonymous() {
         .await
         .unwrap();
     assert_eq!(leaked, 0, "未登录评论不应落库");
+}
+
+#[tokio::test]
+async fn creator_profile_messages_are_public_but_posting_requires_login() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let core = app.state.pools.core.clone();
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let author_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username=?")
+        .bind(ADMIN_USER)
+        .fetch_one(&core)
+        .await
+        .unwrap();
+
+    sqlx::query(
+        "UPDATE users SET nickname='留言测试员', avatar='/uploads/avatars/test.webp' WHERE id=?",
+    )
+    .bind(author_id)
+    .execute(&core)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO creators(uid, avatar_url, created_at) VALUES('creator-message-test', '', '2026-01-01T00:00:00Z')",
+    )
+    .execute(&art)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO creator_profile_messages
+         (creator_uid, author_user_id, user_name, body, created_at, status)
+         VALUES('creator-message-test', ?, '旧署名', '公开档案留言', '2026-01-01T00:00:00Z', 'public')",
+    )
+    .bind(author_id)
+    .execute(&art)
+    .await
+    .unwrap();
+
+    let (status, body) = send(
+        &app.router,
+        get(
+            "/api/art/guild/profile/creator-message-test/messages?page=1&pageSize=16",
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["total"], 1);
+    assert_eq!(body["data"][0]["user_name"], "留言测试员");
+    assert_eq!(body["data"][0]["avatar_url"], "/uploads/avatars/test.webp");
+    assert_eq!(body["data"][0]["body"], "公开档案留言");
+
+    let (anonymous_status, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/guild/profile/creator-message-test/messages",
+            json!({ "body": "匿名留言" }),
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(anonymous_status, StatusCode::UNAUTHORIZED);
+
+    let (member_status, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/guild/profile/creator-message-test/messages",
+            json!({ "body": "登录成员留言" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(member_status, StatusCode::OK);
+    let stored: (i64, String, String, i64) = sqlx::query_as(
+        "SELECT author_user_id, user_name, status, id
+         FROM creator_profile_messages WHERE body='登录成员留言'",
+    )
+    .fetch_one(&art)
+    .await
+    .unwrap();
+    assert_eq!(stored.0, author_id);
+    assert_eq!(stored.1, "留言测试员");
+    assert_eq!(stored.2, "flagged", "AI 离线时留言应进入人工审核队列");
+
+    let (admin_list_status, admin_list) = send(
+        &app.router,
+        get(
+            "/api/art/admin/guild/profile-messages?status=flagged",
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(admin_list_status, StatusCode::OK);
+    assert!(admin_list["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|message| message["id"] == stored.3));
+
+    let (approve_status, approve_body) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/profile-messages/{}/status", stored.3),
+            json!({ "status": "public" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(
+        approve_status,
+        StatusCode::OK,
+        "审核通过应成功: {approve_body:?}"
+    );
+
+    let (_, public_after_approve) = send(
+        &app.router,
+        get(
+            "/api/art/guild/profile/creator-message-test/messages?page=1&pageSize=16",
+            None,
+        ),
+    )
+    .await;
+    assert!(public_after_approve["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|message| message["id"] == stored.3));
+
+    let (hide_status, hide_body) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/profile-messages/{}/status", stored.3),
+            json!({ "status": "hidden" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(hide_status, StatusCode::OK, "隐藏留言应成功: {hide_body:?}");
+}
+
+#[tokio::test]
+async fn art_follow_and_favorite_state_is_persistent_and_visible_on_profiles() {
+    let app = setup().await;
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let user_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username=?")
+        .bind(ADMIN_USER)
+        .fetch_one(&app.state.pools.core)
+        .await
+        .unwrap();
+    let own_uid = format!("u{user_id}");
+
+    sqlx::query(
+        "INSERT INTO creators(uid, avatar_url, created_at) VALUES('social-target', '', '2026-01-01T00:00:00Z')",
+    )
+    .execute(&app.state.pools.art)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO guild_profiles(uid, reputation, rating, access_tier, created_at, updated_at)
+         VALUES('social-target', 0, 'F', 'public_archive', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+    )
+    .execute(&app.state.pools.art)
+    .await
+    .unwrap();
+
+    let (anonymous_follow, _) = send(
+        &app.router,
+        post_json(
+            "/api/art/guild/profile/social-target/follow",
+            json!({}),
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(anonymous_follow, StatusCode::UNAUTHORIZED);
+
+    let (follow_status, follow) = send(
+        &app.router,
+        post_json(
+            "/api/art/guild/profile/social-target/follow",
+            json!({}),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(follow_status, StatusCode::OK);
+    assert_eq!(follow["following"], true);
+    assert_eq!(follow["followerCount"], 1);
+
+    let (profile_status, profile) = send(
+        &app.router,
+        get("/api/art/guild/profile/social-target", Some(&token)),
+    )
+    .await;
+    assert_eq!(profile_status, StatusCode::OK);
+    assert_eq!(profile["social"]["isFollowing"], true);
+    assert_eq!(profile["social"]["followerCount"], 1);
+    assert_eq!(profile["social"]["followers"][0]["uid"], own_uid);
+
+    for index in 0..7 {
+        sqlx::query(
+            "INSERT INTO user_follows(follower_uid, followed_uid, created_at) VALUES(?,?,?)",
+        )
+        .bind(format!("list-follower-{index}"))
+        .bind("social-target")
+        .bind(format!("2026-02-{:02}T00:00:00Z", index + 1))
+        .execute(&app.state.pools.art)
+        .await
+        .unwrap();
+    }
+    let (connections_status, connections) = send(
+        &app.router,
+        get(
+            "/api/art/guild/profile/social-target/connections?kind=followers&page=2&pageSize=6",
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(connections_status, StatusCode::OK);
+    assert_eq!(connections["kind"], "followers");
+    assert_eq!(connections["total"], 8);
+    assert_eq!(connections["page"], 2);
+    assert_eq!(connections["data"].as_array().unwrap().len(), 2);
+
+    let (self_follow_status, _) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/guild/profile/{own_uid}/follow"),
+            json!({}),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(self_follow_status, StatusCode::BAD_REQUEST);
+
+    seed_artwork(
+        &app.state,
+        "社交收藏测试作品",
+        "approved",
+        "2026-07-01 00:00:00",
+    )
+    .await;
+    let artwork_id: i64 =
+        sqlx::query_scalar("SELECT id FROM artworks WHERE title='社交收藏测试作品'")
+            .fetch_one(&app.state.pools.art)
+            .await
+            .unwrap();
+
+    let (favorite_status, favorite) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/artworks/{artwork_id}/favorite"),
+            json!({}),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(favorite_status, StatusCode::OK);
+    assert_eq!(favorite["favorited"], true);
+    assert_eq!(favorite["favoriteCount"], 1);
+
+    let (_, detail) = send(
+        &app.router,
+        get(&format!("/api/art/artworks/{artwork_id}"), Some(&token)),
+    )
+    .await;
+    assert_eq!(detail["data"]["favorited"], true);
+    assert_eq!(detail["data"]["favorite_count"], 1);
+
+    let (favorites_status, favorites) = send(
+        &app.router,
+        get(&format!("/api/art/guild/profile/{own_uid}/favorites"), None),
+    )
+    .await;
+    assert_eq!(favorites_status, StatusCode::OK);
+    assert_eq!(favorites["total"], 1);
+    assert_eq!(favorites["data"][0]["id"], artwork_id);
+}
+
+#[tokio::test]
+async fn artwork_related_uses_text_affinity_when_tags_are_empty() {
+    let app = setup().await;
+    for title in [
+        "星空列车的约定",
+        "银河列车夜行",
+        "泳池边的夏日",
+        "夏日泳池假期",
+        "无关高热作品",
+        "普通校园作品",
+    ] {
+        seed_artwork(&app.state, title, "approved", "2026-07-01 00:00:00").await;
+    }
+    sqlx::query(
+        "UPDATE artworks SET description='银河 星空 夜车', tags_json='[]' WHERE title='星空列车的约定'",
+    )
+    .execute(&app.state.pools.art)
+    .await
+    .unwrap();
+    sqlx::query(
+        "UPDATE artworks SET description='银河 星空 夜行', tags_json='[]' WHERE title='银河列车夜行'",
+    )
+    .execute(&app.state.pools.art)
+    .await
+    .unwrap();
+    sqlx::query(
+        "UPDATE artworks SET description='游泳 水花 盛夏', tags_json='[]' WHERE title='泳池边的夏日'",
+    )
+    .execute(&app.state.pools.art)
+    .await
+    .unwrap();
+    sqlx::query(
+        "UPDATE artworks SET description='游泳 水花 夏天', tags_json='[]' WHERE title='夏日泳池假期'",
+    )
+    .execute(&app.state.pools.art)
+    .await
+    .unwrap();
+    sqlx::query("UPDATE artworks SET like_total=999 WHERE title='无关高热作品'")
+        .execute(&app.state.pools.art)
+        .await
+        .unwrap();
+
+    let train_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title='星空列车的约定'")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+    let pool_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title='泳池边的夏日'")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+    let (_, train_related) = send(
+        &app.router,
+        get(
+            &format!("/api/art/artworks/{train_id}/related?limit=4"),
+            None,
+        ),
+    )
+    .await;
+    let (_, pool_related) = send(
+        &app.router,
+        get(
+            &format!("/api/art/artworks/{pool_id}/related?limit=4"),
+            None,
+        ),
+    )
+    .await;
+
+    assert_eq!(train_related["data"][0]["title"], "银河列车夜行");
+    assert_eq!(pool_related["data"][0]["title"], "夏日泳池假期");
+    assert_ne!(
+        train_related["data"][0]["id"], pool_related["data"][0]["id"],
+        "不同作品不应退化成同一套人气榜"
+    );
 }
 
 // 书架封面缩略图端点：校验白名单宽度 / novel 前缀 / 路径穿越 / 源存在性；

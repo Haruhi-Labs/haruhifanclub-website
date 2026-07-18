@@ -1254,7 +1254,9 @@ async fn my_articles(State(state): State<AppState>, user: AuthUser) -> AppResult
 /// GET /api/news/me/points —— 我的团报积分（应援积分：余额 + 历史）。账户键取 "u{id}"。
 async fn my_points(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     let uid = crate::auth_routes::member_uid(user.id);
-    let names = crate::modules::art::member_display_names(&state.pools.core, &[uid.clone()]).await;
+    let names =
+        crate::modules::art::member_display_names(&state.pools.core, std::slice::from_ref(&uid))
+            .await;
     let nickname = names.get(&uid).cloned();
     let row: Option<(String, Option<i64>)> = sqlx::query_as(
         "SELECT id, CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total FROM users WHERE id = ?",

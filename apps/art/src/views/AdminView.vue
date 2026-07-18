@@ -44,7 +44,7 @@
           :class="['nav-item', mainTab === 'comments' && 'active']"
           @click="mainTab = 'comments'"
         >
-          💬 评论管理
+          💬 评论与留言
         </button>
         <button :class="['nav-item', mainTab === 'guild' && 'active']" @click="mainTab = 'guild'">
           ⚔️ 公会系统
@@ -342,9 +342,21 @@
             >
               全部评论
             </button>
+            <button
+              :class="['sub-tab', commentTab === 'profilePending' && 'on']"
+              @click="switchCommentTab('profilePending')"
+            >
+              留言待复核
+            </button>
+            <button
+              :class="['sub-tab', commentTab === 'profileAll' && 'on']"
+              @click="switchCommentTab('profileAll')"
+            >
+              全部主页留言
+            </button>
           </div>
 
-          <div class="toolbar" v-if="commentTab === 'all'">
+          <div class="toolbar" v-if="commentTab === 'all' || commentTab === 'profileAll'">
             <input
               v-model="commentSearch"
               class="input sm comment-search"
@@ -365,13 +377,12 @@
                 <div class="u-time">{{ new Date(c.created_at).toLocaleString() }}</div>
               </div>
               <div class="col-content">
+                <div v-if="isProfileMessageTab" class="u-time">留言给 @{{ c.creator_uid }}</div>
                 <div class="body-text">{{ c.body }}</div>
                 <div v-if="c.ai_reason" class="ai-reason-mini">🤖 {{ c.ai_reason }}</div>
               </div>
               <div class="col-status">
-                <span :class="['badge-mini', c.status]">{{
-                  c.status === 'flagged' ? 'AI锁定' : c.status === 'hidden' ? '隐藏' : '正常'
-                }}</span>
+                <span :class="['badge-mini', c.status]">{{ moderationStatusLabel(c.status) }}</span>
               </div>
               <div class="col-action actions-flex">
                 <button
@@ -382,13 +393,21 @@
                   通过
                 </button>
                 <button
-                  v-if="c.status === 'public'"
+                  v-if="isProfileMessageTab && c.status !== 'hidden'"
+                  class="btn-mini warn"
+                  @click="updateComment(c, 'hidden')"
+                >
+                  隐藏
+                </button>
+                <button
+                  v-if="!isProfileMessageTab && c.status === 'public'"
                   class="btn-mini warn"
                   @click="updateComment(c, 'flagged')"
                 >
                   锁定
                 </button>
                 <button
+                  v-if="!isProfileMessageTab"
                   class="trash-btn"
                   type="button"
                   title="删除"
@@ -413,10 +432,9 @@
                   <div class="u-name">{{ c.user_name }}</div>
                   <div class="u-time">{{ new Date(c.created_at).toLocaleString() }}</div>
                 </div>
-                <span :class="['badge-mini', c.status]">{{
-                  c.status === 'flagged' ? 'AI锁定' : c.status === 'hidden' ? '隐藏' : '正常'
-                }}</span>
+                <span :class="['badge-mini', c.status]">{{ moderationStatusLabel(c.status) }}</span>
               </div>
+              <div v-if="isProfileMessageTab" class="u-time">留言给 @{{ c.creator_uid }}</div>
               <div class="body-text">{{ c.body }}</div>
               <div v-if="c.ai_reason" class="ai-reason-mini">🤖 {{ c.ai_reason }}</div>
               <div class="comment-card-actions">
@@ -428,13 +446,21 @@
                   通过
                 </button>
                 <button
-                  v-if="c.status === 'public'"
+                  v-if="isProfileMessageTab && c.status !== 'hidden'"
+                  class="btn-mini warn"
+                  @click="updateComment(c, 'hidden')"
+                >
+                  隐藏
+                </button>
+                <button
+                  v-if="!isProfileMessageTab && c.status === 'public'"
                   class="btn-mini warn"
                   @click="updateComment(c, 'flagged')"
                 >
                   锁定
                 </button>
                 <button
+                  v-if="!isProfileMessageTab"
                   class="trash-btn"
                   type="button"
                   title="删除"
@@ -1720,7 +1746,7 @@
                     v-for="artwork in item.submittedArtworks"
                     :key="artwork.id"
                     class="guild-claim-artwork"
-                    :href="`/gallery?artwork=${artwork.id}`"
+                    :href="`/artwork/${artwork.id}`"
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -2204,7 +2230,7 @@
                     v-for="artwork in item.submittedArtworks"
                     :key="artwork.id"
                     class="guild-claim-artwork"
-                    :href="`/gallery?artwork=${artwork.id}`"
+                    :href="`/artwork/${artwork.id}`"
                     target="_blank"
                     rel="noopener"
                   >
@@ -2818,13 +2844,14 @@ const isCreatorModified = computed(() => {
 
 // 计算属性：过滤后的评论
 const filteredComments = computed(() => {
-  if (commentTab.value === 'pending') return comments.value
+  if (commentTab.value === 'pending' || commentTab.value === 'profilePending') return comments.value
   if (!commentSearch.value) return comments.value
   const q = commentSearch.value.toLowerCase()
   return comments.value.filter(
     (c) => c.body.toLowerCase().includes(q) || c.user_name.toLowerCase().includes(q)
   )
 })
+const isProfileMessageTab = computed(() => commentTab.value.startsWith('profile'))
 
 // --- 核心方法 ---
 
@@ -2956,14 +2983,26 @@ async function saveEdit(it) {
 async function switchCommentTab(t) {
   commentTab.value = t
   commentSearch.value = ''
-  const statusParam = t === 'pending' ? 'flagged' : 'all'
-  const res = await api.adminListComments(statusParam)
-  comments.value = res.data
+  const statusParam = t === 'pending' || t === 'profilePending' ? 'flagged' : 'all'
+  const res = t.startsWith('profile')
+    ? await api.adminListProfileMessages(statusParam)
+    : await api.adminListComments(statusParam)
+  comments.value = res.data || []
 }
 
 async function updateComment(c, status) {
-  await api.adminUpdateCommentStatus(c.id, status)
+  if (isProfileMessageTab.value) {
+    await api.adminUpdateProfileMessageStatus(c.id, status)
+  } else {
+    await api.adminUpdateCommentStatus(c.id, status)
+  }
   switchCommentTab(commentTab.value)
+}
+
+function moderationStatusLabel(status) {
+  if (status === 'flagged') return 'AI锁定'
+  if (status === 'hidden') return '隐藏'
+  return '正常'
 }
 
 async function deleteComment(c) {

@@ -91,27 +91,8 @@
                       class="sos-input"
                       v-model="tagDraft"
                       placeholder="输入标签后回车或点添加"
-                      @focus="showTagSuggestions = true"
-                      @blur="hideTagSuggestions"
                       @keydown.enter.prevent="addTag"
                     />
-                    <div v-if="showTagSuggestions && suggestedTags.length" class="upload-suggest">
-                      <div class="upload-suggest__head">
-                        <span>{{ tagDraft.trim() ? '匹配标签' : '推荐标签' }}</span>
-                        <small>来自画廊</small>
-                      </div>
-                      <button
-                        v-for="item in suggestedTags"
-                        :key="item.name"
-                        type="button"
-                        class="upload-suggest__item"
-                        @mousedown.prevent="pickSuggestedTag(item.name)"
-                        data-sfx="click"
-                      >
-                        <span>#{{ item.name }}</span>
-                        <em>{{ item.count }} 件</em>
-                      </button>
-                    </div>
                   </div>
                   <button class="sos-button sos-button--secondary" type="button" @click="addTag" :disabled="!tagDraft.trim()" data-sfx="click">添加</button>
                 </div>
@@ -223,7 +204,6 @@ import { api } from '../services/api'
 import { compressToWebP } from '../utils/imageCompressor.js'
 import { useSession } from '@haruhi/auth-ui'
 import { saveUploadDraft, takeUploadDraft, clearUploadDraft } from '../composables/uploadDraft.js'
-import { seedArtworks } from '../mock/seedData.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -255,7 +235,6 @@ const description = ref('')
 
 const tagDraft = ref('')
 const tags = ref([])
-const showTagSuggestions = ref(false)
 
 const sourceType = ref('personal')
 const contentType = ref('haruhi')
@@ -277,33 +256,6 @@ const submitButtonLabel = computed(() => {
   if (submitting.value) return statusMsg.value
   if (!isLoggedIn.value) return '登录后提交作品'
   return '🚀 确认并提交'
-})
-
-const galleryTagStats = computed(() => {
-  // 标签热度建议仅本地开发用 seed 统计；生产返回空（不展示假数据，seedArtworks 引用被 tree-shake
-  // 出生产包）。后续如需真实建议，可另接后端标签统计接口。
-  if (!import.meta.env.DEV) return []
-  const counts = new Map()
-  for (const artwork of seedArtworks) {
-    for (const tag of artwork.tags || []) {
-      const name = normalizeOneTag(tag)
-      if (!name) continue
-      counts.set(name, (counts.get(name) || 0) + 1)
-    }
-  }
-
-  return Array.from(counts.entries())
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'zh-Hans-CN'))
-})
-
-const suggestedTags = computed(() => {
-  const query = normalizeOneTag(tagDraft.value).toLowerCase()
-  const selected = new Set(tags.value.map(tag => tag.toLowerCase()))
-  return galleryTagStats.value
-    .filter(item => !selected.has(item.name.toLowerCase()))
-    .filter(item => !query || item.name.toLowerCase().includes(query))
-    .slice(0, 8)
 })
 
 onMounted(() => {
@@ -424,19 +376,9 @@ function addTag(){
   const exists = tags.value.some(x => x.toLowerCase() === key)
   if(!exists) tags.value.push(t)
   tagDraft.value = ''
-  showTagSuggestions.value = true
 }
 function removeTag(t){ tags.value = tags.value.filter(x => x !== t) }
 function clearTags(){ tags.value = []; tagDraft.value = '' }
-function pickSuggestedTag(tag){
-  tagDraft.value = tag
-  addTag()
-}
-function hideTagSuggestions(){
-  window.setTimeout(() => {
-    showTagSuggestions.value = false
-  }, 120)
-}
 
 watch(sourceType, (v) => {
   if(v !== 'personal'){
@@ -726,44 +668,6 @@ async function submit(){
   flex: 1;
   min-width: 0;
 }
-.upload-suggest {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  background: #fff;
-  border: 1px solid var(--sos-border-default, rgba(0, 0, 0, 0.1));
-  border-radius: 14px;
-  box-shadow: 0 18px 42px -16px rgba(20, 40, 50, 0.34);
-  padding: 8px;
-  max-height: 290px;
-  overflow: auto;
-}
-.upload-suggest__head {
-  display: flex;
-  justify-content: space-between;
-  padding: 4px 8px 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--upl-muted);
-}
-.upload-suggest__item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 8px 10px;
-  border: none;
-  background: transparent;
-  border-radius: 9px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--upl-text);
-}
-.upload-suggest__item:hover { background: var(--upl-accent-soft); }
-.upload-suggest__item em { font-style: normal; color: var(--upl-muted); font-size: 11.5px; }
-
 .upload-tags {
   display: flex;
   flex-wrap: wrap;

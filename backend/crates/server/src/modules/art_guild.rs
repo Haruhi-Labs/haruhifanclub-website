@@ -130,12 +130,43 @@ struct ArtworkRewardSnapshot {
     reputation_award: i64,
 }
 
+#[derive(sqlx::FromRow)]
+struct CreatorProfileMessageRow {
+    id: i64,
+    creator_uid: String,
+    author_user_id: i64,
+    user_name: String,
+    body: String,
+    created_at: String,
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/guild/me", get(guild_me))
         .route("/guild/terminal", get(guild_terminal))
         .route("/guild/profile/{uid}", get(guild_profile))
         .route("/guild/profile/{uid}/artworks", get(guild_profile_artworks))
+        .route("/guild/profile/{uid}/follow", post(toggle_guild_follow))
+        .route(
+            "/guild/profile/{uid}/connections",
+            get(guild_profile_connections),
+        )
+        .route(
+            "/guild/profile/{uid}/favorites",
+            get(guild_profile_favorites),
+        )
+        .route(
+            "/guild/profile/{uid}/messages",
+            get(guild_profile_messages).post(create_guild_profile_message),
+        )
+        .route(
+            "/admin/guild/profile-messages",
+            get(admin_guild_profile_messages),
+        )
+        .route(
+            "/admin/guild/profile-messages/{id}/status",
+            post(admin_guild_profile_message_status),
+        )
         .route("/guild/quests", get(guild_quests))
         .route("/guild/quests/{id}/claim", post(guild_claim_quest))
         .route(
@@ -430,6 +461,8 @@ async fn guild_terminal(State(state): State<AppState>, user: AuthUser) -> AppRes
     let redemptions = redemptions_for_uid(&state, &uid).await?;
     let applications = applications_for_uid(&state, &uid).await?;
     let user_profile = user_profile_value(&state, user.id).await?;
+    let social = profile_social_value(&state, &uid, Some(&uid)).await?;
+    let favorites = favorites_for_uid(&state, &uid, 24).await?;
 
     Ok(Json(json!({
         "ok": true,
@@ -441,22 +474,33 @@ async fn guild_terminal(State(state): State<AppState>, user: AuthUser) -> AppRes
         "reputationHistory": reputation,
         "claims": claims,
         "redemptions": redemptions,
-        "ratingApplications": applications
+        "ratingApplications": applications,
+        "social": social,
+        "favorites": favorites
     })))
 }
 
 async fn guild_profile(
     State(state): State<AppState>,
     Path(uid): Path<String>,
+    user: Option<AuthUser>,
 ) -> AppResult<Json<Value>> {
     // 公开资料：只读，不为任意被访问的 uid 建档（避免未登录 GET 污染 guild_profiles）。
     let uid = normalize_uid(&uid)?;
     let profile = profile_value(&state, &uid, false).await?;
     let stats = artwork_stats(&state, &uid, false).await?;
     let artworks = artworks_for_uid(&state, &uid, false, 18).await?;
-    Ok(Json(
-        json!({ "ok": true, "profile": profile, "stats": stats, "artworks": artworks }),
-    ))
+    let viewer_uid = user.as_ref().map(|viewer| uid_for_user(viewer.id));
+    let social = profile_social_value(&state, &uid, viewer_uid.as_deref()).await?;
+    let favorites = favorites_for_uid(&state, &uid, 18).await?;
+    Ok(Json(json!({
+        "ok": true,
+        "profile": profile,
+        "stats": stats,
+        "artworks": artworks,
+        "social": social,
+        "favorites": favorites
+    })))
 }
 
 async fn guild_profile_artworks(
@@ -468,6 +512,404 @@ async fn guild_profile_artworks(
     let limit = clamp_query_i64(q.get("limit"), 6, 60, 24);
     let artworks = artworks_for_uid(&state, &uid, false, limit).await?;
     Ok(Json(json!({ "ok": true, "data": artworks })))
+}
+
+async fn toggle_guild_follow(
+    State(state): State<AppState>,
+    Path(uid): Path<String>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    let followed_uid = normalize_uid(&uid)?;
+    let follower_uid = ensure_profile_for_user(&state, &user).await?;
+    if follower_uid == followed_uid {
+        return Err(AppError::bad_request("不能关注自己"));
+    }
+
+    let target_exists: i64 = sqlx::query_scalar(
+        "SELECT CASE WHEN EXISTS(SELECT 1 FROM guild_profiles WHERE uid=?)
+           OR EXISTS(SELECT 1 FROM creators WHERE uid=?)
+           OR EXISTS(SELECT 1 FROM artworks WHERE uploader_uid=? AND status='approved')
+         THEN 1 ELSE 0 END",
+    )
+    .bind(&followed_uid)
+    .bind(&followed_uid)
+    .bind(&followed_uid)
+    .fetch_one(&state.pools.art)
+    .await?;
+    if target_exists == 0 {
+        return Err(AppError::not_found("用户档案不存在"));
+    }
+
+    let mut tx = state.pools.art.begin().await?;
+    let exists: Option<i64> =
+        sqlx::query_scalar("SELECT 1 FROM user_follows WHERE follower_uid=? AND followed_uid=?")
+            .bind(&follower_uid)
+            .bind(&followed_uid)
+            .fetch_optional(&mut *tx)
+            .await?;
+    let following = if exists.is_some() {
+        sqlx::query("DELETE FROM user_follows WHERE follower_uid=? AND followed_uid=?")
+            .bind(&follower_uid)
+            .bind(&followed_uid)
+            .execute(&mut *tx)
+            .await?;
+        false
+    } else {
+        sqlx::query(
+            "INSERT INTO user_follows(follower_uid, followed_uid, created_at) VALUES(?,?,?)",
+        )
+        .bind(&follower_uid)
+        .bind(&followed_uid)
+        .bind(now_iso())
+        .execute(&mut *tx)
+        .await?;
+        true
+    };
+    let follower_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(1) FROM user_follows WHERE followed_uid=?")
+            .bind(&followed_uid)
+            .fetch_one(&mut *tx)
+            .await?;
+    tx.commit().await?;
+
+    Ok(Json(json!({
+        "ok": true,
+        "following": following,
+        "followerCount": follower_count
+    })))
+}
+
+async fn guild_profile_favorites(
+    State(state): State<AppState>,
+    Path(uid): Path<String>,
+    Query(q): Query<std::collections::HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    let uid = normalize_uid(&uid)?;
+    let limit = clamp_query_i64(q.get("limit"), 6, 60, 24);
+    let data = favorites_for_uid(&state, &uid, limit).await?;
+    let total = favorite_count_for_uid(&state, &uid).await?;
+    Ok(Json(json!({ "ok": true, "data": data, "total": total })))
+}
+
+async fn guild_profile_connections(
+    State(state): State<AppState>,
+    Path(uid): Path<String>,
+    Query(q): Query<std::collections::HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    let uid = normalize_uid(&uid)?;
+    let kind = q.get("kind").map(String::as_str).unwrap_or("followers");
+    let (count_sql, list_sql) = match kind {
+        "followers" => (
+            "SELECT COUNT(1) FROM user_follows WHERE followed_uid=?",
+            "SELECT follower_uid FROM user_follows WHERE followed_uid=? ORDER BY datetime(created_at) DESC, follower_uid ASC LIMIT ? OFFSET ?",
+        ),
+        "following" => (
+            "SELECT COUNT(1) FROM user_follows WHERE follower_uid=?",
+            "SELECT followed_uid FROM user_follows WHERE follower_uid=? ORDER BY datetime(created_at) DESC, followed_uid ASC LIMIT ? OFFSET ?",
+        ),
+        _ => return Err(AppError::bad_request("kind 仅支持 followers 或 following")),
+    };
+    let page = clamp_query_i64(q.get("page"), 1, 9999, 1);
+    let page_size = clamp_query_i64(q.get("pageSize"), 6, 60, 24);
+    let offset = (page - 1) * page_size;
+    let total: i64 = sqlx::query_scalar(count_sql)
+        .bind(&uid)
+        .fetch_one(&state.pools.art)
+        .await?;
+    let uids: Vec<String> = sqlx::query_scalar(list_sql)
+        .bind(&uid)
+        .bind(page_size)
+        .bind(offset)
+        .fetch_all(&state.pools.art)
+        .await?;
+    let data = social_profile_cards(&state, &uids).await?;
+    Ok(Json(json!({
+        "ok": true,
+        "kind": kind,
+        "data": data,
+        "total": total,
+        "page": page,
+        "pageSize": page_size
+    })))
+}
+
+async fn guild_profile_messages(
+    State(state): State<AppState>,
+    Path(uid): Path<String>,
+    Query(q): Query<std::collections::HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    let uid = normalize_uid(&uid)?;
+    let page = clamp_query_i64(q.get("page"), 1, 9999, 1);
+    let page_size = clamp_query_i64(q.get("pageSize"), 6, 40, 16);
+    let offset = (page - 1) * page_size;
+
+    let total: i64 = sqlx::query_scalar(
+        "SELECT COUNT(1) FROM creator_profile_messages WHERE creator_uid=? AND status='public'",
+    )
+    .bind(&uid)
+    .fetch_one(&state.pools.art)
+    .await?;
+    let rows: Vec<CreatorProfileMessageRow> = sqlx::query_as(
+        "SELECT id, creator_uid, author_user_id, user_name, body, created_at
+         FROM creator_profile_messages
+         WHERE creator_uid=? AND status='public'
+         ORDER BY datetime(created_at) DESC, id DESC LIMIT ? OFFSET ?",
+    )
+    .bind(&uid)
+    .bind(page_size)
+    .bind(offset)
+    .fetch_all(&state.pools.art)
+    .await?;
+    let authors = creator_message_authors(&state, &rows).await?;
+    let data: Vec<Value> = rows
+        .into_iter()
+        .map(|row| {
+            let (user_name, avatar_url) = authors
+                .get(&row.author_user_id)
+                .cloned()
+                .unwrap_or((row.user_name, None));
+            json!({
+                "id": row.id,
+                "creator_uid": row.creator_uid,
+                "author_user_id": row.author_user_id,
+                "user_name": user_name,
+                "avatar_url": avatar_url,
+                "body": row.body,
+                "created_at": row.created_at,
+            })
+        })
+        .collect();
+
+    Ok(Json(json!({
+        "ok": true,
+        "data": data,
+        "total": total,
+        "page": page,
+        "pageSize": page_size,
+    })))
+}
+
+async fn create_guild_profile_message(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(uid): Path<String>,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    let uid = normalize_uid(&uid)?;
+    let creator_exists: i64 = sqlx::query_scalar(
+        "SELECT CASE WHEN
+           EXISTS(SELECT 1 FROM creators WHERE uid=?) OR
+           EXISTS(SELECT 1 FROM guild_profiles WHERE uid=?) OR
+           EXISTS(SELECT 1 FROM artworks WHERE uploader_uid=? AND status='approved')
+         THEN 1 ELSE 0 END",
+    )
+    .bind(&uid)
+    .bind(&uid)
+    .bind(&uid)
+    .fetch_one(&state.pools.art)
+    .await?;
+    if creator_exists == 0 {
+        return Err(AppError::bad_request("创作者档案不存在"));
+    }
+
+    let user_name = crate::auth_routes::require_verified_member(&state.pools.core, &user).await?;
+    let message = body
+        .get("body")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .unwrap_or_default();
+    if message.is_empty() {
+        return Err(AppError::bad_request("留言内容不能为空"));
+    }
+    if message.chars().count() > 600 {
+        return Err(AppError::bad_request("留言不能超过 600 字"));
+    }
+
+    let too_frequent: i64 = sqlx::query_scalar(
+        "SELECT COUNT(1) FROM creator_profile_messages
+         WHERE author_user_id=? AND datetime(created_at) >= datetime('now', '-10 seconds')",
+    )
+    .bind(user.id)
+    .fetch_one(&state.pools.art)
+    .await?;
+    if too_frequent > 0 {
+        return Err(AppError::bad_request("留言发送得太快了，请稍后再试"));
+    }
+
+    let ai = haruhi_ai::AiClient::from_config(&state.cfg);
+    let check = ai
+        .check_text(
+            haruhi_ai::ART_SYSTEM_PROMPT,
+            &format!("创作者档案留言 / {user_name}: {message}"),
+        )
+        .await;
+    let (status, ai_reason) = if !check.ok {
+        ("flagged", check.reason)
+    } else if check.reason == "AI_API_ERROR" || check.reason == "AI_OFFLINE" {
+        ("flagged", "AI服务不可用，转人工".to_string())
+    } else {
+        ("public", String::new())
+    };
+    let created_at = now_iso();
+    let id: i64 = sqlx::query_scalar(
+        "INSERT INTO creator_profile_messages
+         (creator_uid, author_user_id, user_name, body, created_at, status, ai_reason)
+         VALUES(?,?,?,?,?,?,?) RETURNING id",
+    )
+    .bind(&uid)
+    .bind(user.id)
+    .bind(&user_name)
+    .bind(message)
+    .bind(&created_at)
+    .bind(status)
+    .bind(&ai_reason)
+    .fetch_one(&state.pools.art)
+    .await?;
+
+    if status == "flagged" {
+        let snippet: String = message.chars().take(40).collect();
+        crate::notify::ai_flagged(
+            &state,
+            "art",
+            "创作者留言",
+            &format!("{user_name}：{snippet}"),
+            &id.to_string(),
+            &ai_reason,
+        );
+        return Ok(Json(json!({
+            "ok": true,
+            "flagged": true,
+            "message": "留言已提交，正在等待审核",
+        })));
+    }
+
+    Ok(Json(json!({
+        "ok": true,
+        "data": {
+            "id": id,
+            "creator_uid": uid,
+            "author_user_id": user.id,
+            "user_name": user_name,
+            "body": message,
+            "created_at": created_at,
+        }
+    })))
+}
+
+async fn admin_guild_profile_messages(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<std::collections::HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Read).await?;
+    let status = q.get("status").map(String::as_str).unwrap_or("flagged");
+    if !matches!(status, "all" | "public" | "flagged" | "hidden") {
+        return Err(AppError::bad_request("留言状态不正确"));
+    }
+
+    let rows: Vec<(
+        i64,
+        String,
+        i64,
+        String,
+        String,
+        String,
+        String,
+        Option<String>,
+    )> = if status == "all" {
+        sqlx::query_as(
+            "SELECT id, creator_uid, author_user_id, user_name, body, created_at, status, ai_reason
+             FROM creator_profile_messages
+             ORDER BY datetime(created_at) DESC, id DESC LIMIT 200",
+        )
+        .fetch_all(&state.pools.art)
+        .await?
+    } else {
+        sqlx::query_as(
+            "SELECT id, creator_uid, author_user_id, user_name, body, created_at, status, ai_reason
+             FROM creator_profile_messages WHERE status=?
+             ORDER BY datetime(created_at) DESC, id DESC LIMIT 200",
+        )
+        .bind(status)
+        .fetch_all(&state.pools.art)
+        .await?
+    };
+    let data: Vec<Value> = rows
+        .into_iter()
+        .map(
+            |(id, creator_uid, author_user_id, user_name, body, created_at, status, ai_reason)| {
+                json!({
+                    "id": id,
+                    "creator_uid": creator_uid,
+                    "author_user_id": author_user_id,
+                    "user_name": user_name,
+                    "body": body,
+                    "created_at": created_at,
+                    "status": status,
+                    "ai_reason": ai_reason,
+                })
+            },
+        )
+        .collect();
+    Ok(Json(json!({ "ok": true, "data": data })))
+}
+
+async fn admin_guild_profile_message_status(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Moderate).await?;
+    let status = body.get("status").and_then(Value::as_str).unwrap_or("");
+    if !matches!(status, "public" | "hidden") {
+        return Err(AppError::bad_request("留言状态仅支持 public 或 hidden"));
+    }
+    let affected = sqlx::query("UPDATE creator_profile_messages SET status=? WHERE id=?")
+        .bind(status)
+        .bind(id)
+        .execute(&state.pools.art)
+        .await?
+        .rows_affected();
+    if affected == 0 {
+        return Err(AppError::not_found("留言不存在"));
+    }
+    Ok(Json(json!({ "ok": true, "status": status })))
+}
+
+async fn creator_message_authors(
+    state: &AppState,
+    messages: &[CreatorProfileMessageRow],
+) -> AppResult<std::collections::HashMap<i64, (String, Option<String>)>> {
+    let mut ids: Vec<i64> = messages
+        .iter()
+        .map(|message| message.author_user_id)
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+    if ids.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+
+    let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!(
+        "SELECT id, nickname, username, avatar FROM users
+         WHERE id IN ({placeholders}) AND deleted_at IS NULL"
+    );
+    let mut query = sqlx::query_as::<_, (i64, Option<String>, String, Option<String>)>(&sql);
+    for id in ids {
+        query = query.bind(id);
+    }
+    let rows = query.fetch_all(&state.pools.core).await?;
+    Ok(rows
+        .into_iter()
+        .map(|(id, nickname, username, avatar)| {
+            let name = nickname
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or(username);
+            (id, (name, clean_optional_string(avatar)))
+        })
+        .collect())
 }
 
 async fn guild_quests(
@@ -3396,6 +3838,174 @@ async fn artworks_for_uid(
                     "status": status,
                     "like_total": like_total.unwrap_or(0),
                     "created_at": created_at
+                })
+            },
+        )
+        .collect())
+}
+
+async fn profile_social_value(
+    state: &AppState,
+    uid: &str,
+    viewer_uid: Option<&str>,
+) -> AppResult<Value> {
+    let follower_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(1) FROM user_follows WHERE followed_uid=?")
+            .bind(uid)
+            .fetch_one(&state.pools.art)
+            .await?;
+    let following_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(1) FROM user_follows WHERE follower_uid=?")
+            .bind(uid)
+            .fetch_one(&state.pools.art)
+            .await?;
+    let is_following = match viewer_uid.filter(|viewer| *viewer != uid) {
+        Some(viewer) => {
+            sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(1) FROM user_follows WHERE follower_uid=? AND followed_uid=?",
+            )
+            .bind(viewer)
+            .bind(uid)
+            .fetch_one(&state.pools.art)
+            .await?
+                > 0
+        }
+        None => false,
+    };
+    let follower_uids: Vec<String> = sqlx::query_scalar(
+        "SELECT follower_uid FROM user_follows WHERE followed_uid=?
+         ORDER BY datetime(created_at) DESC LIMIT 24",
+    )
+    .bind(uid)
+    .fetch_all(&state.pools.art)
+    .await?;
+    let following_uids: Vec<String> = sqlx::query_scalar(
+        "SELECT followed_uid FROM user_follows WHERE follower_uid=?
+         ORDER BY datetime(created_at) DESC LIMIT 24",
+    )
+    .bind(uid)
+    .fetch_all(&state.pools.art)
+    .await?;
+
+    Ok(json!({
+        "followerCount": follower_count,
+        "followingCount": following_count,
+        "isFollowing": is_following,
+        "isSelf": viewer_uid == Some(uid),
+        "followers": social_profile_cards(state, &follower_uids).await?,
+        "following": social_profile_cards(state, &following_uids).await?,
+    }))
+}
+
+async fn social_profile_cards(state: &AppState, uids: &[String]) -> AppResult<Vec<Value>> {
+    if uids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let names = public_display_names_for_uids(state, uids).await;
+    let placeholders = vec!["?"; uids.len()].join(",");
+    let sql = format!("SELECT uid, avatar_url FROM creators WHERE uid IN ({placeholders})");
+    let mut query = sqlx::query_as::<_, (String, Option<String>)>(&sql);
+    for uid in uids {
+        query = query.bind(uid);
+    }
+    let avatars: std::collections::HashMap<String, Option<String>> = query
+        .fetch_all(&state.pools.art)
+        .await?
+        .into_iter()
+        .collect();
+    Ok(uids
+        .iter()
+        .map(|uid| {
+            json!({
+                "uid": uid,
+                "displayName": names.get(uid).cloned().unwrap_or_else(|| uid.clone()),
+                "avatar_url": avatars.get(uid).cloned().flatten(),
+            })
+        })
+        .collect())
+}
+
+async fn profile_user_id(state: &AppState, uid: &str) -> AppResult<Option<i64>> {
+    let stored: Option<i64> = sqlx::query_scalar("SELECT user_id FROM guild_profiles WHERE uid=?")
+        .bind(uid)
+        .fetch_optional(&state.pools.art)
+        .await?
+        .flatten();
+    Ok(stored.or_else(|| user_id_from_uid(uid)))
+}
+
+async fn favorite_count_for_uid(state: &AppState, uid: &str) -> AppResult<i64> {
+    let Some(user_id) = profile_user_id(state, uid).await? else {
+        return Ok(0);
+    };
+    Ok(sqlx::query_scalar(
+        "SELECT COUNT(1) FROM artwork_favorites af
+         JOIN artworks a ON a.id=af.artwork_id
+         WHERE af.user_id=? AND a.status='approved'",
+    )
+    .bind(user_id)
+    .fetch_one(&state.pools.art)
+    .await?)
+}
+
+async fn favorites_for_uid(state: &AppState, uid: &str, limit: i64) -> AppResult<Vec<Value>> {
+    let Some(user_id) = profile_user_id(state, uid).await? else {
+        return Ok(Vec::new());
+    };
+    let rows: Vec<(
+        i64,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<i64>,
+        Option<String>,
+        String,
+    )> = sqlx::query_as(
+        "SELECT a.id, a.title, a.uploader_name, a.uploader_uid, a.source_type, a.content_type,
+                a.file_path, a.images_json, a.status, a.like_total, a.created_at, af.created_at
+         FROM artwork_favorites af JOIN artworks a ON a.id=af.artwork_id
+         WHERE af.user_id=? AND a.status='approved'
+         ORDER BY datetime(af.created_at) DESC, a.id DESC LIMIT ?",
+    )
+    .bind(user_id)
+    .bind(limit)
+    .fetch_all(&state.pools.art)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(
+            |(
+                id,
+                title,
+                uploader_name,
+                uploader_uid,
+                source_type,
+                content_type,
+                file_path,
+                images_json,
+                status,
+                like_total,
+                created_at,
+                favorited_at,
+            )| {
+                json!({
+                    "id": id,
+                    "title": title,
+                    "uploader_name": uploader_name,
+                    "uploader_uid": uploader_uid,
+                    "source_type": source_type,
+                    "content_type": content_type,
+                    "image_url": artwork_image_url(file_path.as_deref(), images_json.as_deref()),
+                    "status": status,
+                    "like_total": like_total.unwrap_or(0),
+                    "created_at": created_at,
+                    "favorited_at": favorited_at,
+                    "favorited": true,
                 })
             },
         )

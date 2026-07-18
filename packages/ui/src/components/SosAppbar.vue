@@ -7,7 +7,7 @@ withDefaults(
     /** 汉堡按钮的无障碍标签 */
     menuLabel?: string
   }>(),
-  { menuLabel: '菜单' },
+  { as: undefined, menuLabel: '菜单' },
 )
 
 // 移动端右侧抽屉开合（桌面端汉堡隐藏，open 恒为 false）
@@ -25,7 +25,11 @@ function close() {
 function onBarClick(e: MouseEvent) {
   const t = e.target as HTMLElement | null
   if (!t) return
-  if (t.closest('a') || t.closest('.sos-appbar__brand')) close()
+  if (
+    t.closest('a')
+    || t.closest('.sos-appbar__brand')
+    || t.closest('[data-sos-close-drawer]')
+  ) close()
 }
 
 function onKeydown(e: KeyboardEvent) {

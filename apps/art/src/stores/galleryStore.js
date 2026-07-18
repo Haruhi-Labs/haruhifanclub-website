@@ -1,115 +1,65 @@
 import { defineStore } from 'pinia'
 import { api } from '../services/api.js'
-import { seedArtworks } from '../mock/seedData.js'
 
-const USE_DEV_SEED_ONLY = import.meta.env.DEV && import.meta.env.VITE_ART_USE_BACKEND !== '1'
+const SECTION_KEYS = ['recommended', 'popular', 'latest', 'personal']
 
-function norm(s) { return String(s || '').toLowerCase() }
-function includesWord(hay, q) { return norm(hay).includes(norm(q)) }
-
-function filterLocal(items, { content = 'mix', sourceMode = 'all', q = '', searchField = 'all' }) {
-  let arr = items.filter(x => x.status === 'approved')
-
-  if (content === 'haruhi' || content === 'other') {
-    arr = arr.filter(x => x.content_type === content)
+function sectionParams(section, seed) {
+  const params = { status: 'approved', page: 1, pageSize: 8 }
+  if (section === 'recommended') return { ...params, sort: 'recommended', seed }
+  if (section === 'popular') return { ...params, sort: 'popular', order: 'desc', range: 'week' }
+  if (section === 'personal') {
+    return { ...params, sort: 'time', order: 'desc', source_type: 'personal' }
   }
-  // 'mix' -> no filter (show all)
-
-  if (sourceMode === 'personal' || sourceMode === 'network') {
-    arr = arr.filter(x => x.source_type === sourceMode)
-  }
-
-  const qq = String(q || '').trim()
-  if (qq) {
-    arr = arr.filter(x => {
-      const tags = Array.isArray(x.tags) ? x.tags.join(' ') : ''
-      const title = x.title || ''
-      const desc = x.description || ''
-      const uid = x.uploader_uid || ''
-      const name = x.uploader_name || ''
-
-      if (searchField === 'title') return includesWord(title, qq)
-      if (searchField === 'uid') return includesWord(uid, qq) || includesWord(name, qq)
-      if (searchField === 'tag') return includesWord(tags, qq)
-
-      return (
-        includesWord(title, qq) ||
-        includesWord(desc, qq) ||
-        includesWord(tags, qq) ||
-        includesWord(uid, qq) ||
-        includesWord(name, qq)
-      )
-    })
-  }
-
-  return arr
+  return { ...params, sort: 'time', order: 'desc' }
 }
 
-function paginate(arr, page, pageSize) {
-  const total = arr.length
-  const start = (page - 1) * pageSize
-  return { total, data: arr.slice(start, start + pageSize) }
-}
-
-// 本地稳定随机排序（fallback 用）
-function stableRandKey(id, seed) {
-  // XOR then two rounds of multiply — matches backend SQL hash
-  const xor = ((id | 0) + (seed | 0) - 2 * ((id | 0) & (seed | 0))) >>> 0
-  const h1 = Math.imul(xor, 2654435761) >>> 0
-  return (Math.imul((h1 % 2147483647) + 1, 1103515245) >>> 0) % 2147483647
-}
-
-function applyLocalSort(arr, sortMode, seed) {
-  const out = Array.isArray(arr) ? [...arr] : []
-  if (sortMode === 'likes') {
-    out.sort((a, b) => {
-      const la = Number(a?.like_total || 0)
-      const lb = Number(b?.like_total || 0)
-      if (lb !== la) return lb - la
-      const ta = String(a?.created_at || '')
-      const tb = String(b?.created_at || '')
-      if (tb !== ta) return tb.localeCompare(ta)
-      return Number(b?.id || 0) - Number(a?.id || 0)
-    })
-    return out
-  }
-  if (sortMode === 'time') {
-    out.sort((a, b) => {
-      const ta = String(a?.created_at || '')
-      const tb = String(b?.created_at || '')
-      if (tb !== ta) return tb.localeCompare(ta)
-      return Number(b?.id || 0) - Number(a?.id || 0)
-    })
-    return out
-  }
-  // random
-  out.sort((a, b) => stableRandKey(a?.id || 0, seed) - stableRandKey(b?.id || 0, seed))
-  return out
+function hasPopularityStats(items) {
+  return (items || []).some(item => (
+    item?.popularity_score !== undefined
+    || item?.popularity?.score !== undefined
+  ))
 }
 
 export const useGalleryStore = defineStore('gallery', {
   state: () => ({
     content: 'mix',
-    sourceMode: 'all', // all | personal | network （balanced 若存在会按 all 处理）
-
-    sortMode: 'time', // random | likes | time
+    sourceMode: 'all',
+    sortMode: 'recommended',
+    timeRange: 'history',
     randomSeed: Math.floor(Math.random() * 2147483647),
-
     q: '',
     searchField: 'all',
-
     page: 1,
     limit: 12,
-
     loading: false,
     error: '',
     list: [],
     total: 0,
     hasMore: false,
-
-    usingSeed: false,
-
-    reqId: 0
+    sections: {
+      recommended: [],
+      popular: [],
+      latest: [],
+      personal: [],
+    },
+    sectionsLoading: {
+      recommended: false,
+      popular: false,
+      latest: false,
+      personal: false,
+    },
+    sectionsError: '',
+    creatorExhibits: [],
+    creatorExhibitsLoading: false,
+    recommendationBatchId: '',
+    recommendationsPersonalized: false,
+    sectionReqIds: {
+      recommended: 0,
+      popular: 0,
+      latest: 0,
+      personal: 0,
+    },
+    reqId: 0,
   }),
 
   actions: {
@@ -118,10 +68,11 @@ export const useGalleryStore = defineStore('gallery', {
       if (patch.sourceMode !== undefined) this.sourceMode = patch.sourceMode
       if (patch.sortMode !== undefined) {
         this.sortMode = patch.sortMode
-        if (patch.sortMode === 'random') {
+        if (patch.sortMode === 'recommended' || patch.sortMode === 'random') {
           this.randomSeed = Math.floor(Math.random() * 2147483647)
         }
       }
+      if (patch.timeRange !== undefined) this.timeRange = patch.timeRange
       if (patch.q !== undefined) this.q = patch.q
       if (patch.searchField !== undefined) this.searchField = patch.searchField
       if (patch.page !== undefined) this.page = patch.page
@@ -132,87 +83,131 @@ export const useGalleryStore = defineStore('gallery', {
       const currentReqId = ++this.reqId
       this.loading = true
       this.error = ''
-      this.usingSeed = false
 
-      // 统一走后端排序（跨页）
       const params = {
         status: 'approved',
         q: this.q,
         searchField: this.searchField,
         page: this.page,
-        pageSize: this.limit
+        pageSize: this.limit,
       }
       if (this.content !== 'mix') params.content_type = this.content
-      // balanced 若存在按 all 处理：不传 source_type，保证全局排序正确
-      if (this.sourceMode === 'personal' || this.sourceMode === 'network') params.source_type = this.sourceMode
-      if (this.sortMode === 'likes') { params.sort = 'likes'; params.order = 'desc' }
-      else if (this.sortMode === 'time') { params.sort = 'time'; params.order = 'desc' }
-      else { params.sort = 'random'; params.seed = this.randomSeed }
-
-      const seedFallback = () => {
-        // 仅本地开发（无后端）才用 seed 假数据占位；生产绝不展示占位作品
-        const localAll = filterLocal(seedArtworks, {
-          content: this.content, sourceMode: this.sourceMode, q: this.q, searchField: this.searchField
-        })
-        const pg = paginate(applyLocalSort(localAll, this.sortMode, this.randomSeed), this.page, this.limit)
-        this.list = pg.data
-        this.total = pg.total
-        this.hasMore = (this.page * this.limit) < this.total
-        this.usingSeed = this.list.length > 0
+      if (this.sourceMode === 'personal' || this.sourceMode === 'network') {
+        params.source_type = this.sourceMode
       }
-
-      // 失败时静默重试一次，缓解移动端首屏偶发的瞬时网络失败（避免一抖动就掉到占位）
-      if (USE_DEV_SEED_ONLY) {
-        seedFallback()
-        this.loading = false
-        return
+      if (this.sortMode === 'popular' || this.sortMode === 'likes') {
+        params.sort = 'popular'
+        params.order = 'desc'
+        params.range = this.timeRange
+      } else if (this.sortMode === 'time') {
+        params.sort = 'time'
+        params.order = 'desc'
+      } else {
+        params.sort = 'recommended'
+        params.seed = this.randomSeed
       }
 
       let out = null
-      const maxAttempts = import.meta.env.DEV ? 1 : 2
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      let lastError = null
+      for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
           out = await api.artworksList(params)
+          if (params.sort === 'popular' && !hasPopularityStats(out.data)) {
+            out = await api.artworksList({ ...params, sort: 'likes', range: undefined })
+          }
           break
-        } catch (e) {
+        } catch (error) {
           if (this.reqId !== currentReqId) return
-          if (import.meta.env.DEV) {
-            seedFallback()
-            this.loading = false
-            return
-          }
-          if (attempt === 0) { await new Promise(r => setTimeout(r, 500)); continue }
-          // 两次都失败
-          console.warn('[Gallery] 作品加载失败（已重试）：', e)
-          if (import.meta.env.DEV) {
-            seedFallback()
-          } else {
-            this.list = []; this.total = 0; this.hasMore = false
-            this.error = '作品加载失败，请刷新后重试'
-          }
-          this.loading = false
-          return
+          lastError = error
+          if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 500))
         }
       }
 
       if (this.reqId !== currentReqId) return
+      if (!out) {
+        this.list = []
+        this.total = 0
+        this.hasMore = false
+        this.error = '作品加载失败，请刷新后重试'
+        this.loading = false
+        console.warn('[Gallery] 作品加载失败（已重试）：', lastError)
+        return
+      }
 
       this.list = out.data || []
       this.total = Number(out.total || 0)
       this.hasMore = (this.page * this.limit) < this.total
-
-      // 接口成功但确无已通过作品：仅本地开发用 seed 占位，生产显示真实空态
-      if (import.meta.env.DEV && this.list.length === 0 && this.page === 1 && !String(this.q || '').trim() && this.total === 0) {
-        seedFallback()
-      }
-
       this.loading = false
+    },
+
+    async loadSection(section) {
+      if (!SECTION_KEYS.includes(section)) return
+      const currentReqId = ++this.sectionReqIds[section]
+      this.sectionsLoading[section] = true
+      this.sectionsError = ''
+
+      try {
+        let out = section === 'recommended'
+          ? await api.recommendations(8)
+          : await api.artworksList(sectionParams(section, this.randomSeed))
+        if (section === 'popular' && !hasPopularityStats(out.data)) {
+          out = await api.artworksList({
+            ...sectionParams(section, this.randomSeed),
+            sort: 'likes',
+            range: undefined,
+          })
+        }
+        if (this.sectionReqIds[section] !== currentReqId) return
+        this.sections[section] = (out.data || []).slice(0, 8)
+        if (section === 'recommended') {
+          this.recommendationBatchId = out.batchId || ''
+          this.recommendationsPersonalized = Boolean(out.personalized)
+        }
+      } catch (error) {
+        if (this.sectionReqIds[section] !== currentReqId) return
+        this.sections[section] = []
+        if (section === 'recommended') {
+          this.recommendationBatchId = ''
+          this.recommendationsPersonalized = false
+        }
+        this.sectionsError = '作品加载失败，请刷新后重试'
+        console.warn(`[Gallery] ${section} 区块加载失败：`, error)
+      } finally {
+        if (this.sectionReqIds[section] === currentReqId) {
+          this.sectionsLoading[section] = false
+        }
+      }
+    },
+
+    async loadSections() {
+      await Promise.all([
+        ...SECTION_KEYS.map(section => this.loadSection(section)),
+        this.loadCreatorExhibits(),
+      ])
+    },
+
+    async loadCreatorExhibits() {
+      this.creatorExhibitsLoading = true
+      try {
+        const out = await api.creatorExhibits()
+        this.creatorExhibits = out.data || []
+      } catch (error) {
+        this.creatorExhibits = []
+        this.sectionsError = '创作者展位加载失败，请刷新后重试'
+        console.warn('[Gallery] 创作者展位加载失败：', error)
+      } finally {
+        this.creatorExhibitsLoading = false
+      }
+    },
+
+    async refreshRecommendations() {
+      this.randomSeed = Math.floor(Math.random() * 2147483647)
+      await this.loadSection('recommended')
     },
 
     async likeArtwork(item) {
       if (!item) return
       const id = Number(item.id)
-
       const oldVal = item.like_total
       item.like_total = Number(oldVal || 0) + 1
 
@@ -221,38 +216,34 @@ export const useGalleryStore = defineStore('gallery', {
         if (out && out.totalLikes !== undefined) {
           item.like_total = Number(out.totalLikes)
         }
-      } catch (e) {
+      } catch (error) {
         item.like_total = oldVal
-        console.error('Like failed:', e)
+        console.error('Like failed:', error)
       }
     },
 
     async fetchArtworkById(id) {
       if (!id) return null
 
-      // 1. Try to find in current list first
-      const existing = this.list.find(i => String(i.id) === String(id))
+      const loadedItems = [
+        ...this.list,
+        ...Object.values(this.sections).flat(),
+        ...this.creatorExhibits.flatMap(group => group.items || []),
+      ]
+      const existing = loadedItems.find(item => String(item.id) === String(id))
 
-      if (USE_DEV_SEED_ONLY) {
-        return existing || seedArtworks.find(i => String(i.id) === String(id)) || null
-      }
-
-      // 2. Fetch from API. Opening detail must hit the backend so guild browse quests can record progress.
       try {
-        const res = await api.getArtwork(id)
-        if (res.ok && res.data) {
-          // Update the list item if it exists, so the grid also gets updated info if needed
-          if (existing) {
-            Object.assign(existing, res.data)
-          }
-          return res.data
+        const response = await api.getArtwork(id)
+        if (response.ok && response.data) {
+          if (existing) Object.assign(existing, response.data)
+          return response.data
         }
-      } catch (e) {
-        console.error('Fetch specific artwork failed:', e)
+      } catch (error) {
+        console.error('Fetch specific artwork failed:', error)
       }
 
-      // Fallback: if API failed but we have existing (incomplete) item, return that
-      return existing || null
-    }
-  }
+      // 缓存只用于合并最新响应，不能在 404、撤审或网络失败时冒充权威详情。
+      return null
+    },
+  },
 })
