@@ -1720,7 +1720,7 @@
                     v-for="artwork in item.submittedArtworks"
                     :key="artwork.id"
                     class="guild-claim-artwork"
-                    :href="`/gallery?artwork=${artwork.id}`"
+                    :href="`/artwork/${artwork.id}`"
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -2204,7 +2204,7 @@
                     v-for="artwork in item.submittedArtworks"
                     :key="artwork.id"
                     class="guild-claim-artwork"
-                    :href="`/gallery?artwork=${artwork.id}`"
+                    :href="`/artwork/${artwork.id}`"
                     target="_blank"
                     rel="noopener"
                   >

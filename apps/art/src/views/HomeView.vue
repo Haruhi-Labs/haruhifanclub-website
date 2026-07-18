@@ -134,7 +134,6 @@ let pendingHaruhiBackgroundText = null
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
-import { seedArtworks } from '../mock/seedData'
 import { api, thumbUrl } from '../services/api'
 
 defineOptions({ name: 'HomeView' })
@@ -364,11 +363,6 @@ function loadVisitorNumber() {
   return visitorNumberPromise
 }
 
-// 仅本地开发用 seed 占位画带；生产为空数组（seedArtworks 引用被 tree-shake 出生产包），
-// 挂载后由 loadGalleryPool() 拉真实已通过作品填充，生产首屏画带空一瞬即被替换，绝不展示 mock。
-const approvedArtworks = import.meta.env.DEV
-  ? seedArtworks.filter((item) => item.status === 'approved')
-  : []
 const artHomeRef = ref(null)
 const lightGearDragging = ref(false)
 const lightGearDragRow = ref('top')
@@ -928,13 +922,9 @@ onBeforeUnmount(deactivateHomeView)
 
 const router = useRouter()
 
-// 首页画作来自全局绘画池：生产初始为空（approvedArtworks 仅 DEV 有值），挂载后由
-// loadGalleryPool() 拉真实已通过作品填充；本地开发无后端时回落到 seed 占位，保证齿轮不空。
-const seedGearPool = approvedArtworks
-const galleryGearPool = ref(seedGearPool)
-const lightGearSource = computed(() =>
-  galleryGearPool.value.length ? galleryGearPool.value : seedGearPool
-)
+// 首页画带只展示后端返回的真实公开作品；加载前及请求失败时保持空态。
+const galleryGearPool = ref([])
+const lightGearSource = computed(() => galleryGearPool.value)
 const lightGearCycleWidth = computed(
   () => Math.max(1, lightGearSource.value.length) * LIGHT_GEAR_TILE_STEP
 )
@@ -960,7 +950,7 @@ function makeLightGearItems(reverse, source) {
 const lightGearTopItems = computed(() => makeLightGearItems(false, lightGearSource.value))
 const lightGearBottomItems = computed(() => makeLightGearItems(true, lightGearSource.value))
 
-// 异步拉取全局绘画池（随机一批已通过作品）替换 seed 占位
+// 异步拉取全局绘画池（随机一批已通过作品）。
 async function loadGalleryPool() {
   try {
     const res = await api.artworksList({
@@ -977,15 +967,16 @@ async function loadGalleryPool() {
       // 作品数变化→齿轮带宽度变化，重测循环宽度以保持无缝轮播
       refreshLightGearLayout({ includeAll: true, measure: true })
     }
-  } catch {
-    // 无后端 / 拉取失败：保持 seed 占位，不打断首页
+  } catch (error) {
+    galleryGearPool.value = []
+    console.warn('[ArtHome] 首页作品加载失败：', error)
   }
 }
 
-// 点击画作打开其详情（复用画廊页的 ?artwork= 详情弹层）；拖拽刚结束则抑制误触
+// 点击画作进入独立详情页；拖拽刚结束仍由齿轮交互层抑制误触。
 function openGearArtwork(id) {
   if (!id) return
-  router.push({ name: 'gallery', query: { artwork: id } })
+  router.push({ name: 'artwork-detail', params: { id } })
 }
 
 </script>

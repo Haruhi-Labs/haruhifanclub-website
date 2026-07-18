@@ -10,10 +10,10 @@
       :target-row-height="270"
       :mobile-target-row-height="145"
       :gap="18"
-      randomize-row-heights
     >
       <template #default="{ item, index: position }">
         <button
+          v-depth-tilt
           class="artwork-tile"
           type="button"
           :aria-label="`查看作品：${item.title || '未命名作品'}`"
@@ -22,22 +22,24 @@
           data-sfx="click"
           @click="openArtwork(item, position)"
         >
-          <span
-            class="artwork-tile__blur"
-            :style="{ backgroundImage: `url(${imageSource(item)})` }"
-            aria-hidden="true"
-          ></span>
-          <img
-            class="artwork-tile__image"
-            :src="imageSource(item)"
-            :alt="item.title || '画廊作品'"
-            loading="lazy"
-            decoding="async"
-          />
-          <ArtworkPopularityBadge :item="item" />
-          <span class="artwork-tile__label">
-            <strong>{{ item.title || '未命名作品' }}</strong>
-            <small>{{ creatorName(item) }}</small>
+          <span class="artwork-tile__surface">
+            <span
+              class="artwork-tile__blur"
+              :style="{ backgroundImage: `url(${imageSource(item)})` }"
+              aria-hidden="true"
+            ></span>
+            <img
+              class="artwork-tile__image"
+              :src="imageSource(item)"
+              :alt="item.title || '画廊作品'"
+              loading="lazy"
+              decoding="async"
+            />
+            <ArtworkPopularityBadge :item="item" />
+            <span class="artwork-tile__label">
+              <strong>{{ item.title || '未命名作品' }}</strong>
+              <small>{{ creatorName(item) }}</small>
+            </span>
           </span>
         </button>
       </template>
@@ -51,8 +53,11 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { thumbUrl } from '../services/api.js'
 import { trackArtworkImpression, trackArtworkOpen } from '../services/recommendationTracker.js'
+import { artworkDepthDirective } from '../utils/artworkDepth.js'
 import ArtworkPopularityBadge from './ArtworkPopularityBadge.vue'
 import JustifiedArtworkGrid from './JustifiedArtworkGrid.vue'
+
+const vDepthTilt = artworkDepthDirective
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -165,29 +170,99 @@ onBeforeUnmount(() => {
 }
 
 .artwork-tile {
+  --depth-size: clamp(6px, 0.7vw, 10px);
+  --depth-rx: 0deg;
+  --depth-ry: 0deg;
+  --depth-lift: 0px;
+  --depth-scale: 1;
   position: relative;
   display: block;
   width: 100%;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
   cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  container-type: inline-size;
+  transform:
+    translate3d(0, var(--depth-lift), 0)
+    rotateX(var(--depth-rx))
+    rotateY(var(--depth-ry))
+    scale(var(--depth-scale));
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition:
+    filter 0.22s ease;
+}
+
+.artwork-tile::before,
+.artwork-tile::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(31, 55, 61, 0.96), rgba(10, 24, 29, 0.92));
+  border: 1px solid color-mix(in srgb, var(--sos-accent) 22%, rgba(5, 16, 19, 0.88));
+  backface-visibility: hidden;
+}
+
+.artwork-tile::before {
+  top: 0;
+  left: 100%;
+  width: var(--depth-size);
+  height: 100%;
+  transform: rotateY(90deg);
+  transform-origin: 0 50%;
+}
+
+.artwork-tile::after {
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: var(--depth-size);
+  transform: rotateX(-90deg);
+  transform-origin: 50% 0;
+}
+
+.artwork-tile__surface {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.56);
   border: 1px solid rgba(95, 215, 226, 0.72);
-  border-radius: 8px;
+  border-radius: inherit;
   box-shadow: 0 12px 28px -18px rgba(22, 66, 76, 0.7);
-  isolation: isolate;
-  container-type: inline-size;
-  transition:
-    transform 0.22s ease,
-    border-color 0.22s ease,
-    box-shadow 0.22s ease;
+  transform: translateZ(0.1px);
+  backface-visibility: hidden;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.artwork-tile__surface::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 3;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--depth-glare-x, 50%) var(--depth-glare-y, 50%),
+    rgba(255, 255, 255, 0.86),
+    rgba(159, 235, 240, 0.24) 20%,
+    transparent 48%
+  );
+  mix-blend-mode: soft-light;
+  opacity: var(--depth-glare-opacity, 0);
+  transition: opacity 0.2s ease;
 }
 
 .artwork-tile:hover {
   z-index: 2;
+}
+
+.artwork-tile:hover .artwork-tile__surface {
   border-color: color-mix(in srgb, var(--sos-accent) 72%, white);
-  box-shadow: 0 18px 32px -18px rgba(22, 66, 76, 0.82);
-  transform: translateY(-4px);
+  box-shadow: 0 28px 46px -24px rgba(22, 66, 76, 0.88);
 }
 
 .artwork-tile:focus-visible {
@@ -287,11 +362,18 @@ onBeforeUnmount(() => {
     gap: 10px;
   }
 
-  .artwork-tile:hover { transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .artwork-tile { transition: none; }
+  .artwork-tile { transform: none; transition: none; }
+  .artwork-tile::before,
+  .artwork-tile::after { display: none; }
   .artwork-tile.skeleton { animation: none; }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .artwork-tile { transform: none; }
+  .artwork-tile::before,
+  .artwork-tile::after { display: none; }
 }
 </style>

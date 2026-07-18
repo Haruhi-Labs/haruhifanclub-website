@@ -548,7 +548,7 @@ async fn update_profile(
 /// 把新昵称同步到各模块按 `author_user_id` 归属的署名快照（画廊作品/评论、团报文章）。
 /// 跨库无 FK，逐库 UPDATE；best-effort，失败仅记日志，不阻断资料保存。
 async fn propagate_nickname(state: &AppState, user_id: i64, nickname: &str) {
-    let targets: [(&sqlx::SqlitePool, &str); 3] = [
+    let targets: [(&sqlx::SqlitePool, &str); 4] = [
         (
             &state.pools.art,
             "UPDATE artworks SET uploader_name = ? WHERE author_user_id = ?",
@@ -556,6 +556,10 @@ async fn propagate_nickname(state: &AppState, user_id: i64, nickname: &str) {
         (
             &state.pools.art,
             "UPDATE comments SET user_name = ? WHERE author_user_id = ?",
+        ),
+        (
+            &state.pools.art,
+            "UPDATE creator_profile_messages SET user_name = ? WHERE author_user_id = ?",
         ),
         (
             &state.pools.news,

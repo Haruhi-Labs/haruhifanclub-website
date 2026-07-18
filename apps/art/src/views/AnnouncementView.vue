@@ -76,7 +76,7 @@
         </div>
       </article>
       <article v-else class="ann-detail ann-detail--empty">
-        <p>公告整理中，敬请期待。</p>
+        <p>{{ loadError || '公告整理中，敬请期待。' }}</p>
       </article>
     </div>
   </div>
@@ -88,76 +88,7 @@ import { api } from '../services/api.js'
 
 const activeCategory = ref('activity')
 const selectedNoticeId = ref(null)
-
-// 公告改为后端驱动。下方硬编码示例仅本地开发无后端时的离线预览兜底，
-// 生产构建（import.meta.env.DEV=false）会被 tree-shake 掉，绝不进生产包。
-const seedNotices = import.meta.env.DEV ? [
-  {
-    id: 'activity-20260624',
-    category: 'activity',
-    date: '2026-06-24',
-    month: '06',
-    day: '24',
-    displayDate: '2026.06.24',
-    type: '活动公告',
-    title: '夏日应援投稿周开放预告',
-    summary: '围绕暑期、社团、宇宙观测主题征集画作。',
-    body: '本地开发期间先以 mock 公告展示活动节奏。正式活动规则接入前，投稿页仍保持现有模拟数据流程，方便持续调试画廊体验。',
-    tags: ['投稿活动', '暑期主题', '本地模拟']
-  },
-  {
-    id: 'activity-20260620',
-    category: 'activity',
-    date: '2026-06-20',
-    month: '06',
-    day: '20',
-    displayDate: '2026.06.20',
-    type: '活动公告',
-    title: '积分兑换功能准备中',
-    summary: '兑换页将先用本地项目卡片展示兑换方向。',
-    body: '兑换功能目前保持本地 mock 项目，不接真实后端。后续可逐步补充库存、兑换记录、积分校验等流程。',
-    tags: ['积分', '兑换', '预告']
-  },
-  {
-    id: 'activity-20260616',
-    category: 'activity',
-    date: '2026-06-16',
-    month: '06',
-    day: '16',
-    displayDate: '2026.06.16',
-    type: '活动公告',
-    title: '画廊标签整理计划',
-    summary: '整理凉宫、社团、夏日等标签展示层级。',
-    body: '为了让作品检索更清楚，后续会基于现有 seed 数据继续调试标签分布与筛选体验，不改变 mock 数据结构。',
-    tags: ['标签', '画廊', '筛选']
-  },
-  {
-    id: 'maintenance-20260623',
-    category: 'maintenance',
-    date: '2026-06-23',
-    month: '06',
-    day: '23',
-    displayDate: '2026.06.23',
-    type: '维护公告',
-    title: '导航与夜间模式试运行',
-    summary: '顶部入口与关灯模式持续观察中。',
-    body: '新增页面入口、首页视觉模式和夜间切换仍处于本地调试阶段。若出现样式闪烁，会优先在前端交互层做小步优化。',
-    tags: ['开发中', '夜间模式', '导航']
-  },
-  {
-    id: 'maintenance-20260618',
-    category: 'maintenance',
-    date: '2026-06-18',
-    month: '06',
-    day: '18',
-    displayDate: '2026.06.18',
-    type: '维护公告',
-    title: 'mock seed 数据稳定性确认',
-    summary: '画廊、首页统计和详情弹窗继续使用本地数据。',
-    body: '当前开发优先保证 mock seed 数据可用，不依赖真实后端。画廊详情、首页统计和公告展示都应能在离线开发环境中正常打开。',
-    tags: ['mock', '本地开发', '稳定性']
-  }
-] : []
+const loadError = ref('')
 
 const categoryLabels = {
   activity: '活动公告',
@@ -187,12 +118,14 @@ function toViewNotice(a) {
 }
 
 async function loadAnnouncements() {
+  loadError.value = ''
   try {
     const res = await api.announcements()
     notices.value = Array.isArray(res?.data) ? res.data.map(toViewNotice) : []
-  } catch {
-    // 本地开发无后端：回落到示例便于预览设计；生产保持空态（不展示 mock）。
-    notices.value = seedNotices
+  } catch (error) {
+    notices.value = []
+    loadError.value = '公告加载失败，请稍后刷新重试。'
+    console.warn('[Announcements] 公告加载失败：', error)
   }
 }
 

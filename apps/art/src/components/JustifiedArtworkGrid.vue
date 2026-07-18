@@ -26,6 +26,7 @@ const props = defineProps({
   mobileTargetRowHeight: { type: Number, default: 165 },
   gap: { type: Number, default: 12 },
   mobileGap: { type: Number, default: 8 },
+  mobileBreakpoint: { type: Number, default: 640 },
   mobilePairs: { type: Boolean, default: true },
   randomizeRowHeights: { type: Boolean, default: false },
   balancedRowCount: { type: Number, default: 0 },
@@ -354,7 +355,7 @@ const layout = computed(() => {
   const width = containerWidth.value
   if (!items.length || width <= 0) return { entries: [], height: 0 }
   const ratios = items.map((_, index) => measuredRatios.value[index] || 4 / 3)
-  const mobile = width <= 640
+  const mobile = props.mobileBreakpoint > 0 && width <= props.mobileBreakpoint
   const gap = mobile ? props.mobileGap : props.gap
   let result
 
@@ -456,6 +457,8 @@ onBeforeUnmount(() => {
   position: absolute;
   min-width: 0;
   overflow: visible;
+  perspective: clamp(760px, 80vw, 1280px);
+  perspective-origin: 50% 50%;
   transition:
     left 0.28s var(--sos-ease-out),
     top 0.28s var(--sos-ease-out),

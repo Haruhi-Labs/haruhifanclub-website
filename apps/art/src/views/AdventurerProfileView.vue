@@ -25,11 +25,21 @@
             }}</span>
             <h1>{{ displayName }}</h1>
             <span class="adv-id__rating">◈ {{ profile.rating || 'F' }} 级冒险者</span>
-            <span v-if="isTerminal && userInfo.username" class="adv-id__handle"
-              >@{{ userInfo.username }}</span
-            >
+            <span v-if="isTerminal && userInfo.username" class="adv-id__handle">@{{ userInfo.username }}</span>
           </div>
         </div>
+
+        <button
+          v-if="!isTerminal && !social.isSelf"
+          type="button"
+          class="adv-profile-follow"
+          :class="{ 'is-following': social.isFollowing }"
+          :disabled="followLoading"
+          @click="toggleProfileFollow"
+        >
+          {{ social.isFollowing ? '已关注' : '关注' }}
+        </button>
+        <span v-if="socialError" class="adv-profile-follow-error">{{ socialError }}</span>
 
         <dl class="adv-id__readout">
           <div class="adv-id__row">
@@ -52,6 +62,20 @@
             <dd>
               {{ stats.total || 0
               }}<i>个人 {{ stats.personal || 0 }} / 转载 {{ stats.network || 0 }}</i>
+            </dd>
+          </div>
+          <div class="adv-id__row">
+            <dt>社交</dt>
+            <span class="adv-id__lead" aria-hidden="true"></span>
+            <dd class="adv-id__connections">
+              <button type="button" @click="openConnections('following')">
+                <b>{{ social.followingCount || 0 }}</b><i>关注</i>
+              </button>
+              <span aria-hidden="true">/</span>
+              <button type="button" @click="openConnections('followers')">
+                <b>{{ social.followerCount || 0 }}</b><i>粉丝</i>
+              </button>
+              <em class="adv-id__connections-arrow" aria-hidden="true">›</em>
             </dd>
           </div>
           <div class="adv-id__row">
@@ -174,6 +198,158 @@
           <div v-else class="adv-empty">这个冒险者还没有公开画作。</div>
         </section>
 
+        <section class="adv-panel adv-archive">
+          <header class="adv-panel__head">
+            <div>
+              <span class="adv-panel__eyebrow">Favorites</span>
+              <h2>{{ isTerminal ? '我的收藏' : '收藏作品' }}</h2>
+            </div>
+            <span class="adv-panel__meta">{{ favorites.length }} 件</span>
+          </header>
+
+          <div v-if="favorites.length" class="adv-art-grid">
+            <button
+              v-for="art in favorites"
+              :key="`favorite-${art.id}`"
+              type="button"
+              class="adv-art"
+              @click="openArtwork(art)"
+            >
+              <span class="adv-art__media">
+                <img :src="thumbUrl(art.image_url, 320)" :alt="art.title || 'artwork'" loading="lazy" />
+              </span>
+              <span class="adv-art__title">{{ art.title || '未命名作品' }}</span>
+            </button>
+          </div>
+          <div v-else class="adv-empty adv-empty--sm">还没有收藏公开作品。</div>
+        </section>
+
+        <section class="adv-panel adv-social">
+          <header class="adv-panel__head">
+            <div>
+              <span class="adv-panel__eyebrow">Connections</span>
+              <h2>关注与粉丝</h2>
+            </div>
+            <span class="adv-panel__meta">{{ social.followingCount || 0 }} / {{ social.followerCount || 0 }}</span>
+          </header>
+          <div class="adv-social__columns">
+            <div>
+              <button type="button" class="adv-social__all" @click="openConnections('following')">
+                <span>正在关注</span><b>{{ social.followingCount || 0 }}</b><em>查看全部</em>
+              </button>
+              <div v-if="social.following?.length" class="adv-social__list">
+                <button v-for="item in social.following.slice(0, 4)" :key="`following-${item.uid}`" type="button" @click="openProfile(item.uid)">
+                  <span class="adv-social__avatar">
+                    <img v-if="item.avatar_url" :src="item.avatar_url" alt="" />
+                    <span v-else>{{ socialInitial(item) }}</span>
+                  </span>
+                  <span><b>{{ item.displayName || item.uid }}</b><small>@{{ item.uid }}</small></span>
+                </button>
+              </div>
+              <p v-else>暂未关注其他用户。</p>
+            </div>
+            <div>
+              <button type="button" class="adv-social__all" @click="openConnections('followers')">
+                <span>粉丝</span><b>{{ social.followerCount || 0 }}</b><em>查看全部</em>
+              </button>
+              <div v-if="social.followers?.length" class="adv-social__list">
+                <button v-for="item in social.followers.slice(0, 4)" :key="`follower-${item.uid}`" type="button" @click="openProfile(item.uid)">
+                  <span class="adv-social__avatar">
+                    <img v-if="item.avatar_url" :src="item.avatar_url" alt="" />
+                    <span v-else>{{ socialInitial(item) }}</span>
+                  </span>
+                  <span><b>{{ item.displayName || item.uid }}</b><small>@{{ item.uid }}</small></span>
+                </button>
+              </div>
+              <p v-else>还没有粉丝。</p>
+            </div>
+          </div>
+        </section>
+
+        <section v-if="!isTerminal" class="adv-panel adv-messages">
+          <header class="adv-panel__head">
+            <div>
+              <span class="adv-panel__eyebrow">Profile Messages</span>
+              <h2>创作者留言板</h2>
+            </div>
+            <span class="adv-panel__meta">{{ messageTotal }} 条回音</span>
+          </header>
+
+          <form v-if="isLoggedIn" class="adv-message-compose" @submit.prevent="postMessage">
+            <div class="adv-message-compose__head">
+              <span>发送一段公开留言</span>
+              <em>以 {{ accountName }} 署名</em>
+            </div>
+            <textarea
+              v-model="messageBody"
+              maxlength="600"
+              rows="4"
+              placeholder="想对这位创作者说些什么？"
+              :disabled="postingMessage"
+              @keydown.ctrl.enter.prevent="postMessage"
+              @keydown.meta.enter.prevent="postMessage"
+            ></textarea>
+            <div class="adv-message-compose__foot">
+              <span>{{ messageBody.length }}/600 · Ctrl / ⌘ + Enter 发送</span>
+              <button
+                type="submit"
+                class="sos-button sos-button--primary sos-button--sm"
+                :disabled="postingMessage || !messageBody.trim()"
+              >
+                {{ postingMessage ? '传送中…' : '发送留言' }}
+              </button>
+            </div>
+          </form>
+          <div v-else class="adv-message-login">
+            <div>
+              <b>登录后即可留言</b>
+              <span>留言会使用你的账号昵称公开署名。</span>
+            </div>
+            <button
+              type="button"
+              class="sos-button sos-button--primary sos-button--sm"
+              @click="goLogin"
+            >
+              登录 / 注册
+            </button>
+          </div>
+
+          <p v-if="messageNotice" class="adv-message-notice" role="status">{{ messageNotice }}</p>
+          <p v-if="messageError" class="adv-message-error" role="alert">{{ messageError }}</p>
+
+          <div v-if="messagesLoading && !messages.length" class="adv-empty adv-empty--sm">
+            正在接收留言回音…
+          </div>
+          <div v-else-if="messages.length" class="adv-message-list">
+            <article v-for="message in messages" :key="message.id" class="adv-message">
+              <div class="adv-message__avatar" aria-hidden="true">
+                <img v-if="message.avatar_url" :src="message.avatar_url" alt="" />
+                <span v-else>{{ messageInitial(message) }}</span>
+              </div>
+              <div class="adv-message__body">
+                <header>
+                  <b>{{ message.user_name || '画廊成员' }}</b>
+                  <time :datetime="message.created_at || undefined">{{
+                    formatMessageDate(message.created_at)
+                  }}</time>
+                </header>
+                <p>{{ message.body }}</p>
+              </div>
+            </article>
+          </div>
+          <div v-else class="adv-empty adv-empty--sm">还没有留言，来留下第一段回音吧。</div>
+
+          <button
+            v-if="hasMoreMessages"
+            type="button"
+            class="adv-message-more"
+            :disabled="messagesLoading"
+            @click="loadMessages(messagePage + 1, true)"
+          >
+            {{ messagesLoading ? '接收中…' : '查看更多留言' }}
+          </button>
+        </section>
+
         <section v-if="isTerminal" class="adv-panel">
           <header class="adv-panel__head">
             <div>
@@ -209,9 +385,7 @@
                 class="adv-ledger__row"
               >
                 <span>{{ item.note || item.sourceType }}</span>
-                <b :class="{ plus: item.coins > 0, minus: item.coins < 0 }"
-                  >{{ item.coins > 0 ? '+' : '' }}{{ item.coins }}G</b
-                >
+                <b :class="{ plus: item.coins > 0, minus: item.coins < 0 }">{{ item.coins > 0 ? '+' : '' }}{{ item.coins }}G</b>
               </div>
             </div>
             <div v-else class="adv-empty adv-empty--sm">暂无金币记录。</div>
@@ -238,16 +412,78 @@
       </main>
     </template>
   </div>
+
+  <Teleport to="body">
+    <div v-if="connectionsOpen" class="adv-connections-overlay" @click.self="closeConnections">
+      <section class="adv-connections-dialog" role="dialog" aria-modal="true" :aria-label="connectionsTitle">
+        <header>
+          <div>
+            <span>Connections</span>
+            <h2>{{ connectionsTitle }}</h2>
+          </div>
+          <button type="button" aria-label="关闭名单" @click="closeConnections">×</button>
+        </header>
+        <nav aria-label="关注名单分类">
+          <button
+            v-for="tab in connectionTabs"
+            :key="tab.kind"
+            type="button"
+            :class="{ 'is-active': connectionsKind === tab.kind }"
+            @click="switchConnections(tab.kind)"
+          >
+            {{ tab.label }} <b>{{ tab.total }}</b>
+          </button>
+        </nav>
+        <div class="adv-connections-body">
+          <div v-if="connectionsLoading && !connectionItems.length" class="adv-connections-state">
+            正在读取名单…
+          </div>
+          <div v-else-if="connectionsError" class="adv-connections-state is-error">
+            {{ connectionsError }}
+          </div>
+          <div v-else-if="!connectionItems.length" class="adv-connections-state">
+            {{ connectionsKind === 'following' ? '暂未关注其他用户。' : '还没有粉丝。' }}
+          </div>
+          <div v-else class="adv-connections-list">
+            <button
+              v-for="item in connectionItems"
+              :key="`${connectionsKind}-${item.uid}`"
+              type="button"
+              @click="openConnectionProfile(item.uid)"
+            >
+              <span class="adv-social__avatar">
+                <img v-if="item.avatar_url" :src="item.avatar_url" alt="" />
+                <span v-else>{{ socialInitial(item) }}</span>
+              </span>
+              <span><b>{{ item.displayName || item.uid }}</b><small>@{{ item.uid }}</small></span>
+              <i aria-hidden="true">›</i>
+            </button>
+          </div>
+          <button
+            v-if="connectionItems.length < connectionTotal"
+            type="button"
+            class="adv-connections-more"
+            :disabled="connectionsLoading"
+            @click="loadConnections(connectionPage + 1, true)"
+          >
+            {{ connectionsLoading ? '读取中…' : `继续加载（${connectionItems.length}/${connectionTotal}）` }}
+          </button>
+        </div>
+      </section>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePageMeta, canonicalUrl, absoluteUrl } from '@haruhi/seo'
+import { useSession } from '@haruhi/auth-ui'
 import { api, thumbUrl } from '../services/api.js'
 
 const route = useRoute()
 const router = useRouter()
+const session = useSession('/api')
 
 const loading = ref(true)
 const error = ref('')
@@ -255,11 +491,51 @@ const profile = ref({})
 const userInfo = ref({})
 const stats = ref({})
 const artworks = ref([])
+const favorites = ref([])
+const social = ref({
+  followerCount: 0,
+  followingCount: 0,
+  isFollowing: false,
+  isSelf: false,
+  followers: [],
+  following: [],
+})
+const followLoading = ref(false)
+const socialError = ref('')
+const connectionsOpen = ref(false)
+const connectionsKind = ref('following')
+const connectionItems = ref([])
+const connectionTotal = ref(0)
+const connectionPage = ref(1)
+const connectionsLoading = ref(false)
+const connectionsError = ref('')
+let connectionLoadVersion = 0
 const claims = ref([])
 const coinsHistory = ref([])
 const redemptions = ref([])
+const messages = ref([])
+const messageTotal = ref(0)
+const messagePage = ref(1)
+const messagesLoading = ref(false)
+const postingMessage = ref(false)
+const messageBody = ref('')
+const messageError = ref('')
+const messageNotice = ref('')
 
 const isTerminal = computed(() => route.name === 'terminal')
+const isLoggedIn = session.isLoggedIn
+const accountName = computed(
+  () => session.state.user?.nickname || session.state.user?.displayName || '账号昵称'
+)
+const hasMoreMessages = computed(() => messages.value.length < messageTotal.value)
+const profileUid = computed(() => String(profile.value.uid || route.params.uid || '').trim())
+const connectionsTitle = computed(() =>
+  connectionsKind.value === 'following' ? `${displayName.value}正在关注` : `${displayName.value}的粉丝`
+)
+const connectionTabs = computed(() => [
+  { kind: 'following', label: '关注', total: Number(social.value.followingCount || 0) },
+  { kind: 'followers', label: '粉丝', total: Number(social.value.followerCount || 0) },
+])
 const backTarget = computed(() => {
   if (route.query.from === 'gallery') return { name: 'gallery' }
   if (route.query.from === 'ranking') return { name: 'exchange', query: { tab: 'ranking' } }
@@ -299,6 +575,16 @@ const contactTypeLabel = computed(() => {
 async function loadProfile() {
   loading.value = true
   error.value = ''
+  socialError.value = ''
+  favorites.value = []
+  social.value = {
+    followerCount: 0,
+    followingCount: 0,
+    isFollowing: false,
+    isSelf: false,
+    followers: [],
+    following: [],
+  }
   try {
     const res =
       route.name === 'terminal'
@@ -309,14 +595,167 @@ async function loadProfile() {
     userInfo.value = res.user || res.profile?.user || {}
     stats.value = res.stats || {}
     artworks.value = res.artworks || []
+    favorites.value = res.favorites || []
+    social.value = { ...social.value, ...(res.social || {}) }
     claims.value = res.claims || []
     coinsHistory.value = res.coinsHistory || []
     redemptions.value = res.redemptions || []
+    if (!isTerminal.value) await loadMessages(1)
   } catch (err) {
     error.value = err.message || '冒险者档案读取失败'
   } finally {
     loading.value = false
   }
+}
+
+async function loadMessages(page = 1, append = false) {
+  if (isTerminal.value || !route.params.uid || messagesLoading.value) return
+  messagesLoading.value = true
+  messageError.value = ''
+  try {
+    const res = await api.guildProfileMessages(route.params.uid, { page, pageSize: 16 })
+    const nextMessages = res.data || []
+    messages.value = append ? [...messages.value, ...nextMessages] : nextMessages
+    messageTotal.value = Number(res.total || 0)
+    messagePage.value = page
+  } catch (err) {
+    if (!append) messages.value = []
+    messageError.value = err.message || '留言读取失败'
+  } finally {
+    messagesLoading.value = false
+  }
+}
+
+async function postMessage() {
+  if (!isLoggedIn.value) {
+    goLogin()
+    return
+  }
+  const body = messageBody.value.trim()
+  if (!body || postingMessage.value) return
+  postingMessage.value = true
+  messageError.value = ''
+  messageNotice.value = ''
+  try {
+    const res = await api.postGuildProfileMessage(route.params.uid, body)
+    messageBody.value = ''
+    messageNotice.value = res.flagged ? res.message : '留言已送达。'
+    await loadMessages(1)
+  } catch (err) {
+    messageError.value = err.message || '留言发送失败'
+  } finally {
+    postingMessage.value = false
+  }
+}
+
+function goLogin() {
+  router.push({ name: 'login', query: { redirect: route.fullPath } })
+}
+
+async function toggleProfileFollow() {
+  if (!isLoggedIn.value) {
+    goLogin()
+    return
+  }
+  if (!route.params.uid || followLoading.value) return
+  followLoading.value = true
+  socialError.value = ''
+  try {
+    const res = await api.toggleGuildFollow(route.params.uid)
+    social.value = {
+      ...social.value,
+      isFollowing: Boolean(res.following),
+      followerCount: Number(res.followerCount || 0),
+    }
+  } catch (err) {
+    socialError.value = err.message || '关注操作失败'
+  } finally {
+    followLoading.value = false
+  }
+}
+
+async function loadConnections(page = 1, append = false) {
+  if (!profileUid.value || connectionsLoading.value) return
+  const version = ++connectionLoadVersion
+  connectionsLoading.value = true
+  connectionsError.value = ''
+  try {
+    const res = await api.guildProfileConnections(profileUid.value, {
+      kind: connectionsKind.value,
+      page,
+      pageSize: 24,
+    })
+    if (version !== connectionLoadVersion) return
+    const nextItems = res.data || []
+    connectionItems.value = append ? [...connectionItems.value, ...nextItems] : nextItems
+    connectionTotal.value = Number(res.total || 0)
+    connectionPage.value = page
+  } catch (err) {
+    if (version !== connectionLoadVersion) return
+    if (!append) connectionItems.value = []
+    connectionsError.value = err.message || '名单读取失败'
+  } finally {
+    if (version === connectionLoadVersion) connectionsLoading.value = false
+  }
+}
+
+function openConnections(kind) {
+  connectionsKind.value = kind
+  connectionsOpen.value = true
+  connectionItems.value = []
+  connectionTotal.value = 0
+  connectionPage.value = 1
+  connectionsError.value = ''
+  void loadConnections(1)
+}
+
+function switchConnections(kind) {
+  if (connectionsKind.value === kind) return
+  connectionLoadVersion += 1
+  connectionsLoading.value = false
+  connectionsKind.value = kind
+  connectionItems.value = []
+  connectionTotal.value = 0
+  connectionPage.value = 1
+  connectionsError.value = ''
+  void loadConnections(1)
+}
+
+function closeConnections() {
+  connectionLoadVersion += 1
+  connectionsOpen.value = false
+  connectionsLoading.value = false
+}
+
+function openConnectionProfile(uid) {
+  closeConnections()
+  openProfile(uid)
+}
+
+function openProfile(uid) {
+  if (!uid) return
+  router.push({ name: 'adventurer-profile', params: { uid } })
+}
+
+function socialInitial(item) {
+  return String(item?.displayName || item?.uid || '画').slice(0, 1).toUpperCase()
+}
+
+function messageInitial(message) {
+  return String(message?.user_name || '画').slice(0, 1).toUpperCase()
+}
+
+function formatMessageDate(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 // 页面 meta：仅公开档案页（/profile/:uid）在数据加载成功后设置；
@@ -339,7 +778,7 @@ usePageMeta(() => {
 })
 
 function openArtwork(art) {
-  router.push({ name: 'gallery', query: { artwork: art.id } })
+  router.push({ name: 'artwork-detail', params: { id: art.id } })
 }
 
 function formatDate(value) {
@@ -370,8 +809,20 @@ function redemptionLabel(status) {
   return map[status] || status
 }
 
-watch(() => route.fullPath, loadProfile)
-onMounted(loadProfile)
+function handleWindowKeydown(event) {
+  if (event.key === 'Escape' && connectionsOpen.value) closeConnections()
+}
+
+watch(() => route.fullPath, () => {
+  closeConnections()
+  loadProfile()
+})
+onMounted(() => {
+  window.addEventListener('keydown', handleWindowKeydown)
+  session.ensureReady()
+  loadProfile()
+})
+onBeforeUnmount(() => window.removeEventListener('keydown', handleWindowKeydown))
 </script>
 
 <style scoped>
@@ -608,6 +1059,39 @@ onMounted(loadProfile)
   color: var(--muted);
   margin-left: 7px;
 }
+.adv-id__connections {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.adv-id__connections button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 3px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid transparent;
+}
+.adv-id__connections button:hover,
+.adv-id__connections button:focus-visible {
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent);
+  outline: none;
+}
+.adv-id__connections button b { font: inherit; }
+.adv-id__connections button i { margin-left: 0; }
+.adv-id__connections > span { color: var(--muted); font-size: 11px; }
+.adv-id__connections-arrow {
+  margin-left: 1px;
+  color: var(--accent-strong);
+  font-size: 18px;
+  font-style: normal;
+  line-height: 1;
+}
 .adv-id__row--coin dd {
   color: var(--accent-strong);
 }
@@ -681,6 +1165,31 @@ onMounted(loadProfile)
 .adv-id__back {
   margin: 16px 16px 0;
   justify-content: center;
+}
+
+.adv-profile-follow {
+  min-height: 38px;
+  margin: 12px 16px 0;
+  color: white;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+  background: var(--accent-strong);
+  border: 1px solid var(--accent-strong);
+  border-radius: 999px;
+}
+.adv-profile-follow.is-following {
+  color: var(--muted);
+  background: color-mix(in srgb, #ffffff 52%, transparent);
+  border-color: var(--line);
+}
+.adv-profile-follow:disabled { cursor: wait; opacity: 0.66; }
+.adv-profile-follow-error {
+  margin: 7px 18px 0;
+  color: color-mix(in srgb, #d2453a 82%, var(--text));
+  font-size: 11px;
+  text-align: center;
 }
 
 /* ============ 右：档案正文 ============ */
@@ -842,6 +1351,409 @@ onMounted(loadProfile)
   white-space: nowrap;
 }
 
+.adv-social__columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.adv-social__all {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 9px;
+  padding: 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+.adv-social__all b {
+  min-width: 22px;
+  padding: 2px 7px;
+  color: var(--accent-strong);
+  font-size: 10px;
+  text-align: center;
+  background: color-mix(in srgb, var(--accent) 11%, transparent);
+  border-radius: 999px;
+}
+.adv-social__all em {
+  margin-left: auto;
+  color: var(--accent-strong);
+  font-size: 10px;
+  font-style: normal;
+}
+.adv-social__all:hover em { text-decoration: underline; }
+.adv-social__columns p {
+  margin: 0;
+  padding: 18px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.adv-social__list { display: grid; gap: 7px; }
+.adv-social__list button {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: color-mix(in srgb, #ffffff 42%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.adv-social__avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  overflow: hidden;
+  place-items: center;
+  flex: 0 0 auto;
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+  background: linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent) 45%, #d94b9e));
+  border-radius: 50%;
+}
+.adv-social__avatar img { width: 100%; height: 100%; object-fit: cover; }
+.adv-social__list button > span:last-child { display: grid; min-width: 0; gap: 2px; }
+.adv-social__list b { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.adv-social__list small { color: var(--muted); font-size: 10px; }
+
+.adv-connections-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(11, 22, 31, 0.48);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.adv-connections-dialog {
+  --dialog-accent: var(--sos-accent, #20aa98);
+  --dialog-text: var(--sos-text-primary, #16242b);
+  --dialog-muted: var(--sos-text-secondary, #65737c);
+  --dialog-line: color-mix(in srgb, var(--dialog-accent) 18%, #d7e2e3);
+  display: flex;
+  width: min(520px, calc(100vw - 32px));
+  max-height: min(720px, calc(100dvh - 32px));
+  overflow: hidden;
+  flex-direction: column;
+  color: var(--dialog-text);
+  background: color-mix(in srgb, #fff 94%, #f8ebf3);
+  border: 1px solid color-mix(in srgb, var(--dialog-accent) 22%, white);
+  border-radius: 20px;
+  box-shadow: 0 34px 90px -35px rgba(5, 30, 35, 0.72);
+}
+.adv-connections-dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px 14px;
+}
+.adv-connections-dialog > header span {
+  color: var(--dialog-accent);
+  font: 800 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.adv-connections-dialog > header h2 { margin: 4px 0 0; font-size: 21px; }
+.adv-connections-dialog > header button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--dialog-muted);
+  font: 300 28px/1 sans-serif;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--dialog-accent) 6%, white);
+  border: 1px solid var(--dialog-line);
+  border-radius: 50%;
+}
+.adv-connections-dialog > nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--dialog-line);
+}
+.adv-connections-dialog > nav button {
+  position: relative;
+  padding: 11px 8px 13px;
+  color: var(--dialog-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+.adv-connections-dialog > nav button::after {
+  position: absolute;
+  right: 16px;
+  bottom: -1px;
+  left: 16px;
+  height: 3px;
+  content: '';
+  background: transparent;
+  border-radius: 3px 3px 0 0;
+}
+.adv-connections-dialog > nav button.is-active { color: var(--dialog-text); }
+.adv-connections-dialog > nav button.is-active::after { background: var(--dialog-accent); }
+.adv-connections-dialog > nav b { margin-left: 3px; font-size: 11px; }
+.adv-connections-body {
+  min-height: 230px;
+  padding: 12px 14px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.adv-connections-list { display: grid; gap: 5px; }
+.adv-connections-list > button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 10px;
+  color: var(--dialog-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 12px;
+}
+.adv-connections-list > button:hover {
+  background: color-mix(in srgb, var(--dialog-accent) 6%, white);
+  border-color: var(--dialog-line);
+}
+.adv-connections-dialog .adv-social__avatar {
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(145deg, var(--dialog-accent), #d94b9e);
+}
+.adv-connections-list > button > span:nth-child(2) { display: grid; min-width: 0; gap: 3px; }
+.adv-connections-list b { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.adv-connections-list small { color: var(--dialog-muted); font-size: 10px; }
+.adv-connections-list i { color: var(--dialog-muted); font-size: 24px; font-style: normal; }
+.adv-connections-state {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  color: var(--dialog-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.adv-connections-state.is-error { color: #c44343; }
+.adv-connections-more {
+  display: block;
+  width: calc(100% - 20px);
+  min-height: 40px;
+  margin: 10px auto 0;
+  color: var(--dialog-accent);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--dialog-accent) 7%, white);
+  border: 1px solid var(--dialog-line);
+  border-radius: 999px;
+}
+.adv-connections-more:disabled { cursor: wait; opacity: 0.62; }
+
+/* 创作者公开留言板 */
+.adv-messages {
+  overflow: hidden;
+}
+.adv-message-compose {
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+  border-radius: 15px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 58%),
+    color-mix(in srgb, #ffffff 54%, transparent);
+}
+.adv-message-compose__head,
+.adv-message-compose__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.adv-message-compose__head {
+  margin-bottom: 10px;
+}
+.adv-message-compose__head span {
+  font-size: 13px;
+  font-weight: 820;
+  color: var(--text);
+}
+.adv-message-compose__head em {
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+.adv-message-compose textarea {
+  display: block;
+  width: 100%;
+  min-height: 92px;
+  padding: 12px 13px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  outline: none;
+  color: var(--text);
+  background: color-mix(in srgb, #ffffff 76%, transparent);
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.65;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.adv-message-compose textarea:focus {
+  border-color: color-mix(in srgb, var(--accent) 58%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.adv-message-compose__foot {
+  margin-top: 10px;
+}
+.adv-message-compose__foot > span {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+.adv-message-login {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 15px 16px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 34%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.adv-message-login div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.adv-message-login b {
+  font-size: 13.5px;
+}
+.adv-message-login span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.adv-message-notice,
+.adv-message-error {
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.adv-message-notice {
+  color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent) 11%, transparent);
+}
+.adv-message-error {
+  color: color-mix(in srgb, #d2453a 82%, #000);
+  background: color-mix(in srgb, #ef5350 10%, transparent);
+}
+.adv-message-list {
+  display: flex;
+  flex-direction: column;
+}
+.adv-message {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  padding: 15px 2px;
+}
+.adv-message + .adv-message {
+  border-top: 1px dashed var(--line);
+}
+.adv-message__avatar {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, #fff);
+  color: #fff;
+  background: linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent) 48%, #78d9dc));
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow: 0 10px 20px -14px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.adv-message__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.adv-message__body {
+  min-width: 0;
+}
+.adv-message__body header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.adv-message__body header b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 820;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adv-message__body time {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+.adv-message__body p {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.68;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.adv-message-more {
+  display: block;
+  margin: 10px auto 0;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--accent-strong);
+  background: color-mix(in srgb, #ffffff 52%, transparent);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.adv-message-more:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 /* 委托记录 */
 .adv-quests {
   display: flex;
@@ -968,6 +1880,32 @@ onMounted(loadProfile)
   }
 }
 
+@media (max-width: 560px) {
+  .adv-social__columns { grid-template-columns: 1fr; }
+  .adv-connections-overlay { align-items: end; padding: 0; }
+  .adv-connections-dialog {
+    width: 100%;
+    max-height: min(82dvh, 720px);
+    border-radius: 20px 20px 0 0;
+  }
+  .adv-message-login,
+  .adv-message-compose__head,
+  .adv-message-compose__foot {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .adv-message-login .sos-button,
+  .adv-message-compose__foot .sos-button {
+    justify-content: center;
+    width: 100%;
+  }
+  .adv-message__body header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
 /* ============ 关灯（暗色）适配 ============ */
 /* 整条选择器必须放进 :global(...)，否则 Vue scoped 会丢弃括号外的后代选择器，
    只剩 html.art-lights-out，把变量错设到 <html> 上而被 .adv-scope 的本地定义遮蔽。 */
@@ -985,7 +1923,10 @@ onMounted(loadProfile)
 :global(html.art-lights-out .adv-panel),
 :global(html.art-lights-out .adv-quest),
 :global(html.art-lights-out .adv-metric),
-:global(html.art-lights-out .adv-art__media) {
+:global(html.art-lights-out .adv-art__media),
+:global(html.art-lights-out .adv-message-compose),
+:global(html.art-lights-out .adv-message-compose textarea),
+:global(html.art-lights-out .adv-message-more) {
   background: rgba(12, 22, 44, 0.5);
 }
 :global(html.art-lights-out .adv-id__clearance) {

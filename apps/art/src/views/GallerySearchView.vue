@@ -28,24 +28,14 @@
       :loading="store.loading"
       @go-page="goPage"
     />
-
-    <ArtworkModal
-      :model-value="modalOpen"
-      :item="activeItem"
-      @update:model-value="value => !value && closeModal()"
-      @tag="searchTag"
-      @author="openAuthor"
-      @close="closeModal"
-    />
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft } from 'lucide-vue-next'
 import { useGalleryStore } from '../stores/galleryStore.js'
-import ArtworkModal from '../components/ArtworkModal.vue'
 import ArtworkShelf from '../components/ArtworkShelf.vue'
 import GalleryPagination from '../components/GalleryPagination.vue'
 
@@ -53,8 +43,6 @@ const route = useRoute()
 const router = useRouter()
 const store = useGalleryStore()
 
-const modalOpen = ref(false)
-const activeItem = ref(null)
 const query = computed(() => String(route.query.q || '').trim())
 const searchField = computed(() => String(route.query.field || 'all'))
 const pageCount = computed(() => Math.max(1, Math.ceil((store.total || 0) / store.limit)))
@@ -95,37 +83,7 @@ function goPage(page) {
 }
 
 function openItem(item) {
-  router.push({ query: { ...route.query, artwork: item.id } })
-}
-
-function closeModal() {
-  const nextQuery = { ...route.query }
-  delete nextQuery.artwork
-  router.push({ query: nextQuery })
-}
-
-function searchTag(tag) {
-  router.push({ query: { q: tag, field: 'tag' } })
-}
-
-function openAuthor(author) {
-  if (!author?.uid) return
-  router.push({ name: 'adventurer-profile', params: { uid: author.uid } })
-}
-
-async function syncArtwork(id) {
-  if (!id) {
-    modalOpen.value = false
-    activeItem.value = null
-    return
-  }
-
-  const item = await store.fetchArtworkById(id)
-  if (String(route.query.artwork || '') !== String(id)) return
-  if (item) {
-    activeItem.value = item
-    modalOpen.value = true
-  }
+  router.push({ name: 'artwork-detail', params: { id: item.id } })
 }
 
 let resizeTimer = 0
@@ -135,12 +93,9 @@ function onResize() {
 }
 
 watch([() => route.query.q, () => route.query.field, () => route.query.page], loadResults)
-watch(() => route.query.artwork, syncArtwork)
-
 onMounted(() => {
   updatePageSize(false)
   loadResults()
-  syncArtwork(route.query.artwork)
   window.addEventListener('resize', onResize)
 })
 

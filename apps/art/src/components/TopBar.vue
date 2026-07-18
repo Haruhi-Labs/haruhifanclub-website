@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Search, X } from 'lucide-vue-next'
 import { SosAppbar } from '@haruhi/ui'
-import { AccountMenu, AccountAvatarLink, useSession } from '@haruhi/auth-ui'
+import { AccountMenu, useSession } from '@haruhi/auth-ui'
 import logoUrl from '../assets/logo.webp'
 
 const route = useRoute()
@@ -23,7 +23,11 @@ const navItems = [
 const showTerminal = computed(() => !!session.state.user)
 
 const isActive = (path) => {
-  if (path === '/gallery' && (route.path.startsWith('/profile/') || route.path.startsWith('/gallery'))) return true
+  if (path === '/gallery' && (
+    route.path.startsWith('/profile/')
+    || route.path.startsWith('/gallery')
+    || route.path.startsWith('/artwork/')
+  )) return true
   if (path === '/exchange' && route.path === '/points') return true
   return route.path === path
 }
@@ -119,12 +123,16 @@ watch([() => route.name, () => route.query.q], () => {
           <Search :size="16" :stroke-width="2.3" aria-hidden="true" />
         </button>
       </form>
-      <AccountMenu login-path="/login" profile-path="/account" settings-path="/account/settings" />
+      <AccountMenu
+        login-path="/login"
+        profile-path="/account"
+        settings-path="/account/settings"
+        :public-profile-path="session.state.user?.id ? `/profile/u${session.state.user.id}` : ''"
+      />
     </template>
 
-    <!-- 移动端：头像快捷入口提到汉堡左侧，点头像直达个人中心 -->
+    <!-- 移动端只保留搜索；账号入口统一收进汉堡抽屉底部。 -->
     <template #mobile-lead>
-      <AccountAvatarLink profile-path="/account" />
       <button
         class="mobile-search-trigger"
         type="button"

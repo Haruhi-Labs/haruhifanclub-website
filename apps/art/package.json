@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:real": "VITE_ART_USE_BACKEND=1 VITE_ART_PROXY_TARGET=https://haruyuki.cn VITE_ART_PROXY_READ_ONLY=1 vite --port 5202",
     "build": "vite build",
     "preview": "vite preview"
   },

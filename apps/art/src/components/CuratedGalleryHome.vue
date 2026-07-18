@@ -80,7 +80,7 @@
                   <button
                     class="creator-exhibit__identity"
                     type="button"
-                    :aria-label="`在新标签页查看创作者 ${group.name} 的个人主页`"
+                    :aria-label="`查看创作者 ${group.name} 的个人主页`"
                     @click="emit('creator', { uid: group.uid, name: group.name })"
                   >
                     <span class="creator-exhibit__avatar">
@@ -96,8 +96,9 @@
                 <JustifiedArtworkGrid
                   class="creator-exhibit__works"
                   :items="exhibitWorks(group)"
-                  :target-row-height="320"
+                  :target-row-height="360"
                   :mobile-target-row-height="240"
+                  :mobile-breakpoint="creatorMobile ? 640 : 0"
                   :gap="10"
                   :mobile-gap="8"
                   :mobile-pairs="false"
@@ -213,7 +214,8 @@ const emit = defineEmits(['open', 'refresh', 'viewAll', 'creator'])
 const recommended = computed(() => props.sections.recommended || [])
 const popular = computed(() => props.sections.popular || [])
 const latest = computed(() => props.sections.latest || [])
-const CREATOR_ROTATION_MS = 12_000
+const CREATOR_DESKTOP_ROTATION_MS = 12_000
+const CREATOR_MOBILE_ROTATION_MS = 8_000
 const CREATOR_HOVER_EXTENSION_MS = 6_000
 const CREATOR_ROW_GAP = 42
 const CREATOR_TARGET_MEDIA_HEIGHT = 250
@@ -227,6 +229,13 @@ let creatorDeadline = 0
 let creatorExtendedCycle = -1
 let creatorMedia = null
 let creatorResizeObserver = null
+let creatorTouchStartY = null
+let creatorTouchScrolling = false
+let creatorPausedRemaining = 0
+
+function creatorRotationInterval() {
+  return creatorMobile.value ? CREATOR_MOBILE_ROTATION_MS : CREATOR_DESKTOP_ROTATION_MS
+}
 
 function circularCreatorGroups(count) {
   const all = props.creatorExhibits || []
@@ -312,9 +321,13 @@ function creatorExhibitStyle(group) {
 }
 
 function syncCreatorLayoutMode() {
+  const wasMobile = creatorMobile.value
   creatorMobile.value = Boolean(creatorMedia?.matches)
   const total = props.creatorExhibits.length
   if (total) creatorStart.value %= total
+  if (wasMobile !== creatorMobile.value && creatorTimer && !creatorTouchScrolling) {
+    scheduleCreatorRotation()
+  }
 }
 
 function resetCreatorPosition() {
@@ -323,7 +336,7 @@ function resetCreatorPosition() {
     creatorStart.value = 0
     return
   }
-  const elapsedBatches = Math.floor(Date.now() / CREATOR_ROTATION_MS)
+  const elapsedBatches = Math.floor(Date.now() / creatorRotationInterval())
   creatorStart.value = (elapsedBatches * (creatorMobile.value ? 2 : 4)) % total
 }
 
@@ -334,13 +347,15 @@ function canRotateCreators() {
   return total > creatorGroups.value.length || hasMoreWorks
 }
 
-function scheduleCreatorRotation(delay = CREATOR_ROTATION_MS) {
+function scheduleCreatorRotation(delay = creatorRotationInterval()) {
   window.clearTimeout(creatorTimer)
+  creatorPausedRemaining = 0
   creatorDeadline = Date.now() + delay
   creatorTimer = window.setTimeout(rotateCreators, delay)
 }
 
 function rotateCreators() {
+  creatorTimer = 0
   if (document.hidden || !canRotateCreators()) {
     scheduleCreatorRotation()
     return
@@ -355,10 +370,38 @@ function rotateCreators() {
 }
 
 function extendCreatorRotation() {
-  if (!canRotateCreators() || creatorExtendedCycle === creatorCycle.value) return
+  if (creatorMobile.value || !canRotateCreators() || creatorExtendedCycle === creatorCycle.value) return
   creatorExtendedCycle = creatorCycle.value
   const remaining = Math.max(0, creatorDeadline - Date.now())
   scheduleCreatorRotation(remaining + CREATOR_HOVER_EXTENSION_MS)
+}
+
+function onCreatorTouchStart(event) {
+  if (!creatorMobile.value || event.touches.length !== 1) return
+  creatorTouchStartY = event.touches[0].clientY
+  creatorTouchScrolling = false
+}
+
+function onCreatorTouchMove(event) {
+  if (!creatorMobile.value || creatorTouchStartY === null || !event.touches.length) return
+  const verticalDistance = Math.abs(event.touches[0].clientY - creatorTouchStartY)
+  if (verticalDistance < 8 || creatorTouchScrolling) return
+  creatorTouchScrolling = true
+  creatorPausedRemaining = creatorTimer
+    ? Math.max(0, creatorDeadline - Date.now())
+    : creatorRotationInterval()
+  window.clearTimeout(creatorTimer)
+  creatorTimer = 0
+}
+
+function finishCreatorTouchScroll() {
+  creatorTouchStartY = null
+  if (!creatorTouchScrolling) return
+  creatorTouchScrolling = false
+  if (canRotateCreators()) {
+    scheduleCreatorRotation(Math.max(250, creatorPausedRemaining || creatorRotationInterval()))
+  }
+  creatorPausedRemaining = 0
 }
 
 watch(() => props.creatorExhibits, resetCreatorPosition)
@@ -372,6 +415,10 @@ onMounted(() => {
     creatorStageWidth.value = entries[0]?.contentRect?.width || creatorStage.value?.clientWidth || 0
   })
   creatorResizeObserver.observe(creatorStage.value)
+  window.addEventListener('touchstart', onCreatorTouchStart, { passive: true })
+  window.addEventListener('touchmove', onCreatorTouchMove, { passive: true })
+  window.addEventListener('touchend', finishCreatorTouchScroll, { passive: true })
+  window.addEventListener('touchcancel', finishCreatorTouchScroll, { passive: true })
   scheduleCreatorRotation()
 })
 
@@ -379,6 +426,10 @@ onBeforeUnmount(() => {
   window.clearTimeout(creatorTimer)
   creatorMedia?.removeEventListener?.('change', syncCreatorLayoutMode)
   creatorResizeObserver?.disconnect()
+  window.removeEventListener('touchstart', onCreatorTouchStart)
+  window.removeEventListener('touchmove', onCreatorTouchMove)
+  window.removeEventListener('touchend', finishCreatorTouchScroll)
+  window.removeEventListener('touchcancel', finishCreatorTouchScroll)
 })
 
 function openCatalog(category, range) {
@@ -561,8 +612,17 @@ function openCatalog(category, range) {
   .curated-intro { gap: 12px; padding-bottom: 14px; }
   .curated-intro h1 { font-size: 24px; }
   .curated-intro__index { font-size: 10px; }
-  .curated-refresh { width: 38px; padding: 0; border-radius: 50%; }
-  .curated-refresh span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .curated-refresh {
+    width: auto;
+    min-height: 32px;
+    gap: 5px;
+    padding: 4px 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+  .curated-refresh svg { display: block; flex: 0 0 auto; }
+  .curated-refresh span { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
   .curated-feature { margin-top: 12px; }
   .curated-section { padding-top: 58px; }
   .curated-section__header { margin-bottom: 12px; padding-bottom: 11px; }

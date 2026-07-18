@@ -38,6 +38,12 @@ pub fn router() -> Router<AppState> {
         .route("/announcements", get(list_announcements))
         .route("/artworks", get(list_artworks).post(create_artwork))
         .route("/artworks/{id}", get(get_artwork))
+        .route("/artworks/{id}/related", get(related_artworks))
+        .route(
+            "/artworks/{id}/creator-neighbors",
+            get(creator_neighbor_artworks),
+        )
+        .route("/artworks/{id}/favorite", post(toggle_artwork_favorite))
         .route("/creator-exhibits", get(creator_exhibits))
         .route("/recommendations", get(recommend_artworks))
         .route("/recommendation-events", post(record_recommendation_events))
@@ -984,7 +990,7 @@ async fn points_history(
             .fetch_optional(&state.pools.art)
             .await?;
     // 即使 creators 表无此行，若 uid 形如 u{id} 也解析账号昵称展示
-    let names = member_display_names(&state.pools.core, &[uid.clone()]).await;
+    let names = member_display_names(&state.pools.core, std::slice::from_ref(&uid)).await;
     let name = names.get(&uid).cloned();
     let avatar_url = creator_row.and_then(|(_, a)| a);
     let creator = if name.is_some() || avatar_url.is_some() {
@@ -1068,7 +1074,7 @@ async fn creators_verify(
             .bind(&uid)
             .fetch_optional(&state.pools.art)
             .await?;
-    let names = member_display_names(&state.pools.core, &[uid.clone()]).await;
+    let names = member_display_names(&state.pools.core, std::slice::from_ref(&uid)).await;
     let name = names.get(&uid).cloned();
     let creator = row.as_ref().map(
         |(uid, avatar_url)| json!({ "uid": uid, "name": name.clone(), "avatar_url": avatar_url }),
@@ -1388,10 +1394,6 @@ async fn list_artworks(
         "ok": true,
         "data": data,
         "total": total,
-        "sortUsed": sort,
-        "popularityRange": popularity_range.as_str(),
-        "seedUsed": seed_used,
-        "debugId": chrono::Utc::now().timestamp_millis(),
     })))
 }
 
@@ -1458,6 +1460,51 @@ fn recommendation_tags(raw: Option<&str>) -> Vec<String> {
         .collect()
 }
 
+fn insert_related_text_segment(tokens: &mut std::collections::HashSet<String>, segment: &[char]) {
+    if segment.is_empty() {
+        return;
+    }
+    if segment.iter().all(|ch| ch.is_ascii_alphanumeric()) {
+        if segment.len() >= 2 {
+            tokens.insert(segment.iter().collect::<String>());
+        }
+        return;
+    }
+    if (2..=12).contains(&segment.len()) {
+        tokens.insert(segment.iter().collect::<String>());
+    }
+    for pair in segment.windows(2) {
+        let token = pair.iter().collect::<String>();
+        if !matches!(token.as_str(), "作品" | "一个" | "这个" | "的是" | "什么") {
+            tokens.insert(token);
+        }
+    }
+}
+
+fn related_text_tokens(
+    title: Option<&str>,
+    description: Option<&str>,
+) -> std::collections::HashSet<String> {
+    let text = format!(
+        "{} {}",
+        title.unwrap_or_default(),
+        description.unwrap_or_default()
+    )
+    .to_lowercase();
+    let mut tokens = std::collections::HashSet::new();
+    let mut segment = Vec::new();
+    for ch in text.chars() {
+        if ch.is_alphanumeric() {
+            segment.push(ch);
+        } else {
+            insert_related_text_segment(&mut tokens, &segment);
+            segment.clear();
+        }
+    }
+    insert_related_text_segment(&mut tokens, &segment);
+    tokens
+}
+
 fn recommendation_bounded_text(raw: &str, max_chars: usize) -> String {
     safe_text(Some(raw)).chars().take(max_chars).collect()
 }
@@ -1480,6 +1527,7 @@ fn recommendation_event_weight(event_type: &str, dwell_ms: Option<i64>) -> Optio
     match event_type {
         "open" => Some(1.0),
         "like" => Some(6.0),
+        "favorite" => Some(7.0),
         "comment" => Some(8.0),
         "hide" => Some(-8.0),
         "dwell" => match dwell_ms.unwrap_or(0) {
@@ -1495,7 +1543,7 @@ fn recommendation_event_weight(event_type: &str, dwell_ms: Option<i64>) -> Optio
 
 fn recommendation_event_cap(event_type: &str) -> usize {
     match event_type {
-        "like" | "hide" => 1,
+        "like" | "favorite" | "hide" => 1,
         "comment" => 2,
         "open" | "dwell" => 3,
         _ => 0,
@@ -2073,14 +2121,281 @@ async fn get_artwork(
     let mut value = map_artwork_row(&row);
     let author_uid = row.uploader_uid.as_deref().unwrap_or("").trim();
     if !author_uid.is_empty() {
+        let names = member_display_names(&state.pools.core, &[author_uid.to_string()]).await;
         if let Some(obj) = value.as_object_mut() {
             obj.insert(
                 "guild".into(),
                 super::art_guild::guild_summary_for_uid(&state, author_uid).await,
             );
+            if let Some(name) = names.get(author_uid) {
+                obj.insert("uploader_display_name".into(), json!(name));
+            }
         }
     }
+    let mut stats_by_id = popularity_stats(&state, PopularityRange::History).await?;
+    let stats = stats_by_id.entry(row.id).or_default();
+    stats.likes = stats.likes.max(row.like_total.max(0));
+    stats.score = popularity_score(stats.views, stats.likes, stats.comments);
+    insert_popularity(&mut value, *stats, PopularityRange::History);
+    let favorite_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(1) FROM artwork_favorites WHERE artwork_id=?")
+            .bind(id)
+            .fetch_one(&state.pools.art)
+            .await?;
+    let favorited = match user_id {
+        Some(user_id) => {
+            sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(1) FROM artwork_favorites WHERE user_id=? AND artwork_id=?",
+            )
+            .bind(user_id)
+            .bind(id)
+            .fetch_one(&state.pools.art)
+            .await?
+                > 0
+        }
+        None => false,
+    };
+    if let Some(obj) = value.as_object_mut() {
+        obj.insert("favorite_count".into(), json!(favorite_count));
+        obj.insert("favorited".into(), json!(favorited));
+    }
     Ok(json_with_cookie(json!({ "ok": true, "data": value }), set))
+}
+
+// 6.1 与当前作品相关：以作品标签和内容语义为主，历史质量为辅；同作者作品由前端
+// 独立成栏，因此这里优先排除同作者，避免两个发现模块重复。
+async fn related_artworks(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Query(q): Query<RecommendationQuery>,
+) -> AppResult<Json<Value>> {
+    let limit = q.limit.unwrap_or(8).clamp(4, 16) as usize;
+    let source: Option<ArtRow> = sqlx::query_as(&format!(
+        "{SELECT_ART} WHERE a.id=? AND a.status='approved'"
+    ))
+    .bind(id)
+    .fetch_optional(&state.pools.art)
+    .await?;
+    let Some(source) = source else {
+        return Ok(Json(json!({
+            "ok": false,
+            "message": "Artwork not found",
+            "data": []
+        })));
+    };
+
+    let candidates: Vec<ArtRow> = sqlx::query_as(&format!(
+        "{SELECT_ART} WHERE a.status='approved' AND a.id<>? ORDER BY a.id DESC LIMIT 1000"
+    ))
+    .bind(id)
+    .fetch_all(&state.pools.art)
+    .await?;
+    let source_tags: std::collections::HashSet<String> = safe_json_arr(source.tags_json.as_deref())
+        .into_iter()
+        .filter_map(|value| value.as_str().map(|tag| tag.trim().to_lowercase()))
+        .filter(|tag| !tag.is_empty())
+        .collect();
+    let source_text = related_text_tokens(source.title.as_deref(), source.description.as_deref());
+    let source_age = recommendation_age_days(
+        source
+            .reviewed_at
+            .as_deref()
+            .or(source.created_at.as_deref()),
+    );
+    let related_entropy = format!(
+        "related:{id}:{}",
+        source.title.as_deref().unwrap_or_default()
+    );
+    let source_uid = source.uploader_uid.as_deref().unwrap_or("").trim();
+    let mut stats_by_id = popularity_stats(&state, PopularityRange::History).await?;
+    for row in &candidates {
+        let stats = stats_by_id.entry(row.id).or_default();
+        stats.likes = stats.likes.max(row.like_total.max(0));
+        stats.score = popularity_score(stats.views, stats.likes, stats.comments);
+    }
+
+    let mut ranked: Vec<(ArtRow, f64)> = candidates
+        .into_iter()
+        .filter(|row| {
+            let uid = row.uploader_uid.as_deref().unwrap_or("").trim();
+            source_uid.is_empty() || uid.is_empty() || uid != source_uid
+        })
+        .map(|row| {
+            let tags: std::collections::HashSet<String> = safe_json_arr(row.tags_json.as_deref())
+                .into_iter()
+                .filter_map(|value| value.as_str().map(|tag| tag.trim().to_lowercase()))
+                .filter(|tag| !tag.is_empty())
+                .collect();
+            let overlap = source_tags.intersection(&tags).count() as f64;
+            let union = source_tags.union(&tags).count().max(1) as f64;
+            let tag_affinity = overlap * 8.0 + (overlap / union) * 6.0;
+            let text_tokens = related_text_tokens(row.title.as_deref(), row.description.as_deref());
+            let text_overlap = source_text.intersection(&text_tokens).count() as f64;
+            let text_union = source_text.union(&text_tokens).count().max(1) as f64;
+            let text_affinity = text_overlap * 3.5 + (text_overlap / text_union) * 8.0;
+            let content_affinity = if row.content_type == source.content_type {
+                2.4
+            } else {
+                0.0
+            };
+            let source_affinity = if row.source_type == source.source_type {
+                0.8
+            } else {
+                0.0
+            };
+            let quality = stats_by_id
+                .get(&row.id)
+                .map(|stats| (1.0 + stats.score.max(0.0)).ln() * 0.12)
+                .unwrap_or_default();
+            let candidate_age =
+                recommendation_age_days(row.reviewed_at.as_deref().or(row.created_at.as_deref()));
+            let temporal_affinity = (-(source_age - candidate_age).abs() / 365.0).exp() * 0.8;
+            let exploration = recommendation_noise(&related_entropy, row.id) * 1.35;
+            (
+                row,
+                tag_affinity
+                    + text_affinity
+                    + content_affinity
+                    + source_affinity
+                    + temporal_affinity
+                    + quality
+                    + exploration,
+            )
+        })
+        .collect();
+    ranked.sort_by(|(a_row, a_score), (b_row, b_score)| {
+        b_score
+            .total_cmp(a_score)
+            .then_with(|| b_row.id.cmp(&a_row.id))
+    });
+
+    let mut creator_counts = std::collections::HashMap::<String, usize>::new();
+    let mut selected = Vec::with_capacity(limit);
+    for (row, _) in ranked {
+        let creator_key = row
+            .uploader_uid
+            .as_deref()
+            .map(str::trim)
+            .filter(|uid| !uid.is_empty())
+            .unwrap_or("anonymous")
+            .to_string();
+        let count = creator_counts.entry(creator_key).or_default();
+        if *count >= 2 {
+            continue;
+        }
+        *count += 1;
+        selected.push(row);
+        if selected.len() >= limit {
+            break;
+        }
+    }
+
+    let uids: Vec<String> = selected
+        .iter()
+        .filter_map(|row| row.uploader_uid.clone())
+        .collect();
+    let names = member_display_names(&state.pools.core, &uids).await;
+    let guild_map = super::art_guild::guild_summaries_for_uids(&state, &uids).await;
+    let data: Vec<Value> = selected
+        .iter()
+        .map(|row| {
+            let mut value = map_artwork_row(row);
+            let uid = row.uploader_uid.as_deref().unwrap_or("").trim();
+            if let Some(obj) = value.as_object_mut() {
+                if let Some(name) = names.get(uid) {
+                    obj.insert("uploader_display_name".into(), json!(name));
+                }
+                if let Some(guild) = guild_map.get(uid) {
+                    obj.insert("guild".into(), guild.clone());
+                }
+            }
+            insert_popularity(
+                &mut value,
+                stats_by_id.get(&row.id).copied().unwrap_or_default(),
+                PopularityRange::History,
+            );
+            value
+        })
+        .collect();
+
+    Ok(Json(json!({
+        "ok": true,
+        "data": data,
+        "strategy": "artwork-affinity-v1"
+    })))
+}
+
+// 6.2 同创作者投稿时间轴：精确返回当前作品左右各一件相邻稿件。
+// 返回顺序固定为 [较新, 当前, 较旧]，边界作品缺少一侧时自然缩短。
+async fn creator_neighbor_artworks(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> AppResult<Json<Value>> {
+    let source: Option<ArtRow> = sqlx::query_as(&format!(
+        "{SELECT_ART} WHERE a.id=? AND a.status='approved'"
+    ))
+    .bind(id)
+    .fetch_optional(&state.pools.art)
+    .await?;
+    let Some(source) = source else {
+        return Err(AppError::not_found("作品不存在"));
+    };
+    let uid = source.uploader_uid.as_deref().unwrap_or("").trim();
+    if uid.is_empty() {
+        return Ok(Json(json!({
+            "ok": true,
+            "data": [map_artwork_row(&source)],
+            "currentIndex": 0
+        })));
+    }
+
+    let source_time = source
+        .created_at
+        .as_deref()
+        .or(source.reviewed_at.as_deref())
+        .unwrap_or("1970-01-01T00:00:00Z");
+    let time_expr =
+        "COALESCE(datetime(a.created_at), datetime(a.reviewed_at), datetime('1970-01-01'))";
+    let newer: Option<ArtRow> = sqlx::query_as(&format!(
+        "{SELECT_ART} WHERE a.status='approved' AND a.uploader_uid=? AND a.id<>? \
+         AND ({time_expr} > datetime(?) OR ({time_expr}=datetime(?) AND a.id>?)) \
+         ORDER BY {time_expr} ASC, a.id ASC LIMIT 1"
+    ))
+    .bind(uid)
+    .bind(id)
+    .bind(source_time)
+    .bind(source_time)
+    .bind(id)
+    .fetch_optional(&state.pools.art)
+    .await?;
+    let older: Option<ArtRow> = sqlx::query_as(&format!(
+        "{SELECT_ART} WHERE a.status='approved' AND a.uploader_uid=? AND a.id<>? \
+         AND ({time_expr} < datetime(?) OR ({time_expr}=datetime(?) AND a.id<?)) \
+         ORDER BY {time_expr} DESC, a.id DESC LIMIT 1"
+    ))
+    .bind(uid)
+    .bind(id)
+    .bind(source_time)
+    .bind(source_time)
+    .bind(id)
+    .fetch_optional(&state.pools.art)
+    .await?;
+
+    let current_index = i64::from(newer.is_some());
+    let mut rows = Vec::with_capacity(3);
+    if let Some(row) = newer {
+        rows.push(row);
+    }
+    rows.push(source);
+    if let Some(row) = older {
+        rows.push(row);
+    }
+    let data = map_artworks_with_names(&state, &rows).await;
+    Ok(Json(json!({
+        "ok": true,
+        "data": data,
+        "currentIndex": current_index
+    })))
 }
 
 // 6.5 缩略图：GET /thumb?path=art/2026-02/x.webp&w=640
@@ -2838,6 +3153,61 @@ async fn like_artwork(
         record_recommendation_signal(&state, user.id, id, "like").await;
     }
     Ok((status, Json(body)).into_response())
+}
+
+async fn toggle_artwork_favorite(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+) -> AppResult<Json<Value>> {
+    let artwork_exists: i64 =
+        sqlx::query_scalar("SELECT COUNT(1) FROM artworks WHERE id=? AND status='approved'")
+            .bind(id)
+            .fetch_one(&state.pools.art)
+            .await?;
+    if artwork_exists == 0 {
+        return Err(AppError::not_found("作品不存在"));
+    }
+
+    let mut tx = state.pools.art.begin().await?;
+    let exists: Option<i64> =
+        sqlx::query_scalar("SELECT 1 FROM artwork_favorites WHERE user_id=? AND artwork_id=?")
+            .bind(user.id)
+            .bind(id)
+            .fetch_optional(&mut *tx)
+            .await?;
+    let favorited = if exists.is_some() {
+        sqlx::query("DELETE FROM artwork_favorites WHERE user_id=? AND artwork_id=?")
+            .bind(user.id)
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+        false
+    } else {
+        sqlx::query("INSERT INTO artwork_favorites(user_id, artwork_id, created_at) VALUES(?,?,?)")
+            .bind(user.id)
+            .bind(id)
+            .bind(now_iso())
+            .execute(&mut *tx)
+            .await?;
+        true
+    };
+    let favorite_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(1) FROM artwork_favorites WHERE artwork_id=?")
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await?;
+    tx.commit().await?;
+
+    if favorited {
+        record_recommendation_signal(&state, user.id, id, "favorite").await;
+        super::art_guild::record_user_event(&state, Some(user), "favorite_artwork", Some(id)).await;
+    }
+    Ok(Json(json!({
+        "ok": true,
+        "favorited": favorited,
+        "favoriteCount": favorite_count
+    })))
 }
 
 async fn like_comment(

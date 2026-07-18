@@ -135,7 +135,6 @@
 <script setup>
 import { ref, onBeforeUnmount, onMounted } from 'vue'
 import { api } from '../services/api.js'
-import { seedArtworks, seedCreators } from '../mock/seedData.js'
 
 // 默认头像 (SVG Base64)
 const defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23cbd5e1'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E"
@@ -149,48 +148,6 @@ const notFound = ref(false)
 const searchRef = ref(null) // 滚动锚点
 let debounceTimer = null
 
-function getSeedCreatorTotal(uid) {
-  return seedArtworks
-    .filter((item) => item.status === 'approved' && item.uploader_uid === uid)
-    .reduce((total, item) => total + 40 + Number(item.like_total || 0) * 6, 0)
-}
-
-function getSeedLeaderboard() {
-  return seedCreators
-    .map((creator) => ({
-      uid: creator.uid,
-      avatar_url: creator.avatar_url,
-      total: getSeedCreatorTotal(creator.uid),
-    }))
-    .sort((a, b) => b.total - a.total || a.uid.localeCompare(b.uid))
-}
-
-function searchSeedCreators(value) {
-  const keyword = String(value || '').trim().toLowerCase()
-  if (!keyword) return []
-  return seedCreators.filter((creator) => String(creator.uid).toLowerCase().includes(keyword))
-}
-
-function getSeedPointsHistory(uid) {
-  const works = seedArtworks
-    .filter((item) => item.status === 'approved' && item.uploader_uid === uid)
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-
-  const creator = seedCreators.find((item) => item.uid === uid)
-  const history = works.map((item) => ({
-    points: 40 + Number(item.like_total || 0) * 6,
-    note: '本地 seed 画作入库奖励',
-    artwork_title: item.title,
-    created_at: item.reviewed_at || item.created_at,
-  }))
-
-  return {
-    creator: creator || { uid, avatar_url: '' },
-    total: history.reduce((sum, item) => sum + item.points, 0),
-    history,
-  }
-}
-
 function onInput() {
   notFound.value = false
   searchResult.value = null
@@ -200,10 +157,6 @@ function onInput() {
   debounceTimer = setTimeout(async () => {
     if (!query.value.trim()) {
       suggestions.value = []
-      return
-    }
-    if (import.meta.env.DEV) {
-      suggestions.value = searchSeedCreators(query.value)
       return
     }
     try {
@@ -227,16 +180,6 @@ async function doSearch(uid) {
   searchResult.value = null
   notFound.value = false
 
-  if (import.meta.env.DEV) {
-    const localResult = getSeedPointsHistory(uid)
-    if (localResult.total === 0 && localResult.history.length === 0) {
-      notFound.value = true
-    } else {
-      searchResult.value = localResult
-    }
-    return
-  }
-  
   try {
     const res = await api.pointsHistory(uid)
     if (res.total === 0 && res.history.length === 0) {
@@ -244,7 +187,7 @@ async function doSearch(uid) {
     } else {
       searchResult.value = res
     }
-  } catch (e) {
+  } catch {
     notFound.value = true
   }
 }
@@ -263,12 +206,6 @@ const leaderboard = ref([])
 const loadingLb = ref(false)
 
 async function loadLeaderboard() {
-  if (import.meta.env.DEV) {
-    leaderboard.value = getSeedLeaderboard()
-    loadingLb.value = false
-    return
-  }
-
   loadingLb.value = true
   try {
     const res = await api.pointsLeaderboard(1)

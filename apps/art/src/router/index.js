@@ -24,6 +24,7 @@ import AdventurerProfileView from '../views/AdventurerProfileView.vue'
 
 const AdminView = () => import('../views/AdminView.vue')
 const LicenseView = () => import('../views/LicenseView.vue')
+const ArtworkDetailView = () => import('../views/ArtworkDetailView.vue')
 
 const authProps = { site: 'art', title: '凉宫春日应援团', home: '/' }
 const accountSections = [
@@ -51,6 +52,13 @@ const router = createRouter({
       name: 'gallery-search',
       component: GallerySearchView,
       meta: { title: '搜索作品' }
+    },
+    {
+      path: '/artwork/:id',
+      name: 'artwork-detail',
+      component: ArtworkDetailView,
+      props: true,
+      meta: { title: '作品详情' }
     },
     { path: '/upload', name: 'upload', component: UploadView, meta: { title: '投稿', noindex: true } },
     {
@@ -136,6 +144,10 @@ const router = createRouter({
 const session = useSession('/api')
 
 router.beforeEach(async (to) => {
+  if (['gallery', 'gallery-search'].includes(to.name) && to.query.artwork) {
+    return { name: 'artwork-detail', params: { id: to.query.artwork } }
+  }
+
   if (!to.matched.some((record) => record.meta.requiresAuth)) return true
 
   await session.ensureReady()
