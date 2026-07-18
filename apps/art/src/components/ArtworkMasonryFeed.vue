@@ -29,32 +29,55 @@
           :aria-posinset="entry.position + 1"
           :aria-setsize="total || undefined"
         >
-          <button
-            class="artwork-feed__card"
-            type="button"
-            :aria-label="`查看作品：${entry.item.title || '未命名作品'}`"
-            :title="entry.item.title || '未命名作品'"
-            :data-artwork-id="entry.item.id"
-            :data-artwork-position="entry.position"
-            data-feed-artwork
-            data-sfx="click"
-            @click="openArtwork(entry.item, entry.position)"
-          >
-            <span class="artwork-feed__media" :style="mediaStyle(entry.item)">
-              <img
-                :src="imageUrl(entry.item, 640)"
-                :srcset="imageSrcset(entry.item)"
-                :alt="entry.item.title || '画廊作品'"
-                sizes="(max-width: 719px) calc(50vw - 20px), (max-width: 999px) 33vw, (max-width: 1319px) 25vw, 20vw"
-                loading="lazy"
-                decoding="async"
-              />
-              <ArtworkPopularityBadge :item="entry.item" />
-              <span class="artwork-feed__caption">
-                <strong>{{ entry.item.title || '未命名作品' }}</strong>
-                <small>{{ creatorName(entry.item) }}</small>
+          <div v-depth-tilt class="artwork-feed__card">
+            <button
+              class="artwork-feed__open"
+              type="button"
+              :aria-label="`查看作品：${entry.item.title || '未命名作品'}`"
+              :title="entry.item.title || '未命名作品'"
+              :data-artwork-id="entry.item.id"
+              :data-artwork-position="entry.position"
+              data-feed-artwork
+              data-sfx="click"
+              @click="openArtwork(entry.item, entry.position)"
+            >
+              <span class="artwork-feed__surface">
+                <span class="artwork-feed__media" :style="mediaStyle(entry.item)">
+                  <img
+                    :src="imageUrl(entry.item, 640)"
+                    :srcset="imageSrcset(entry.item)"
+                    :alt="entry.item.title || '画廊作品'"
+                    sizes="(max-width: 719px) calc(50vw - 20px), (max-width: 999px) 33vw, (max-width: 1319px) 25vw, 20vw"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <ArtworkPopularityBadge :item="entry.item" />
+                  <span class="artwork-feed__caption">
+                    <strong>{{ entry.item.title || '未命名作品' }}</strong>
+                    <small>{{ creatorName(entry.item) }}</small>
+                  </span>
+                </span>
               </span>
-            </span>
+            </button>
+          </div>
+
+          <button
+            class="artwork-feed__like"
+            :class="{ 'is-liked': isLiked(entry.item) }"
+            type="button"
+            :disabled="isLikePending(entry.item)"
+            :aria-pressed="isLiked(entry.item)"
+            :aria-label="isLiked(entry.item) ? `已点赞：${entry.item.title || '未命名作品'}` : `点赞：${entry.item.title || '未命名作品'}`"
+            :title="isLiked(entry.item) ? '已点赞' : '点赞'"
+            @pointerdown.stop
+            @click.stop="likeArtwork(entry.item)"
+          >
+            <Heart
+              :size="16"
+              :stroke-width="2.2"
+              :fill="isLiked(entry.item) ? 'currentColor' : 'none'"
+              aria-hidden="true"
+            />
           </button>
         </article>
       </div>
@@ -77,9 +100,14 @@ import {
   ref,
   watch,
 } from 'vue'
+import { Heart } from 'lucide-vue-next'
 import { thumbUrl } from '../services/api.js'
 import { trackArtworkImpression, trackArtworkOpen } from '../services/recommendationTracker.js'
+import { useGalleryStore } from '../stores/galleryStore.js'
+import { artworkDepthDirective } from '../utils/artworkDepth.js'
 import ArtworkPopularityBadge from './ArtworkPopularityBadge.vue'
+
+const vDepthTilt = artworkDepthDirective
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -89,8 +117,11 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['open'])
+const galleryStore = useGalleryStore()
 const feedRoot = ref(null)
 const columnCount = ref(2)
+const likedArtworkIds = ref(new Set())
+const pendingLikeIds = ref(new Set())
 const impressionKeys = new Set()
 const impressionTimers = new Map()
 let resizeObserver = null
@@ -147,6 +178,38 @@ function creatorName(item) {
     || item?.uploader_name
     || item?.uploader_uid
     || '画廊收藏'
+}
+
+function artworkKey(item) {
+  return String(item?.id ?? '')
+}
+
+function isLiked(item) {
+  return Boolean(item?.liked) || likedArtworkIds.value.has(artworkKey(item))
+}
+
+function isLikePending(item) {
+  return pendingLikeIds.value.has(artworkKey(item))
+}
+
+function updateIdSet(target, key, shouldInclude) {
+  const next = new Set(target.value)
+  if (shouldInclude) next.add(key)
+  else next.delete(key)
+  target.value = next
+}
+
+async function likeArtwork(item) {
+  const key = artworkKey(item)
+  if (!key || isLiked(item) || isLikePending(item)) return
+
+  updateIdSet(pendingLikeIds, key, true)
+  const succeeded = await galleryStore.likeArtwork(item)
+  if (succeeded) {
+    item.liked = true
+    updateIdSet(likedArtworkIds, key, true)
+  }
+  updateIdSet(pendingLikeIds, key, false)
 }
 
 function trackingContext(item, position) {
@@ -272,33 +335,113 @@ onBeforeUnmount(() => {
 }
 
 .artwork-feed__entry {
+  position: relative;
   min-width: 0;
-  content-visibility: auto;
-  contain: layout paint style;
-  contain-intrinsic-size: auto 280px;
+  contain: layout style;
+  perspective: clamp(720px, 80vw, 1180px);
 }
 
 .artwork-feed__card {
+  --depth-size: clamp(6px, 0.7vw, 10px);
+  --depth-rx: 0deg;
+  --depth-ry: 0deg;
+  --depth-lift: 0px;
+  --depth-scale: 1;
+  position: relative;
+  width: 100%;
+  overflow: visible;
+  border-radius: 9px;
+  transform:
+    translate3d(0, var(--depth-lift), 0)
+    rotateX(var(--depth-rx))
+    rotateY(var(--depth-ry))
+    scale(var(--depth-scale));
+  transform-style: preserve-3d;
+  transition: filter var(--sos-duration-base) ease;
+}
+
+.artwork-feed__card.is-depth-active {
+  z-index: 3;
+  will-change: transform;
+}
+
+.artwork-feed__card::before,
+.artwork-feed__card::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(31, 55, 61, 0.96), rgba(10, 24, 29, 0.92));
+  border: 1px solid color-mix(in srgb, var(--sos-accent) 22%, rgba(5, 16, 19, 0.88));
+  backface-visibility: hidden;
+}
+
+.artwork-feed__card::before {
+  top: 0;
+  left: 100%;
+  width: var(--depth-size);
+  height: 100%;
+  transform: rotateY(90deg);
+  transform-origin: 0 50%;
+}
+
+.artwork-feed__card::after {
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: var(--depth-size);
+  transform: rotateX(-90deg);
+  transform-origin: 50% 0;
+}
+
+.artwork-feed__open {
   display: block;
   width: 100%;
   padding: 0;
-  overflow: hidden;
   color: white;
   text-align: left;
   cursor: pointer;
-  background: color-mix(in srgb, var(--sos-bg-muted) 82%, white);
-  border: 1px solid color-mix(in srgb, var(--sos-accent) 28%, var(--sos-border-subtle));
-  border-radius: 9px;
-  box-shadow: 0 14px 30px -26px rgba(20, 55, 64, 0.76);
-  transition:
-    transform 150ms cubic-bezier(0.23, 1, 0.32, 1),
-    border-color 180ms ease,
-    box-shadow 180ms ease;
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
 }
 
-.artwork-feed__card:active { transform: scale(0.985); }
+.artwork-feed__surface {
+  position: relative;
+  z-index: 1;
+  display: block;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--sos-bg-muted) 82%, white);
+  border: 1px solid color-mix(in srgb, var(--sos-accent) 28%, var(--sos-border-subtle));
+  border-radius: inherit;
+  box-shadow: 0 14px 30px -24px rgba(20, 55, 64, 0.72);
+  transform: translateZ(0.1px);
+  backface-visibility: hidden;
+  transition: border-color var(--sos-duration-base) ease, box-shadow var(--sos-duration-base) ease;
+}
 
-.artwork-feed__card:focus-visible {
+.artwork-feed__surface::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 3;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--depth-glare-x, 50%) var(--depth-glare-y, 50%),
+    rgba(255, 255, 255, 0.86),
+    rgba(159, 235, 240, 0.24) 20%,
+    transparent 48%
+  );
+  mix-blend-mode: soft-light;
+  opacity: var(--depth-glare-opacity, 0);
+  transition: opacity 200ms ease;
+}
+
+.artwork-feed__card.is-depth-active .artwork-feed__surface {
+  border-color: color-mix(in srgb, var(--sos-accent) 66%, white);
+  box-shadow: 0 26px 44px -24px rgba(20, 55, 64, 0.86);
+}
+
+.artwork-feed__open:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--sos-focus) 45%, transparent);
   outline-offset: 3px;
 }
@@ -326,6 +469,53 @@ onBeforeUnmount(() => {
   min-width: 0;
   padding: 44px 11px 10px;
   background: linear-gradient(transparent, rgba(10, 20, 27, 0.82));
+}
+
+.artwork-feed__like {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  z-index: 6;
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  color: color-mix(in srgb, #e54d68 88%, var(--sos-accent));
+  cursor: pointer;
+  background: color-mix(in srgb, var(--sos-bg-surface) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sos-accent) 24%, rgba(255, 255, 255, 0.82));
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(31, 61, 68, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(8px) saturate(0.92);
+  transform: translateY(-3px) scale(0.96);
+  transition:
+    opacity 140ms ease,
+    color 140ms ease,
+    background-color 140ms ease,
+    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.artwork-feed__like:hover {
+  color: #d93859;
+  background: color-mix(in srgb, var(--sos-bg-surface) 96%, white);
+}
+
+.artwork-feed__like:active {
+  transform: translateY(0) scale(0.9);
+  transition-duration: 90ms;
+}
+
+.artwork-feed__like:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--sos-focus) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.artwork-feed__like:disabled {
+  cursor: wait;
+  opacity: 0.68;
 }
 
 .artwork-feed__caption strong,
@@ -362,9 +552,12 @@ onBeforeUnmount(() => {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .artwork-feed__card:hover {
-    border-color: color-mix(in srgb, var(--sos-accent) 68%, white);
-    box-shadow: 0 24px 42px -27px rgba(20, 55, 64, 0.92);
+  .artwork-feed__entry:hover .artwork-feed__like,
+  .artwork-feed__entry:focus-within .artwork-feed__like,
+  .artwork-feed__like.is-liked {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -372,16 +565,34 @@ onBeforeUnmount(() => {
   .artwork-feed__columns,
   .artwork-feed__skeletons { gap: 9px; }
   .artwork-feed__column { gap: 9px; }
-  .artwork-feed__entry { contain-intrinsic-size: auto 190px; }
   .artwork-feed__card { border-radius: 7px; }
   .artwork-feed__caption { padding: 34px 7px 7px; }
   .artwork-feed__caption strong { font-size: 11px; }
   .artwork-feed__caption small { font-size: 9px; }
+  .artwork-feed__like {
+    top: 5px;
+    left: 5px;
+    width: 28px;
+    height: 28px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .artwork-feed__card { transition: border-color 180ms ease, box-shadow 180ms ease; }
-  .artwork-feed__card:active { transform: none; }
+  .artwork-feed__card { transform: none; transition: none; }
+  .artwork-feed__card::before,
+  .artwork-feed__card::after { display: none; }
+  .artwork-feed__like { transition: none; }
   .artwork-feed__skeleton { animation: none; opacity: 0.68; }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .artwork-feed__card { transform: none; }
+  .artwork-feed__card::before,
+  .artwork-feed__card::after { display: none; }
+  .artwork-feed__like {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+  }
 }
 </style>

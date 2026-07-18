@@ -107,19 +107,29 @@ export const useGalleryStore = defineStore('gallery', {
     },
 
     async likeArtwork(item) {
-      if (!item) return
+      if (!item) return false
       const id = Number(item.id)
-      const oldVal = item.like_total
-      item.like_total = Number(oldVal || 0) + 1
+      if (!Number.isFinite(id)) return false
+
+      const oldTotal = item.like_total
+      const oldPopularityLikes = item.popularity?.likes
+      const nextTotal = Number(oldTotal ?? oldPopularityLikes ?? 0) + 1
+      item.like_total = nextTotal
+      if (item.popularity) item.popularity.likes = nextTotal
 
       try {
         const out = await api.likeArtwork(id)
-        if (out && out.totalLikes !== undefined) {
-          item.like_total = Number(out.totalLikes)
+        const serverTotal = out?.totalLikes ?? out?.total_likes
+        if (serverTotal !== undefined) {
+          item.like_total = Number(serverTotal)
+          if (item.popularity) item.popularity.likes = Number(serverTotal)
         }
+        return true
       } catch (error) {
-        item.like_total = oldVal
-        console.error('Like failed:', error)
+        item.like_total = oldTotal
+        if (item.popularity) item.popularity.likes = oldPopularityLikes
+        console.error('[Gallery] 点赞失败：', error)
+        return false
       }
     },
 
