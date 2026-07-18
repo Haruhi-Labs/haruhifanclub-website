@@ -94,6 +94,42 @@
               <span>{{ compactNumber(commentCount) }}</span>
             </a>
             <span class="work-meta__tools">
+              <span ref="licensePopover" class="work-license">
+                <button
+                  type="button"
+                  class="work-license__trigger"
+                  aria-haspopup="dialog"
+                  aria-controls="artwork-public-license"
+                  :aria-expanded="licensePopoverOpen"
+                  aria-label="查看大众授权情况"
+                  title="查看大众授权情况"
+                  @click.stop="toggleLicensePopover"
+                >
+                  <CircleHelp :size="19" aria-hidden="true" />
+                </button>
+                <Transition name="work-license-popover">
+                  <div
+                    v-if="licensePopoverOpen"
+                    id="artwork-public-license"
+                    class="work-license__popover"
+                    role="dialog"
+                    aria-label="大众授权情况"
+                    @click.stop
+                  >
+                    <header>
+                      <strong>大众授权</strong>
+                      <small>以作者当前公开设置为准</small>
+                    </header>
+                    <ul>
+                      <li v-for="item in publicLicenseRows" :key="item.label" :class="{ 'is-granted': item.granted }">
+                        <span>{{ item.label }}</span>
+                        <Check v-if="item.granted" :size="17" :stroke-width="2.6" aria-label="允许" />
+                        <X v-else :size="17" :stroke-width="2.4" aria-label="不允许" />
+                      </li>
+                    </ul>
+                  </div>
+                </Transition>
+              </span>
               <button
                 type="button"
                 class="work-favorite"
@@ -295,8 +331,10 @@ import { useSession } from '@haruhi/auth-ui'
 import { absoluteUrl, canonicalUrl, usePageMeta } from '@haruhi/seo'
 import {
   ArrowLeft,
+  Check,
   ChevronLeft,
   ChevronRight,
+  CircleHelp,
   Download,
   Eye,
   ExternalLink,
@@ -337,6 +375,8 @@ const favoriteCount = ref(0)
 const creatorSocial = ref({ isFollowing: false, isSelf: false, followerCount: 0 })
 const followLoading = ref(false)
 const creatorStrip = ref(null)
+const licensePopover = ref(null)
+const licensePopoverOpen = ref(false)
 const viewerOpen = ref(false)
 const viewerIndex = ref(0)
 const viewerScale = ref(1)
@@ -363,6 +403,18 @@ const publishedIso = computed(() => {
   const value = art.value?.created_at || art.value?.reviewed_at
   const date = value ? new Date(value) : null
   return date && !Number.isNaN(date.getTime()) ? date.toISOString() : ''
+})
+const PUBLIC_LICENSE_OPTIONS = [
+  '可在b站、小红书等社交媒体转载',
+  '允许用于视频等个人创作',
+  '允许用于制作无料发放',
+]
+const publicLicenseRows = computed(() => {
+  const licenses = new Set(Array.isArray(art.value?.licenses) ? art.value.licenses : [])
+  return PUBLIC_LICENSE_OPTIONS.map(label => ({
+    label,
+    granted: licenses.has(`NET:${label}`) || licenses.has(label),
+  }))
 })
 
 usePageMeta(() => {
@@ -475,6 +527,7 @@ async function loadArtwork() {
   liked.value = false
   favorited.value = false
   favoriteCount.value = 0
+  licensePopoverOpen.value = false
   if (!id) {
     error.value = '作品编号无效。'
     loading.value = false
@@ -657,7 +710,20 @@ function toggleViewerZoom() {
   viewerScale.value = viewerScale.value > 1 ? 1 : 2
 }
 
+function toggleLicensePopover() {
+  licensePopoverOpen.value = !licensePopoverOpen.value
+}
+
+function onDocumentPointerDown(event) {
+  if (!licensePopoverOpen.value || licensePopover.value?.contains(event.target)) return
+  licensePopoverOpen.value = false
+}
+
 function onKeydown(event) {
+  if (event.key === 'Escape' && licensePopoverOpen.value) {
+    licensePopoverOpen.value = false
+    return
+  }
   if (!viewerOpen.value) return
   if (event.key === 'Escape') closeViewer()
   if (event.key === 'ArrowLeft' && images.value.length > 1) prevViewer()
@@ -672,6 +738,7 @@ watch(viewerOpen, (open) => {
 onMounted(() => {
   session.ensureReady?.()
   loadArtwork()
+  document.addEventListener('pointerdown', onDocumentPointerDown)
   window.addEventListener('keydown', onKeydown)
 })
 
@@ -679,6 +746,7 @@ onBeforeUnmount(() => {
   loadVersion += 1
   finishArtworkView()
   document.documentElement.classList.remove('art-image-viewer-open')
+  document.removeEventListener('pointerdown', onDocumentPointerDown)
   window.removeEventListener('keydown', onKeydown)
 })
 </script>
@@ -974,6 +1042,105 @@ button.work-metric { cursor: pointer; }
 
 .work-meta__tools button:disabled { cursor: wait; opacity: 0.62; }
 .work-meta__tools .work-favorite.is-favorited { color: #e2a621; }
+
+.work-license {
+  position: relative;
+  display: inline-flex;
+}
+
+.work-license__popover {
+  position: absolute;
+  right: -41px;
+  bottom: calc(100% + 10px);
+  z-index: 20;
+  width: min(320px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 14px;
+  color: var(--sos-text-primary);
+  background: color-mix(in srgb, var(--sos-bg-surface) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sos-text-primary) 18%, transparent);
+  border-top: 2px solid var(--sos-accent);
+  border-radius: 5px;
+  box-shadow: 0 14px 36px rgba(20, 39, 46, 0.18);
+  backdrop-filter: blur(18px) saturate(1.12);
+}
+
+.work-license__popover::after {
+  position: absolute;
+  right: 52px;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  content: '';
+  background: color-mix(in srgb, var(--sos-bg-surface) 94%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--sos-text-primary) 18%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--sos-text-primary) 18%, transparent);
+  transform: rotate(45deg);
+}
+
+.work-license__popover header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--sos-text-primary) 11%, transparent);
+}
+
+.work-license__popover header strong {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.work-license__popover header small {
+  color: var(--sos-text-tertiary);
+  font-size: 9px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.work-license__popover ul {
+  display: grid;
+  gap: 0;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.work-license__popover li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+  min-height: 34px;
+  color: var(--sos-text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.work-license__popover li + li {
+  border-top: 1px solid color-mix(in srgb, var(--sos-text-primary) 8%, transparent);
+}
+
+.work-license__popover li svg {
+  justify-self: end;
+  color: #b54d57;
+}
+
+.work-license__popover li.is-granted svg { color: #2c9d7f; }
+
+.work-license-popover-enter-active,
+.work-license-popover-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  transform-origin: calc(100% - 52px) 100%;
+}
+
+.work-license-popover-enter-from,
+.work-license-popover-leave-to {
+  opacity: 0;
+  transform: translateY(5px) scale(0.98);
+}
 
 .work-meta__time {
   display: block;
