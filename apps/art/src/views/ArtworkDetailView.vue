@@ -74,14 +74,14 @@
           </div>
 
           <Teleport
-            :to="creatorActivityTarget || 'body'"
-            :disabled="!desktopActivityRail || !creatorActivityTarget"
+            :to="activityPanelTarget || 'body'"
+            :disabled="!desktopActivityPanel || !activityPanelTarget"
           >
             <div
               class="work-meta__activity"
               :class="{
-                'is-in-creator-rail': desktopActivityRail && creatorActivityTarget,
-                'is-rail-pending': desktopActivityRail && !creatorActivityTarget,
+                'is-in-activity-panel': desktopActivityPanel && activityPanelTarget,
+                'is-panel-pending': desktopActivityPanel && !activityPanelTarget,
               }"
               aria-label="作品数据与操作"
             >
@@ -175,53 +175,55 @@
           <span class="work-meta__rule" aria-hidden="true"></span>
         </section>
 
-        <section class="work-creator" aria-label="创作者与其他作品">
-          <header class="work-creator__head">
-            <button v-if="authorUid" type="button" class="work-creator__author" @click="openAuthor">
-              <span class="work-avatar">
-                <img v-if="art.uploader_avatar" :src="art.uploader_avatar" alt="" />
-                <span v-else>{{ authorInitial }}</span>
-              </span>
-              <span><b>{{ authorName }}</b><small>@{{ authorUid }}</small></span>
-            </button>
-            <div v-else class="work-creator__author is-static">
-              <span class="work-avatar">{{ authorInitial }}</span>
-              <span><b>{{ authorName }}</b><small>画廊收藏</small></span>
+        <aside class="work-rail">
+          <section class="work-creator" aria-label="创作者与其他作品">
+            <header class="work-creator__head">
+              <button v-if="authorUid" type="button" class="work-creator__author" @click="openAuthor">
+                <span class="work-avatar">
+                  <img v-if="art.uploader_avatar" :src="art.uploader_avatar" alt="" />
+                  <span v-else>{{ authorInitial }}</span>
+                </span>
+                <span><b>{{ authorName }}</b><small>@{{ authorUid }}</small></span>
+              </button>
+              <div v-else class="work-creator__author is-static">
+                <span class="work-avatar">{{ authorInitial }}</span>
+                <span><b>{{ authorName }}</b><small>画廊收藏</small></span>
+              </div>
+              <button
+                v-if="authorUid && !creatorSocial.isSelf"
+                type="button"
+                class="work-follow"
+                :class="{ 'is-following': creatorSocial.isFollowing }"
+                :disabled="followLoading"
+                @click="toggleFollow"
+              >
+                {{ creatorSocial.isFollowing ? '已关注' : '关注' }}
+              </button>
+            </header>
+            <div v-if="creatorTimelineWorks.length" class="work-creator__timeline-head" aria-hidden="true">
+              <span>← 更新作品</span>
+              <b>{{ creatorTimelineWorks.length }} 件公开作品</b>
+              <span>更早作品 →</span>
             </div>
-            <button
-              v-if="authorUid && !creatorSocial.isSelf"
-              type="button"
-              class="work-follow"
-              :class="{ 'is-following': creatorSocial.isFollowing }"
-              :disabled="followLoading"
-              @click="toggleFollow"
-            >
-              {{ creatorSocial.isFollowing ? '已关注' : '关注' }}
-            </button>
-          </header>
-          <div ref="creatorActivityTarget" class="work-creator__activity-slot"></div>
-          <div v-if="creatorTimelineWorks.length" class="work-creator__timeline-head" aria-hidden="true">
-            <span>← 更新作品</span>
-            <b>{{ creatorTimelineWorks.length }} 件公开作品</b>
-            <span>更早作品 →</span>
-          </div>
-          <div v-if="creatorTimelineWorks.length" ref="creatorStrip" class="work-creator__works">
-            <button
-              v-for="item in creatorTimelineWorks"
-              :key="item.id"
-              type="button"
-              :class="{ 'is-current': String(item.id) === String(art.id) }"
-              :aria-current="String(item.id) === String(art.id) ? 'true' : undefined"
-              :title="item.title || '未命名作品'"
-              :aria-label="`查看作品：${item.title || '未命名作品'}`"
-              @click="openSequenceWork(item)"
-            >
-              <span :style="{ backgroundImage: `url(${artworkThumb(item)})` }" aria-hidden="true"></span>
-              <img :src="artworkThumb(item)" :alt="item.title || '画廊作品'" loading="lazy" decoding="async" />
-            </button>
-          </div>
-          <p v-else class="work-muted">暂无更多公开作品。</p>
-        </section>
+            <div v-if="creatorTimelineWorks.length" ref="creatorStrip" class="work-creator__works">
+              <button
+                v-for="item in creatorTimelineWorks"
+                :key="item.id"
+                type="button"
+                :class="{ 'is-current': String(item.id) === String(art.id) }"
+                :aria-current="String(item.id) === String(art.id) ? 'true' : undefined"
+                :title="item.title || '未命名作品'"
+                :aria-label="`查看作品：${item.title || '未命名作品'}`"
+                @click="openSequenceWork(item)"
+              >
+                <span :style="{ backgroundImage: `url(${artworkThumb(item)})` }" aria-hidden="true"></span>
+                <img :src="artworkThumb(item)" :alt="item.title || '画廊作品'" loading="lazy" decoding="async" />
+              </button>
+            </div>
+            <p v-else class="work-muted">暂无更多公开作品。</p>
+          </section>
+          <section ref="activityPanelTarget" class="work-activity-panel" aria-label="作品互动与操作"></section>
+        </aside>
       </div>
 
       <section id="artwork-comments" class="work-comments">
@@ -395,8 +397,8 @@ const favoriteCount = ref(Number(initialArtwork?.favorite_count || 0))
 const creatorSocial = ref({ isFollowing: false, isSelf: false, followerCount: 0 })
 const followLoading = ref(false)
 const creatorStrip = ref(null)
-const creatorActivityTarget = ref(null)
-const desktopActivityRail = ref(false)
+const activityPanelTarget = ref(null)
+const desktopActivityPanel = ref(false)
 const licensePopover = ref(null)
 const licensePopoverOpen = ref(false)
 const viewerOpen = ref(false)
@@ -768,8 +770,8 @@ function onKeydown(event) {
   if (event.key === 'ArrowRight' && images.value.length > 1) nextViewer()
 }
 
-function syncDesktopActivityRail(event) {
-  desktopActivityRail.value = event.matches
+function syncDesktopActivityPanel(event) {
+  desktopActivityPanel.value = event.matches
 }
 
 watch(() => route.params.id, loadArtwork)
@@ -779,8 +781,8 @@ watch(viewerOpen, (open) => {
 
 onMounted(() => {
   desktopActivityMedia = window.matchMedia('(min-width: 981px)')
-  desktopActivityRail.value = desktopActivityMedia.matches
-  desktopActivityMedia.addEventListener('change', syncDesktopActivityRail)
+  desktopActivityPanel.value = desktopActivityMedia.matches
+  desktopActivityMedia.addEventListener('change', syncDesktopActivityPanel)
   session.ensureReady?.()
   loadArtwork()
   document.addEventListener('pointerdown', onDocumentPointerDown)
@@ -793,7 +795,7 @@ onBeforeUnmount(() => {
   document.documentElement.classList.remove('art-image-viewer-open')
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   window.removeEventListener('keydown', onKeydown)
-  desktopActivityMedia?.removeEventListener('change', syncDesktopActivityRail)
+  desktopActivityMedia?.removeEventListener('change', syncDesktopActivityPanel)
 })
 </script>
 
@@ -1034,9 +1036,9 @@ onBeforeUnmount(() => {
   margin-top: 13px;
 }
 
-.work-meta__activity.is-rail-pending { display: none; }
+.work-meta__activity.is-panel-pending { display: none; }
 
-.work-meta__activity.is-in-creator-rail {
+.work-meta__activity.is-in-activity-panel {
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1045,12 +1047,12 @@ onBeforeUnmount(() => {
   margin-top: 0;
 }
 
-.work-meta__activity.is-in-creator-rail .work-metric {
+.work-meta__activity.is-in-activity-panel .work-metric {
   min-height: 38px;
   justify-content: center;
 }
 
-.work-meta__activity.is-in-creator-rail .work-meta__tools {
+.work-meta__activity.is-in-activity-panel .work-meta__tools {
   grid-column: 1 / -1;
   width: 100%;
   justify-content: space-around;
@@ -1060,8 +1062,8 @@ onBeforeUnmount(() => {
   border-top: 1px solid color-mix(in srgb, var(--sos-text-primary) 10%, transparent);
 }
 
-.work-meta__activity.is-in-creator-rail .work-license { position: static; }
-.work-meta__activity.is-in-creator-rail .work-license__popover { right: 0; }
+.work-meta__activity.is-in-activity-panel .work-license { position: static; }
+.work-meta__activity.is-in-activity-panel .work-license__popover { right: 0; }
 
 .work-metric {
   display: inline-flex;
@@ -1232,16 +1234,29 @@ button.work-metric { cursor: pointer; }
   border-top: 1px solid color-mix(in srgb, var(--sos-text-primary) 16%, transparent);
 }
 
-.work-creator {
+.work-rail {
   position: sticky;
   top: 86px;
   grid-area: creator;
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+.work-creator,
+.work-activity-panel:not(:empty) {
   min-width: 0;
   padding: 17px;
   overflow: visible;
   background: color-mix(in srgb, var(--sos-bg-surface) 76%, transparent);
   border-top: 1px solid color-mix(in srgb, var(--sos-text-primary) 16%, transparent);
   backdrop-filter: blur(14px);
+}
+
+.work-activity-panel:empty { display: none; }
+
+.work-activity-panel:not(:empty) {
+  padding-block: 11px 10px;
 }
 
 .work-creator__head {
@@ -1251,13 +1266,6 @@ button.work-metric { cursor: pointer; }
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 15px;
-}
-
-.work-creator__activity-slot:not(:empty) {
-  margin: -2px 0 15px;
-  padding: 8px 0 9px;
-  border-top: 1px solid color-mix(in srgb, var(--sos-text-primary) 10%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--sos-text-primary) 12%, transparent);
 }
 
 .work-creator__author {
@@ -1547,7 +1555,7 @@ button.work-metric { cursor: pointer; }
       "meta"
       "creator";
   }
-  .work-creator { position: static; margin-top: 18px; }
+  .work-rail { position: static; margin-top: 18px; }
   .work-comments__layout { grid-template-columns: 1fr; }
   .work-compose { position: static; }
 }
@@ -1566,7 +1574,8 @@ button.work-metric { cursor: pointer; }
   .work-tags { margin-top: 13px; }
   .work-meta__activity { gap: 14px; margin-top: 11px; }
   .work-meta__rule { margin-top: 17px; }
-  .work-creator { width: calc(100% - 24px); box-sizing: border-box; margin: 18px auto 0; padding: 16px; }
+  .work-rail { width: calc(100% - 24px); margin: 18px auto 0; }
+  .work-creator { box-sizing: border-box; padding: 16px; }
   .work-creator__head { margin-bottom: 13px; }
   .work-discovery,
   .work-comments { margin: 30px 0 0; padding: 24px 12px 28px; border-inline: 0; }
