@@ -3210,6 +3210,32 @@ async fn creator_profile_messages_are_public_but_posting_requires_login() {
 }
 
 #[tokio::test]
+async fn art_public_guild_profile_includes_unified_account_bio() {
+    let app = setup().await;
+    let user_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username=?")
+        .bind(ADMIN_USER)
+        .fetch_one(&app.state.pools.core)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE users SET bio=? WHERE id=?")
+        .bind("在闭锁空间之外画画。")
+        .bind(user_id)
+        .execute(&app.state.pools.core)
+        .await
+        .unwrap();
+
+    let (status, body) = send(
+        &app.router,
+        get(&format!("/api/art/guild/profile/u{user_id}"), None),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["profile"]["bio"], "在闭锁空间之外画画。");
+    assert!(body["profile"]["email"].is_null());
+}
+
+#[tokio::test]
 async fn art_follow_and_favorite_state_is_persistent_and_visible_on_profiles() {
     let app = setup().await;
     let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
