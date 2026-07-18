@@ -152,6 +152,9 @@
                       <p class="work-license__notice">
                         即使已获得上述授权，使用时仍须注明原作者与作品出处。
                       </p>
+                      <p class="work-license__notice work-license__notice--warning">
+                        未经作者许可，将作品用于授权范围以外的用途均属侵权，作者有权依法追究相关责任。
+                      </p>
                     </div>
                   </Transition>
                 </span>
@@ -1277,6 +1280,13 @@ button.work-metric { cursor: pointer; }
   font-weight: 650;
   line-height: 1.6;
   border-top: 1px solid color-mix(in srgb, var(--sos-text-primary) 10%, transparent);
+}
+
+.work-license__notice--warning {
+  margin-top: 7px;
+  padding-top: 0;
+  color: color-mix(in srgb, #b54d57 78%, var(--sos-text-primary));
+  border-top: 0;
 }
 
 .work-license-popover-enter-active,
