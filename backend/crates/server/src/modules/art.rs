@@ -125,6 +125,8 @@ const COOKIE_SIG: &str = "haruhi_anon_sig";
 const VISITOR_SESSION_WINDOW_MINUTES: i64 = 10;
 const CREATOR_FEED_CACHE_TTL: Duration = Duration::from_secs(2 * 60 * 60);
 const CREATOR_FEED_CACHE_LIMIT: usize = 256;
+const RECOMMENDATION_FEED_CACHE_TTL: Duration = Duration::from_secs(4 * 60 * 60);
+const RECOMMENDATION_FEED_CACHE_LIMIT: usize = 512;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -184,6 +186,87 @@ impl CreatorFeedCache {
             },
         );
         (feed_id, uids)
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct RecommendationFeedCache(Arc<Mutex<RecommendationFeedCacheState>>);
+
+#[derive(Default)]
+struct RecommendationFeedCacheState {
+    feeds: std::collections::HashMap<String, CachedRecommendationFeed>,
+}
+
+struct CachedRecommendationFeed {
+    touched_at: Instant,
+    actor_key: String,
+    filter_key: String,
+    seen_ids: std::collections::HashSet<i64>,
+}
+
+impl RecommendationFeedCache {
+    fn begin_batch(
+        &self,
+        requested_feed_id: Option<&str>,
+        actor_key: &str,
+        filter_key: &str,
+    ) -> (String, std::collections::HashSet<i64>, bool) {
+        let now = Instant::now();
+        let mut cache = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        cache
+            .feeds
+            .retain(|_, feed| now.duration_since(feed.touched_at) < RECOMMENDATION_FEED_CACHE_TTL);
+
+        let requested_feed_id = requested_feed_id.filter(|value| !value.trim().is_empty());
+        if let Some(feed_id) = requested_feed_id {
+            if let Some(feed) = cache.feeds.get_mut(feed_id) {
+                if feed.actor_key == actor_key && feed.filter_key == filter_key {
+                    feed.touched_at = now;
+                    return (feed_id.to_string(), feed.seen_ids.clone(), false);
+                }
+            }
+        }
+
+        if cache.feeds.len() >= RECOMMENDATION_FEED_CACHE_LIMIT {
+            if let Some(oldest) = cache
+                .feeds
+                .iter()
+                .min_by_key(|(_, feed)| feed.touched_at)
+                .map(|(feed_id, _)| feed_id.clone())
+            {
+                cache.feeds.remove(&oldest);
+            }
+        }
+
+        let feed_id = uuid::Uuid::new_v4().to_string();
+        cache.feeds.insert(
+            feed_id.clone(),
+            CachedRecommendationFeed {
+                touched_at: now,
+                actor_key: actor_key.to_string(),
+                filter_key: filter_key.to_string(),
+                seen_ids: std::collections::HashSet::new(),
+            },
+        );
+        (
+            feed_id,
+            std::collections::HashSet::new(),
+            requested_feed_id.is_some(),
+        )
+    }
+
+    fn record_batch(&self, feed_id: &str, artwork_ids: impl IntoIterator<Item = i64>) {
+        let mut cache = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(feed) = cache.feeds.get_mut(feed_id) {
+            feed.touched_at = Instant::now();
+            feed.seen_ids.extend(artwork_ids);
+        }
     }
 }
 
@@ -1661,6 +1744,12 @@ struct RecommendationHistoryRow {
 #[derive(serde::Deserialize)]
 struct RecommendationQuery {
     limit: Option<i64>,
+    #[serde(default, alias = "feedId")]
+    feed_id: Option<String>,
+    #[serde(default)]
+    content_type: Option<String>,
+    #[serde(default)]
+    source_type: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -1887,15 +1976,52 @@ async fn recommend_artworks(
         .unwrap_or_else(|| format!("anon:{anon_id}"));
     let batch_id = uuid::Uuid::new_v4().to_string();
 
-    let rows: Vec<ArtRow> = sqlx::query_as(&format!(
-        "{SELECT_ART} WHERE a.status='approved' ORDER BY a.id DESC LIMIT 5000"
-    ))
-    .fetch_all(&state.pools.art)
-    .await?;
+    let content_type = q
+        .content_type
+        .as_deref()
+        .filter(|value| matches!(*value, "haruhi" | "other"))
+        .map(str::to_string);
+    let source_type = q
+        .source_type
+        .as_deref()
+        .filter(|value| matches!(*value, "personal" | "network"))
+        .map(str::to_string);
+    let filter_key = format!(
+        "content:{}:source:{}",
+        content_type.as_deref().unwrap_or("all"),
+        source_type.as_deref().unwrap_or("all")
+    );
+    let requested_feed_id = q
+        .feed_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let (feed_id, feed_seen_ids, cache_reset) =
+        state
+            .recommendation_feed
+            .begin_batch(requested_feed_id, &actor_entropy, &filter_key);
+
+    let mut where_sql = String::from("WHERE a.status='approved'");
+    if content_type.is_some() {
+        where_sql.push_str(" AND a.content_type=?");
+    }
+    if source_type.is_some() {
+        where_sql.push_str(" AND a.source_type=?");
+    }
+    let rows_sql = format!("{SELECT_ART} {where_sql} ORDER BY a.id DESC LIMIT 5000");
+    let mut rows_query = sqlx::query_as::<_, ArtRow>(&rows_sql);
+    if let Some(value) = content_type.as_deref() {
+        rows_query = rows_query.bind(value);
+    }
+    if let Some(value) = source_type.as_deref() {
+        rows_query = rows_query.bind(value);
+    }
+    let rows: Vec<ArtRow> = rows_query.fetch_all(&state.pools.art).await?;
     if rows.is_empty() {
         return Ok(json_with_cookie(
             json!({
                 "ok": true, "data": [], "total": 0, "batchId": batch_id,
+                "feedId": feed_id, "hasMore": false, "cacheReset": cache_reset,
                 "algorithmVersion": RECOMMENDATION_VERSION, "personalized": false
             }),
             set,
@@ -1981,16 +2107,19 @@ async fn recommend_artworks(
             (score + 1.0).ln()
         })
         .fold(1.0_f64, f64::max);
-    let entropy = format!("{actor_entropy}:{batch_id}");
+    let entropy = format!("{actor_entropy}:{feed_id}:{batch_id}");
     let own_uid = user_id.map(crate::auth_routes::member_uid);
     let can_exclude_recent = rows
         .iter()
-        .filter(|row| !recent_batch_seen.contains(&row.id))
+        .filter(|row| !feed_seen_ids.contains(&row.id) && !recent_batch_seen.contains(&row.id))
         .count()
         >= limit;
 
     let mut candidates = Vec::with_capacity(rows.len());
     for (row_index, row) in rows.iter().enumerate() {
+        if feed_seen_ids.contains(&row.id) {
+            continue;
+        }
         if can_exclude_recent && recent_batch_seen.contains(&row.id) {
             continue;
         }
@@ -2118,6 +2247,14 @@ async fn recommend_artworks(
     }
 
     let selected_rows: Vec<ArtRow> = selected.iter().map(|index| rows[*index].clone()).collect();
+    state
+        .recommendation_feed
+        .record_batch(&feed_id, selected_rows.iter().map(|row| row.id));
+    let previously_seen_in_pool = rows
+        .iter()
+        .filter(|row| feed_seen_ids.contains(&row.id))
+        .count();
+    let has_more = previously_seen_in_pool.saturating_add(selected_rows.len()) < rows.len();
     let uids: Vec<String> = selected_rows
         .iter()
         .filter_map(|row| row.uploader_uid.clone())
@@ -2159,6 +2296,9 @@ async fn recommend_artworks(
             "data": data,
             "total": rows.len(),
             "batchId": batch_id,
+            "feedId": feed_id,
+            "hasMore": has_more,
+            "cacheReset": cache_reset,
             "algorithmVersion": RECOMMENDATION_VERSION,
             "personalized": personalized
         }),

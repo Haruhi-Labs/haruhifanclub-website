@@ -103,6 +103,7 @@ async fn setup() -> TestApp {
         voice: haruhi_server::modules::voice::VoiceState::new(),
         seo_templates: haruhi_server::modules::seo::template::new_cache(),
         creator_feed: haruhi_server::modules::art::CreatorFeedCache::default(),
+        recommendation_feed: haruhi_server::modules::art::RecommendationFeedCache::default(),
     };
     let router = routes::router(state.clone());
     TestApp {
@@ -832,6 +833,75 @@ async fn art_random_list_uses_stable_pagination() {
     assert_eq!(ids1.len(), 6);
     assert_eq!(ids2.len(), 6);
     assert!(ids1.is_disjoint(&ids2), "随机分页不应在相邻页重复");
+}
+
+#[tokio::test]
+async fn art_recommendation_feed_cursor_avoids_duplicates_without_event_writes() {
+    let app = setup().await;
+    for i in 0..30 {
+        seed_artwork(
+            &app.state,
+            &format!("feed-recommendation-{i}"),
+            "approved",
+            &format!("2026-07-{:02} 00:00:00", (i % 28) + 1),
+        )
+        .await;
+    }
+
+    let (status, headers, first) = send_full(
+        &app.router,
+        get(
+            "/api/art/recommendations?limit=8&content_type=haruhi&source_type=network",
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(first["data"].as_array().unwrap().len(), 8);
+    assert_eq!(first["hasMore"], true);
+    assert_eq!(first["cacheReset"], false);
+    let feed_id = first["feedId"].as_str().unwrap();
+    let cookie = cookie_header_from_set_cookie(&headers);
+    let first_ids: std::collections::HashSet<i64> = first["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["id"].as_i64())
+        .collect();
+
+    let (status, second) = send(
+        &app.router,
+        get_with_cookie(
+            &format!(
+                "/api/art/recommendations?limit=8&content_type=haruhi&source_type=network&feedId={feed_id}"
+            ),
+            &cookie,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(second["feedId"], first["feedId"]);
+    assert_eq!(second["cacheReset"], false);
+    let second_ids: std::collections::HashSet<i64> = second["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["id"].as_i64())
+        .collect();
+    assert!(
+        first_ids.is_disjoint(&second_ids),
+        "同一推荐流的连续批次不应依赖曝光事件也能严格去重"
+    );
+
+    let (_, refreshed) = send(
+        &app.router,
+        get_with_cookie(
+            "/api/art/recommendations?limit=8&content_type=haruhi&source_type=network",
+            &cookie,
+        ),
+    )
+    .await;
+    assert_ne!(refreshed["feedId"], first["feedId"]);
 }
 
 #[tokio::test]

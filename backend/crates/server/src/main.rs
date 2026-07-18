@@ -51,6 +51,8 @@ async fn main() -> anyhow::Result<()> {
         seo_templates: modules::seo::template::new_cache(),
         // 创作者信息流随机顺序缓存（分页期间保持稳定）
         creator_feed: modules::art::CreatorFeedCache::default(),
+        // 推荐作品流已下发集合（连续批次严格去重）
+        recommendation_feed: modules::art::RecommendationFeedCache::default(),
     };
     let app = routes::router(state);
 
