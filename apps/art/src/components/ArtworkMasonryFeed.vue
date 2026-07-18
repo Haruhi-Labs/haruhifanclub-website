@@ -33,7 +33,7 @@
             <button
               class="artwork-feed__open"
               type="button"
-              :aria-label="`查看作品：${entry.item.title || '未命名作品'}`"
+              :aria-label="`查看作品：${entry.item.title || '未命名作品'}${isLongArtwork(entry.item) ? '，长图' : ''}`"
               :title="entry.item.title || '未命名作品'"
               :data-artwork-id="entry.item.id"
               :data-artwork-position="entry.position"
@@ -42,16 +42,23 @@
               @click="openArtwork(entry.item, entry.position)"
             >
               <span class="artwork-feed__surface">
-                <span class="artwork-feed__media" :style="mediaStyle(entry.item)">
+                <span
+                  class="artwork-feed__media"
+                  :class="{ 'is-long': isLongArtwork(entry.item) }"
+                  :style="mediaStyle(entry.item)"
+                >
                   <img
-                    :src="imageUrl(entry.item, 640)"
-                    :srcset="imageSrcset(entry.item)"
+                    :src="imageUrl(entry.item, isLongArtwork(entry.item) ? LONG_ARTWORK_THUMB_SIZE : 640)"
+                    :srcset="isLongArtwork(entry.item) ? undefined : imageSrcset(entry.item)"
                     :alt="entry.item.title || '画廊作品'"
                     sizes="(max-width: 719px) calc(50vw - 20px), (max-width: 999px) 33vw, (max-width: 1319px) 25vw, 20vw"
                     loading="lazy"
                     decoding="async"
                   />
                   <ArtworkPopularityBadge :item="entry.item" />
+                  <span v-if="isLongArtwork(entry.item)" class="artwork-feed__long-badge" aria-hidden="true">
+                    长图
+                  </span>
                   <span class="artwork-feed__caption">
                     <strong>{{ entry.item.title || '未命名作品' }}</strong>
                     <small>{{ creatorName(entry.item) }}</small>
@@ -108,6 +115,9 @@ import { artworkDepthDirective } from '../utils/artworkDepth.js'
 import ArtworkPopularityBadge from './ArtworkPopularityBadge.vue'
 
 const vDepthTilt = artworkDepthDirective
+const LONG_ARTWORK_RATIO_THRESHOLD = 0.45
+const LONG_ARTWORK_PREVIEW_RATIO = 3 / 4
+const LONG_ARTWORK_THUMB_SIZE = 1920
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -142,6 +152,14 @@ function desiredColumnCount(width) {
   return 2
 }
 
+function isLongArtwork(item) {
+  return numericRatio(item) < LONG_ARTWORK_RATIO_THRESHOLD
+}
+
+function displayRatio(item) {
+  return isLongArtwork(item) ? LONG_ARTWORK_PREVIEW_RATIO : numericRatio(item)
+}
+
 const masonryColumns = computed(() => {
   const columns = Array.from({ length: columnCount.value }, () => [])
   const heights = Array(columnCount.value).fill(0)
@@ -151,13 +169,13 @@ const masonryColumns = computed(() => {
       if (heights[index] < heights[target]) target = index
     }
     columns[target].push({ item, position })
-    heights[target] += (1 / numericRatio(item)) + 0.06
+    heights[target] += (1 / displayRatio(item)) + 0.06
   })
   return columns
 })
 
 function mediaStyle(item) {
-  const ratio = numericRatio(item)
+  const ratio = displayRatio(item)
   return { aspectRatio: String(ratio) }
 }
 
@@ -461,6 +479,33 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--sos-bg-muted) 88%, white);
 }
 
+.artwork-feed__media.is-long img {
+  object-fit: cover;
+  object-position: 50% 50%;
+}
+
+.artwork-feed__long-badge {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  z-index: 4;
+  display: inline-flex;
+  height: 23px;
+  align-items: center;
+  padding: 0 8px;
+  color: color-mix(in srgb, var(--sos-text-primary) 78%, var(--sos-accent));
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--sos-bg-surface) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sos-accent) 26%, rgba(255, 255, 255, 0.8));
+  border-radius: 999px;
+  box-shadow: 0 3px 10px rgba(31, 61, 68, 0.13);
+  backdrop-filter: blur(7px) saturate(0.9);
+  transform: translateX(-50%);
+}
+
 .artwork-feed__caption {
   position: absolute;
   inset: auto 0 0;
@@ -569,6 +614,12 @@ onBeforeUnmount(() => {
   .artwork-feed__caption { padding: 34px 7px 7px; }
   .artwork-feed__caption strong { font-size: 11px; }
   .artwork-feed__caption small { font-size: 9px; }
+  .artwork-feed__long-badge {
+    top: 5px;
+    height: 21px;
+    padding-inline: 6px;
+    font-size: 9px;
+  }
   .artwork-feed__like {
     top: 5px;
     left: 5px;

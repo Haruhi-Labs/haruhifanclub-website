@@ -2814,8 +2814,9 @@ async fn creator_artwork_timeline(
 // .thumbs/ 静态直出、未命中才回源本端点；缓存全量预热（deploy/backfill-thumbs.sh）
 // 后，本端点几乎只在新图首访时被命中。生成走 libvips 子进程（内存有界）。
 
-/// 允许的缩略宽度白名单（防御任意 w 撑爆缓存目录）。
-const THUMB_WIDTHS: &[u32] = &[320, 640, 960];
+/// 允许的缩略尺寸白名单（防御任意 w 撑爆缓存目录）。1920 档仅供超长图预览按需生成，
+/// 不参与全量预热，避免普通作品产生额外磁盘和计算开销。
+const THUMB_WIDTHS: &[u32] = &[320, 640, 960, 1920];
 /// 缩略图 WebP 质量（vips webpsave 的 Q 参数，0-100）。
 const THUMB_QUALITY: u8 = 82;
 /// 缩略图生成并发闸：libvips 子进程虽内存有界，但冷缓存下一页网格会同时回源
