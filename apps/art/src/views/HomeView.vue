@@ -848,11 +848,32 @@ function onLightGearGrabCancel(event) {
 }
 
 
-function activateHomeView() {
+function activateHomeView({ resume = false } = {}) {
   if (homeViewMounted) return
   homeViewMounted = true
   homeRouteSuspended.value = false
   activeHomeLightsOut.value = readHomeLightsOut()
+  addHomeViewListeners()
+  loadHaruhiBackgroundText()
+
+  if (resume) {
+    // KeepAlive 返回时保留离开前的 DOM 与可见状态，避免重建齿轮和重播入场动画造成闪烁。
+    renderHaruhiTextField.value = true
+    renderHomeGears.value = true
+    homeVisualsVisible.value = true
+    homeBackdropVisible.value = true
+    homeGearsVisible.value = true
+    nextTick(() => {
+      if (!homeViewMounted || homeRouteSuspended.value) return
+      refreshLightGearLayout({ includeAll: renderInactiveHomeUi.value, measure: true })
+      startLightGearResizeObserver()
+      lightGearReady.value = true
+      startLightGearAuto()
+      scheduleInactiveHomeUiRender()
+    })
+    return
+  }
+
   renderInactiveHomeUi.value = false
   renderHomeGears.value = false
   renderHaruhiTextField.value = false
@@ -860,8 +881,6 @@ function activateHomeView() {
   homeBackdropVisible.value = false
   homeGearsVisible.value = false
   lightGearReady.value = false
-  addHomeViewListeners()
-  loadHaruhiBackgroundText()
   afterHomeFirstPaint(() => {
     if (!homeViewMounted || homeRouteSuspended.value) return
     renderHaruhiTextField.value = true
@@ -885,6 +904,13 @@ function deactivateHomeView() {
   if (!homeViewMounted && !homeViewListenersActive) return
   homeViewMounted = false
   suspendHomeRouteMotion()
+  stopVisitorRoll()
+  stopLightGearResizeObserver()
+  removeHomeViewListeners()
+}
+
+function destroyHomeView() {
+  deactivateHomeView()
   renderInactiveHomeUi.value = false
   renderHomeGears.value = false
   renderHaruhiTextField.value = false
@@ -892,9 +918,6 @@ function deactivateHomeView() {
   homeBackdropVisible.value = false
   homeGearsVisible.value = false
   lightGearReady.value = false
-  stopVisitorRoll()
-  stopLightGearResizeObserver()
-  removeHomeViewListeners()
 }
 
 onMounted(() => {
@@ -907,9 +930,14 @@ onMounted(() => {
 
 onActivated(() => {
   if (!homeViewHasMounted) return
-  if (!visitorNumber.value) loadVisitorNumber()
-  startVisitorRoll()
-  activateHomeView()
+  if (visitorNumber.value) {
+    visitorDisplay.value = visitorNumber.value
+    visitorRollPhase.value = 'done'
+  } else {
+    startVisitorRoll()
+    loadVisitorNumber()
+  }
+  activateHomeView({ resume: true })
 })
 
 onBeforeRouteLeave(() => {
@@ -918,7 +946,7 @@ onBeforeRouteLeave(() => {
 
 onDeactivated(deactivateHomeView)
 
-onBeforeUnmount(deactivateHomeView)
+onBeforeUnmount(destroyHomeView)
 
 
 const router = useRouter()
