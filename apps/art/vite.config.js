@@ -6,8 +6,6 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const proxyTarget = env.VITE_ART_PROXY_TARGET || 'http://127.0.0.1:17777'
-  const uploadsProxyTarget = env.VITE_ART_UPLOADS_PROXY_TARGET || proxyTarget
-  const thumbProxyTarget = env.VITE_ART_THUMB_PROXY_TARGET || proxyTarget
 
   return {
     base: '/art/',
@@ -20,9 +18,8 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5201,
       proxy: {
-        '/api/art/thumb': { target: thumbProxyTarget, changeOrigin: true },
         '/api': { target: proxyTarget, changeOrigin: true },
-        '/uploads': { target: uploadsProxyTarget, changeOrigin: true },
+        '/uploads': { target: proxyTarget, changeOrigin: true },
       },
     },
   }
