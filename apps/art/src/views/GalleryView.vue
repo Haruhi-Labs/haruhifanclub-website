@@ -3,13 +3,11 @@
     <div v-if="store.sectionsError" class="gallery-error-box">{{ store.sectionsError }}</div>
     <CuratedGalleryHome
       :sections="store.sections"
-      :creator-exhibits="store.creatorExhibits"
       :loading="store.sectionsLoading"
       :personalized="store.recommendationsPersonalized"
       @open="openItem"
       @refresh="store.refreshRecommendations()"
       @view-all="openCatalog"
-      @creator="openCreatorPage"
     />
     <GalleryCatalog @open="openItem" />
   </div>
@@ -44,15 +42,6 @@ async function openCatalog({ category, range }) {
   await nextTick()
   window.requestAnimationFrame(() => {
     document.querySelector('#gallery-catalog')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  })
-}
-
-function openCreatorPage(author) {
-  if (!author?.uid) return
-  router.push({
-    name: 'adventurer-profile',
-    params: { uid: author.uid },
-    query: { from: 'gallery' },
   })
 }
 

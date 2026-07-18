@@ -2,7 +2,7 @@
   <section id="gallery-catalog" ref="catalogRoot" class="gallery-catalog">
     <header class="catalog-header">
       <div>
-        <span>COLLECTION / 05</span>
+        <span>COLLECTION / 04</span>
         <h2>浏览全部作品</h2>
       </div>
       <span v-if="!store.loading" class="result-count">{{ store.total }} 件作品</span>

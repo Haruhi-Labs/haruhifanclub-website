@@ -1,15 +1,12 @@
 import { defineStore } from 'pinia'
 import { api } from '../services/api.js'
 
-const SECTION_KEYS = ['recommended', 'popular', 'latest', 'personal']
+const SECTION_KEYS = ['recommended', 'popular', 'latest']
 
 function sectionParams(section, seed) {
   const params = { status: 'approved', page: 1, pageSize: 8 }
   if (section === 'recommended') return { ...params, sort: 'recommended', seed }
   if (section === 'popular') return { ...params, sort: 'popular', order: 'desc', range: 'week' }
-  if (section === 'personal') {
-    return { ...params, sort: 'time', order: 'desc', source_type: 'personal' }
-  }
   return { ...params, sort: 'time', order: 'desc' }
 }
 
@@ -40,25 +37,20 @@ export const useGalleryStore = defineStore('gallery', {
       recommended: [],
       popular: [],
       latest: [],
-      personal: [],
     },
     sectionsLoading: {
       recommended: false,
       popular: false,
       latest: false,
-      personal: false,
     },
     sectionsError: '',
     artworkCache: {},
-    creatorExhibits: [],
-    creatorExhibitsLoading: false,
     recommendationBatchId: '',
     recommendationsPersonalized: false,
     sectionReqIds: {
       recommended: 0,
       popular: 0,
       latest: 0,
-      personal: 0,
     },
     reqId: 0,
   }),
@@ -181,24 +173,7 @@ export const useGalleryStore = defineStore('gallery', {
     },
 
     async loadSections() {
-      await Promise.all([
-        ...SECTION_KEYS.map(section => this.loadSection(section)),
-        this.loadCreatorExhibits(),
-      ])
-    },
-
-    async loadCreatorExhibits() {
-      this.creatorExhibitsLoading = true
-      try {
-        const out = await api.creatorExhibits()
-        this.creatorExhibits = out.data || []
-      } catch (error) {
-        this.creatorExhibits = []
-        this.sectionsError = '创作者展位加载失败，请刷新后重试'
-        console.warn('[Gallery] 创作者展位加载失败：', error)
-      } finally {
-        this.creatorExhibitsLoading = false
-      }
+      await Promise.all(SECTION_KEYS.map(section => this.loadSection(section)))
     },
 
     async refreshRecommendations() {
@@ -232,7 +207,6 @@ export const useGalleryStore = defineStore('gallery', {
       const loadedItems = [
         ...this.list,
         ...Object.values(this.sections).flat(),
-        ...this.creatorExhibits.flatMap(group => group.items || []),
       ]
       const existing = loadedItems.find(item => String(item.id) === key) || null
       if (existing) this.artworkCache[key] = existing

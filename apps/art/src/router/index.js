@@ -25,6 +25,7 @@ import AdventurerProfileView from '../views/AdventurerProfileView.vue'
 const AdminView = () => import('../views/AdminView.vue')
 const LicenseView = () => import('../views/LicenseView.vue')
 const ArtworkDetailView = () => import('../views/ArtworkDetailView.vue')
+const CreatorsView = () => import('../views/CreatorsView.vue')
 
 const authProps = { site: 'art', title: '凉宫春日应援团', home: '/' }
 const accountSections = [
@@ -42,6 +43,7 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/gallery', name: 'gallery', component: GalleryView, meta: { title: '画廊' } },
+    { path: '/creators', name: 'creators', component: CreatorsView, meta: { title: '创作者' } },
     {
       path: '/categories',
       name: 'gallery-categories',

@@ -16,6 +16,7 @@ const mobileSearchInput = ref(null)
 // 导航项（含 PR 新增的公会/公告）。终端登录后才显示。
 const navItems = [
   { path: '/gallery', label: '首页' },
+  { path: '/creators', label: '创作者' },
   { path: '/upload', label: '投稿' },
   { path: '/exchange', label: '公会' },
   { path: '/announcements', label: '公告' },
@@ -23,10 +24,15 @@ const navItems = [
 const showTerminal = computed(() => !!session.state.user)
 
 const isActive = (path) => {
+  if (path === '/creators' && (
+    route.path === '/creators'
+    || (route.path.startsWith('/profile/') && route.query.from === 'creators')
+    || (route.path.startsWith('/artwork/') && route.query.from === 'creators')
+  )) return true
   if (path === '/gallery' && (
-    route.path.startsWith('/profile/')
+    (route.path.startsWith('/profile/') && route.query.from !== 'creators')
     || route.path.startsWith('/gallery')
-    || route.path.startsWith('/artwork/')
+    || (route.path.startsWith('/artwork/') && route.query.from !== 'creators')
   )) return true
   if (path === '/exchange' && route.path === '/points') return true
   return route.path === path

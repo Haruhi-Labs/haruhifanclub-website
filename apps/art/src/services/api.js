@@ -162,6 +162,17 @@ export const api = {
     }
     return data
   },
+  creatorFeed: async (params = {}) => {
+    const data = await request('GET', `${API_PREFIX}/creators/feed`, { params })
+    if (data.data) {
+      data.data = data.data.map(group => ({
+        ...group,
+        avatar: fixPath(group.avatar),
+        items: (group.items || []).map(transformArtwork),
+      }))
+    }
+    return data
+  },
   recordRecommendationEvents: (events, sessionId, keepalive = false) =>
     request('POST', `${API_PREFIX}/recommendation-events`, {
       body: { session_id: sessionId, events },
