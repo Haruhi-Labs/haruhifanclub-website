@@ -356,9 +356,10 @@ const route = useRoute()
 const router = useRouter()
 const session = useSession('/api')
 const galleryStore = useGalleryStore()
+const initialArtwork = galleryStore.cachedArtworkById(route.params.id)
 
-const art = ref(null)
-const loading = ref(true)
+const art = ref(initialArtwork)
+const loading = ref(!initialArtwork)
 const error = ref('')
 const comments = ref([])
 const loadingComments = ref(false)
@@ -369,9 +370,9 @@ const posting = ref(false)
 const commentNotice = ref('')
 const liking = ref(false)
 const liked = ref(false)
-const favorited = ref(false)
+const favorited = ref(Boolean(initialArtwork?.favorited))
 const favoriting = ref(false)
-const favoriteCount = ref(0)
+const favoriteCount = ref(Number(initialArtwork?.favorite_count || 0))
 const creatorSocial = ref({ isFollowing: false, isSelf: false, followerCount: 0 })
 const followLoading = ref(false)
 const creatorStrip = ref(null)
@@ -523,11 +524,12 @@ async function loadDiscovery(current, version) {
 async function loadArtwork() {
   const id = String(route.params.id || '').trim()
   const version = ++loadVersion
+  const cached = galleryStore.cachedArtworkById(id)
   finishArtworkView()
   closeViewer()
-  loading.value = true
+  loading.value = !cached
   error.value = ''
-  art.value = null
+  art.value = cached
   comments.value = []
   relatedWorks.value = []
   creatorSequenceWorks.value = []
@@ -535,17 +537,20 @@ async function loadArtwork() {
   commentBody.value = ''
   commentNotice.value = ''
   liked.value = false
-  favorited.value = false
-  favoriteCount.value = 0
+  favorited.value = Boolean(cached?.favorited)
+  favoriteCount.value = Number(cached?.favorite_count || 0)
   licensePopoverOpen.value = false
   if (!id) {
     error.value = '作品编号无效。'
     loading.value = false
     return
   }
+  if (cached) startArtworkView(cached)
   const item = await galleryStore.fetchArtworkById(id)
   if (version !== loadVersion) return
   if (!item) {
+    if (cached) finishArtworkView()
+    art.value = null
     error.value = '作品可能已撤下，或暂时不可访问。'
     loading.value = false
     return
@@ -554,7 +559,7 @@ async function loadArtwork() {
   favorited.value = Boolean(item.favorited)
   favoriteCount.value = Number(item.favorite_count || 0)
   loading.value = false
-  startArtworkView(item)
+  if (!cached) startArtworkView(item)
   void loadComments(item.id, version)
   void loadDiscovery(item, version)
 }
@@ -660,6 +665,7 @@ function commentInitial(comment) {
 
 function openWork(item) {
   if (!item?.id) return
+  galleryStore.rememberArtwork(item)
   router.push({ name: 'artwork-detail', params: { id: item.id } })
 }
 

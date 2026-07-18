@@ -135,6 +135,7 @@ let pendingHaruhiBackgroundText = null
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { api, thumbUrl } from '../services/api'
+import { useGalleryStore } from '../stores/galleryStore.js'
 
 defineOptions({ name: 'HomeView' })
 const LIGHT_GEAR_COPY_COUNT = 4
@@ -921,6 +922,7 @@ onBeforeUnmount(deactivateHomeView)
 
 
 const router = useRouter()
+const galleryStore = useGalleryStore()
 
 // 首页画带只展示后端返回的真实公开作品；加载前及请求失败时保持空态。
 const galleryGearPool = ref([])
@@ -976,6 +978,7 @@ async function loadGalleryPool() {
 // 点击画作进入独立详情页；拖拽刚结束仍由齿轮交互层抑制误触。
 function openGearArtwork(id) {
   if (!id) return
+  galleryStore.rememberArtwork(galleryGearPool.value.find(item => String(item.id) === String(id)))
   router.push({ name: 'artwork-detail', params: { id } })
 }
 

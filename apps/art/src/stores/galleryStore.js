@@ -49,6 +49,7 @@ export const useGalleryStore = defineStore('gallery', {
       personal: false,
     },
     sectionsError: '',
+    artworkCache: {},
     creatorExhibits: [],
     creatorExhibitsLoading: false,
     recommendationBatchId: '',
@@ -222,20 +223,46 @@ export const useGalleryStore = defineStore('gallery', {
       }
     },
 
-    async fetchArtworkById(id) {
+    cachedArtworkById(id) {
       if (!id) return null
+
+      const key = String(id)
+      if (this.artworkCache[key]) return this.artworkCache[key]
 
       const loadedItems = [
         ...this.list,
         ...Object.values(this.sections).flat(),
         ...this.creatorExhibits.flatMap(group => group.items || []),
       ]
-      const existing = loadedItems.find(item => String(item.id) === String(id))
+      const existing = loadedItems.find(item => String(item.id) === key) || null
+      if (existing) this.artworkCache[key] = existing
+      return existing
+    },
+
+    rememberArtwork(item) {
+      if (!item?.id) return null
+      const key = String(item.id)
+      const existing = this.artworkCache[key]
+      if (existing) {
+        Object.assign(existing, item)
+        return existing
+      }
+      this.artworkCache[key] = item
+      return item
+    },
+
+    async fetchArtworkById(id) {
+      if (!id) return null
+
+      const existing = this.cachedArtworkById(id)
 
       try {
         const response = await api.getArtwork(id)
         if (response.ok && response.data) {
-          if (existing) Object.assign(existing, response.data)
+          if (existing) {
+            Object.assign(existing, response.data)
+            return existing
+          }
           return response.data
         }
       } catch (error) {
