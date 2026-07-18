@@ -73,91 +73,103 @@
             <button v-for="tag in tags" :key="tag" type="button" @click="searchTag(tag)">#{{ tag }}</button>
           </div>
 
-          <div class="work-meta__activity" aria-label="作品数据与操作">
-            <button
-              type="button"
-              class="work-metric"
-              :class="{ 'is-liked': liked }"
-              :disabled="liking"
-              :aria-label="liked ? `已喜欢，${likeCount}` : `喜欢，${likeCount}`"
-              @click="likeArtwork"
+          <Teleport
+            :to="creatorActivityTarget || 'body'"
+            :disabled="!desktopActivityRail || !creatorActivityTarget"
+          >
+            <div
+              class="work-meta__activity"
+              :class="{
+                'is-in-creator-rail': desktopActivityRail && creatorActivityTarget,
+                'is-rail-pending': desktopActivityRail && !creatorActivityTarget,
+              }"
+              aria-label="作品数据与操作"
             >
-              <Heart :size="17" :fill="liked ? 'currentColor' : 'none'" aria-hidden="true" />
-              <span>{{ compactNumber(likeCount) }}</span>
-            </button>
-            <span class="work-metric" :aria-label="`${viewCount} 次浏览`">
-              <Eye :size="17" aria-hidden="true" />
-              <span>{{ compactNumber(viewCount) }}</span>
-            </span>
-            <a class="work-metric" href="#artwork-comments" :aria-label="`${commentCount} 条评论`">
-              <MessageCircle :size="17" aria-hidden="true" />
-              <span>{{ compactNumber(commentCount) }}</span>
-            </a>
-            <span class="work-meta__tools">
-              <span ref="licensePopover" class="work-license">
-                <button
-                  type="button"
-                  class="work-license__trigger"
-                  aria-haspopup="dialog"
-                  aria-controls="artwork-public-license"
-                  :aria-expanded="licensePopoverOpen"
-                  aria-label="查看大众授权情况"
-                  title="查看大众授权情况"
-                  @click.stop="toggleLicensePopover"
-                >
-                  <CircleHelp :size="19" aria-hidden="true" />
-                </button>
-                <Transition name="work-license-popover">
-                  <div
-                    v-if="licensePopoverOpen"
-                    id="artwork-public-license"
-                    class="work-license__popover"
-                    role="dialog"
-                    aria-label="大众授权情况"
-                    @click.stop
-                  >
-                    <header>
-                      <strong>大众授权</strong>
-                      <small>以作者当前公开设置为准</small>
-                    </header>
-                    <ul>
-                      <li v-for="item in publicLicenseRows" :key="item.label" :class="{ 'is-granted': item.granted }">
-                        <span>{{ item.label }}</span>
-                        <Check v-if="item.granted" :size="17" :stroke-width="2.6" aria-label="允许" />
-                        <X v-else :size="17" :stroke-width="2.4" aria-label="不允许" />
-                      </li>
-                    </ul>
-                  </div>
-                </Transition>
-              </span>
               <button
                 type="button"
-                class="work-favorite"
-                :class="{ 'is-favorited': favorited }"
-                :disabled="favoriting"
-                :aria-label="`${favorited ? '取消收藏' : '收藏作品'}，${favoriteCount} 人已收藏`"
-                :title="favorited ? '取消收藏' : '收藏作品'"
-                @click="toggleFavorite"
+                class="work-metric"
+                :class="{ 'is-liked': liked }"
+                :disabled="liking"
+                :aria-label="liked ? `已喜欢，${likeCount}` : `喜欢，${likeCount}`"
+                @click="likeArtwork"
               >
-                <Star :size="19" :fill="favorited ? 'currentColor' : 'none'" aria-hidden="true" />
+                <Heart :size="17" :fill="liked ? 'currentColor' : 'none'" aria-hidden="true" />
+                <span>{{ compactNumber(likeCount) }}</span>
               </button>
-              <a
-                v-if="firstOriginalUrl"
-                :href="firstOriginalUrl"
-                :download="downloadFilename(0)"
-                aria-label="下载原图"
-                title="下载原图"
-              ><Download :size="19" aria-hidden="true" /></a>
-              <a
-                v-if="safeOriginUrl"
-                :href="safeOriginUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="查看作品原始出处"
-                title="查看作品原始出处"
-              ><ExternalLink :size="18" aria-hidden="true" /></a>
-            </span>
-          </div>
+              <span class="work-metric" :aria-label="`${viewCount} 次浏览`">
+                <Eye :size="17" aria-hidden="true" />
+                <span>{{ compactNumber(viewCount) }}</span>
+              </span>
+              <a class="work-metric" href="#artwork-comments" :aria-label="`${commentCount} 条评论`">
+                <MessageCircle :size="17" aria-hidden="true" />
+                <span>{{ compactNumber(commentCount) }}</span>
+              </a>
+              <span class="work-meta__tools">
+                <span ref="licensePopover" class="work-license">
+                  <button
+                    type="button"
+                    class="work-license__trigger"
+                    aria-haspopup="dialog"
+                    aria-controls="artwork-public-license"
+                    :aria-expanded="licensePopoverOpen"
+                    aria-label="查看大众授权情况"
+                    title="查看大众授权情况"
+                    @click.stop="toggleLicensePopover"
+                  >
+                    <CircleHelp :size="19" aria-hidden="true" />
+                  </button>
+                  <Transition name="work-license-popover">
+                    <div
+                      v-if="licensePopoverOpen"
+                      id="artwork-public-license"
+                      class="work-license__popover"
+                      role="dialog"
+                      aria-label="大众授权情况"
+                      @click.stop
+                    >
+                      <header>
+                        <strong>大众授权</strong>
+                        <small>以作者当前公开设置为准</small>
+                      </header>
+                      <ul>
+                        <li v-for="item in publicLicenseRows" :key="item.label" :class="{ 'is-granted': item.granted }">
+                          <span>{{ item.label }}</span>
+                          <Check v-if="item.granted" :size="17" :stroke-width="2.6" aria-label="允许" />
+                          <X v-else :size="17" :stroke-width="2.4" aria-label="不允许" />
+                        </li>
+                      </ul>
+                    </div>
+                  </Transition>
+                </span>
+                <button
+                  type="button"
+                  class="work-favorite"
+                  :class="{ 'is-favorited': favorited }"
+                  :disabled="favoriting"
+                  :aria-label="`${favorited ? '取消收藏' : '收藏作品'}，${favoriteCount} 人已收藏`"
+                  :title="favorited ? '取消收藏' : '收藏作品'"
+                  @click="toggleFavorite"
+                >
+                  <Star :size="19" :fill="favorited ? 'currentColor' : 'none'" aria-hidden="true" />
+                </button>
+                <a
+                  v-if="firstOriginalUrl"
+                  :href="firstOriginalUrl"
+                  :download="downloadFilename(0)"
+                  aria-label="下载原图"
+                  title="下载原图"
+                ><Download :size="19" aria-hidden="true" /></a>
+                <a
+                  v-if="safeOriginUrl"
+                  :href="safeOriginUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="查看作品原始出处"
+                  title="查看作品原始出处"
+                ><ExternalLink :size="18" aria-hidden="true" /></a>
+              </span>
+            </div>
+          </Teleport>
 
           <time class="work-meta__time" :datetime="publishedIso">{{ publishedAt }}</time>
           <span class="work-meta__rule" aria-hidden="true"></span>
@@ -187,6 +199,7 @@
               {{ creatorSocial.isFollowing ? '已关注' : '关注' }}
             </button>
           </header>
+          <div ref="creatorActivityTarget" class="work-creator__activity-slot"></div>
           <div v-if="creatorTimelineWorks.length" class="work-creator__timeline-head" aria-hidden="true">
             <span>← 更新作品</span>
             <b>{{ creatorTimelineWorks.length }} 件公开作品</b>
@@ -382,12 +395,15 @@ const favoriteCount = ref(Number(initialArtwork?.favorite_count || 0))
 const creatorSocial = ref({ isFollowing: false, isSelf: false, followerCount: 0 })
 const followLoading = ref(false)
 const creatorStrip = ref(null)
+const creatorActivityTarget = ref(null)
+const desktopActivityRail = ref(false)
 const licensePopover = ref(null)
 const licensePopoverOpen = ref(false)
 const viewerOpen = ref(false)
 const viewerIndex = ref(0)
 const viewerScale = ref(1)
 let loadVersion = 0
+let desktopActivityMedia = null
 
 const isLoggedIn = computed(() => Boolean(session.state.user))
 const accountNickname = computed(() => session.state.user?.nickname || session.state.user?.username || '')
@@ -752,12 +768,19 @@ function onKeydown(event) {
   if (event.key === 'ArrowRight' && images.value.length > 1) nextViewer()
 }
 
+function syncDesktopActivityRail(event) {
+  desktopActivityRail.value = event.matches
+}
+
 watch(() => route.params.id, loadArtwork)
 watch(viewerOpen, (open) => {
   document.documentElement.classList.toggle('art-image-viewer-open', open)
 })
 
 onMounted(() => {
+  desktopActivityMedia = window.matchMedia('(min-width: 981px)')
+  desktopActivityRail.value = desktopActivityMedia.matches
+  desktopActivityMedia.addEventListener('change', syncDesktopActivityRail)
   session.ensureReady?.()
   loadArtwork()
   document.addEventListener('pointerdown', onDocumentPointerDown)
@@ -770,6 +793,7 @@ onBeforeUnmount(() => {
   document.documentElement.classList.remove('art-image-viewer-open')
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   window.removeEventListener('keydown', onKeydown)
+  desktopActivityMedia?.removeEventListener('change', syncDesktopActivityRail)
 })
 </script>
 
@@ -1010,6 +1034,35 @@ onBeforeUnmount(() => {
   margin-top: 13px;
 }
 
+.work-meta__activity.is-rail-pending { display: none; }
+
+.work-meta__activity.is-in-creator-rail {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-height: 0;
+  gap: 0;
+  margin-top: 0;
+}
+
+.work-meta__activity.is-in-creator-rail .work-metric {
+  min-height: 38px;
+  justify-content: center;
+}
+
+.work-meta__activity.is-in-creator-rail .work-meta__tools {
+  grid-column: 1 / -1;
+  width: 100%;
+  justify-content: space-around;
+  box-sizing: border-box;
+  margin: 7px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--sos-text-primary) 10%, transparent);
+}
+
+.work-meta__activity.is-in-creator-rail .work-license { position: static; }
+.work-meta__activity.is-in-creator-rail .work-license__popover { right: 0; }
+
 .work-metric {
   display: inline-flex;
   align-items: center;
@@ -1185,7 +1238,7 @@ button.work-metric { cursor: pointer; }
   grid-area: creator;
   min-width: 0;
   padding: 17px;
-  overflow: hidden;
+  overflow: visible;
   background: color-mix(in srgb, var(--sos-bg-surface) 76%, transparent);
   border-top: 1px solid color-mix(in srgb, var(--sos-text-primary) 16%, transparent);
   backdrop-filter: blur(14px);
@@ -1198,6 +1251,13 @@ button.work-metric { cursor: pointer; }
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 15px;
+}
+
+.work-creator__activity-slot:not(:empty) {
+  margin: -2px 0 15px;
+  padding: 8px 0 9px;
+  border-top: 1px solid color-mix(in srgb, var(--sos-text-primary) 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--sos-text-primary) 12%, transparent);
 }
 
 .work-creator__author {
