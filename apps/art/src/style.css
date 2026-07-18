@@ -973,6 +973,32 @@ html.art-home-route.art-home-lights-out .navlink.on {
   box-shadow: 0 10px 26px rgba(116, 231, 255, 0.22), 0 0 20px rgba(157, 132, 255, 0.18);
 }
 
+/* 开灯状态统一恢复旧版浅青绿展厅背景（源自 139f38e / fe6c4d6），
+   不再使用以粉色天空为主的 bg-blur.webp。 */
+html:not(.art-lights-out):not(.art-home-lights-out) .gallery-bg {
+  top: 0;
+  bottom: 0;
+  opacity: 1;
+  filter: none;
+  transform: none;
+  animation: none;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.86), transparent 28%),
+    radial-gradient(circle at 86% 16%, rgba(106, 217, 228, 0.22), transparent 26%),
+    radial-gradient(circle at 78% 82%, rgba(239, 99, 133, 0.1), transparent 28%),
+    linear-gradient(135deg, #fff6ed 0%, #e9f7f4 52%, #fff1ec 100%);
+}
+
+html:not(.art-lights-out):not(.art-home-lights-out) .gallery-mask {
+  top: 0;
+  bottom: 0;
+  opacity: 1;
+  animation: none;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.34), transparent 42%),
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.44), transparent 46%);
+}
+
 @media (max-width: 820px) {
   html.art-home-route.art-home-lights-out .gallery-mask::before {
     background-size: 128px 112px, 188px 164px, 250px 216px, 100% 100%, 100% 100%;
