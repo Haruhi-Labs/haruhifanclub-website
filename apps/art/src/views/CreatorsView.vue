@@ -14,7 +14,12 @@
       <button type="button" data-sfx="click" @click="loadMore">重新加载</button>
     </div>
 
-    <div v-else-if="loading && !creators.length" class="creator-masonry" aria-hidden="true">
+    <div
+      v-else-if="loading && !creators.length"
+      class="creator-masonry creator-masonry--skeleton"
+      :style="{ '--creator-column-count': creatorColumnCount }"
+      aria-hidden="true"
+    >
       <article v-for="index in 6" :key="index" class="creator-card creator-card--skeleton">
         <div class="creator-skeleton creator-skeleton--identity"></div>
         <div class="creator-skeleton creator-skeleton--work"></div>
@@ -22,55 +27,82 @@
       </article>
     </div>
 
-    <div v-else-if="creators.length" class="creator-masonry">
-      <article v-for="(creator, creatorIndex) in creators" :key="creator.uid" class="creator-card">
-        <header class="creator-card__header">
-          <button
-            class="creator-card__identity"
-            type="button"
-            :aria-label="`查看创作者 ${creator.name} 的个人主页`"
-            data-sfx="click"
-            @click="openCreator(creator)"
-          >
-            <span class="creator-card__avatar">
-              <img v-if="creator.avatar" :src="creator.avatar" alt="" loading="lazy" decoding="async" />
-              <UserRound v-else :size="20" aria-hidden="true" />
-            </span>
-            <span class="creator-card__name">
-              <strong>{{ creator.name }}</strong>
-              <small>从 {{ creator.totalWorks }} 件作品中推荐 {{ creator.items.length }} 件</small>
-            </span>
-            <ArrowUpRight :size="17" aria-hidden="true" />
-          </button>
-        </header>
-
-        <div
-          class="creator-card__works"
-          :class="`creator-card__works--${Math.min(creator.items.length, 3)}`"
-          :aria-label="`${creator.name} 的推荐作品`"
+    <div
+      v-else-if="creators.length"
+      class="creator-masonry"
+      :style="{ '--creator-column-count': creatorColumnCount }"
+      role="feed"
+      :aria-busy="loading"
+    >
+      <div
+        v-for="(column, columnIndex) in creatorColumns"
+        :key="columnIndex"
+        class="creator-column"
+        role="presentation"
+      >
+        <article
+          v-for="entry in column"
+          :key="entry.creator.uid"
+          class="creator-card"
+          :aria-posinset="entry.position + 1"
+          :aria-setsize="total"
         >
-          <button
-            v-for="(item, artworkIndex) in creator.items"
-            :key="item.id"
-            class="creator-work"
-            type="button"
-            :style="{ '--artwork-ratio': artworkRatio(item) }"
-            :aria-label="`查看作品：${item.title || '未命名作品'}`"
-            data-sfx="click"
-            @click="openArtwork(item, creatorIndex * 3 + artworkIndex)"
+          <header class="creator-card__header">
+            <button
+              class="creator-card__identity"
+              type="button"
+              :aria-label="`查看创作者 ${entry.creator.name} 的个人主页`"
+              data-sfx="click"
+              @click="openCreator(entry.creator)"
+            >
+              <span class="creator-card__avatar">
+                <img
+                  v-if="entry.creator.avatar"
+                  :src="entry.creator.avatar"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+                <UserRound v-else :size="20" aria-hidden="true" />
+              </span>
+              <span class="creator-card__name">
+                <strong>{{ entry.creator.name }}</strong>
+                <small>
+                  从 {{ entry.creator.totalWorks }} 件作品中推荐 {{ entry.creator.items.length }} 件
+                </small>
+              </span>
+              <ArrowUpRight :size="17" aria-hidden="true" />
+            </button>
+          </header>
+
+          <div
+            class="creator-card__works"
+            :class="`creator-card__works--${Math.min(entry.creator.items.length, 3)}`"
+            :aria-label="`${entry.creator.name} 的推荐作品`"
           >
-            <img
-              :src="artworkImage(item)"
-              :alt="item.title || '画廊作品'"
-              loading="lazy"
-              decoding="async"
-            />
-            <span class="creator-work__label">
-              <strong>{{ item.title || '未命名作品' }}</strong>
-            </span>
-          </button>
-        </div>
-      </article>
+            <button
+              v-for="(item, artworkIndex) in entry.creator.items"
+              :key="item.id"
+              class="creator-work"
+              type="button"
+              :style="{ '--artwork-ratio': artworkRatio(item) }"
+              :aria-label="`查看作品：${item.title || '未命名作品'}`"
+              data-sfx="click"
+              @click="openArtwork(item, entry.position * 3 + artworkIndex)"
+            >
+              <img
+                :src="artworkImage(item)"
+                :alt="item.title || '画廊作品'"
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="creator-work__label">
+                <strong>{{ item.title || '未命名作品' }}</strong>
+              </span>
+            </button>
+          </div>
+        </article>
+      </div>
     </div>
 
     <div v-else-if="!loading" class="creators-state">
@@ -95,6 +127,7 @@
 
 <script setup>
 import {
+  computed,
   nextTick,
   onActivated,
   onBeforeUnmount,
@@ -119,19 +152,67 @@ const loading = ref(false)
 const error = ref('')
 const feedId = ref('')
 const sentinel = ref(null)
+const creatorColumnCount = ref(desiredCreatorColumnCount())
 let observer = null
 let viewActive = false
 let fillFrame = 0
+let resizeFrame = 0
 
 function artworkImage(item) {
   return thumbUrl(item?.image_url || item?.imageUrl || item?.url || '', 640)
 }
 
-function artworkRatio(item) {
+function artworkRatioValue(item) {
   const width = Number(item?.image_width || item?.width || item?.images?.[0]?.width)
   const height = Number(item?.image_height || item?.height || item?.images?.[0]?.height)
   const ratio = width > 0 && height > 0 ? width / height : 4 / 3
-  return String(Math.min(1.8, Math.max(0.72, ratio)))
+  return Math.min(1.8, Math.max(0.72, ratio))
+}
+
+function artworkRatio(item) {
+  return String(artworkRatioValue(item))
+}
+
+function desiredCreatorColumnCount() {
+  if (typeof window === 'undefined') return 1
+  if (window.innerWidth >= 1280) return 3
+  if (window.innerWidth >= 900) return 2
+  return 1
+}
+
+function estimateCreatorHeight(creator) {
+  const items = Array.isArray(creator?.items) ? creator.items : []
+  if (!items.length) return 1
+  if (items.length === 1) return 0.42 + 1 / artworkRatioValue(items[0])
+
+  const lanes = [0, 0]
+  for (const item of items) {
+    const lane = lanes[0] <= lanes[1] ? 0 : 1
+    lanes[lane] += 1 / artworkRatioValue(item) + 0.04
+  }
+  return 0.42 + Math.max(...lanes)
+}
+
+const creatorColumns = computed(() => {
+  const columns = Array.from({ length: creatorColumnCount.value }, () => [])
+  const heights = columns.map(() => 0)
+  creators.value.forEach((creator, position) => {
+    let shortestColumn = 0
+    for (let index = 1; index < heights.length; index += 1) {
+      if (heights[index] < heights[shortestColumn]) shortestColumn = index
+    }
+    columns[shortestColumn].push({ creator, position })
+    heights[shortestColumn] += estimateCreatorHeight(creator)
+  })
+  return columns
+})
+
+function scheduleColumnSync() {
+  if (resizeFrame) window.cancelAnimationFrame(resizeFrame)
+  resizeFrame = window.requestAnimationFrame(() => {
+    resizeFrame = 0
+    creatorColumnCount.value = desiredCreatorColumnCount()
+  })
 }
 
 function openCreator(creator) {
@@ -208,6 +289,7 @@ async function loadMore() {
 }
 
 function activateFeed() {
+  if (viewActive) return
   viewActive = true
   nextTick(() => {
     observeSentinel()
@@ -224,10 +306,19 @@ function deactivateFeed() {
   fillFrame = 0
 }
 
-onMounted(activateFeed)
+onMounted(() => {
+  creatorColumnCount.value = desiredCreatorColumnCount()
+  window.addEventListener('resize', scheduleColumnSync, { passive: true })
+  activateFeed()
+})
 onActivated(activateFeed)
 onDeactivated(deactivateFeed)
-onBeforeUnmount(deactivateFeed)
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', scheduleColumnSync)
+  if (resizeFrame) window.cancelAnimationFrame(resizeFrame)
+  resizeFrame = 0
+  deactivateFeed()
+})
 </script>
 
 <style scoped>
@@ -279,17 +370,25 @@ onBeforeUnmount(deactivateFeed)
 }
 
 .creator-masonry {
-  column-width: 380px;
-  column-gap: 24px;
+  display: grid;
+  grid-template-columns: repeat(var(--creator-column-count, 1), minmax(0, 1fr));
+  align-items: start;
+  gap: 24px;
+}
+
+.creator-column {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 24px;
 }
 
 .creator-card {
-  display: inline-block;
+  display: block;
   width: 100%;
-  margin: 0 0 24px;
+  margin: 0;
   padding: 18px;
   overflow: hidden;
-  break-inside: avoid;
   background: color-mix(in srgb, var(--sos-bg-surface) 92%, transparent);
   border: 1px solid var(--sos-border-default);
   border-radius: 12px;
@@ -493,8 +592,9 @@ onBeforeUnmount(deactivateFeed)
   .creators-intro h1 { font-size: 26px; }
   .creators-intro p { font-size: 13px; }
   .creators-intro__count { font-size: 11px; }
-  .creator-masonry { column-count: 1; }
-  .creator-card { margin-bottom: 14px; padding: 14px; border-radius: 10px; }
+  .creator-masonry,
+  .creator-column { gap: 14px; }
+  .creator-card { padding: 14px; border-radius: 10px; }
   .creator-card__header { margin-bottom: 12px; }
   .creator-card__avatar { width: 38px; height: 38px; }
 }
