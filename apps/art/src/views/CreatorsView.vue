@@ -77,7 +77,7 @@
 
           <div
             class="creator-card__works"
-            :class="`creator-card__works--${Math.min(entry.creator.items.length, 3)}`"
+            :class="`creator-card__works--${Math.min(entry.creator.items.length, CREATOR_WORK_LIMIT)}`"
             :aria-label="`${entry.creator.name} 的推荐作品`"
           >
             <button
@@ -88,7 +88,7 @@
               :style="{ '--artwork-ratio': artworkRatio(item) }"
               :aria-label="`查看作品：${item.title || '未命名作品'}`"
               data-sfx="click"
-              @click="openArtwork(item, entry.position * 3 + artworkIndex)"
+              @click="openArtwork(item, entry.position * CREATOR_WORK_LIMIT + artworkIndex)"
             >
               <img
                 :src="artworkImage(item)"
@@ -143,6 +143,7 @@ import { trackArtworkOpen } from '../services/recommendationTracker.js'
 defineOptions({ name: 'CreatorsView' })
 
 const PAGE_SIZE = 6
+const CREATOR_WORK_LIMIT = 4
 const router = useRouter()
 const creators = ref([])
 const page = ref(0)

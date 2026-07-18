@@ -1260,7 +1260,9 @@ fn creator_feed_recommendation_score(
 }
 
 // 4.4 创作者信息流：服务端生成并缓存随机作者顺序，客户端用 feedId 稳定分页；
-// 每位作者的作品使用 hybrid-v1 冷启动推荐权重（质量/新鲜度/探索）选取至多三张。
+// 每位作者的作品使用 hybrid-v1 冷启动推荐权重（质量/新鲜度/探索）选取至多四张。
+const CREATOR_FEED_WORK_LIMIT: usize = 4;
+
 async fn creator_feed(
     State(state): State<AppState>,
     Query(q): Query<CreatorFeedQuery>,
@@ -1349,7 +1351,7 @@ async fn creator_feed(
             let b_score = creator_feed_recommendation_score(b, b_stats, max_quality_raw, &entropy);
             b_score.total_cmp(&a_score).then_with(|| b.id.cmp(&a.id))
         });
-        recommended.truncate(3);
+        recommended.truncate(CREATOR_FEED_WORK_LIMIT);
 
         let creator_name = names
             .get(uid)
@@ -1375,7 +1377,9 @@ async fn creator_feed(
                         "recommendation".into(),
                         json!({
                             "batch_id": feed_id,
-                            "position": offset * 3 + creator_position * 3 + artwork_position,
+                            "position": offset * CREATOR_FEED_WORK_LIMIT
+                                + creator_position * CREATOR_FEED_WORK_LIMIT
+                                + artwork_position,
                         }),
                     );
                 }
