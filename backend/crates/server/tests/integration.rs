@@ -2547,12 +2547,26 @@ async fn chapter_public_content_contacts_and_instance_permissions() {
         &app.router,
         put_json(
             &format!("/api/chapter/admin/branches/{branch_id}/qq-groups"),
-            json!({"items":[{"name":"主群","groupNumber":"123456789","isPrimary":true}]}),
+            json!({"items":[{"name":"主群","groupNumber":"123456789","joinUrl":"https://example.test/join","isPrimary":true}]}),
             Some(&admin),
         ),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
+    let (status, unsafe_link) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/qq-groups"),
+            json!({"items":[{"name":"危险链接","groupNumber":"123456789","joinUrl":"javascript:alert(1)"}]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "公开链接不得接受可执行协议: {unsafe_link:?}"
+    );
 
     let (status, _) = send(
         &app.router,
@@ -2851,6 +2865,7 @@ async fn chapter_public_content_contacts_and_instance_permissions() {
         StatusCode::OK,
         "公开活动相册照片应成功: {album_photo:?}"
     );
+    let album_photo_id = album_photo["id"].as_i64().unwrap();
 
     let (status, public) = send(&app.router, get("/api/chapter/branches/test-city", None)).await;
     assert_eq!(status, StatusCode::OK);
@@ -2956,7 +2971,7 @@ async fn chapter_public_content_contacts_and_instance_permissions() {
         &app.router,
         put_json(
             &format!("/api/chapter/admin/branches/{branch_id}/grants"),
-            json!({"username":"branch-editor","capabilities":["branch.timeline.write"]}),
+            json!({"username":"branch-editor","capabilities":["branch.timeline.write","branch.events.write"]}),
             Some(&admin),
         ),
     )
@@ -3023,6 +3038,111 @@ async fn chapter_public_content_contacts_and_instance_permissions() {
     )
     .await;
     assert_eq!(status, StatusCode::FORBIDDEN, "未授予发布能力时不得发布");
+
+    let (status, _) = send(
+        &app.router,
+        patch_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/albums/{album_photo_id}"),
+            json!({
+                "eventId":event_id,"title":"尝试撤下公开照片",
+                "imagePath":"/uploads/chapter/test-album.webp",
+                "happenedAt":"2026-08-01T16:30:00","status":"draft"
+            }),
+            Some(&editor),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "只有写入能力的账号不得撤下已发布相册照片"
+    );
+    let (status, _) = send(
+        &app.router,
+        delete(
+            &format!("/api/chapter/admin/branches/{branch_id}/events/{event_id}"),
+            Some(&editor),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "只有写入能力的账号不得删除已发布活动"
+    );
+
+    let req = multipart_req(
+        &format!("/api/chapter/admin/branches/{branch_id}/media"),
+        &[("file", Some("writer.png"), "fake-image")],
+        Some(&editor),
+    );
+    let (status, uploaded) = send(&app.router, req).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "内容编辑者应能上传所需图片: {uploaded:?}"
+    );
+
+    insert_active_user(&app.state, "audit-reader", "password123").await;
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/grants"),
+            json!({"username":"audit-reader","capabilities":["branch.audit.read"]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let audit_reader = login(&app.router, "audit-reader", "password123").await;
+    let req = multipart_req(
+        &format!("/api/chapter/admin/branches/{branch_id}/media"),
+        &[("file", Some("readonly.png"), "fake-image")],
+        Some(&audit_reader),
+    );
+    let (status, _) = send(&app.router, req).await;
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "只读审计权限不得写入上传目录"
+    );
+
+    insert_active_user(&app.state, "profile-editor", "password123").await;
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{branch_id}/grants"),
+            json!({"username":"profile-editor","capabilities":["branch.profile.manage"]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let profile_editor = login(&app.router, "profile-editor", "password123").await;
+    let (status, _) = send(
+        &app.router,
+        patch_json(
+            &format!("/api/chapter/admin/branches/{branch_id}"),
+            json!({"name":"测试市支部资料更新","status":"active"}),
+            Some(&profile_editor),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "资料权限应仍可更新普通资料");
+    let (status, _) = send(
+        &app.router,
+        patch_json(
+            &format!("/api/chapter/admin/branches/{branch_id}"),
+            json!({"name":"测试市支部资料更新","status":"paused"}),
+            Some(&profile_editor),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "资料权限不得绕过生命周期能力暂停支部"
+    );
 }
 
 #[tokio::test]
@@ -3241,6 +3361,50 @@ async fn chapter_membership_and_anonymous_event_registration_are_enforced() {
     assert_eq!(
         admin_registrations["items"][0]["email"],
         "liang@example.test"
+    );
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{alpha_id}/events/{event_id}/operations"),
+            json!({
+                "topics":["桌游","线下交流"],
+                "partners":[{"partnerType":"community","name":"测试社群","url":"https://example.test/community"}],
+                "questions":[{
+                    "id":question_id,"questionType":"single","label":"是否第一次参加？",
+                    "required":true,"options":["是","否"]
+                }]
+            }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "编辑合作方不应重建报名问题");
+    let (status, operations) = send(
+        &app.router,
+        get(
+            &format!("/api/chapter/admin/branches/{alpha_id}/events/{event_id}/operations"),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        operations["questions"][0]["id"], question_id,
+        "已有报名答案依赖的问题 ID 必须保持稳定"
+    );
+    let (status, _) = send(
+        &app.router,
+        put_json(
+            &format!("/api/chapter/admin/branches/{alpha_id}/events/{event_id}/operations"),
+            json!({"questions":[]}),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "存在报名记录后不得删除题目并使历史答案失去语义"
     );
     let (status, _) = send(
         &app.router,

@@ -15,7 +15,7 @@ import {
   SosProgress,
   useToast,
 } from '@haruhi/ui'
-import { api, session } from '@/api'
+import { api, safeExternalUrl, session } from '@/api'
 import EventAlbum from '@/components/EventAlbum.vue'
 
 const route = useRoute()
@@ -194,15 +194,21 @@ watch(() => route.fullPath, load, { immediate: true })
       </div>
       <div class="event-facts event-facts--stacked">
         <div>
-          <strong>时间</strong><span>{{ item.startsAt?.replace('T', ' ').slice(0, 16)
-          }}<template v-if="item.endsAt">
-            至 {{ item.endsAt.replace('T', ' ').slice(0, 16) }}</template></span>
+          <strong>时间</strong
+          ><span
+            >{{ item.startsAt?.replace('T', ' ').slice(0, 16)
+            }}<template v-if="item.endsAt">
+              至 {{ item.endsAt.replace('T', ' ').slice(0, 16) }}</template
+            ></span
+          >
         </div>
         <div>
-          <strong>地点</strong><span>{{ item.venueName || '线上' }}</span><small>{{ item.address }}</small>
+          <strong>地点</strong><span>{{ item.venueName || '线上' }}</span
+          ><small>{{ item.address }}</small>
         </div>
         <div>
-          <strong>活动形式</strong><span>{{
+          <strong>活动形式</strong
+          ><span>{{
             item.format === 'online' ? '线上' : item.format === 'hybrid' ? '线上线下混合' : '线下'
           }}</span>
         </div>
@@ -233,13 +239,18 @@ watch(() => route.fullPath, load, { immediate: true })
             v-if="internalRegistration"
             :disabled="
               (mine && !['cancelled', 'rejected'].includes(mine.state)) ||
-                ['disabled', 'not_open', 'closed'].includes(registration.state)
+              ['disabled', 'not_open', 'closed'].includes(registration.state)
             "
             @click="openRegistration"
           >
             {{ registrationLabel }}
           </SosButton>
-          <a v-if="externalRegistration" :href="item.registrationUrl" class="sos-button">前往外部报名</a>
+          <a
+            v-if="externalRegistration && safeExternalUrl(item.registrationUrl)"
+            :href="safeExternalUrl(item.registrationUrl)"
+            class="sos-button"
+            >前往外部报名</a
+          >
           <SosButton
             v-if="mine && !['cancelled', 'rejected'].includes(mine.state)"
             variant="secondary"
@@ -311,16 +322,17 @@ watch(() => route.fullPath, load, { immediate: true })
           <a
             v-for="partner in operations.partners"
             :key="partner.id"
-            :href="partner.url || undefined"
+            :href="safeExternalUrl(partner.url) || undefined"
             class="chapter-card chapter-card__body"
-          ><img
-             v-if="partner.logoPath"
-             class="partner-logo"
-             :src="resolveUploadUrl(partner.logoPath)"
-             :alt="partner.name"
-           />
+            ><img
+              v-if="partner.logoPath"
+              class="partner-logo"
+              :src="resolveUploadUrl(partner.logoPath)"
+              :alt="partner.name"
+            />
             <h3>{{ partner.name }}</h3>
-            <small>{{ partner.partnerType }}</small></a>
+            <small>{{ partner.partnerType }}</small></a
+          >
         </div>
       </section>
 
@@ -357,7 +369,9 @@ watch(() => route.fullPath, load, { immediate: true })
         <SosNotice tone="info" title="参与者名单">
           默认公开你的账号昵称与头像；选择匿名后，公开页只显示默认头像和活动内编号，管理员仍可查看真实账号及报名资料。
         </SosNotice>
-        <label class="check-label"><input v-model="anonymous" type="checkbox" /> 在公开参与者名单中匿名</label>
+        <label class="check-label"
+          ><input v-model="anonymous" type="checkbox" /> 在公开参与者名单中匿名</label
+        >
         <label v-for="question in operations.questions" :key="question.id">
           {{ question.label }}<span v-if="question.required">（必填）</span>
           <SosInput
@@ -374,24 +388,24 @@ watch(() => route.fullPath, load, { immediate: true })
               {{ option }}
             </option>
           </select>
-          <span v-else class="question-options"><label v-for="option in question.options" :key="option"><input
-            type="checkbox"
-            :checked="(answers[String(question.id)] || []).includes(option)"
-            @change="toggleMultiple(question.id, option, $event.target.checked)"
-          />{{ option }}</label></span>
+          <span v-else class="question-options"
+            ><label v-for="option in question.options" :key="option"
+              ><input
+                type="checkbox"
+                :checked="(answers[String(question.id)] || []).includes(option)"
+                @change="toggleMultiple(question.id, option, $event.target.checked)"
+              />{{ option }}</label
+            ></span
+          >
         </label>
         <SosNotice v-if="registerError" tone="danger" title="报名失败">
-          {{
-            registerError
-          }}
+          {{ registerError }}
         </SosNotice>
       </div>
       <template #footer>
         <SosButton variant="ghost" :disabled="registerBusy" @click="registerOpen = false">
-          取消
-        </SosButton><SosButton :loading="registerBusy" @click="submitRegistration">
-          提交报名
-        </SosButton>
+          取消 </SosButton
+        ><SosButton :loading="registerBusy" @click="submitRegistration"> 提交报名 </SosButton>
       </template>
     </SosModal>
     <SosModal v-model:open="cancelOpen" title="取消报名">

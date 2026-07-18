@@ -83,6 +83,9 @@ const panel = computed(() =>
 const slug = computed(() => route.params.branchSlug)
 const contentKind = computed(() => (panel.value === 'events' ? 'events' : 'albums'))
 const userIsSuper = computed(() => !!session.state.user?.isSuperAdmin)
+const canManageLifecycle = computed(() =>
+  hasCapability(session.state.user, 'branch.lifecycle.manage', 'branch', branchId.value || '')
+)
 const allPanels = [
   ['profile', '资料与页面', 'branch.profile.manage'],
   ['brand', '品牌', 'branch.brand.manage'],
@@ -235,7 +238,29 @@ const merchandiseStatusOptions = [
   { label: '草稿', value: 'draft' },
   { label: '公开展示', value: 'published' },
 ]
-const albumStatusOptions = contentStatusOptions.slice(0, 2)
+const canPublishEvents = computed(() =>
+  hasCapability(session.state.user, 'branch.events.publish', 'branch', branchId.value || '')
+)
+const canPublishAlbums = computed(() =>
+  hasCapability(session.state.user, 'branch.timeline.publish', 'branch', branchId.value || '')
+)
+const eventStatusOptions = computed(() =>
+  contentStatusOptions.map((item) => ({
+    ...item,
+    disabled: item.value === 'published' && !canPublishEvents.value,
+  }))
+)
+const albumStatusOptions = computed(() =>
+  contentStatusOptions.slice(0, 2).map((item) => ({
+    ...item,
+    disabled: item.value === 'published' && !canPublishAlbums.value,
+  }))
+)
+const canMutateCurrentContent = computed(
+  () =>
+    contentForm.status !== 'published' ||
+    (panel.value === 'albums' ? canPublishAlbums.value : canPublishEvents.value)
+)
 const visibilityOptions = [
   { label: '所有人可见', value: 'public' },
   { label: '不公开，仅管理员可见', value: 'members' },
@@ -267,12 +292,20 @@ const eventRoleOptions = [
   { label: '引导员', value: 'facilitator' },
   { label: '志愿者', value: 'volunteer' },
 ]
+const partnerTypeOptions = [
+  { label: '社群', value: 'community' },
+  { label: '场地', value: 'venue' },
+  { label: '赞助方', value: 'sponsor' },
+  { label: '媒体', value: 'media' },
+  { label: '其他', value: 'other' },
+]
 const questionTypeOptions = [
   { label: '短文本', value: 'short_text' },
   { label: '单选', value: 'single' },
   { label: '多选', value: 'multiple' },
 ]
 const capabilityOptions = [
+  ['branch.lifecycle.manage', '管理支部运营状态'],
   ['branch.profile.manage', '管理支部资料与页面导航'],
   ['branch.brand.manage', '管理 Logo、封面与强调色'],
   ['branch.contacts.manage', '管理 QQ 群与负责人联系方式'],
@@ -485,6 +518,10 @@ function blankEventOperations() {
     cohosts: [],
   }
 }
+function currentDateTimeLocal() {
+  const now = new Date()
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+}
 function blankContent(kind = contentKind.value) {
   if (kind === 'albums') {
     return {
@@ -493,7 +530,7 @@ function blankContent(kind = contentKind.value) {
       title: '',
       content: '',
       imagePath: '',
-      happenedAt: new Date().toISOString().slice(0, 16),
+      happenedAt: currentDateTimeLocal(),
       status: 'draft',
     }
   }
@@ -512,7 +549,7 @@ function blankContent(kind = contentKind.value) {
     venueName: '',
     address: '',
     onlineUrl: '',
-    startsAt: new Date().toISOString().slice(0, 16),
+    startsAt: currentDateTimeLocal(),
     endsAt: '',
     registrationMode: 'none',
     admissionMode: 'automatic',
@@ -1283,7 +1320,7 @@ function addEventPerson() {
 function addEventPartner() {
   eventOperations.partners.push({
     _key: nextKey('event-partner'),
-    partnerType: 'partner',
+    partnerType: 'community',
     name: '',
     logoPath: '',
     url: '',
@@ -1637,7 +1674,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
               <label>成立日期<SosInput v-model="branch.foundedOn" type="date" /></label>
               <label>
                 运营状态
-                <select v-model="branch.status" class="sos-select">
+                <select v-model="branch.status" class="sos-select" :disabled="!canManageLifecycle">
                   <option value="draft">草稿，不公开</option>
                   <option value="active">正常公开</option>
                   <option value="paused">暂停运营</option>
@@ -2759,9 +2796,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
                       placeholder="例如 summer-screening"
                   /></label>
                   <label
-                    >公开状态<SosSelect
-                      v-model="contentForm.status"
-                      :options="contentStatusOptions"
+                    >公开状态<SosSelect v-model="contentForm.status" :options="eventStatusOptions"
                   /></label>
                   <label
                     >可见范围<SosSelect
@@ -2885,7 +2920,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
               <SosButton
                 v-if="subpanel !== 'create'"
                 :loading="busy"
-                :disabled="!contentForm.id"
+                :disabled="!contentForm.id || !canMutateCurrentContent"
                 @click="saveRegistrationSettings"
               >
                 保存报名设置
@@ -2954,9 +2989,9 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
                   <div class="record-editor__body form-grid form-grid--compact">
                     <label>名称<SosInput v-model="partner.name" /></label
                     ><label
-                      >合作类型<SosInput
+                      >合作类型<SosSelect
                         v-model="partner.partnerType"
-                        placeholder="例如：场地支持" /></label
+                        :options="partnerTypeOptions" /></label
                     ><label class="form-wide">网站<SosInput v-model="partner.url" /></label
                     ><SosButton
                       variant="danger"
@@ -2971,7 +3006,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
               <SosButton
                 v-if="subpanel !== 'create'"
                 :loading="busy"
-                :disabled="!contentForm.id"
+                :disabled="!contentForm.id || !canMutateCurrentContent"
                 @click="saveEventOperations"
               >
                 保存人员与合作方
@@ -3011,7 +3046,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
               <SosButton
                 v-if="subpanel !== 'create'"
                 :loading="busy"
-                :disabled="!contentForm.id"
+                :disabled="!contentForm.id || !canMutateCurrentContent"
                 @click="saveEventOperations"
               >
                 保存联合主办邀请
@@ -3140,13 +3175,13 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
               </div>
             </template>
             <div v-if="panel === 'albums'" class="form-actions">
-              <SosButton :loading="busy" @click="saveContent">
+              <SosButton :loading="busy" :disabled="!canMutateCurrentContent" @click="saveContent">
                 {{ contentForm.id ? '保存照片修改' : '添加到活动相册' }}
               </SosButton>
               <SosButton
                 v-if="contentForm.id"
                 variant="danger"
-                :disabled="busy"
+                :disabled="busy || !canMutateCurrentContent"
                 @click="deleteContent"
               >
                 删除照片
@@ -3156,8 +3191,14 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
               v-else-if="subpanel === 'existing' && eventEditorSection === 'details'"
               class="form-actions"
             >
-              <SosButton :loading="busy" @click="saveContent">保存活动资料</SosButton>
-              <SosButton variant="danger" :disabled="busy" @click="deleteContent">
+              <SosButton :loading="busy" :disabled="!canMutateCurrentContent" @click="saveContent"
+                >保存活动资料</SosButton
+              >
+              <SosButton
+                variant="danger"
+                :disabled="busy || !canMutateCurrentContent"
+                @click="deleteContent"
+              >
                 删除活动
               </SosButton>
             </div>

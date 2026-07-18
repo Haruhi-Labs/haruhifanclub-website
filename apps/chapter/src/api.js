@@ -9,3 +9,17 @@ export function uploadBranchMedia(branchId, file) {
   form.append('file', file)
   return api.postForm(`/admin/branches/${branchId}/media`, form)
 }
+
+function safeUrl(value, allowedSchemes) {
+  const candidate = String(value || '').trim()
+  const scheme = candidate.match(/^([a-z][a-z0-9+.-]*):/i)?.[1]?.toLowerCase()
+  return scheme && allowedSchemes.includes(scheme) ? candidate : ''
+}
+
+export function safeExternalUrl(value) {
+  return safeUrl(value, ['http', 'https'])
+}
+
+export function safeContactUrl(value) {
+  return safeUrl(value, ['http', 'https', 'mailto', 'tel'])
+}

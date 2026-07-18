@@ -37,6 +37,16 @@ const ADMIN_CAPABILITIES: &[&str] = &[
     "branch.platform.intervene",
 ];
 
+const MEDIA_UPLOAD_CAPABILITIES: &[&str] = &[
+    "branch.profile.manage",
+    "branch.brand.manage",
+    "branch.contacts.manage",
+    "branch.timeline.write",
+    "branch.events.write",
+];
+
+const CHAPTER_UTC_OFFSET_HOURS: i64 = 8;
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/branches", get(list_branches))
@@ -1264,7 +1274,7 @@ async fn aggregate_events(
     let from = query.from.unwrap_or_default();
     let to = query.to.unwrap_or_default();
     let q = format!("%{}%", query.q.unwrap_or_default().trim());
-    let where_sql = "FROM branch_events e JOIN branches b ON b.id=e.branch_id WHERE b.status='active' AND e.status='published' AND e.visibility='public' AND e.moderation_state='normal' AND (e.aggregate_mode='include' OR (e.aggregate_mode='inherit' AND b.default_event_aggregate=1)) AND (?='' OR b.slug=?) AND (?='' OR b.locality_name=?) AND (?='' OR e.event_type=?) AND (?='' OR e.format=?) AND (?='' OR EXISTS(SELECT 1 FROM branch_event_topics t WHERE t.event_id=e.id AND t.topic=?)) AND (?='' OR e.starts_at>=?) AND (?='' OR e.starts_at<=?) AND (?='%%' OR e.title LIKE ? OR e.summary LIKE ?) AND (?='' OR (?='upcoming' AND COALESCE(e.ends_at,e.starts_at)>=datetime('now')) OR (?='past' AND COALESCE(e.ends_at,e.starts_at)<datetime('now')) OR ?='all')";
+    let where_sql = "FROM branch_events e JOIN branches b ON b.id=e.branch_id WHERE b.status='active' AND e.status='published' AND e.visibility='public' AND e.moderation_state='normal' AND (e.aggregate_mode='include' OR (e.aggregate_mode='inherit' AND b.default_event_aggregate=1)) AND (?='' OR b.slug=?) AND (?='' OR b.locality_name=?) AND (?='' OR e.event_type=?) AND (?='' OR e.format=?) AND (?='' OR EXISTS(SELECT 1 FROM branch_event_topics t WHERE t.event_id=e.id AND t.topic=?)) AND (?='' OR e.starts_at>=?) AND (?='' OR e.starts_at<=?) AND (?='%%' OR e.title LIKE ? OR e.summary LIKE ?) AND (?='' OR (?='upcoming' AND datetime(COALESCE(e.ends_at,e.starts_at))>=datetime('now','+8 hours')) OR (?='past' AND datetime(COALESCE(e.ends_at,e.starts_at))<datetime('now','+8 hours')) OR ?='all')";
     let total: i64 = sqlx::query_scalar(&format!("SELECT COUNT(*) {where_sql}"))
         .bind(&branch)
         .bind(&branch)
@@ -1289,7 +1299,7 @@ async fn aggregate_events(
         .bind(&period)
         .fetch_one(&state.pools.chapter)
         .await?;
-    let sql = format!("{EVENT_SELECT} {} ORDER BY CASE WHEN COALESCE(e.ends_at,e.starts_at)>=datetime('now') THEN 0 ELSE 1 END, CASE WHEN COALESCE(e.ends_at,e.starts_at)>=datetime('now') THEN e.starts_at END ASC, CASE WHEN COALESCE(e.ends_at,e.starts_at)<datetime('now') THEN e.starts_at END DESC, e.id LIMIT ? OFFSET ?", where_sql.trim_start_matches("FROM branch_events e JOIN branches b ON b.id=e.branch_id "));
+    let sql = format!("{EVENT_SELECT} {} ORDER BY CASE WHEN datetime(COALESCE(e.ends_at,e.starts_at))>=datetime('now','+8 hours') THEN 0 ELSE 1 END, CASE WHEN datetime(COALESCE(e.ends_at,e.starts_at))>=datetime('now','+8 hours') THEN datetime(e.starts_at) END ASC, CASE WHEN datetime(COALESCE(e.ends_at,e.starts_at))<datetime('now','+8 hours') THEN datetime(e.starts_at) END DESC, e.id LIMIT ? OFFSET ?", where_sql.trim_start_matches("FROM branch_events e JOIN branches b ON b.id=e.branch_id "));
     let items: Vec<EventItem> = sqlx::query_as(&sql)
         .bind(&branch)
         .bind(&branch)
@@ -1384,10 +1394,7 @@ async fn registration_summary(state: &AppState, event: &EventItem) -> AppResult<
     .bind(event.id)
     .fetch_one(&state.pools.chapter)
     .await?;
-    let now = chrono::Utc::now()
-        .naive_utc()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string();
+    let now = chapter_now_string();
     let state_name = if event.registration_mode == "none" {
         "disabled"
     } else if event
@@ -1514,6 +1521,23 @@ async fn allow_any_branch_access(state: &AppState, user: &AuthUser, id: i64) -> 
     }
 }
 
+async fn allow_media_upload(state: &AppState, user: &AuthUser, id: i64) -> AppResult<()> {
+    if user.is_super {
+        return Ok(());
+    }
+    let grants = capability_grants(&state.pools.core, user.id).await?;
+    let scope = id.to_string();
+    if grants.iter().any(|grant| {
+        MEDIA_UPLOAD_CAPABILITIES.contains(&grant.capability.as_str())
+            && ((grant.scope_type == "branch" && grant.scope_id == scope)
+                || (grant.scope_type == "platform" && grant.scope_id == "chapter"))
+    }) {
+        Ok(())
+    } else {
+        Err(AppError::Forbidden)
+    }
+}
+
 async fn audit(
     state: &AppState,
     branch_id: Option<i64>,
@@ -1583,6 +1607,45 @@ fn opt_string(body: &Value, key: &str) -> Option<String> {
         .map(str::trim)
         .filter(|v| !v.is_empty())
         .map(str::to_string)
+}
+
+fn validated_url(
+    body: &Value,
+    key: &str,
+    label: &str,
+    allowed_schemes: &[&str],
+) -> AppResult<Option<String>> {
+    let Some(value) = opt_string(body, key) else {
+        return Ok(None);
+    };
+    let Some((scheme, _)) = value.split_once(':') else {
+        return Err(AppError::bad_request(format!("{label}必须是完整链接")));
+    };
+    if !allowed_schemes
+        .iter()
+        .any(|allowed| scheme.eq_ignore_ascii_case(allowed))
+    {
+        return Err(AppError::bad_request(format!(
+            "{label}仅支持 {} 协议",
+            allowed_schemes.join("、")
+        )));
+    }
+    Ok(Some(value))
+}
+
+fn public_url(body: &Value, key: &str, label: &str) -> AppResult<Option<String>> {
+    validated_url(body, key, label, &["http", "https"])
+}
+
+fn contact_url(body: &Value, key: &str, label: &str) -> AppResult<Option<String>> {
+    validated_url(body, key, label, &["http", "https", "mailto", "tel"])
+}
+
+fn chapter_now_string() -> String {
+    // Chapter 已移除支部独立时区，所有无时区业务时间统一按 Asia/Shanghai 解释。
+    (chrono::Utc::now() + chrono::Duration::hours(CHAPTER_UTC_OFFSET_HOURS))
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string()
 }
 
 fn valid_slug(slug: &str) -> bool {
@@ -1706,6 +1769,21 @@ async fn update_branch(
 ) -> AppResult<Json<Value>> {
     allow(&state, &user, id, "branch.profile.manage").await?;
     let name = required_string(&body, "name", "支部名称")?;
+    let current_status: String = sqlx::query_scalar("SELECT status FROM branches WHERE id=?")
+        .bind(id)
+        .fetch_optional(&state.pools.chapter)
+        .await?
+        .ok_or_else(|| AppError::not_found("支部不存在"))?;
+    let status = body
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or(&current_status);
+    if !["draft", "active", "paused", "archived"].contains(&status) {
+        return Err(AppError::bad_request("支部状态无效"));
+    }
+    if status != current_status {
+        allow(&state, &user, id, "branch.lifecycle.manage").await?;
+    }
     sqlx::query("UPDATE branches SET name=?, short_name=?, summary=?, about_text=?, join_text=?, country_code=?, locality_name=?, founded_on=?, status=?, default_post_aggregate=?, default_event_aggregate=?, updated_at=datetime('now') WHERE id=?")
         .bind(name)
         .bind(opt_string(&body,"shortName")).bind(opt_string(&body,"summary"))
@@ -1713,7 +1791,7 @@ async fn update_branch(
         .bind(body.get("countryCode").and_then(Value::as_str).unwrap_or("CN"))
         .bind(opt_string(&body,"localityName"))
         .bind(opt_string(&body,"foundedOn"))
-        .bind(body.get("status").and_then(Value::as_str).unwrap_or("draft"))
+        .bind(status)
         .bind(body.get("defaultPostAggregate").and_then(Value::as_bool).unwrap_or(true))
         .bind(body.get("defaultEventAggregate").and_then(Value::as_bool).unwrap_or(true))
         .bind(id).execute(&state.pools.chapter).await?;
@@ -2167,9 +2245,10 @@ async fn replace_qq_groups(
         .execute(&mut *tx)
         .await?;
     for (index, item) in items.iter().enumerate() {
+        let join_url = public_url(item, "joinUrl", "加群链接")?;
         sqlx::query("INSERT INTO branch_qq_groups (branch_id,name,group_number,description,audience_label,join_url,qr_image_path,join_instructions,is_primary,status,sort_order,last_verified_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
             .bind(id).bind(required_string(item,"name","群名称")?).bind(required_string(item,"groupNumber","QQ群号")?)
-            .bind(opt_string(item,"description")).bind(opt_string(item,"audienceLabel")).bind(opt_string(item,"joinUrl"))
+            .bind(opt_string(item,"description")).bind(opt_string(item,"audienceLabel")).bind(join_url)
             .bind(opt_string(item,"qrImagePath")).bind(opt_string(item,"joinInstructions"))
             .bind(item.get("isPrimary").and_then(Value::as_bool).unwrap_or(false))
             .bind(item.get("status").and_then(Value::as_str).unwrap_or("active"))
@@ -2223,9 +2302,10 @@ async fn replace_contacts(
             .bind(person.get("sortOrder").and_then(Value::as_i64).unwrap_or(index as i64)).fetch_one(&mut *tx).await?;
         if let Some(methods) = person.get("methods").and_then(Value::as_array) {
             for (method_index, method) in methods.iter().enumerate() {
+                let method_url = contact_url(method, "url", "联系方式链接")?;
                 sqlx::query("INSERT INTO branch_contact_methods (person_id,method_type,label,value,url,is_public,sort_order) VALUES (?,?,?,?,?,?,?)")
                     .bind(person_id).bind(required_string(method,"methodType","联系方式类型")?).bind(opt_string(method,"label"))
-                    .bind(required_string(method,"value","联系方式")?).bind(opt_string(method,"url"))
+                    .bind(required_string(method,"value","联系方式")?).bind(method_url)
                     .bind(method.get("isPublic").and_then(Value::as_bool).unwrap_or(true))
                     .bind(method.get("sortOrder").and_then(Value::as_i64).unwrap_or(method_index as i64)).execute(&mut *tx).await?;
             }
@@ -2412,10 +2492,18 @@ async fn update_timeline_entry(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     allow(&state, &user, id, "branch.timeline.write").await?;
+    let current_status: String = sqlx::query_scalar(
+        "SELECT status FROM branch_event_timeline_entries WHERE id=? AND branch_id=?",
+    )
+    .bind(item_id)
+    .bind(id)
+    .fetch_optional(&state.pools.chapter)
+    .await?
+    .ok_or_else(|| AppError::not_found("相册照片不存在"))?;
     let status = body
         .get("status")
         .and_then(Value::as_str)
-        .unwrap_or("draft");
+        .unwrap_or(&current_status);
     let event_id = body
         .get("eventId")
         .and_then(Value::as_i64)
@@ -2425,7 +2513,7 @@ async fn update_timeline_entry(
     if status == "published" && image_path.is_none() {
         return Err(AppError::bad_request("公开相册照片前请先上传图片"));
     }
-    if status == "published" {
+    if current_status == "published" || status == "published" {
         allow(&state, &user, id, "branch.timeline.publish").await?;
     }
     let result = sqlx::query("UPDATE branch_event_timeline_entries SET event_id=?,title=?,content=?,image_path=?,happened_at=?,location_name=?,status=?,updated_by=?,updated_at=datetime('now') WHERE id=? AND branch_id=?")
@@ -2456,6 +2544,17 @@ async fn delete_timeline_entry(
     Path((id, item_id)): Path<(i64, i64)>,
 ) -> AppResult<Json<Value>> {
     allow(&state, &user, id, "branch.timeline.write").await?;
+    let current_status: String = sqlx::query_scalar(
+        "SELECT status FROM branch_event_timeline_entries WHERE id=? AND branch_id=?",
+    )
+    .bind(item_id)
+    .bind(id)
+    .fetch_optional(&state.pools.chapter)
+    .await?
+    .ok_or_else(|| AppError::not_found("相册照片不存在"))?;
+    if current_status == "published" {
+        allow(&state, &user, id, "branch.timeline.publish").await?;
+    }
     sqlx::query("UPDATE branch_event_timeline_entries SET status='deleted',updated_by=?,updated_at=datetime('now') WHERE id=? AND branch_id=?").bind(user.id).bind(item_id).bind(id).execute(&state.pools.chapter).await?;
     audit(
         &state,
@@ -2494,6 +2593,8 @@ async fn create_event(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     allow(&state, &user, id, "branch.events.write").await?;
+    let online_url = public_url(&body, "onlineUrl", "线上活动链接")?;
+    let registration_url = public_url(&body, "registrationUrl", "外部报名链接")?;
     let status = body
         .get("status")
         .and_then(Value::as_str)
@@ -2510,7 +2611,7 @@ async fn create_event(
         .get("registrationMode")
         .and_then(Value::as_str)
         .unwrap_or_else(|| {
-            if opt_string(&body, "registrationUrl").is_some() {
+            if registration_url.is_some() {
                 "external"
             } else {
                 "none"
@@ -2526,11 +2627,14 @@ async fn create_event(
     {
         return Err(AppError::bad_request("活动形式或报名设置无效"));
     }
+    if ["external", "both"].contains(&registration_mode) && registration_url.is_none() {
+        return Err(AppError::bad_request("外部报名方式必须填写有效链接"));
+    }
     let item_id:i64=sqlx::query_scalar("INSERT INTO branch_events (branch_id,slug,title,summary,content,cover_path,event_type,venue_name,address,online_url,starts_at,ends_at,registration_url,format,registration_mode,admission_mode,capacity,registration_opens_at,registration_closes_at,status,visibility,aggregate_mode,published_at,created_by,updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='published' THEN datetime('now') ELSE NULL END,?,?) RETURNING id")
         .bind(id).bind(required_string(&body,"slug","Slug")?).bind(required_string(&body,"title","标题")?)
         .bind(opt_string(&body,"summary")).bind(opt_string(&body,"content")).bind(opt_string(&body,"coverPath"))
-        .bind(opt_string(&body,"eventType")).bind(opt_string(&body,"venueName")).bind(opt_string(&body,"address")).bind(opt_string(&body,"onlineUrl"))
-        .bind(starts_at).bind(ends_at).bind(opt_string(&body,"registrationUrl"))
+        .bind(opt_string(&body,"eventType")).bind(opt_string(&body,"venueName")).bind(opt_string(&body,"address")).bind(online_url)
+        .bind(starts_at).bind(ends_at).bind(registration_url)
         .bind(format_name).bind(registration_mode).bind(admission_mode).bind(body.get("capacity").and_then(Value::as_i64))
         .bind(opt_string(&body,"registrationOpensAt")).bind(opt_string(&body,"registrationClosesAt"))
         .bind(status).bind(body.get("visibility").and_then(Value::as_str).unwrap_or("public"))
@@ -2556,11 +2660,20 @@ async fn update_event(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     allow(&state, &user, id, "branch.events.write").await?;
+    let current_status: String =
+        sqlx::query_scalar("SELECT status FROM branch_events WHERE id=? AND branch_id=?")
+            .bind(item_id)
+            .bind(id)
+            .fetch_optional(&state.pools.chapter)
+            .await?
+            .ok_or_else(|| AppError::not_found("活动不存在"))?;
+    let online_url = public_url(&body, "onlineUrl", "线上活动链接")?;
+    let registration_url = public_url(&body, "registrationUrl", "外部报名链接")?;
     let status = body
         .get("status")
         .and_then(Value::as_str)
-        .unwrap_or("draft");
-    if status == "published" {
+        .unwrap_or(&current_status);
+    if current_status == "published" || status == "published" {
         allow(&state, &user, id, "branch.events.publish").await?;
     }
     let (starts_at, ends_at) = event_time_values(&body, status)?;
@@ -2582,10 +2695,13 @@ async fn update_event(
     {
         return Err(AppError::bad_request("活动形式或报名设置无效"));
     }
+    if ["external", "both"].contains(&registration_mode) && registration_url.is_none() {
+        return Err(AppError::bad_request("外部报名方式必须填写有效链接"));
+    }
     sqlx::query("UPDATE branch_events SET slug=?,title=?,summary=?,content=?,cover_path=?,event_type=?,venue_name=?,address=?,online_url=?,starts_at=?,ends_at=?,registration_url=?,format=?,registration_mode=?,admission_mode=?,capacity=?,registration_opens_at=?,registration_closes_at=?,status=?,visibility=?,aggregate_mode=?,published_at=CASE WHEN ?='published' THEN COALESCE(published_at,datetime('now')) ELSE published_at END,updated_by=?,updated_at=datetime('now') WHERE id=? AND branch_id=?")
         .bind(required_string(&body,"slug","Slug")?).bind(required_string(&body,"title","标题")?).bind(opt_string(&body,"summary")).bind(opt_string(&body,"content")).bind(opt_string(&body,"coverPath"))
-        .bind(opt_string(&body,"eventType")).bind(opt_string(&body,"venueName")).bind(opt_string(&body,"address")).bind(opt_string(&body,"onlineUrl"))
-        .bind(starts_at).bind(ends_at).bind(opt_string(&body,"registrationUrl"))
+        .bind(opt_string(&body,"eventType")).bind(opt_string(&body,"venueName")).bind(opt_string(&body,"address")).bind(online_url)
+        .bind(starts_at).bind(ends_at).bind(registration_url)
         .bind(format_name).bind(registration_mode).bind(admission_mode).bind(body.get("capacity").and_then(Value::as_i64))
         .bind(opt_string(&body,"registrationOpensAt")).bind(opt_string(&body,"registrationClosesAt"))
         .bind(status).bind(body.get("visibility").and_then(Value::as_str).unwrap_or("public")).bind(body.get("aggregateMode").and_then(Value::as_str).unwrap_or("inherit"))
@@ -2609,6 +2725,16 @@ async fn delete_event(
     Path((id, item_id)): Path<(i64, i64)>,
 ) -> AppResult<Json<Value>> {
     allow(&state, &user, id, "branch.events.write").await?;
+    let current_status: String =
+        sqlx::query_scalar("SELECT status FROM branch_events WHERE id=? AND branch_id=?")
+            .bind(item_id)
+            .bind(id)
+            .fetch_optional(&state.pools.chapter)
+            .await?
+            .ok_or_else(|| AppError::not_found("活动不存在"))?;
+    if current_status == "published" {
+        allow(&state, &user, id, "branch.events.publish").await?;
+    }
     sqlx::query("UPDATE branch_events SET status='deleted',updated_by=?,updated_at=datetime('now') WHERE id=? AND branch_id=?").bind(user.id).bind(item_id).bind(id).execute(&state.pools.chapter).await?;
     audit(
         &state,
@@ -2680,14 +2806,15 @@ async fn replace_event_operations(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     allow(&state, &user, id, "branch.events.write").await?;
-    let exists: bool =
-        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM branch_events WHERE id=? AND branch_id=?)")
+    let event_status: String =
+        sqlx::query_scalar("SELECT status FROM branch_events WHERE id=? AND branch_id=?")
             .bind(item_id)
             .bind(id)
-            .fetch_one(&state.pools.chapter)
-            .await?;
-    if !exists {
-        return Err(AppError::not_found("活动不存在"));
+            .fetch_optional(&state.pools.chapter)
+            .await?
+            .ok_or_else(|| AppError::not_found("活动不存在"))?;
+    if event_status == "published" {
+        allow(&state, &user, id, "branch.events.publish").await?;
     }
     let topics = body
         .get("topics")
@@ -2715,11 +2842,34 @@ async fn replace_event_operations(
         .cloned()
         .unwrap_or_default();
     let mut tx = state.pools.chapter.begin().await?;
+    let existing_question_rows: Vec<(i64, String, String, bool, Option<String>)> = sqlx::query_as(
+        "SELECT id,question_type,label,required,options_json \
+             FROM branch_event_registration_questions WHERE event_id=?",
+    )
+    .bind(item_id)
+    .fetch_all(&mut *tx)
+    .await?;
+    let existing_questions: HashMap<i64, (String, String, bool, Value)> = existing_question_rows
+        .into_iter()
+        .map(
+            |(question_id, question_type, label, required, options_json)| {
+                let options = options_json
+                    .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+                    .unwrap_or_else(|| json!([]));
+                (question_id, (question_type, label, required, options))
+            },
+        )
+        .collect();
+    let has_registrations: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM branch_event_registrations WHERE event_id=?)",
+    )
+    .bind(item_id)
+    .fetch_one(&mut *tx)
+    .await?;
     for table in [
         "branch_event_topics",
         "branch_event_people",
         "branch_event_partners",
-        "branch_event_registration_questions",
     ] {
         let sql = format!("DELETE FROM {table} WHERE event_id=?");
         sqlx::query(&sql).bind(item_id).execute(&mut *tx).await?;
@@ -2744,10 +2894,11 @@ async fn replace_event_operations(
         if !["speaker", "host", "facilitator", "volunteer"].contains(&role) {
             return Err(AppError::bad_request("活动人员角色无效"));
         }
+        let person_url = public_url(person, "url", "活动人员链接")?;
         sqlx::query("INSERT INTO branch_event_people(event_id,role,name,title,organization,avatar_path,bio,url,sort_order) VALUES (?,?,?,?,?,?,?,?,?)")
             .bind(item_id).bind(role).bind(required_string(person,"name","活动人员姓名")?)
             .bind(opt_string(person,"title")).bind(opt_string(person,"organization")).bind(opt_string(person,"avatarPath"))
-            .bind(opt_string(person,"bio")).bind(opt_string(person,"url")).bind(index as i64).execute(&mut *tx).await?;
+            .bind(opt_string(person,"bio")).bind(person_url).bind(index as i64).execute(&mut *tx).await?;
     }
     for (index, partner) in partners.iter().enumerate() {
         let partner_type = partner
@@ -2757,10 +2908,12 @@ async fn replace_event_operations(
         if !["community", "venue", "sponsor", "media", "other"].contains(&partner_type) {
             return Err(AppError::bad_request("合作方类型无效"));
         }
+        let partner_url = public_url(partner, "url", "合作方链接")?;
         sqlx::query("INSERT INTO branch_event_partners(event_id,partner_type,name,logo_path,url,sort_order) VALUES (?,?,?,?,?,?)")
             .bind(item_id).bind(partner_type).bind(required_string(partner,"name","合作方名称")?)
-            .bind(opt_string(partner,"logoPath")).bind(opt_string(partner,"url")).bind(index as i64).execute(&mut *tx).await?;
+            .bind(opt_string(partner,"logoPath")).bind(partner_url).bind(index as i64).execute(&mut *tx).await?;
     }
+    let mut retained_question_ids = HashSet::new();
     for (index, question) in questions.iter().enumerate() {
         let question_type = question
             .get("questionType")
@@ -2773,10 +2926,52 @@ async fn replace_event_operations(
             .get("options")
             .cloned()
             .unwrap_or_else(|| json!([]));
-        sqlx::query("INSERT INTO branch_event_registration_questions(event_id,question_type,label,required,options_json,sort_order) VALUES (?,?,?,?,?,?)")
-            .bind(item_id).bind(question_type).bind(required_string(question,"label","报名问题")?)
-            .bind(question.get("required").and_then(Value::as_bool).unwrap_or(false)).bind(options.to_string()).bind(index as i64)
-            .execute(&mut *tx).await?;
+        let label = required_string(question, "label", "报名问题")?;
+        let required = question
+            .get("required")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if let Some(question_id) = question.get("id").and_then(Value::as_i64) {
+            let Some((old_type, old_label, old_required, old_options)) =
+                existing_questions.get(&question_id)
+            else {
+                return Err(AppError::bad_request("报名问题不属于当前活动"));
+            };
+            if !retained_question_ids.insert(question_id) {
+                return Err(AppError::bad_request("报名问题重复"));
+            }
+            if has_registrations
+                && (old_type != question_type
+                    || old_label != &label
+                    || *old_required != required
+                    || old_options != &options)
+            {
+                return Err(AppError::bad_request("已有报名记录，不能修改报名问题内容"));
+            }
+            sqlx::query("UPDATE branch_event_registration_questions SET question_type=?,label=?,required=?,options_json=?,sort_order=? WHERE id=? AND event_id=?")
+                .bind(question_type).bind(label).bind(required).bind(options.to_string())
+                .bind(index as i64).bind(question_id).bind(item_id).execute(&mut *tx).await?;
+        } else {
+            if has_registrations {
+                return Err(AppError::bad_request("已有报名记录，不能新增报名问题"));
+            }
+            sqlx::query("INSERT INTO branch_event_registration_questions(event_id,question_type,label,required,options_json,sort_order) VALUES (?,?,?,?,?,?)")
+                .bind(item_id).bind(question_type).bind(label).bind(required)
+                .bind(options.to_string()).bind(index as i64).execute(&mut *tx).await?;
+        }
+    }
+    for question_id in existing_questions.keys() {
+        if retained_question_ids.contains(question_id) {
+            continue;
+        }
+        if has_registrations {
+            return Err(AppError::bad_request("已有报名记录，不能删除报名问题"));
+        }
+        sqlx::query("DELETE FROM branch_event_registration_questions WHERE id=? AND event_id=?")
+            .bind(question_id)
+            .bind(item_id)
+            .execute(&mut *tx)
+            .await?;
     }
     let mut requested = HashSet::new();
     for cohost in cohosts {
@@ -2890,10 +3085,7 @@ fn ensure_registration_open(event: &RegistrationEvent) -> AppResult<()> {
     if !["internal", "both"].contains(&event.registration_mode.as_str()) {
         return Err(AppError::bad_request("该活动未启用站内报名"));
     }
-    let now = chrono::Utc::now()
-        .naive_utc()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string();
+    let now = chapter_now_string();
     if event
         .registration_opens_at
         .as_deref()
@@ -3569,9 +3761,16 @@ async fn upload_media(
     State(state): State<AppState>,
     user: AuthUser,
     Path(id): Path<i64>,
+    headers: HeaderMap,
     mut mp: Multipart,
 ) -> AppResult<Json<Value>> {
-    allow_any_branch_access(&state, &user, id).await?;
+    allow_media_upload(&state, &user, id).await?;
+    let ip = client_ip(&headers);
+    if let Err(seconds) = state.upload_limiter.check_and_record(&ip) {
+        return Err(AppError::TooManyRequests(format!(
+            "上传过于频繁，请 {seconds} 秒后再试"
+        )));
+    }
     let mut file = None;
     while let Some(field) = mp
         .next_field()
@@ -3627,5 +3826,22 @@ mod tests {
         assert!(!valid_slug("Hong-Kong"));
         assert!(!valid_slug("香港"));
         assert!(!valid_slug("../branch"));
+    }
+
+    #[test]
+    fn public_links_reject_executable_schemes() {
+        assert!(public_url(&json!({"url":"https://example.test/path"}), "url", "链接").is_ok());
+        assert!(public_url(&json!({"url":"javascript:alert(1)"}), "url", "链接").is_err());
+        assert!(contact_url(&json!({"url":"mailto:test@example.test"}), "url", "链接").is_ok());
+        assert!(contact_url(&json!({"url":"data:text/html,boom"}), "url", "链接").is_err());
+    }
+
+    #[test]
+    fn datetime_local_values_are_comparable() {
+        assert_eq!(
+            comparable_datetime("2026-07-18T15:30:00"),
+            "2026-07-18 15:30:00"
+        );
+        assert!(comparable_datetime("2026-07-18T15:30:00").as_str() > "2026-07-18 14:30:00");
     }
 }

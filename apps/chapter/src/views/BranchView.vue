@@ -14,7 +14,7 @@ import {
   SosTabs,
   SosTextarea,
 } from '@haruhi/ui'
-import { api, session } from '@/api'
+import { api, safeContactUrl, safeExternalUrl, session } from '@/api'
 import ActivityTimeline from '@/components/ActivityTimeline.vue'
 import BranchJoinButton from '@/components/BranchJoinButton.vue'
 import EventCard from '@/components/EventCard.vue'
@@ -474,7 +474,10 @@ watch(
               :src="resolveUploadUrl(group.qrImagePath)"
               :alt="`${group.name}加群二维码`"
             />
-            <a v-if="group.joinUrl" :href="group.joinUrl" class="sos-button sos-button--primary"
+            <a
+              v-if="safeExternalUrl(group.joinUrl)"
+              :href="safeExternalUrl(group.joinUrl)"
+              class="sos-button sos-button--primary"
               >申请加群</a
             >
           </article>
@@ -493,7 +496,9 @@ watch(
               <ul class="contact-methods">
                 <li v-for="method in methodsFor(person.id)" :key="method.id">
                   <span>{{ method.label || method.methodType }}</span>
-                  <a v-if="method.url" :href="method.url">{{ method.value }}</a>
+                  <a v-if="safeContactUrl(method.url)" :href="safeContactUrl(method.url)">{{
+                    method.value
+                  }}</a>
                   <strong v-else>{{ method.value }}</strong>
                 </li>
               </ul>
