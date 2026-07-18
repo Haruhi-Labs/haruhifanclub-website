@@ -70,7 +70,7 @@
           <div class="actions">
             <!-- 下载按钮：下载当前查看的图片 -->
             <a 
-              v-if="currentOriginalUrl" 
+              v-if="currentOriginalUrl && publicDownloadEnabled"
               :href="currentOriginalUrl" 
               :download="downloadFilename"
               class="icon-btn download-btn" 
@@ -84,6 +84,20 @@
                 <line x1="12" y1="15" x2="12" y2="3"></line>
               </svg>
             </a>
+            <button
+              v-else-if="currentOriginalUrl"
+              type="button"
+              class="icon-btn download-btn is-disabled"
+              disabled
+              title="作者未开放大众下载授权"
+              aria-label="作者未开放大众下载授权"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </button>
             <button class="icon-btn" type="button" @click="close" data-sfx="click">✕</button>
           </div>
         </div>
@@ -213,6 +227,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSession } from '@haruhi/auth-ui'
 import { api, thumbUrl } from '../services/api.js'
 import { finishArtworkView, startArtworkView } from '../services/recommendationTracker.js'
+import { hasPublicDownloadLicense, publicLicenseLabels } from '../utils/artworkLicenses.js'
 
 // 登录态：已登录用户评论自动署名为账号昵称、无需填写；未登录用户不可评论，仅给登录引导。
 const session = useSession('/api')
@@ -384,10 +399,8 @@ const downloadFilename = computed(() => {
 })
 
 const tags = computed(() => Array.isArray(art.value?.tags) ? art.value.tags : [])
-const publicLicenses = computed(() => {
-  const all = Array.isArray(art.value?.licenses) ? art.value.licenses : []
-  return all.filter(l => l.startsWith('NET:')).map(l => l.replace('NET:', ''))
-})
+const publicLicenses = computed(() => publicLicenseLabels(art.value))
+const publicDownloadEnabled = computed(() => hasPublicDownloadLicense(art.value))
 
 /* ----------------------------------
    图片缩放与拖拽逻辑 (核心增强)
@@ -1028,6 +1041,21 @@ onMounted(() => {
   color: var(--flower-purple);
   transform: translateY(-2px); /* 只有下载按钮向上浮动，不旋转 */
   box-shadow: 0 4px 10px rgba(191, 162, 219, 0.3);
+}
+
+.download-btn.is-disabled:disabled {
+  color: rgba(71, 85, 105, 0.42);
+  cursor: not-allowed;
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(100, 116, 139, 0.18);
+}
+
+.download-btn.is-disabled:disabled:hover {
+  color: rgba(71, 85, 105, 0.42);
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(100, 116, 139, 0.18);
+  box-shadow: none;
+  transform: none;
 }
 
 .kv {

@@ -53,13 +53,24 @@
                 <span>/</span>
                 <span>{{ String(images.length).padStart(2, '0') }}</span>
                 <a
-                  v-if="image.original_url"
+                  v-if="image.original_url && publicDownloadEnabled"
                   :href="image.original_url"
                   :download="downloadFilename(index)"
                   aria-label="下载这张原图"
+                  title="下载这张原图"
                 >
                   <Download :size="14" aria-hidden="true" />
                 </a>
+                <button
+                  v-else-if="image.original_url"
+                  type="button"
+                  class="work-download-disabled"
+                  disabled
+                  aria-label="作者未开放大众下载授权"
+                  title="作者未开放大众下载授权"
+                >
+                  <Download :size="14" aria-hidden="true" />
+                </button>
               </figcaption>
             </figure>
           </template>
@@ -138,6 +149,9 @@
                           <X v-else :size="17" :stroke-width="2.4" aria-label="不允许" />
                         </li>
                       </ul>
+                      <p class="work-license__notice">
+                        即使已获得上述授权，使用时仍须注明原作者与作品出处。
+                      </p>
                     </div>
                   </Transition>
                 </span>
@@ -153,12 +167,20 @@
                   <Star :size="19" :fill="favorited ? 'currentColor' : 'none'" aria-hidden="true" />
                 </button>
                 <a
-                  v-if="firstOriginalUrl"
+                  v-if="firstOriginalUrl && publicDownloadEnabled"
                   :href="firstOriginalUrl"
                   :download="downloadFilename(0)"
                   aria-label="下载原图"
                   title="下载原图"
                 ><Download :size="19" aria-hidden="true" /></a>
+                <button
+                  v-else-if="firstOriginalUrl"
+                  type="button"
+                  class="work-download-disabled"
+                  disabled
+                  aria-label="作者未开放大众下载授权"
+                  title="作者未开放大众下载授权"
+                ><Download :size="19" aria-hidden="true" /></button>
                 <a
                   v-if="safeOriginUrl"
                   :href="safeOriginUrl"
@@ -321,11 +343,22 @@
           <span>{{ Math.round(viewerScale * 100) }}%</span>
           <button type="button" aria-label="放大" @click="viewerScale = Math.min(4, viewerScale + 0.5)"><Plus :size="19" /></button>
           <a
-            v-if="viewerImage?.original_url"
+            v-if="viewerImage?.original_url && publicDownloadEnabled"
             :href="viewerImage.original_url"
             :download="downloadFilename(viewerIndex)"
             aria-label="下载当前原图"
+            title="下载当前原图"
           ><Download :size="19" /></a>
+          <button
+            v-else-if="viewerImage?.original_url"
+            type="button"
+            class="work-download-disabled"
+            disabled
+            aria-label="作者未开放大众下载授权"
+            title="作者未开放大众下载授权"
+          >
+            <Download :size="19" />
+          </button>
           <button type="button" aria-label="关闭" @click="closeViewer"><X :size="21" /></button>
         </div>
       </header>
@@ -375,6 +408,11 @@ import ArtworkShelf from '../components/ArtworkShelf.vue'
 import { api, thumbUrl } from '../services/api.js'
 import { finishArtworkView, startArtworkView } from '../services/recommendationTracker.js'
 import { useGalleryStore } from '../stores/galleryStore.js'
+import {
+  PUBLIC_LICENSE_OPTIONS,
+  hasPublicDownloadLicense,
+  publicLicenseLabels,
+} from '../utils/artworkLicenses.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -443,18 +481,14 @@ const publishedIso = computed(() => {
   const date = value ? new Date(value) : null
   return date && !Number.isNaN(date.getTime()) ? date.toISOString() : ''
 })
-const PUBLIC_LICENSE_OPTIONS = [
-  '可在b站、小红书等社交媒体转载',
-  '允许用于视频等个人创作',
-  '允许用于制作无料发放',
-]
+const grantedPublicLicenses = computed(() => new Set(publicLicenseLabels(art.value)))
 const publicLicenseRows = computed(() => {
-  const licenses = new Set(Array.isArray(art.value?.licenses) ? art.value.licenses : [])
   return PUBLIC_LICENSE_OPTIONS.map(label => ({
     label,
-    granted: licenses.has(`NET:${label}`) || licenses.has(label),
+    granted: grantedPublicLicenses.value.has(label),
   }))
 })
+const publicDownloadEnabled = computed(() => hasPublicDownloadLicense(art.value))
 
 usePageMeta(() => {
   if (!art.value) return null
@@ -990,7 +1024,21 @@ onBeforeUnmount(() => {
   letter-spacing: 0.08em;
 }
 
-.work-image figcaption a { margin-left: auto; color: var(--sos-text-secondary); }
+.work-image figcaption a,
+.work-image figcaption button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  margin-left: auto;
+  padding: 0;
+  color: var(--sos-text-secondary);
+  background: transparent;
+  border: 0;
+}
+
+.work-image figcaption a { cursor: pointer; }
+.work-image figcaption .work-download-disabled { color: var(--sos-text-tertiary); cursor: not-allowed; opacity: 0.48; }
 
 .work-meta {
   grid-area: meta;
@@ -1126,6 +1174,12 @@ button.work-metric { cursor: pointer; }
 .work-meta__tools .work-favorite:hover { background: transparent; }
 
 .work-meta__tools button:disabled { cursor: wait; opacity: 0.62; }
+.work-meta__tools .work-download-disabled:disabled {
+  color: var(--sos-text-tertiary);
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+.work-meta__tools .work-download-disabled:disabled:hover { background: transparent; }
 .work-meta__tools .work-favorite.is-favorited { color: #e2a621; }
 
 .work-license {
@@ -1214,6 +1268,16 @@ button.work-metric { cursor: pointer; }
 }
 
 .work-license__popover li.is-granted svg { color: #2c9d7f; }
+
+.work-license__notice {
+  margin: 10px 0 0;
+  padding: 10px 2px 0;
+  color: var(--sos-text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.6;
+  border-top: 1px solid color-mix(in srgb, var(--sos-text-primary) 10%, transparent);
+}
 
 .work-license-popover-enter-active,
 .work-license-popover-leave-active {
@@ -1553,6 +1617,7 @@ button.work-metric { cursor: pointer; }
 .image-viewer__bar button,
 .image-viewer__bar a,
 .image-viewer__nav { display: grid; width: 40px; height: 40px; place-items: center; padding: 0; color: white; cursor: pointer; background: transparent; border: 0; }
+.image-viewer__bar .work-download-disabled:disabled { color: rgba(255, 255, 255, 0.34); cursor: not-allowed; }
 .image-viewer__bar div > span { width: 50px; color: rgba(255, 255, 255, 0.62); font-size: 10px; text-align: center; }
 .image-viewer__stage { grid-column: 2; grid-row: 2; overflow: auto; display: grid; place-items: center; padding: 24px; }
 .image-viewer__stage img { display: block; max-width: 100%; max-height: calc(100vh - 106px); object-fit: contain; transform-origin: center; transition: transform 0.18s ease; }
