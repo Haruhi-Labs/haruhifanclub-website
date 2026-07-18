@@ -5,8 +5,8 @@
         <span>ALL ARTWORKS</span>
         <h1>浏览全部作品</h1>
       </div>
-      <span v-if="total && !loadingInitial" class="result-count">
-        已显示 {{ items.length }} / {{ total }} 件
+      <span v-if="!loadingInitial" class="result-count">
+        共 {{ total }} 件
       </span>
     </header>
 
