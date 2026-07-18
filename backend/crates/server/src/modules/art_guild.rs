@@ -2879,7 +2879,9 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
         ),
     };
     let qq = clean_optional_string(qq);
-    let email = clean_optional_string(user_email_for_id(state, user_id).await?);
+    let (email, bio) = user_account_fields_for_id(state, user_id).await?;
+    let email = clean_optional_string(email);
+    let bio = clean_optional_string(bio);
     let (contact_type, contact_value) = preferred_contact(qq.as_deref(), email.as_deref());
     let contact_label = contact_type.map(contact_type_label);
     let coins = coin_summary(state, uid).await?;
@@ -2906,6 +2908,7 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
         "uid": uid,
         "userId": user_id,
         "displayName": display_name,
+        "bio": bio,
         "avatar_url": avatar_url,
         "creatorCreatedAt": creator_created_at,
         "qq": if private { qq.clone() } else { None::<String> },
@@ -2931,16 +2934,19 @@ async fn profile_value(state: &AppState, uid: &str, private: bool) -> AppResult<
     }))
 }
 
-async fn user_email_for_id(state: &AppState, user_id: Option<i64>) -> AppResult<Option<String>> {
+async fn user_account_fields_for_id(
+    state: &AppState,
+    user_id: Option<i64>,
+) -> AppResult<(Option<String>, Option<String>)> {
     let Some(user_id) = user_id else {
-        return Ok(None);
+        return Ok((None, None));
     };
-    let email: Option<String> = sqlx::query_scalar("SELECT email FROM users WHERE id=?")
-        .bind(user_id)
-        .fetch_optional(&state.pools.core)
-        .await?
-        .flatten();
-    Ok(email)
+    let fields: Option<(Option<String>, Option<String>)> =
+        sqlx::query_as("SELECT email, bio FROM users WHERE id=? AND deleted_at IS NULL")
+            .bind(user_id)
+            .fetch_optional(&state.pools.core)
+            .await?;
+    Ok(fields.unwrap_or((None, None)))
 }
 
 async fn user_profile_value(state: &AppState, user_id: i64) -> AppResult<Value> {

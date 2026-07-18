@@ -183,7 +183,10 @@
                   <img v-if="art.uploader_avatar" :src="art.uploader_avatar" alt="" />
                   <span v-else>{{ authorInitial }}</span>
                 </span>
-                <span><b>{{ authorName }}</b><small>@{{ authorUid }}</small></span>
+                <span>
+                  <b>{{ authorName }}</b>
+                  <small v-if="creatorBio">{{ creatorBio }}</small>
+                </span>
               </button>
               <div v-else class="work-creator__author is-static">
                 <span class="work-avatar">{{ authorInitial }}</span>
@@ -385,6 +388,7 @@ const error = ref('')
 const comments = ref([])
 const loadingComments = ref(false)
 const creatorTimelineWorks = ref([])
+const creatorBio = ref('')
 const relatedWorks = ref([])
 const commentBody = ref('')
 const posting = ref(false)
@@ -542,6 +546,9 @@ async function loadDiscovery(current, version) {
   creatorSocial.value = profileResult.status === 'fulfilled'
     ? { ...creatorSocial.value, ...(profileResult.value.social || {}) }
     : creatorSocial.value
+  creatorBio.value = profileResult.status === 'fulfilled'
+    ? String(profileResult.value.profile?.bio || '').trim()
+    : ''
   centerCreatorWork()
 }
 
@@ -557,6 +564,7 @@ async function loadArtwork() {
   comments.value = []
   relatedWorks.value = []
   creatorTimelineWorks.value = []
+  creatorBio.value = ''
   creatorSocial.value = { isFollowing: false, isSelf: false, followerCount: 0 }
   commentBody.value = ''
   commentNotice.value = ''
@@ -1285,7 +1293,16 @@ button.work-metric { cursor: pointer; }
 .work-creator__author.is-static { cursor: default; }
 .work-creator__author > span:last-child { display: grid; min-width: 0; gap: 2px; }
 .work-creator__author b { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.work-creator__author small { color: var(--sos-text-tertiary); font-size: 10px; }
+.work-creator__author small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--sos-text-tertiary);
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
 
 .work-follow {
   display: inline-flex;
