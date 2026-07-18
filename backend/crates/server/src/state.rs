@@ -27,6 +27,10 @@ pub struct AppState {
     pub voice: crate::modules::voice::VoiceState,
     /// SEO 注入：各 app dist/index.html 模板缓存（mtime 失效，部署免重启）。
     pub seo_templates: crate::modules::seo::template::SeoTemplates,
+    /// 绘画部创作者信息流：服务端随机顺序快照，保证连续分页稳定。
+    pub creator_feed: crate::modules::art::CreatorFeedCache,
+    /// 绘画部推荐作品流：短期记录已下发作品，保证连续批次不重复。
+    pub recommendation_feed: crate::modules::art::RecommendationFeedCache,
 }
 
 /// 让 auth 提取器能从 AppState 取到 JWT 密钥。

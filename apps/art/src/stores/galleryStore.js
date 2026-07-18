@@ -1,18 +1,6 @@
 import { defineStore } from 'pinia'
 import { api } from '../services/api.js'
 
-const SECTION_KEYS = ['recommended', 'popular', 'latest', 'personal']
-
-function sectionParams(section, seed) {
-  const params = { status: 'approved', page: 1, pageSize: 8 }
-  if (section === 'recommended') return { ...params, sort: 'recommended', seed }
-  if (section === 'popular') return { ...params, sort: 'popular', order: 'desc', range: 'week' }
-  if (section === 'personal') {
-    return { ...params, sort: 'time', order: 'desc', source_type: 'personal' }
-  }
-  return { ...params, sort: 'time', order: 'desc' }
-}
-
 function hasPopularityStats(items) {
   return (items || []).some(item => (
     item?.popularity_score !== undefined
@@ -36,30 +24,7 @@ export const useGalleryStore = defineStore('gallery', {
     list: [],
     total: 0,
     hasMore: false,
-    sections: {
-      recommended: [],
-      popular: [],
-      latest: [],
-      personal: [],
-    },
-    sectionsLoading: {
-      recommended: false,
-      popular: false,
-      latest: false,
-      personal: false,
-    },
-    sectionsError: '',
     artworkCache: {},
-    creatorExhibits: [],
-    creatorExhibitsLoading: false,
-    recommendationBatchId: '',
-    recommendationsPersonalized: false,
-    sectionReqIds: {
-      recommended: 0,
-      popular: 0,
-      latest: 0,
-      personal: 0,
-    },
     reqId: 0,
   }),
 
@@ -141,85 +106,30 @@ export const useGalleryStore = defineStore('gallery', {
       this.loading = false
     },
 
-    async loadSection(section) {
-      if (!SECTION_KEYS.includes(section)) return
-      const currentReqId = ++this.sectionReqIds[section]
-      this.sectionsLoading[section] = true
-      this.sectionsError = ''
-
-      try {
-        let out = section === 'recommended'
-          ? await api.recommendations(8)
-          : await api.artworksList(sectionParams(section, this.randomSeed))
-        if (section === 'popular' && !hasPopularityStats(out.data)) {
-          out = await api.artworksList({
-            ...sectionParams(section, this.randomSeed),
-            sort: 'likes',
-            range: undefined,
-          })
-        }
-        if (this.sectionReqIds[section] !== currentReqId) return
-        this.sections[section] = (out.data || []).slice(0, 8)
-        if (section === 'recommended') {
-          this.recommendationBatchId = out.batchId || ''
-          this.recommendationsPersonalized = Boolean(out.personalized)
-        }
-      } catch (error) {
-        if (this.sectionReqIds[section] !== currentReqId) return
-        this.sections[section] = []
-        if (section === 'recommended') {
-          this.recommendationBatchId = ''
-          this.recommendationsPersonalized = false
-        }
-        this.sectionsError = '作品加载失败，请刷新后重试'
-        console.warn(`[Gallery] ${section} 区块加载失败：`, error)
-      } finally {
-        if (this.sectionReqIds[section] === currentReqId) {
-          this.sectionsLoading[section] = false
-        }
-      }
-    },
-
-    async loadSections() {
-      await Promise.all([
-        ...SECTION_KEYS.map(section => this.loadSection(section)),
-        this.loadCreatorExhibits(),
-      ])
-    },
-
-    async loadCreatorExhibits() {
-      this.creatorExhibitsLoading = true
-      try {
-        const out = await api.creatorExhibits()
-        this.creatorExhibits = out.data || []
-      } catch (error) {
-        this.creatorExhibits = []
-        this.sectionsError = '创作者展位加载失败，请刷新后重试'
-        console.warn('[Gallery] 创作者展位加载失败：', error)
-      } finally {
-        this.creatorExhibitsLoading = false
-      }
-    },
-
-    async refreshRecommendations() {
-      this.randomSeed = Math.floor(Math.random() * 2147483647)
-      await this.loadSection('recommended')
-    },
-
     async likeArtwork(item) {
-      if (!item) return
+      if (!item) return false
       const id = Number(item.id)
-      const oldVal = item.like_total
-      item.like_total = Number(oldVal || 0) + 1
+      if (!Number.isFinite(id)) return false
+
+      const oldTotal = item.like_total
+      const oldPopularityLikes = item.popularity?.likes
+      const nextTotal = Number(oldTotal ?? oldPopularityLikes ?? 0) + 1
+      item.like_total = nextTotal
+      if (item.popularity) item.popularity.likes = nextTotal
 
       try {
         const out = await api.likeArtwork(id)
-        if (out && out.totalLikes !== undefined) {
-          item.like_total = Number(out.totalLikes)
+        const serverTotal = out?.totalLikes ?? out?.total_likes
+        if (serverTotal !== undefined) {
+          item.like_total = Number(serverTotal)
+          if (item.popularity) item.popularity.likes = Number(serverTotal)
         }
+        return true
       } catch (error) {
-        item.like_total = oldVal
-        console.error('Like failed:', error)
+        item.like_total = oldTotal
+        if (item.popularity) item.popularity.likes = oldPopularityLikes
+        console.error('[Gallery] 点赞失败：', error)
+        return false
       }
     },
 
@@ -229,11 +139,7 @@ export const useGalleryStore = defineStore('gallery', {
       const key = String(id)
       if (this.artworkCache[key]) return this.artworkCache[key]
 
-      const loadedItems = [
-        ...this.list,
-        ...Object.values(this.sections).flat(),
-        ...this.creatorExhibits.flatMap(group => group.items || []),
-      ]
+      const loadedItems = [...this.list]
       const existing = loadedItems.find(item => String(item.id) === key) || null
       if (existing) this.artworkCache[key] = existing
       return existing

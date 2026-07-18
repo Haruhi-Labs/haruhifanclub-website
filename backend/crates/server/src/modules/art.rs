@@ -16,9 +16,12 @@ use axum::{Json, Router};
 use haruhi_auth::{authorize, Action, AuthUser};
 use haruhi_core::{AppError, AppResult};
 use hmac::{Hmac, Mac};
+use rand::seq::SliceRandom;
 use serde_json::{json, Value};
 use sha2::Sha256;
 use std::path::{Path as FsPath, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 
 use crate::state::AppState;
@@ -34,6 +37,7 @@ pub fn router() -> Router<AppState> {
         .route("/points/history", get(points_history))
         .route("/creators/search", get(creators_search))
         .route("/creators/verify", get(creators_verify))
+        .route("/creators/feed", get(creator_feed))
         .route("/visitors", post(record_visitor))
         .route("/announcements", get(list_announcements))
         .route("/artworks", get(list_artworks).post(create_artwork))
@@ -119,8 +123,152 @@ pub fn router() -> Router<AppState> {
 const COOKIE_NAME: &str = "haruhi_anon";
 const COOKIE_SIG: &str = "haruhi_anon_sig";
 const VISITOR_SESSION_WINDOW_MINUTES: i64 = 10;
+const CREATOR_FEED_CACHE_TTL: Duration = Duration::from_secs(2 * 60 * 60);
+const CREATOR_FEED_CACHE_LIMIT: usize = 256;
+const RECOMMENDATION_FEED_CACHE_TTL: Duration = Duration::from_secs(4 * 60 * 60);
+const RECOMMENDATION_FEED_CACHE_LIMIT: usize = 512;
 
 type HmacSha256 = Hmac<Sha256>;
+
+#[derive(Clone, Default)]
+pub struct CreatorFeedCache(Arc<Mutex<CreatorFeedCacheState>>);
+
+#[derive(Default)]
+struct CreatorFeedCacheState {
+    feeds: std::collections::HashMap<String, CachedCreatorFeed>,
+}
+
+struct CachedCreatorFeed {
+    created_at: Instant,
+    uids: Vec<String>,
+}
+
+impl CreatorFeedCache {
+    fn cached_random_order(
+        &self,
+        requested_feed_id: Option<&str>,
+        available_uids: &[String],
+    ) -> (String, Vec<String>) {
+        let now = Instant::now();
+        let mut cache = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        cache
+            .feeds
+            .retain(|_, feed| now.duration_since(feed.created_at) < CREATOR_FEED_CACHE_TTL);
+
+        if let Some(feed_id) = requested_feed_id.filter(|value| !value.trim().is_empty()) {
+            if let Some(feed) = cache.feeds.get(feed_id) {
+                return (feed_id.to_string(), feed.uids.clone());
+            }
+        }
+
+        if cache.feeds.len() >= CREATOR_FEED_CACHE_LIMIT {
+            if let Some(oldest) = cache
+                .feeds
+                .iter()
+                .min_by_key(|(_, feed)| feed.created_at)
+                .map(|(feed_id, _)| feed_id.clone())
+            {
+                cache.feeds.remove(&oldest);
+            }
+        }
+
+        let feed_id = uuid::Uuid::new_v4().to_string();
+        let mut uids = available_uids.to_vec();
+        uids.shuffle(&mut rand::thread_rng());
+        cache.feeds.insert(
+            feed_id.clone(),
+            CachedCreatorFeed {
+                created_at: now,
+                uids: uids.clone(),
+            },
+        );
+        (feed_id, uids)
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct RecommendationFeedCache(Arc<Mutex<RecommendationFeedCacheState>>);
+
+#[derive(Default)]
+struct RecommendationFeedCacheState {
+    feeds: std::collections::HashMap<String, CachedRecommendationFeed>,
+}
+
+struct CachedRecommendationFeed {
+    touched_at: Instant,
+    actor_key: String,
+    filter_key: String,
+    seen_ids: std::collections::HashSet<i64>,
+}
+
+impl RecommendationFeedCache {
+    fn begin_batch(
+        &self,
+        requested_feed_id: Option<&str>,
+        actor_key: &str,
+        filter_key: &str,
+    ) -> (String, std::collections::HashSet<i64>, bool) {
+        let now = Instant::now();
+        let mut cache = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        cache
+            .feeds
+            .retain(|_, feed| now.duration_since(feed.touched_at) < RECOMMENDATION_FEED_CACHE_TTL);
+
+        let requested_feed_id = requested_feed_id.filter(|value| !value.trim().is_empty());
+        if let Some(feed_id) = requested_feed_id {
+            if let Some(feed) = cache.feeds.get_mut(feed_id) {
+                if feed.actor_key == actor_key && feed.filter_key == filter_key {
+                    feed.touched_at = now;
+                    return (feed_id.to_string(), feed.seen_ids.clone(), false);
+                }
+            }
+        }
+
+        if cache.feeds.len() >= RECOMMENDATION_FEED_CACHE_LIMIT {
+            if let Some(oldest) = cache
+                .feeds
+                .iter()
+                .min_by_key(|(_, feed)| feed.touched_at)
+                .map(|(feed_id, _)| feed_id.clone())
+            {
+                cache.feeds.remove(&oldest);
+            }
+        }
+
+        let feed_id = uuid::Uuid::new_v4().to_string();
+        cache.feeds.insert(
+            feed_id.clone(),
+            CachedRecommendationFeed {
+                touched_at: now,
+                actor_key: actor_key.to_string(),
+                filter_key: filter_key.to_string(),
+                seen_ids: std::collections::HashSet::new(),
+            },
+        );
+        (
+            feed_id,
+            std::collections::HashSet::new(),
+            requested_feed_id.is_some(),
+        )
+    }
+
+    fn record_batch(&self, feed_id: &str, artwork_ids: impl IntoIterator<Item = i64>) {
+        let mut cache = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(feed) = cache.feeds.get_mut(feed_id) {
+            feed.touched_at = Instant::now();
+            feed.seen_ids.extend(artwork_ids);
+        }
+    }
+}
 
 /// base64url（无填充，- / _），对齐旧 b64url。
 fn b64url(buf: &[u8]) -> String {
@@ -1088,6 +1236,180 @@ async fn creators_verify(
     ))
 }
 
+#[derive(serde::Deserialize)]
+struct CreatorFeedQuery {
+    page: Option<i64>,
+    #[serde(rename = "pageSize", alias = "page_size")]
+    page_size: Option<i64>,
+    #[serde(rename = "feedId", alias = "feed_id")]
+    feed_id: Option<String>,
+}
+
+fn creator_feed_recommendation_score(
+    row: &ArtRow,
+    stats: PopularityStats,
+    max_quality_raw: f64,
+    entropy: &str,
+) -> f64 {
+    let quality = ((stats.score + 1.0).ln() / max_quality_raw).clamp(0.0, 1.0);
+    let age_days =
+        recommendation_age_days(row.reviewed_at.as_deref().or(row.created_at.as_deref()));
+    let freshness = (-age_days / 120.0).exp().clamp(0.0, 1.0);
+    let exploration = recommendation_noise(entropy, row.id);
+    quality * 0.40 + freshness * 0.30 + exploration * 0.30
+}
+
+// 4.4 创作者信息流：服务端生成并缓存随机作者顺序，客户端用 feedId 稳定分页；
+// 每位作者的作品使用 hybrid-v1 冷启动推荐权重（质量/新鲜度/探索）选取至多三张。
+async fn creator_feed(
+    State(state): State<AppState>,
+    Query(q): Query<CreatorFeedQuery>,
+) -> AppResult<Json<Value>> {
+    let rows: Vec<ArtRow> = sqlx::query_as(&format!(
+        "{SELECT_ART} WHERE a.status='approved' AND a.source_type='personal' \
+         AND TRIM(COALESCE(a.uploader_uid, '')) <> '' ORDER BY a.id DESC"
+    ))
+    .fetch_all(&state.pools.art)
+    .await?;
+
+    let mut grouped = std::collections::BTreeMap::<String, Vec<&ArtRow>>::new();
+    for row in &rows {
+        if let Some(uid) = row
+            .uploader_uid
+            .as_deref()
+            .map(str::trim)
+            .filter(|uid| !uid.is_empty())
+        {
+            grouped.entry(uid.to_string()).or_default().push(row);
+        }
+    }
+
+    let available_uids: Vec<String> = grouped.keys().cloned().collect();
+    let requested_feed_id = q
+        .feed_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty());
+    let (feed_id, cached_order) = state
+        .creator_feed
+        .cached_random_order(requested_feed_id, &available_uids);
+    let available: std::collections::HashSet<&str> =
+        available_uids.iter().map(String::as_str).collect();
+    let ordered_uids: Vec<String> = cached_order
+        .into_iter()
+        .filter(|uid| available.contains(uid.as_str()))
+        .collect();
+
+    let page_size = q.page_size.unwrap_or(6).clamp(1, 24);
+    let cache_reset = requested_feed_id
+        .map(|requested| requested != feed_id)
+        .unwrap_or(false);
+    let page = if cache_reset {
+        1
+    } else {
+        q.page.unwrap_or(1).max(1)
+    };
+    let offset = ((page - 1) * page_size) as usize;
+    let page_uids: Vec<String> = ordered_uids
+        .iter()
+        .skip(offset)
+        .take(page_size as usize)
+        .cloned()
+        .collect();
+
+    let mut stats_by_id = popularity_stats(&state, PopularityRange::History).await?;
+    for row in &rows {
+        let stats = stats_by_id.entry(row.id).or_default();
+        stats.likes = stats.likes.max(row.like_total.max(0));
+        stats.score = popularity_score(stats.views, stats.likes, stats.comments);
+    }
+    let max_quality_raw = rows
+        .iter()
+        .map(|row| {
+            let score = stats_by_id
+                .get(&row.id)
+                .map(|stats| stats.score)
+                .unwrap_or(0.0);
+            (score + 1.0).ln()
+        })
+        .fold(1.0_f64, f64::max);
+    let names = member_display_names(&state.pools.core, &page_uids).await;
+
+    let mut data = Vec::with_capacity(page_uids.len());
+    for (creator_position, uid) in page_uids.iter().enumerate() {
+        let Some(creator_rows) = grouped.get(uid) else {
+            continue;
+        };
+        let entropy = format!("creator-feed:{feed_id}:{uid}");
+        let mut recommended = creator_rows.clone();
+        recommended.sort_by(|a, b| {
+            let a_stats = stats_by_id.get(&a.id).copied().unwrap_or_default();
+            let b_stats = stats_by_id.get(&b.id).copied().unwrap_or_default();
+            let a_score = creator_feed_recommendation_score(a, a_stats, max_quality_raw, &entropy);
+            let b_score = creator_feed_recommendation_score(b, b_stats, max_quality_raw, &entropy);
+            b_score.total_cmp(&a_score).then_with(|| b.id.cmp(&a.id))
+        });
+        recommended.truncate(3);
+
+        let creator_name = names
+            .get(uid)
+            .cloned()
+            .or_else(|| {
+                creator_rows
+                    .iter()
+                    .find_map(|row| row.uploader_name.clone())
+            })
+            .unwrap_or_else(|| uid.clone());
+        let avatar = creator_rows
+            .iter()
+            .find_map(|row| row.uploader_avatar.clone())
+            .unwrap_or_default();
+        let items: Vec<Value> = recommended
+            .iter()
+            .enumerate()
+            .map(|(artwork_position, row)| {
+                let mut value = map_artwork_row(row);
+                if let Some(obj) = value.as_object_mut() {
+                    obj.insert("uploader_display_name".into(), json!(creator_name.clone()));
+                    obj.insert(
+                        "recommendation".into(),
+                        json!({
+                            "batch_id": feed_id,
+                            "position": offset * 3 + creator_position * 3 + artwork_position,
+                        }),
+                    );
+                }
+                insert_popularity(
+                    &mut value,
+                    stats_by_id.get(&row.id).copied().unwrap_or_default(),
+                    PopularityRange::History,
+                );
+                value
+            })
+            .collect();
+        data.push(json!({
+            "uid": uid,
+            "name": creator_name,
+            "avatar": avatar,
+            "totalWorks": creator_rows.len(),
+            "items": items,
+        }));
+    }
+
+    let total = ordered_uids.len();
+    Ok(Json(json!({
+        "ok": true,
+        "data": data,
+        "total": total,
+        "page": page,
+        "pageSize": page_size,
+        "hasMore": offset.saturating_add(data.len()) < total,
+        "feedId": feed_id,
+        "cacheReset": cache_reset,
+        "algorithmVersion": RECOMMENDATION_VERSION,
+    })))
+}
+
 // 4.5 创作者展位：未配置过的作者默认展示历史人气最高的三件已通过个人作品；
 // 一旦作者在个人中心调整过，则严格使用其显式选择。
 async fn creator_exhibits(State(state): State<AppState>) -> AppResult<Json<Value>> {
@@ -1422,6 +1744,12 @@ struct RecommendationHistoryRow {
 #[derive(serde::Deserialize)]
 struct RecommendationQuery {
     limit: Option<i64>,
+    #[serde(default, alias = "feedId")]
+    feed_id: Option<String>,
+    #[serde(default)]
+    content_type: Option<String>,
+    #[serde(default)]
+    source_type: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -1648,15 +1976,52 @@ async fn recommend_artworks(
         .unwrap_or_else(|| format!("anon:{anon_id}"));
     let batch_id = uuid::Uuid::new_v4().to_string();
 
-    let rows: Vec<ArtRow> = sqlx::query_as(&format!(
-        "{SELECT_ART} WHERE a.status='approved' ORDER BY a.id DESC LIMIT 5000"
-    ))
-    .fetch_all(&state.pools.art)
-    .await?;
+    let content_type = q
+        .content_type
+        .as_deref()
+        .filter(|value| matches!(*value, "haruhi" | "other"))
+        .map(str::to_string);
+    let source_type = q
+        .source_type
+        .as_deref()
+        .filter(|value| matches!(*value, "personal" | "network"))
+        .map(str::to_string);
+    let filter_key = format!(
+        "content:{}:source:{}",
+        content_type.as_deref().unwrap_or("all"),
+        source_type.as_deref().unwrap_or("all")
+    );
+    let requested_feed_id = q
+        .feed_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let (feed_id, feed_seen_ids, cache_reset) =
+        state
+            .recommendation_feed
+            .begin_batch(requested_feed_id, &actor_entropy, &filter_key);
+
+    let mut where_sql = String::from("WHERE a.status='approved'");
+    if content_type.is_some() {
+        where_sql.push_str(" AND a.content_type=?");
+    }
+    if source_type.is_some() {
+        where_sql.push_str(" AND a.source_type=?");
+    }
+    let rows_sql = format!("{SELECT_ART} {where_sql} ORDER BY a.id DESC LIMIT 5000");
+    let mut rows_query = sqlx::query_as::<_, ArtRow>(&rows_sql);
+    if let Some(value) = content_type.as_deref() {
+        rows_query = rows_query.bind(value);
+    }
+    if let Some(value) = source_type.as_deref() {
+        rows_query = rows_query.bind(value);
+    }
+    let rows: Vec<ArtRow> = rows_query.fetch_all(&state.pools.art).await?;
     if rows.is_empty() {
         return Ok(json_with_cookie(
             json!({
                 "ok": true, "data": [], "total": 0, "batchId": batch_id,
+                "feedId": feed_id, "hasMore": false, "cacheReset": cache_reset,
                 "algorithmVersion": RECOMMENDATION_VERSION, "personalized": false
             }),
             set,
@@ -1742,16 +2107,19 @@ async fn recommend_artworks(
             (score + 1.0).ln()
         })
         .fold(1.0_f64, f64::max);
-    let entropy = format!("{actor_entropy}:{batch_id}");
+    let entropy = format!("{actor_entropy}:{feed_id}:{batch_id}");
     let own_uid = user_id.map(crate::auth_routes::member_uid);
     let can_exclude_recent = rows
         .iter()
-        .filter(|row| !recent_batch_seen.contains(&row.id))
+        .filter(|row| !feed_seen_ids.contains(&row.id) && !recent_batch_seen.contains(&row.id))
         .count()
         >= limit;
 
     let mut candidates = Vec::with_capacity(rows.len());
     for (row_index, row) in rows.iter().enumerate() {
+        if feed_seen_ids.contains(&row.id) {
+            continue;
+        }
         if can_exclude_recent && recent_batch_seen.contains(&row.id) {
             continue;
         }
@@ -1879,6 +2247,14 @@ async fn recommend_artworks(
     }
 
     let selected_rows: Vec<ArtRow> = selected.iter().map(|index| rows[*index].clone()).collect();
+    state
+        .recommendation_feed
+        .record_batch(&feed_id, selected_rows.iter().map(|row| row.id));
+    let previously_seen_in_pool = rows
+        .iter()
+        .filter(|row| feed_seen_ids.contains(&row.id))
+        .count();
+    let has_more = previously_seen_in_pool.saturating_add(selected_rows.len()) < rows.len();
     let uids: Vec<String> = selected_rows
         .iter()
         .filter_map(|row| row.uploader_uid.clone())
@@ -1920,6 +2296,9 @@ async fn recommend_artworks(
             "data": data,
             "total": rows.len(),
             "batchId": batch_id,
+            "feedId": feed_id,
+            "hasMore": has_more,
+            "cacheReset": cache_reset,
             "algorithmVersion": RECOMMENDATION_VERSION,
             "personalized": personalized
         }),
@@ -2435,8 +2814,9 @@ async fn creator_artwork_timeline(
 // .thumbs/ 静态直出、未命中才回源本端点；缓存全量预热（deploy/backfill-thumbs.sh）
 // 后，本端点几乎只在新图首访时被命中。生成走 libvips 子进程（内存有界）。
 
-/// 允许的缩略宽度白名单（防御任意 w 撑爆缓存目录）。
-const THUMB_WIDTHS: &[u32] = &[320, 640, 960];
+/// 允许的缩略尺寸白名单（防御任意 w 撑爆缓存目录）。1920 档仅供超长图预览按需生成，
+/// 不参与全量预热，避免普通作品产生额外磁盘和计算开销。
+const THUMB_WIDTHS: &[u32] = &[320, 640, 960, 1920];
 /// 缩略图 WebP 质量（vips webpsave 的 Q 参数，0-100）。
 const THUMB_QUALITY: u8 = 82;
 /// 缩略图生成并发闸：libvips 子进程虽内存有界，但冷缓存下一页网格会同时回源

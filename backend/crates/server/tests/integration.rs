@@ -102,6 +102,8 @@ async fn setup() -> TestApp {
         download: haruhi_server::modules::download::new_cache(),
         voice: haruhi_server::modules::voice::VoiceState::new(),
         seo_templates: haruhi_server::modules::seo::template::new_cache(),
+        creator_feed: haruhi_server::modules::art::CreatorFeedCache::default(),
+        recommendation_feed: haruhi_server::modules::art::RecommendationFeedCache::default(),
     };
     let router = routes::router(state.clone());
     TestApp {
@@ -681,6 +683,102 @@ async fn creator_exhibits_default_to_top_three_then_honor_explicit_selection() {
 }
 
 #[tokio::test]
+async fn creator_feed_uses_cached_random_pagination_and_recommends_three_works() {
+    let app = setup().await;
+    for creator in 1..=5_i64 {
+        for artwork in 1..=4_i64 {
+            sqlx::query(
+                "INSERT INTO artworks(\
+                    title, uploader_name, uploader_uid, source_type, content_type, status, \
+                    like_total, exhibit_enabled, created_at, reviewed_at, random_key\
+                 ) VALUES(?, ?, ?, 'personal', 'haruhi', 'approved', ?, 0, ?, ?, ?)",
+            )
+            .bind(format!("作者{creator}作品{artwork}"))
+            .bind(format!("作者{creator}"))
+            .bind(format!("feed-{creator}"))
+            .bind(artwork * 10)
+            .bind(format!("2026-07-{artwork:02} 00:00:00"))
+            .bind(format!("2026-07-{artwork:02} 00:00:00"))
+            .bind(creator * 100 + artwork)
+            .execute(&app.state.pools.art)
+            .await
+            .unwrap();
+        }
+    }
+
+    let (status, first) = send(
+        &app.router,
+        get("/api/art/creators/feed?page=1&pageSize=2", None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(first["total"], 5);
+    assert_eq!(first["page"], 1);
+    assert_eq!(first["hasMore"], true);
+    assert_eq!(first["algorithmVersion"], "hybrid-v1");
+    let feed_id = first["feedId"].as_str().unwrap();
+    let first_data = first["data"].as_array().unwrap();
+    assert_eq!(first_data.len(), 2);
+    assert!(first_data.iter().all(|creator| {
+        let items = creator["items"].as_array().unwrap();
+        items.len() == 3 && items.iter().all(|item| item["exhibit_enabled"] == false)
+    }));
+
+    let (_, repeated) = send(
+        &app.router,
+        get(
+            &format!("/api/art/creators/feed?page=1&pageSize=2&feedId={feed_id}"),
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(repeated["feedId"], first["feedId"]);
+    assert_eq!(repeated["data"], first["data"]);
+
+    let (_, second) = send(
+        &app.router,
+        get(
+            &format!("/api/art/creators/feed?page=2&pageSize=2&feedId={feed_id}"),
+            None,
+        ),
+    )
+    .await;
+    let first_uids: std::collections::HashSet<&str> = first_data
+        .iter()
+        .filter_map(|creator| creator["uid"].as_str())
+        .collect();
+    assert!(second["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|creator| creator["uid"].as_str())
+        .all(|uid| !first_uids.contains(uid)));
+
+    let (_, last) = send(
+        &app.router,
+        get(
+            &format!("/api/art/creators/feed?page=3&pageSize=2&feedId={feed_id}"),
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(last["data"].as_array().unwrap().len(), 1);
+    assert_eq!(last["hasMore"], false);
+
+    let (_, reset) = send(
+        &app.router,
+        get(
+            "/api/art/creators/feed?page=3&pageSize=2&feedId=expired-feed",
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(reset["page"], 1);
+    assert_eq!(reset["cacheReset"], true);
+    assert_ne!(reset["feedId"], "expired-feed");
+}
+
+#[tokio::test]
 async fn art_random_list_uses_stable_pagination() {
     let app = setup().await;
     for i in 0..12 {
@@ -735,6 +833,75 @@ async fn art_random_list_uses_stable_pagination() {
     assert_eq!(ids1.len(), 6);
     assert_eq!(ids2.len(), 6);
     assert!(ids1.is_disjoint(&ids2), "随机分页不应在相邻页重复");
+}
+
+#[tokio::test]
+async fn art_recommendation_feed_cursor_avoids_duplicates_without_event_writes() {
+    let app = setup().await;
+    for i in 0..30 {
+        seed_artwork(
+            &app.state,
+            &format!("feed-recommendation-{i}"),
+            "approved",
+            &format!("2026-07-{:02} 00:00:00", (i % 28) + 1),
+        )
+        .await;
+    }
+
+    let (status, headers, first) = send_full(
+        &app.router,
+        get(
+            "/api/art/recommendations?limit=8&content_type=haruhi&source_type=network",
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(first["data"].as_array().unwrap().len(), 8);
+    assert_eq!(first["hasMore"], true);
+    assert_eq!(first["cacheReset"], false);
+    let feed_id = first["feedId"].as_str().unwrap();
+    let cookie = cookie_header_from_set_cookie(&headers);
+    let first_ids: std::collections::HashSet<i64> = first["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["id"].as_i64())
+        .collect();
+
+    let (status, second) = send(
+        &app.router,
+        get_with_cookie(
+            &format!(
+                "/api/art/recommendations?limit=8&content_type=haruhi&source_type=network&feedId={feed_id}"
+            ),
+            &cookie,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(second["feedId"], first["feedId"]);
+    assert_eq!(second["cacheReset"], false);
+    let second_ids: std::collections::HashSet<i64> = second["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["id"].as_i64())
+        .collect();
+    assert!(
+        first_ids.is_disjoint(&second_ids),
+        "同一推荐流的连续批次不应依赖曝光事件也能严格去重"
+    );
+
+    let (_, refreshed) = send(
+        &app.router,
+        get_with_cookie(
+            "/api/art/recommendations?limit=8&content_type=haruhi&source_type=network",
+            &cookie,
+        ),
+    )
+    .await;
+    assert_ne!(refreshed["feedId"], first["feedId"]);
 }
 
 #[tokio::test]

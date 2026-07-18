@@ -19,7 +19,7 @@ function buildUrl(path, params) {
   return url.pathname + url.search
 }
 
-async function request(method, path, { params, body, isForm, headers, keepalive = false } = {}) {
+async function request(method, path, { params, body, isForm, headers, keepalive = false, signal } = {}) {
   const url = buildUrl(path, params)
 
   // 统一 JWT：若已登录则自动带上 Bearer token（替换旧的 x-admin-password 头）
@@ -39,6 +39,7 @@ async function request(method, path, { params, body, isForm, headers, keepalive 
       ...(headers || {}),
     },
     keepalive,
+    signal,
   }
 
   if (method !== 'GET' && method !== 'HEAD') {
@@ -141,18 +142,32 @@ export const api = {
 
   // Public
   recordVisitor: () => request('POST', `${API_PREFIX}/visitors`, { body: {} }),
-  artworksList: async (params) => {
-    const data = await request('GET', `${API_PREFIX}/artworks`, { params })
+  artworksList: async (params, options = {}) => {
+    const data = await request('GET', `${API_PREFIX}/artworks`, { params, signal: options.signal })
     if (data.data) data.data = data.data.map(transformArtwork)
     return data
   },
-  recommendations: async (limit = 8) => {
-    const data = await request('GET', `${API_PREFIX}/recommendations`, { params: { limit } })
+  recommendations: async (limit = 8, params = {}, options = {}) => {
+    const data = await request('GET', `${API_PREFIX}/recommendations`, {
+      params: { ...params, limit },
+      signal: options.signal,
+    })
     if (data.data) data.data = data.data.map(transformArtwork)
     return data
   },
   creatorExhibits: async () => {
     const data = await request('GET', `${API_PREFIX}/creator-exhibits`)
+    if (data.data) {
+      data.data = data.data.map(group => ({
+        ...group,
+        avatar: fixPath(group.avatar),
+        items: (group.items || []).map(transformArtwork),
+      }))
+    }
+    return data
+  },
+  creatorFeed: async (params = {}) => {
+    const data = await request('GET', `${API_PREFIX}/creators/feed`, { params })
     if (data.data) {
       data.data = data.data.map(group => ({
         ...group,
