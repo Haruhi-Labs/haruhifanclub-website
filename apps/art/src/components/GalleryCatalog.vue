@@ -55,8 +55,6 @@
       </div>
     </div>
 
-    <p class="catalog-context" aria-live="polite">{{ categoryDescription }}</p>
-
     <div v-if="error && !items.length" class="error-box" role="alert">
       <span>{{ error }}</span>
       <button type="button" @click="loadInitial()">重新加载</button>
@@ -139,7 +137,6 @@ const total = ref(0)
 const page = ref(1)
 const feedId = ref('')
 const hasMore = ref(true)
-const personalized = ref(false)
 const loadingInitial = ref(false)
 const loadingMore = ref(false)
 const refreshing = ref(false)
@@ -177,18 +174,6 @@ const busy = computed(() => loadingInitial.value || loadingMore.value || refresh
 const refreshLabel = computed(() => (
   currentCategory.value === 'recommended' ? '重新排列推荐作品' : '刷新作品列表'
 ))
-const categoryDescription = computed(() => {
-  if (currentCategory.value === 'recommended') {
-    return personalized.value
-      ? '根据你的浏览偏好持续推荐，每一批都从尚未展示的候选作品中重新挑选。'
-      : '综合作品质量、新鲜度与探索性持续推荐，每一批都不会与上方作品重复。'
-  }
-  if (currentCategory.value === 'popular') {
-    const rangeLabel = { week: '近一周', year: '近一年', history: '历史' }[activeTimeRange.value]
-    return `按${rangeLabel}人气值从高到低持续浏览。`
-  }
-  return '按审核发布时间从新到旧持续浏览。'
-})
 const trackingSource = computed(() => {
   if (currentCategory.value === 'popular') return `gallery-popular-${activeTimeRange.value}`
   return `gallery-${currentCategory.value}`
@@ -345,11 +330,9 @@ function applyResponse(response, { replace, targetPage }) {
   page.value = cacheWasReset ? 1 : targetPage
   if (currentCategory.value === 'recommended') {
     feedId.value = response.feedId || ''
-    personalized.value = Boolean(response.personalized)
     hasMore.value = Boolean(response.hasMore)
   } else {
     feedId.value = ''
-    personalized.value = false
     hasMore.value = page.value * BATCH_SIZE < total.value
   }
   if (cacheWasReset) scrollToTop(false)
@@ -628,14 +611,6 @@ onBeforeUnmount(deactivateFeed)
 .catalog-refresh:disabled { cursor: wait; opacity: 0.58; }
 .catalog-refresh .spinning { animation: catalog-spin 700ms linear infinite; }
 
-.catalog-context {
-  min-height: 20px;
-  margin: 0 0 20px;
-  color: var(--sos-text-tertiary);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
 .error-box,
 .catalog-inline-error {
   display: flex;
@@ -769,7 +744,6 @@ onBeforeUnmount(deactivateFeed)
   .catalog-refresh { width: 36px; height: 36px; min-height: 36px; justify-content: center; padding: 0; }
   .catalog-refresh span { display: none; }
   .result-count { padding-bottom: 2px; white-space: nowrap; }
-  .catalog-context { margin-bottom: 14px; }
   .feed-tail { min-height: 88px; }
   .back-to-top {
     right: max(14px, env(safe-area-inset-right));
