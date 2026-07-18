@@ -161,9 +161,10 @@ onBeforeUnmount(() => {
 
     <main class="main" :class="{ 'is-home-route': isHomeRoute }">
       <!-- key 用 route.path（不含 query）：画廊首页与搜索页都靠 query 驱动弹窗或结果分页，
-           query 变化不能重挂整个视图。注释须放在 KeepAlive 外，否则 KeepAlive 会被判定有多个子节点。 -->
+           query 变化不能重挂整个视图。首页与画廊需要保留现场，避免查看作品后返回时重取列表。
+           注释须放在 KeepAlive 外，否则 KeepAlive 会被判定有多个子节点。 -->
       <router-view v-slot="{ Component, route: viewRoute }">
-        <KeepAlive include="HomeView">
+        <KeepAlive include="HomeView,GalleryView">
           <component :is="Component" :key="viewRoute.name === 'home' ? 'home' : viewRoute.path" />
         </KeepAlive>
       </router-view>

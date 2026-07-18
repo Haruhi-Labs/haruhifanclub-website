@@ -22,6 +22,8 @@ import { useGalleryStore } from '../stores/galleryStore.js'
 import CuratedGalleryHome from '../components/CuratedGalleryHome.vue'
 import GalleryCatalog from '../components/GalleryCatalog.vue'
 
+defineOptions({ name: 'GalleryView' })
+
 const route = useRoute()
 const router = useRouter()
 const store = useGalleryStore()
