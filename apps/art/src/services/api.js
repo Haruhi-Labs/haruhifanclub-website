@@ -243,6 +243,12 @@ export const api = {
   adminListComments: (status) => request('GET', `${API_PREFIX}/admin/comments`, { params: { status } }),
   adminUpdateCommentStatus: (id, status) => request('POST', `${API_PREFIX}/admin/comments/${id}/status`, { body: { status } }),
   adminDeleteComment: (id) => request('DELETE', `${API_PREFIX}/admin/comments/${id}`),
+  adminListProfileMessages: (status) =>
+    request('GET', `${API_PREFIX}/admin/guild/profile-messages`, { params: { status } }),
+  adminUpdateProfileMessageStatus: (id, status) =>
+    request('POST', `${API_PREFIX}/admin/guild/profile-messages/${id}/status`, {
+      body: { status },
+    }),
 
   // Admin - Creators & Points
   adminPointsLedger: (params) => request('GET', `${API_PREFIX}/admin/points-ledger`, { params }),

@@ -159,6 +159,14 @@ pub fn router() -> Router<AppState> {
             "/guild/profile/{uid}/messages",
             get(guild_profile_messages).post(create_guild_profile_message),
         )
+        .route(
+            "/admin/guild/profile-messages",
+            get(admin_guild_profile_messages),
+        )
+        .route(
+            "/admin/guild/profile-messages/{id}/status",
+            post(admin_guild_profile_message_status),
+        )
         .route("/guild/quests", get(guild_quests))
         .route("/guild/quests/{id}/claim", post(guild_claim_quest))
         .route(
@@ -786,6 +794,87 @@ async fn create_guild_profile_message(
             "created_at": created_at,
         }
     })))
+}
+
+async fn admin_guild_profile_messages(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<std::collections::HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Read).await?;
+    let status = q.get("status").map(String::as_str).unwrap_or("flagged");
+    if !matches!(status, "all" | "public" | "flagged" | "hidden") {
+        return Err(AppError::bad_request("留言状态不正确"));
+    }
+
+    let rows: Vec<(
+        i64,
+        String,
+        i64,
+        String,
+        String,
+        String,
+        String,
+        Option<String>,
+    )> = if status == "all" {
+        sqlx::query_as(
+            "SELECT id, creator_uid, author_user_id, user_name, body, created_at, status, ai_reason
+             FROM creator_profile_messages
+             ORDER BY datetime(created_at) DESC, id DESC LIMIT 200",
+        )
+        .fetch_all(&state.pools.art)
+        .await?
+    } else {
+        sqlx::query_as(
+            "SELECT id, creator_uid, author_user_id, user_name, body, created_at, status, ai_reason
+             FROM creator_profile_messages WHERE status=?
+             ORDER BY datetime(created_at) DESC, id DESC LIMIT 200",
+        )
+        .bind(status)
+        .fetch_all(&state.pools.art)
+        .await?
+    };
+    let data: Vec<Value> = rows
+        .into_iter()
+        .map(
+            |(id, creator_uid, author_user_id, user_name, body, created_at, status, ai_reason)| {
+                json!({
+                    "id": id,
+                    "creator_uid": creator_uid,
+                    "author_user_id": author_user_id,
+                    "user_name": user_name,
+                    "body": body,
+                    "created_at": created_at,
+                    "status": status,
+                    "ai_reason": ai_reason,
+                })
+            },
+        )
+        .collect();
+    Ok(Json(json!({ "ok": true, "data": data })))
+}
+
+async fn admin_guild_profile_message_status(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    authorize(&state.pools.core, &user, "art", Action::Moderate).await?;
+    let status = body.get("status").and_then(Value::as_str).unwrap_or("");
+    if !matches!(status, "public" | "hidden") {
+        return Err(AppError::bad_request("留言状态仅支持 public 或 hidden"));
+    }
+    let affected = sqlx::query("UPDATE creator_profile_messages SET status=? WHERE id=?")
+        .bind(status)
+        .bind(id)
+        .execute(&state.pools.art)
+        .await?
+        .rows_affected();
+    if affected == 0 {
+        return Err(AppError::not_found("留言不存在"));
+    }
+    Ok(Json(json!({ "ok": true, "status": status })))
 }
 
 async fn creator_message_authors(

@@ -517,6 +517,9 @@ const messages = ref([])
 const messageTotal = ref(0)
 const messagePage = ref(1)
 const messagesLoading = ref(false)
+let profileLoadVersion = 0
+let messageLoadVersion = 0
+let messagesLoadingUid = ''
 const postingMessage = ref(false)
 const messageBody = ref('')
 const messageError = ref('')
@@ -573,10 +576,21 @@ const contactTypeLabel = computed(() => {
 })
 
 async function loadProfile() {
+  const version = ++profileLoadVersion
+  const targetIsTerminal = route.name === 'terminal'
+  const targetUid = String(route.params.uid || '').trim()
+  ++messageLoadVersion
   loading.value = true
   error.value = ''
   socialError.value = ''
   favorites.value = []
+  messages.value = []
+  messageTotal.value = 0
+  messagePage.value = 1
+  messagesLoading.value = false
+  messagesLoadingUid = ''
+  messageError.value = ''
+  messageNotice.value = ''
   social.value = {
     followerCount: 0,
     followingCount: 0,
@@ -587,9 +601,11 @@ async function loadProfile() {
   }
   try {
     const res =
-      route.name === 'terminal'
+      targetIsTerminal
         ? await api.guildTerminal()
-        : await api.guildProfile(route.params.uid)
+        : await api.guildProfile(targetUid)
+
+    if (version !== profileLoadVersion) return
 
     profile.value = res.profile || {}
     userInfo.value = res.user || res.profile?.user || {}
@@ -600,29 +616,39 @@ async function loadProfile() {
     claims.value = res.claims || []
     coinsHistory.value = res.coinsHistory || []
     redemptions.value = res.redemptions || []
-    if (!isTerminal.value) await loadMessages(1)
+    if (!targetIsTerminal) await loadMessages(1, false, targetUid)
   } catch (err) {
-    error.value = err.message || '冒险者档案读取失败'
+    if (version === profileLoadVersion) error.value = err.message || '冒险者档案读取失败'
   } finally {
-    loading.value = false
+    if (version === profileLoadVersion) loading.value = false
   }
 }
 
-async function loadMessages(page = 1, append = false) {
-  if (isTerminal.value || !route.params.uid || messagesLoading.value) return
+async function loadMessages(page = 1, append = false, requestedUid = '') {
+  const uid = String(requestedUid || route.params.uid || '').trim()
+  if (isTerminal.value || !uid) return
+  if (messagesLoading.value && messagesLoadingUid === uid) return
+  const version = ++messageLoadVersion
   messagesLoading.value = true
+  messagesLoadingUid = uid
   messageError.value = ''
   try {
-    const res = await api.guildProfileMessages(route.params.uid, { page, pageSize: 16 })
+    const res = await api.guildProfileMessages(uid, { page, pageSize: 16 })
+    if (version !== messageLoadVersion || String(route.params.uid || '').trim() !== uid) return
     const nextMessages = res.data || []
     messages.value = append ? [...messages.value, ...nextMessages] : nextMessages
     messageTotal.value = Number(res.total || 0)
     messagePage.value = page
   } catch (err) {
-    if (!append) messages.value = []
-    messageError.value = err.message || '留言读取失败'
+    if (version === messageLoadVersion) {
+      if (!append) messages.value = []
+      messageError.value = err.message || '留言读取失败'
+    }
   } finally {
-    messagesLoading.value = false
+    if (version === messageLoadVersion) {
+      messagesLoading.value = false
+      messagesLoadingUid = ''
+    }
   }
 }
 

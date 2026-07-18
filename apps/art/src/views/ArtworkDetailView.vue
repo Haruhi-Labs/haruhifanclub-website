@@ -149,8 +149,8 @@
                 title="下载原图"
               ><Download :size="19" aria-hidden="true" /></a>
               <a
-                v-if="art.origin_url"
-                :href="art.origin_url"
+                v-if="safeOriginUrl"
+                :href="safeOriginUrl"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="查看作品原始出处"
@@ -393,6 +393,16 @@ const images = computed(() => {
   return [{ image_url: art.value.image_url || '', original_url: art.value.original_url || art.value.image_url || '' }]
 })
 const firstOriginalUrl = computed(() => images.value[0]?.original_url || '')
+const safeOriginUrl = computed(() => {
+  const value = String(art.value?.origin_url || '').trim()
+  if (!value) return ''
+  try {
+    const parsed = new URL(value)
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : ''
+  } catch {
+    return ''
+  }
+})
 const viewerImage = computed(() => images.value[viewerIndex.value] || null)
 const tags = computed(() => Array.isArray(art.value?.tags) ? art.value.tags : [])
 const likeCount = computed(() => Number(art.value?.popularity?.likes ?? art.value?.like_total ?? 0))

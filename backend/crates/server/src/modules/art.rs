@@ -1638,7 +1638,6 @@ async fn recommend_artworks(
 ) -> AppResult<Response> {
     let limit = q.limit.unwrap_or(8).clamp(4, 24) as usize;
     let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
-    maybe_cleanup_recommendation_events(&state).await;
     let user_id = user.map(|u| u.id);
     let actor_entropy = user_id
         .map(|id| format!("user:{id}"))
@@ -1683,7 +1682,9 @@ async fn recommend_artworks(
             .and_modify(|age| *age = age.min(age_days))
             .or_insert(age_days);
 
-        if event.event_type == "served" {
+        // 只有真正进入视口的作品才算近期已展示；推荐 GET 本身保持只读，
+        // 避免公开接口被循环调用时制造无上限的数据库写入。
+        if event.event_type == "impression" {
             if let Some(batch) = event.batch_id.as_ref() {
                 if !recent_batch_ids.contains(batch) && recent_batch_ids.len() < 3 {
                     recent_batch_ids.push(batch.clone());
@@ -1873,25 +1874,6 @@ async fn recommend_artworks(
         selected.push(candidate.row_index);
     }
 
-    let now = now_iso();
-    let mut tx = state.pools.art.begin().await?;
-    for (position, row_index) in selected.iter().enumerate() {
-        sqlx::query(
-            "INSERT OR IGNORE INTO recommendation_events(\
-                user_id, anon_id, artwork_id, batch_id, event_type, source, position, created_at\
-             ) VALUES(?,?,?,?, 'served', 'recommendation', ?, ?)",
-        )
-        .bind(user_id)
-        .bind(&anon_id)
-        .bind(rows[*row_index].id)
-        .bind(&batch_id)
-        .bind(position as i64)
-        .bind(&now)
-        .execute(&mut *tx)
-        .await?;
-    }
-    tx.commit().await?;
-
     let selected_rows: Vec<ArtRow> = selected.iter().map(|index| rows[*index].clone()).collect();
     let uids: Vec<String> = selected_rows
         .iter()
@@ -1948,6 +1930,7 @@ async fn record_recommendation_events(
     Json(body): Json<RecommendationEventsBody>,
 ) -> AppResult<Response> {
     let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
+    maybe_cleanup_recommendation_events(&state).await;
     let user_id = user.map(|u| u.id);
     let session_id = body
         .session_id
@@ -2653,7 +2636,13 @@ async fn create_artwork(
             s
         }
     };
-    let origin_url = safe_text(get("origin_url"));
+    let origin_url = match normalize_origin_url(get("origin_url")) {
+        Ok(url) => url,
+        Err(error) => {
+            cleanup_saved_art_uploads(&display_files, &original_files).await;
+            return Err(error);
+        }
+    };
 
     if title.is_empty() {
         cleanup_saved_art_uploads(&display_files, &original_files).await;
@@ -3560,7 +3549,7 @@ async fn update_my_artwork(
     let tags_arr = normalize_tags_to_array(s("tags"));
     let tags_json = serde_json::to_string(&tags_arr).unwrap_or_else(|_| "[]".into());
     let tags_norm = make_tags_norm(&tags_arr);
-    let origin_url = clamp_len(s("origin_url"), 500);
+    let origin_url = normalize_origin_url(s("origin_url"))?;
 
     let updated = sqlx::query(
         "UPDATE artworks SET title=?, description=?, tags_json=?, tags_norm=?, origin_url=? \
@@ -3570,7 +3559,7 @@ async fn update_my_artwork(
     .bind(&description)
     .bind(&tags_json)
     .bind(&tags_norm)
-    .bind(&origin_url)
+    .bind(opt(&origin_url))
     .bind(id)
     .bind(user.id)
     .execute(&state.pools.art)
@@ -3766,6 +3755,7 @@ async fn admin_artwork_update(
     let tags_norm = make_tags_norm(&tags_arr);
     let licenses_arr = parse_licenses(s("licenses"));
     let licenses_json = serde_json::to_string(&licenses_arr).unwrap_or_else(|_| "[]".into());
+    let origin_url = normalize_origin_url(s("origin_url"))?;
 
     // 统一身份后：上传者名/UID 归用户所有，管理员不再可改，故不写 uploader_name/uploader_uid 两列
     sqlx::query(
@@ -3778,7 +3768,7 @@ async fn admin_artwork_update(
     .bind(&tags_norm)
     .bind(s("source_type"))
     .bind(s("content_type"))
-    .bind(s("origin_url"))
+    .bind(opt(&origin_url))
     .bind(&licenses_json)
     .bind(id)
     .execute(&state.pools.art)
@@ -4721,12 +4711,49 @@ async fn admin_points_penalize(
 // 杂项辅助
 // ============================================================
 
+/// 清洗作品出处链接并限制为可安全导航的 Web URL。
+/// 空值表示未填写；协议校验必须在写入层完成，不能只依赖前端。
+fn normalize_origin_url(raw: Option<&str>) -> AppResult<String> {
+    let value = safe_text(raw);
+    if value.is_empty() {
+        return Ok(String::new());
+    }
+    if value.chars().count() > 500 {
+        return Err(AppError::bad_request("作品出处链接不能超过 500 字"));
+    }
+    let parsed =
+        reqwest::Url::parse(&value).map_err(|_| AppError::bad_request("作品出处链接格式不正确"))?;
+    if !matches!(parsed.scheme(), "http" | "https") || !parsed.has_host() {
+        return Err(AppError::bad_request(
+            "作品出处链接仅支持 http 或 https 协议",
+        ));
+    }
+    Ok(value)
+}
+
 /// 空串映射为 NULL（对齐旧 `x || null`）。
 fn opt(s: &str) -> Option<&str> {
     if s.is_empty() {
         None
     } else {
         Some(s)
+    }
+}
+
+#[cfg(test)]
+mod origin_url_tests {
+    use super::normalize_origin_url;
+
+    #[test]
+    fn only_accepts_http_and_https_urls() {
+        assert_eq!(
+            normalize_origin_url(Some(" https://example.com/art?id=1 ")).unwrap(),
+            "https://example.com/art?id=1"
+        );
+        assert!(normalize_origin_url(Some("javascript:alert(1)")).is_err());
+        assert!(normalize_origin_url(Some("data:text/html,hello")).is_err());
+        assert!(normalize_origin_url(Some("/relative/path")).is_err());
+        assert_eq!(normalize_origin_url(None).unwrap(), "");
     }
 }
 

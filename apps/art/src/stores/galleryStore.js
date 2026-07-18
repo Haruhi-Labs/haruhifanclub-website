@@ -242,7 +242,8 @@ export const useGalleryStore = defineStore('gallery', {
         console.error('Fetch specific artwork failed:', error)
       }
 
-      return existing || null
+      // 缓存只用于合并最新响应，不能在 404、撤审或网络失败时冒充权威详情。
+      return null
     },
   },
 })

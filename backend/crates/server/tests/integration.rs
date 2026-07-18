@@ -738,7 +738,7 @@ async fn art_random_list_uses_stable_pagination() {
 }
 
 #[tokio::test]
-async fn art_recommendations_keep_anonymous_identity_and_avoid_recent_batch_repeats() {
+async fn art_recommendations_do_not_persist_served_events_and_impressions_avoid_repeats() {
     let app = setup().await;
     for i in 0..20 {
         seed_artwork(
@@ -765,12 +765,43 @@ async fn art_recommendations_keep_anonymous_identity_and_avoid_recent_batch_repe
         .iter()
         .filter_map(|item| item["id"].as_i64())
         .collect();
-    let served_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(1) FROM recommendation_events WHERE event_type='served'")
-            .fetch_one(&app.state.pools.art)
-            .await
-            .unwrap();
-    assert_eq!(served_count, 8);
+    let event_count: i64 = sqlx::query_scalar("SELECT COUNT(1) FROM recommendation_events")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+    assert_eq!(event_count, 0, "推荐 GET 不应持久化 served 事件");
+
+    let batch_id = first["batchId"].as_str().unwrap();
+    let impressions: Vec<Value> = first["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .enumerate()
+        .map(|(position, item)| {
+            json!({
+                "artwork_id": item["id"],
+                "event_type": "impression",
+                "batch_id": batch_id,
+                "source": "recommendation",
+                "position": position,
+            })
+        })
+        .collect();
+    let (record_status, recorded) = send(
+        &app.router,
+        post_json_with_cookie(
+            "/api/art/recommendation-events",
+            json!({ "session_id": "read-only-test", "events": impressions }),
+            &cookie,
+        ),
+    )
+    .await;
+    assert_eq!(
+        record_status,
+        StatusCode::OK,
+        "曝光事件应成功: {recorded:?}"
+    );
+    assert_eq!(recorded["accepted"], 8);
 
     let (status, second) = send(
         &app.router,
@@ -1361,6 +1392,33 @@ async fn art_upload_accepts_image_and_persists() {
             .unwrap();
     assert_eq!(status, "pending");
     assert!(random_key > 0, "上传作品应写入随机排序键");
+}
+
+#[tokio::test]
+async fn art_upload_rejects_unsafe_origin_url_without_persisting() {
+    let app = setup().await;
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let req = multipart_req(
+        "/api/art/artworks",
+        &[
+            ("images", Some("ok.png"), "\u{89}PNG-fake-bytes"),
+            ("title", None, "危险出处测试"),
+            ("origin_url", None, "javascript:alert(document.domain)"),
+        ],
+        Some(&token),
+    );
+    let (status, body) = send(&app.router, req).await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "危险协议应被拒绝: {body:?}"
+    );
+    let stored: i64 =
+        sqlx::query_scalar("SELECT COUNT(1) FROM artworks WHERE title='危险出处测试'")
+            .fetch_one(&app.state.pools.art)
+            .await
+            .unwrap();
+    assert_eq!(stored, 0);
 }
 
 #[tokio::test]
@@ -2994,14 +3052,71 @@ async fn creator_profile_messages_are_public_but_posting_requires_login() {
     )
     .await;
     assert_eq!(member_status, StatusCode::OK);
-    let stored: (i64, String) = sqlx::query_as(
-        "SELECT author_user_id, user_name FROM creator_profile_messages WHERE body='登录成员留言'",
+    let stored: (i64, String, String, i64) = sqlx::query_as(
+        "SELECT author_user_id, user_name, status, id
+         FROM creator_profile_messages WHERE body='登录成员留言'",
     )
     .fetch_one(&art)
     .await
     .unwrap();
     assert_eq!(stored.0, author_id);
     assert_eq!(stored.1, "留言测试员");
+    assert_eq!(stored.2, "flagged", "AI 离线时留言应进入人工审核队列");
+
+    let (admin_list_status, admin_list) = send(
+        &app.router,
+        get(
+            "/api/art/admin/guild/profile-messages?status=flagged",
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(admin_list_status, StatusCode::OK);
+    assert!(admin_list["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|message| message["id"] == stored.3));
+
+    let (approve_status, approve_body) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/profile-messages/{}/status", stored.3),
+            json!({ "status": "public" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(
+        approve_status,
+        StatusCode::OK,
+        "审核通过应成功: {approve_body:?}"
+    );
+
+    let (_, public_after_approve) = send(
+        &app.router,
+        get(
+            "/api/art/guild/profile/creator-message-test/messages?page=1&pageSize=16",
+            None,
+        ),
+    )
+    .await;
+    assert!(public_after_approve["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|message| message["id"] == stored.3));
+
+    let (hide_status, hide_body) = send(
+        &app.router,
+        post_json(
+            &format!("/api/art/admin/guild/profile-messages/{}/status", stored.3),
+            json!({ "status": "hidden" }),
+            Some(&token),
+        ),
+    )
+    .await;
+    assert_eq!(hide_status, StatusCode::OK, "隐藏留言应成功: {hide_body:?}");
 }
 
 #[tokio::test]
