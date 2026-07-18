@@ -683,7 +683,7 @@ async fn creator_exhibits_default_to_top_three_then_honor_explicit_selection() {
 }
 
 #[tokio::test]
-async fn creator_feed_uses_cached_random_pagination_and_recommends_three_works() {
+async fn creator_feed_uses_cached_random_pagination_and_recommends_four_works() {
     let app = setup().await;
     for creator in 1..=5_i64 {
         for artwork in 1..=4_i64 {
@@ -721,7 +721,7 @@ async fn creator_feed_uses_cached_random_pagination_and_recommends_three_works()
     assert_eq!(first_data.len(), 2);
     assert!(first_data.iter().all(|creator| {
         let items = creator["items"].as_array().unwrap();
-        items.len() == 3 && items.iter().all(|item| item["exhibit_enabled"] == false)
+        items.len() == 4 && items.iter().all(|item| item["exhibit_enabled"] == false)
     }));
 
     let (_, repeated) = send(
