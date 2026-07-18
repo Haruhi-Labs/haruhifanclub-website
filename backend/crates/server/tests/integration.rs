@@ -1130,6 +1130,96 @@ async fn artwork_creator_neighbors_are_the_immediate_newer_and_older_submissions
 }
 
 #[tokio::test]
+async fn artwork_creator_timeline_returns_every_public_submission_newest_first() {
+    let app = setup().await;
+    for (title, created_at) in [
+        ("时间线-最旧", "2026-01-01 00:00:00"),
+        ("时间线-较旧", "2026-02-01 00:00:00"),
+        ("时间线-当前", "2026-03-01 00:00:00"),
+        ("时间线-较新", "2026-04-01 00:00:00"),
+        ("时间线-最新", "2026-05-01 00:00:00"),
+    ] {
+        seed_artwork(&app.state, title, "approved", created_at).await;
+    }
+    sqlx::query("UPDATE artworks SET uploader_uid='timeline-author' WHERE title LIKE '时间线-%'")
+        .execute(&app.state.pools.art)
+        .await
+        .unwrap();
+    let current_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title='时间线-当前'")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+
+    let (status, body) = send(
+        &app.router,
+        get(
+            &format!("/api/art/artworks/{current_id}/creator-timeline"),
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["currentIndex"], 2);
+    assert_eq!(body["total"], 5);
+    let titles: Vec<&str> = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|item| item["title"].as_str())
+        .collect();
+    assert_eq!(
+        titles,
+        vec![
+            "时间线-最新",
+            "时间线-较新",
+            "时间线-当前",
+            "时间线-较旧",
+            "时间线-最旧"
+        ]
+    );
+}
+
+#[tokio::test]
+async fn guild_profile_artworks_are_paginated_ten_per_page() {
+    let app = setup().await;
+    for index in 1..=23 {
+        let title = format!("分页作品-{index:02}");
+        let created_at = format!("2026-01-{index:02} 00:00:00");
+        seed_artwork(&app.state, &title, "approved", &created_at).await;
+    }
+    seed_artwork(
+        &app.state,
+        "分页作品-未通过",
+        "pending",
+        "2026-01-24 00:00:00",
+    )
+    .await;
+    sqlx::query("UPDATE artworks SET uploader_uid='paged-author' WHERE title LIKE '分页作品-%'")
+        .execute(&app.state.pools.art)
+        .await
+        .unwrap();
+
+    let (status, body) = send(
+        &app.router,
+        get(
+            "/api/art/guild/profile/paged-author/artworks?page=2&pageSize=10",
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["total"], 23);
+    assert_eq!(body["page"], 2);
+    assert_eq!(body["pageSize"], 10);
+    assert_eq!(body["pageCount"], 3);
+    assert_eq!(body["hasMore"], true);
+    let items = body["data"].as_array().unwrap();
+    assert_eq!(items.len(), 10);
+    assert_eq!(items.first().unwrap()["title"], "分页作品-13");
+    assert_eq!(items.last().unwrap()["title"], "分页作品-04");
+}
+
+#[tokio::test]
 async fn art_latest_list_uses_review_time_instead_of_upload_time() {
     let app = setup().await;
     seed_artwork(

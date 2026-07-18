@@ -43,6 +43,10 @@ pub fn router() -> Router<AppState> {
             "/artworks/{id}/creator-neighbors",
             get(creator_neighbor_artworks),
         )
+        .route(
+            "/artworks/{id}/creator-timeline",
+            get(creator_artwork_timeline),
+        )
         .route("/artworks/{id}/favorite", post(toggle_artwork_favorite))
         .route("/creator-exhibits", get(creator_exhibits))
         .route("/recommendations", get(recommend_artworks))
@@ -2378,6 +2382,51 @@ async fn creator_neighbor_artworks(
         "ok": true,
         "data": data,
         "currentIndex": current_index
+    })))
+}
+
+// 同创作者完整投稿时间线：按发布时间从新到旧返回全部公开作品。
+// 前端以当前作品为锚点居中，因此左侧自然是更新作品，右侧是更早作品。
+async fn creator_artwork_timeline(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> AppResult<Json<Value>> {
+    let source: Option<ArtRow> = sqlx::query_as(&format!(
+        "{SELECT_ART} WHERE a.id=? AND a.status='approved'"
+    ))
+    .bind(id)
+    .fetch_optional(&state.pools.art)
+    .await?;
+    let Some(source) = source else {
+        return Err(AppError::not_found("作品不存在"));
+    };
+    let uid = source.uploader_uid.as_deref().unwrap_or("").trim();
+    if uid.is_empty() {
+        return Ok(Json(json!({
+            "ok": true,
+            "data": [map_artwork_row(&source)],
+            "currentIndex": 0,
+            "total": 1
+        })));
+    }
+
+    let time_expr =
+        "COALESCE(datetime(a.created_at), datetime(a.reviewed_at), datetime('1970-01-01'))";
+    let rows: Vec<ArtRow> = sqlx::query_as(&format!(
+        "{SELECT_ART} WHERE a.status='approved' AND a.uploader_uid=? \
+         ORDER BY {time_expr} DESC, a.id DESC"
+    ))
+    .bind(uid)
+    .fetch_all(&state.pools.art)
+    .await?;
+    let current_index = rows.iter().position(|row| row.id == id).unwrap_or(0);
+    let total = rows.len();
+    let data = map_artworks_with_names(&state, &rows).await;
+    Ok(Json(json!({
+        "ok": true,
+        "data": data,
+        "currentIndex": current_index,
+        "total": total
     })))
 }
 

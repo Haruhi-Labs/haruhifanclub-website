@@ -509,9 +509,27 @@ async fn guild_profile_artworks(
     Query(q): Query<std::collections::HashMap<String, String>>,
 ) -> AppResult<Json<Value>> {
     let uid = normalize_uid(&uid)?;
-    let limit = clamp_query_i64(q.get("limit"), 6, 60, 24);
-    let artworks = artworks_for_uid(&state, &uid, false, limit).await?;
-    Ok(Json(json!({ "ok": true, "data": artworks })))
+    let page = clamp_query_i64(q.get("page"), 1, 1_000_000, 1);
+    let page_size = clamp_query_i64(q.get("pageSize").or_else(|| q.get("limit")), 1, 60, 10);
+    let total: i64 = sqlx::query_scalar(
+        "SELECT COUNT(1) FROM artworks WHERE uploader_uid=? AND status='approved'",
+    )
+    .bind(&uid)
+    .fetch_one(&state.pools.art)
+    .await?;
+    let page_count = std::cmp::max(1, (total + page_size - 1) / page_size);
+    let current_page = page.min(page_count);
+    let offset = (current_page - 1) * page_size;
+    let artworks = artworks_page_for_uid(&state, &uid, false, page_size, offset).await?;
+    Ok(Json(json!({
+        "ok": true,
+        "data": artworks,
+        "total": total,
+        "page": current_page,
+        "pageSize": page_size,
+        "pageCount": page_count,
+        "hasMore": current_page < page_count
+    })))
 }
 
 async fn toggle_guild_follow(
@@ -3783,6 +3801,16 @@ async fn artworks_for_uid(
     include_private: bool,
     limit: i64,
 ) -> AppResult<Vec<Value>> {
+    artworks_page_for_uid(state, uid, include_private, limit, 0).await
+}
+
+async fn artworks_page_for_uid(
+    state: &AppState,
+    uid: &str,
+    include_private: bool,
+    limit: i64,
+    offset: i64,
+) -> AppResult<Vec<Value>> {
     let status_clause = if include_private {
         "status IN ('approved','pending','rejected','hidden','flagged')"
     } else {
@@ -3792,7 +3820,7 @@ async fn artworks_for_uid(
         "SELECT id, title, uploader_name, uploader_uid, source_type, content_type,
                 file_path, images_json, status, like_total, created_at
          FROM artworks WHERE uploader_uid=? AND {status_clause}
-         ORDER BY datetime(created_at) DESC, id DESC LIMIT ?"
+         ORDER BY datetime(created_at) DESC, id DESC LIMIT ? OFFSET ?"
     );
     let rows: Vec<(
         i64,
@@ -3809,6 +3837,7 @@ async fn artworks_for_uid(
     )> = sqlx::query_as(&sql)
         .bind(uid)
         .bind(limit)
+        .bind(offset)
         .fetch_all(&state.pools.art)
         .await?;
     Ok(rows

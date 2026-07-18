@@ -165,21 +165,25 @@
           </div>
         </section>
 
-        <section class="adv-panel adv-archive">
+        <section ref="artworkArchive" class="adv-panel adv-archive" :aria-busy="artworksLoading">
           <header class="adv-panel__head">
             <div>
               <span class="adv-panel__eyebrow">Archive</span>
               <h2>{{ isTerminal ? '我的作品档案库' : '公开画作' }}</h2>
             </div>
-            <span class="adv-panel__meta">{{ stats.haruhi || 0 }} 张凉宫画作</span>
+            <span class="adv-panel__meta">
+              {{ isTerminal ? `${stats.haruhi || 0} 张凉宫画作` : `${artworkTotal} 件公开作品` }}
+            </span>
           </header>
 
-          <div v-if="artworks.length" class="adv-art-grid">
+          <p v-if="artworksError" class="adv-artworks-error">{{ artworksError }}</p>
+          <div v-if="artworks.length" class="adv-art-grid" :class="{ 'is-loading': artworksLoading }">
             <button
               v-for="art in artworks"
               :key="art.id"
               type="button"
               class="adv-art"
+              :disabled="artworksLoading"
               @click="openArtwork(art)"
             >
               <span class="adv-art__media">
@@ -196,6 +200,44 @@
             </button>
           </div>
           <div v-else class="adv-empty">这个冒险者还没有公开画作。</div>
+
+          <nav
+            v-if="!isTerminal && artworkPageCount > 1"
+            class="adv-art-pagination"
+            aria-label="公开画作分页"
+          >
+            <button
+              type="button"
+              :disabled="artworksLoading || artworkPage <= 1"
+              @click="loadArtworkPage(artworkPage - 1)"
+            >
+              上一页
+            </button>
+            <span class="adv-art-pagination__pages">
+              <template v-for="item in artworkPaginationItems" :key="item.key">
+                <span v-if="item.gap" class="adv-art-pagination__gap" aria-hidden="true">…</span>
+                <button
+                  v-else
+                  type="button"
+                  :class="{ 'is-current': item.page === artworkPage }"
+                  :disabled="artworksLoading || item.page === artworkPage"
+                  :aria-current="item.page === artworkPage ? 'page' : undefined"
+                  :aria-label="`第 ${item.page} 页`"
+                  @click="loadArtworkPage(item.page)"
+                >
+                  {{ item.page }}
+                </button>
+              </template>
+            </span>
+            <span class="adv-art-pagination__range">{{ artworkRangeLabel }}</span>
+            <button
+              type="button"
+              :disabled="artworksLoading || artworkPage >= artworkPageCount"
+              @click="loadArtworkPage(artworkPage + 1)"
+            >
+              下一页
+            </button>
+          </nav>
         </section>
 
         <section class="adv-panel adv-archive">
@@ -475,7 +517,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePageMeta, canonicalUrl, absoluteUrl } from '@haruhi/seo'
 import { useSession } from '@haruhi/auth-ui'
@@ -491,6 +533,11 @@ const profile = ref({})
 const userInfo = ref({})
 const stats = ref({})
 const artworks = ref([])
+const artworkArchive = ref(null)
+const artworkPage = ref(1)
+const artworkTotal = ref(0)
+const artworksLoading = ref(false)
+const artworksError = ref('')
 const favorites = ref([])
 const social = ref({
   followerCount: 0,
@@ -518,6 +565,7 @@ const messageTotal = ref(0)
 const messagePage = ref(1)
 const messagesLoading = ref(false)
 let profileLoadVersion = 0
+let artworkLoadVersion = 0
 let messageLoadVersion = 0
 let messagesLoadingUid = ''
 const postingMessage = ref(false)
@@ -526,6 +574,35 @@ const messageError = ref('')
 const messageNotice = ref('')
 
 const isTerminal = computed(() => route.name === 'terminal')
+const PROFILE_ARTWORK_PAGE_SIZE = 10
+const artworkPageCount = computed(() => Math.max(1, Math.ceil(artworkTotal.value / PROFILE_ARTWORK_PAGE_SIZE)))
+const artworkRangeLabel = computed(() => {
+  if (!artworkTotal.value) return '0 件'
+  const start = (artworkPage.value - 1) * PROFILE_ARTWORK_PAGE_SIZE + 1
+  const end = Math.min(artworkTotal.value, artworkPage.value * PROFILE_ARTWORK_PAGE_SIZE)
+  return `${start}–${end} / ${artworkTotal.value}`
+})
+const artworkPaginationItems = computed(() => {
+  const total = artworkPageCount.value
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, index) => ({ key: `page-${index + 1}`, page: index + 1 }))
+  }
+  const pages = [...new Set([
+    1,
+    total,
+    artworkPage.value - 1,
+    artworkPage.value,
+    artworkPage.value + 1,
+  ].filter(page => page >= 1 && page <= total))].sort((a, b) => a - b)
+  const items = []
+  pages.forEach((page, index) => {
+    if (index && page - pages[index - 1] > 1) {
+      items.push({ key: `gap-${pages[index - 1]}-${page}`, gap: true })
+    }
+    items.push({ key: `page-${page}`, page })
+  })
+  return items
+})
 const isLoggedIn = session.isLoggedIn
 const accountName = computed(
   () => session.state.user?.nickname || session.state.user?.displayName || '账号昵称'
@@ -577,12 +654,17 @@ const contactTypeLabel = computed(() => {
 
 async function loadProfile() {
   const version = ++profileLoadVersion
+  ++artworkLoadVersion
   const targetIsTerminal = route.name === 'terminal'
   const targetUid = String(route.params.uid || '').trim()
   ++messageLoadVersion
   loading.value = true
   error.value = ''
   socialError.value = ''
+  artworkPage.value = 1
+  artworkTotal.value = 0
+  artworksLoading.value = false
+  artworksError.value = ''
   favorites.value = []
   messages.value = []
   messageTotal.value = 0
@@ -610,7 +692,12 @@ async function loadProfile() {
     profile.value = res.profile || {}
     userInfo.value = res.user || res.profile?.user || {}
     stats.value = res.stats || {}
-    artworks.value = res.artworks || []
+    artworks.value = targetIsTerminal
+      ? (res.artworks || [])
+      : (res.artworks || []).slice(0, PROFILE_ARTWORK_PAGE_SIZE)
+    artworkTotal.value = targetIsTerminal
+      ? artworks.value.length
+      : Number(res.stats?.total || artworks.value.length)
     favorites.value = res.favorites || []
     social.value = { ...social.value, ...(res.social || {}) }
     claims.value = res.claims || []
@@ -621,6 +708,37 @@ async function loadProfile() {
     if (version === profileLoadVersion) error.value = err.message || '冒险者档案读取失败'
   } finally {
     if (version === profileLoadVersion) loading.value = false
+  }
+}
+
+async function loadArtworkPage(page) {
+  if (isTerminal.value || artworksLoading.value) return
+  const uid = profileUid.value
+  const targetPage = Math.min(artworkPageCount.value, Math.max(1, Number(page) || 1))
+  if (!uid || targetPage === artworkPage.value) return
+  const version = ++artworkLoadVersion
+  artworksLoading.value = true
+  artworksError.value = ''
+  try {
+    const res = await api.guildProfileArtworks(uid, {
+      page: targetPage,
+      pageSize: PROFILE_ARTWORK_PAGE_SIZE,
+    })
+    if (version !== artworkLoadVersion || profileUid.value !== uid) return
+    artworks.value = res.data || []
+    artworkTotal.value = Number(res.total || 0)
+    artworkPage.value = Number(res.page || targetPage)
+    await nextTick()
+    artworkArchive.value?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start',
+    })
+  } catch (err) {
+    if (version === artworkLoadVersion) {
+      artworksError.value = err.message || '公开画作读取失败'
+    }
+  } finally {
+    if (version === artworkLoadVersion) artworksLoading.value = false
   }
 }
 
@@ -1307,6 +1425,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleWindowKeydown)
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: var(--sos-space-3);
 }
+.adv-art-grid.is-loading {
+  opacity: 0.58;
+  transition: opacity 0.16s ease;
+}
 .adv-art {
   display: flex;
   flex-direction: column;
@@ -1319,6 +1441,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleWindowKeydown)
   font: inherit;
   color: inherit;
 }
+.adv-art:disabled { cursor: wait; }
 .adv-art__media {
   position: relative;
   display: block;
@@ -1374,6 +1497,71 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleWindowKeydown)
   font-weight: 750;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adv-artworks-error {
+  margin: 0 0 14px;
+  color: #b72b32;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.adv-art-pagination {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.adv-art-pagination button {
+  min-width: 38px;
+  min-height: 36px;
+  padding: 0 11px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--accent) 4%, var(--glass));
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.adv-art-pagination button:hover:not(:disabled),
+.adv-art-pagination button:focus-visible,
+.adv-art-pagination button.is-current {
+  color: var(--accent-strong);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+
+.adv-art-pagination button.is-current {
+  background: color-mix(in srgb, var(--accent) 12%, var(--glass));
+}
+
+.adv-art-pagination button:disabled { cursor: default; opacity: 0.54; }
+.adv-art-pagination button.is-current:disabled { opacity: 1; }
+
+.adv-art-pagination__pages {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.adv-art-pagination__gap {
+  display: inline-grid;
+  min-width: 20px;
+  place-items: center;
+  color: var(--muted);
+}
+
+.adv-art-pagination__range {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
   white-space: nowrap;
 }
 
@@ -1908,6 +2096,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleWindowKeydown)
 
 @media (max-width: 560px) {
   .adv-social__columns { grid-template-columns: 1fr; }
+  .adv-art-pagination { grid-template-columns: 1fr 1fr; }
+  .adv-art-pagination__pages {
+    grid-row: 1;
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+  }
+  .adv-art-pagination__range {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+  .adv-art-pagination > button:first-child { grid-row: 3; grid-column: 1; }
+  .adv-art-pagination > button:last-child { grid-row: 3; grid-column: 2; }
   .adv-connections-overlay { align-items: end; padding: 0; }
   .adv-connections-dialog {
     width: 100%;

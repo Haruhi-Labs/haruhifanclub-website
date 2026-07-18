@@ -185,6 +185,14 @@ export const api = {
       data: (response.data || []).map(transformArtwork),
     }
   },
+  creatorTimeline: async (current) => {
+    if (!current?.id || !current?.uploader_uid) return { ok: true, data: [] }
+    const response = await request('GET', `${API_PREFIX}/artworks/${current.id}/creator-timeline`)
+    return {
+      ...response,
+      data: (response.data || []).map(transformArtwork),
+    }
+  },
   creatorProfile: async (uid) => {
     const data = await request('GET', `${API_PREFIX}/creators/${encodeURIComponent(uid)}`)
     if (data?.creator) data.creator.avatar_url = fixPath(data.creator.avatar_url)
