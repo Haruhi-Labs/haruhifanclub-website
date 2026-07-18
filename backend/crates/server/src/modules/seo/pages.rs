@@ -416,3 +416,133 @@ pub async fn art_profile(
     };
     Ok(render(&state, "art", StatusCode::OK, page).await)
 }
+
+// ---- chapter.haruyuki.cn：地方支部、动态与活动 ----
+
+const CHAPTER_TITLE: &str = "地方支部 · 凉宫春日应援团";
+
+pub async fn chapter_branch(
+    State(state): State<AppState>,
+    Path(slug): Path<String>,
+) -> AppResult<Response> {
+    type Row = (String, Option<String>, Option<String>, Option<String>);
+    let row: Option<Row> = sqlx::query_as(
+        "SELECT b.name, b.summary, br.cover_path, br.logo_light_path FROM branches b \
+         LEFT JOIN branch_brand br ON br.branch_id=b.id \
+         WHERE b.slug=? AND b.status IN ('active','paused')",
+    )
+    .bind(&slug)
+    .fetch_optional(&state.pools.chapter)
+    .await?;
+    let Some((name, summary, cover, logo)) = row else {
+        return Ok(render_404(&state, "chapter", CHAPTER_TITLE).await);
+    };
+    let base = state.cfg.chapter_site_url.trim_end_matches('/');
+    let description = summary
+        .map(|value| meta::excerpt(&value, DESC_CHARS))
+        .filter(|value| !value.is_empty());
+    let image = cover.or(logo).map(|value| meta::absolutize(base, &value));
+    let page = PageMeta {
+        description,
+        canonical: Some(format!("{base}/branches/{slug}")),
+        og_type: "website",
+        og_image: image,
+        json_ld: Some(json!({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": name,
+            "url": format!("{base}/branches/{slug}")
+        })),
+        ..PageMeta::new(format!("{name} · 地方支部"))
+    };
+    Ok(render(&state, "chapter", StatusCode::OK, page).await)
+}
+
+pub async fn chapter_post(
+    State(state): State<AppState>,
+    Path((slug, item_slug)): Path<(String, String)>,
+) -> AppResult<Response> {
+    type Row = (
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    );
+    let row: Option<Row> = sqlx::query_as(
+        "SELECT p.title, b.name, p.summary, p.cover_path, p.published_at \
+         FROM branch_posts p JOIN branches b ON b.id=p.branch_id \
+         WHERE b.slug=? AND b.status='active' AND p.slug=? AND p.status='published' \
+         AND p.visibility='public' AND p.moderation_state='normal'",
+    )
+    .bind(&slug)
+    .bind(&item_slug)
+    .fetch_optional(&state.pools.chapter)
+    .await?;
+    let Some((title, branch_name, summary, cover, published_at)) = row else {
+        return Ok(render_404(&state, "chapter", CHAPTER_TITLE).await);
+    };
+    let base = state.cfg.chapter_site_url.trim_end_matches('/');
+    let canonical = format!("{base}/branches/{slug}/posts/{item_slug}");
+    let mut json_ld = json!({
+        "@context":"https://schema.org", "@type":"Article", "headline":title,
+        "publisher":{"@type":"Organization","name":branch_name}, "url":canonical
+    });
+    if let Some(date) = published_at
+        .as_deref()
+        .and_then(super::sitemap::lastmod_date)
+    {
+        json_ld["datePublished"] = json!(date);
+    }
+    let page = PageMeta {
+        description: summary.map(|value| meta::excerpt(&value, DESC_CHARS)),
+        canonical: Some(canonical),
+        og_type: "article",
+        og_image: cover.map(|value| meta::absolutize(base, &value)),
+        json_ld: Some(json_ld),
+        ..PageMeta::new(format!("{title} · {branch_name}"))
+    };
+    Ok(render(&state, "chapter", StatusCode::OK, page).await)
+}
+
+pub async fn chapter_event(
+    State(state): State<AppState>,
+    Path((slug, item_slug)): Path<(String, String)>,
+) -> AppResult<Response> {
+    type Row = (
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        String,
+        Option<String>,
+    );
+    let row: Option<Row> = sqlx::query_as(
+        "SELECT e.title, b.name, e.summary, e.cover_path, e.starts_at, e.venue_name \
+         FROM branch_events e JOIN branches b ON b.id=e.branch_id \
+         WHERE b.slug=? AND b.status='active' AND e.slug=? AND e.status='published' \
+         AND e.visibility='public' AND e.moderation_state='normal'",
+    )
+    .bind(&slug)
+    .bind(&item_slug)
+    .fetch_optional(&state.pools.chapter)
+    .await?;
+    let Some((title, branch_name, summary, cover, starts_at, venue)) = row else {
+        return Ok(render_404(&state, "chapter", CHAPTER_TITLE).await);
+    };
+    let base = state.cfg.chapter_site_url.trim_end_matches('/');
+    let canonical = format!("{base}/branches/{slug}/events/{item_slug}");
+    let page = PageMeta {
+        description: summary.map(|value| meta::excerpt(&value, DESC_CHARS)),
+        canonical: Some(canonical.clone()),
+        og_type: "article",
+        og_image: cover.map(|value| meta::absolutize(base, &value)),
+        json_ld: Some(json!({
+            "@context":"https://schema.org", "@type":"Event", "name":title,
+            "startDate":starts_at, "location":venue, "organizer":{"@type":"Organization","name":branch_name},
+            "url":canonical
+        })),
+        ..PageMeta::new(format!("{title} · {branch_name}"))
+    };
+    Ok(render(&state, "chapter", StatusCode::OK, page).await)
+}

@@ -53,6 +53,8 @@ export { default as SosNavLink } from './components/SosNavLink.vue'
 export { default as SosBreadcrumb } from './components/SosBreadcrumb.vue'
 export { default as SosPagination } from './components/SosPagination.vue'
 export { default as SosHeaderBrand } from './components/SosHeaderBrand.vue'
+export { default as SosSiteFooter } from './components/SosSiteFooter.vue'
+export { defaultSiteFooterGroups } from './siteFooterLinks.js'
 
 // Overlay
 export { default as SosModal } from './components/SosModal.vue'

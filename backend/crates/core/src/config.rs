@@ -20,6 +20,8 @@ pub struct Config {
     pub session_ttl_seconds: i64,
     /// 会话/CSRF cookie 是否带 Secure 属性；默认按 public_site_url 是否 https 推导，可被 env 覆盖。
     pub cookie_secure: bool,
+    /// 生产环境可设为 `.haruyuki.cn`，使同一会话覆盖受控子域；本地开发留空。
+    pub cookie_domain: Option<String>,
     pub superadmin_user: Option<String>,
     pub superadmin_password: Option<String>,
 
@@ -36,6 +38,8 @@ pub struct Config {
     pub shop_free_shipping_threshold: i64,
     pub mail: MailConfig,
     pub public_site_url: String,
+    /// Chapter 独立子站的 canonical 根地址。
+    pub chapter_site_url: String,
     /// 账号邮件链接（邮箱验证/找回密码）指向的前端基址。各前端 app 在各自子路径下，
     /// 默认指向主站 news（`{public_site_url}/news`）；可用 HARUHI_ACCOUNT_WEB_BASE 覆盖。
     pub account_web_base: String,
@@ -164,6 +168,12 @@ impl Config {
         };
 
         let public_site_url = env_or("PUBLIC_SITE_URL", "https://haruyuki.cn");
+        let chapter_site_url = env_or("CHAPTER_SITE_URL", "https://chapter.haruyuki.cn");
+        let cookie_domain = env("HARUHI_COOKIE_DOMAIN").filter(|value| {
+            value
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'.' | b'-'))
+        });
         // cookie Secure 默认随站点协议；本地 http 调试自动关闭，生产 https 自动开启
         let cookie_secure = env_bool(
             "HARUHI_COOKIE_SECURE",
@@ -183,6 +193,7 @@ impl Config {
             // 会话默认 30 天（cookie 模式，可吊销，故可比 JWT 更长）
             session_ttl_seconds: env_parse("HARUHI_SESSION_TTL_SECONDS", 2_592_000),
             cookie_secure,
+            cookie_domain,
             superadmin_user: env("HARUHI_SUPERADMIN_USER")
                 .or_else(|| dev.then(|| "admin".to_string())),
             superadmin_password: env("HARUHI_SUPERADMIN_PASSWORD")
@@ -198,6 +209,7 @@ impl Config {
             shop_free_shipping_threshold: env_parse("SHOP_FREE_SHIPPING_THRESHOLD", 150),
             mail,
             public_site_url,
+            chapter_site_url,
             account_web_base,
             cors_origins: env("HARUHI_CORS_ORIGINS")
                 .map(|s| {

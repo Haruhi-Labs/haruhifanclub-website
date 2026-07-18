@@ -31,6 +31,7 @@ async fn main() -> anyhow::Result<()> {
     // 语音工坊（voice）：本地 TTS/RVC 服务探活 + 角色缓存后台任务。
     let voice_state = modules::voice::VoiceState::new();
     modules::voice::spawn_probe(cfg.clone(), voice_state.clone());
+    let (chapter_timeline_tx, _) = tokio::sync::broadcast::channel(512);
 
     let state = AppState {
         cfg: cfg.clone(),
@@ -41,6 +42,7 @@ async fn main() -> anyhow::Result<()> {
         upload_limiter: Arc::new(RateLimiter::new(60, 600)),
         // 注册/找回/重发验证：单 IP 1 小时内最多 5 次，防刷邮件
         account_limiter: Arc::new(RateLimiter::new(5, 3600)),
+        chapter_timeline_tx,
         // 统一邮件发送器（未配置邮件时为 None）
         mailer: Mailer::from_config(&cfg),
         // 资源站索引缓存（与后台同步任务共享同一 Arc）
@@ -68,6 +70,7 @@ async fn main() -> anyhow::Result<()> {
         &pools.novel,
         &pools.shop,
         &pools.fiction,
+        &pools.chapter,
     ] {
         let _ = sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
             .execute(pool)

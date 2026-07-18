@@ -19,6 +19,7 @@ type: feat fix perf refactor docs style test build ci chore revert
 ### 前端 app
 
 - [ ] news
+- [ ] chapter
 - [ ] art
 - [ ] exam
 - [ ] novel

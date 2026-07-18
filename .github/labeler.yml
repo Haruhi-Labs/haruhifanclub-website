@@ -7,6 +7,11 @@
       - any-glob-to-any-file:
           - "apps/news/**"
 
+"app:chapter":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/chapter/**"
+
 "app:art":
   - changed-files:
       - any-glob-to-any-file:

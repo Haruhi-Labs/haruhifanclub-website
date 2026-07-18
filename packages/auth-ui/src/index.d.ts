@@ -64,6 +64,7 @@ export const SettingsView: DefineComponent<Record<string, any>>
 export const AccountMenu: DefineComponent<Record<string, any>>
 export const AccountAvatarLink: DefineComponent<Record<string, any>>
 export const AvatarCropper: DefineComponent<Record<string, any>>
+export const haruhiLogoUrl: string
 export const UserConsoleLayout: DefineComponent<Record<string, any>>
 export const OverviewView: DefineComponent<Record<string, any>>
 export const MyArtworksView: DefineComponent<Record<string, any>>

@@ -8,9 +8,10 @@ use axum::http::HeaderMap;
 use axum::routing::{delete, get, patch, post};
 use axum::{Json, Router};
 use haruhi_auth::{
-    clear_cookie, consume_user_token, cookie_value, create_session, csrf_set_cookie, hash_password,
-    issue_token, issue_user_token, revoke_session_by_cookie, revoke_user_sessions, session_id_of,
-    session_set_cookie, verify_password, AuthUser, CSRF_COOKIE, SESSION_COOKIE,
+    capability_grants, clear_cookie, consume_user_token, cookie_value, create_session,
+    csrf_set_cookie, hash_password, issue_token, issue_user_token, revoke_session_by_cookie,
+    revoke_user_sessions, session_id_of, session_set_cookie, verify_password, AuthUser,
+    CSRF_COOKIE, SESSION_COOKIE,
 };
 use haruhi_core::{AppError, AppResult, Config};
 use serde::Deserialize;
@@ -84,13 +85,13 @@ fn auth_cookies(cfg: &Config, raw: &str, csrf: &str) -> HeaderMap {
     let ttl = cfg.session_ttl_seconds;
     h.append(
         SET_COOKIE,
-        session_set_cookie(raw, ttl, cfg.cookie_secure)
+        session_set_cookie(raw, ttl, cfg.cookie_secure, cfg.cookie_domain.as_deref())
             .parse()
             .expect("会话 cookie 头应为合法 ASCII"),
     );
     h.append(
         SET_COOKIE,
-        csrf_set_cookie(csrf, ttl, cfg.cookie_secure)
+        csrf_set_cookie(csrf, ttl, cfg.cookie_secure, cfg.cookie_domain.as_deref())
             .parse()
             .expect("csrf cookie 头应为合法 ASCII"),
     );
@@ -102,13 +103,17 @@ fn clearing_cookies(cfg: &Config) -> HeaderMap {
     let mut h = HeaderMap::new();
     h.append(
         SET_COOKIE,
-        clear_cookie(SESSION_COOKIE, cfg.cookie_secure)
-            .parse()
-            .unwrap(),
+        clear_cookie(
+            SESSION_COOKIE,
+            cfg.cookie_secure,
+            cfg.cookie_domain.as_deref(),
+        )
+        .parse()
+        .unwrap(),
     );
     h.append(
         SET_COOKIE,
-        clear_cookie(CSRF_COOKIE, cfg.cookie_secure)
+        clear_cookie(CSRF_COOKIE, cfg.cookie_secure, cfg.cookie_domain.as_deref())
             .parse()
             .unwrap(),
     );
@@ -856,6 +861,7 @@ async fn load_profile(state: &AppState, user_id: i64) -> AppResult<Value> {
             .bind(user_id)
             .fetch_one(&state.pools.core)
             .await?;
+    let capabilities = capability_grants(&state.pools.core, user_id).await?;
 
     Ok(json!({
         "id": user_id,
@@ -868,6 +874,7 @@ async fn load_profile(state: &AppState, user_id: i64) -> AppResult<Value> {
         "emailVerified": email_verified,
         "isSuperAdmin": is_super,
         "apps": apps,
+        "capabilities": capabilities,
         "twoFactorEnabled": totp_enabled.unwrap_or(false),
         "hasPasskey": passkey_count > 0,
     }))

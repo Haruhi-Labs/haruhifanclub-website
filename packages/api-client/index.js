@@ -295,6 +295,24 @@ export function hasLevel(user, scope, minLevel) {
   return false
 }
 
+/**
+ * 实例级能力判断。平台 chapter 授权可覆盖具体支部；后端仍是最终安全边界。
+ * @param {{isSuperAdmin?:boolean, capabilities?:Array<{capability:string,scopeType:string,scopeId:string}>}|null} user
+ * @param {string} capability
+ * @param {'platform'|'branch'} scopeType
+ * @param {string|number} scopeId
+ */
+export function hasCapability(user, capability, scopeType = 'platform', scopeId = 'chapter') {
+  if (!user) return false
+  if (user.isSuperAdmin) return true
+  const target = String(scopeId)
+  return (user.capabilities || []).some((grant) => {
+    if (grant.capability !== capability) return false
+    if (grant.scopeType === scopeType && grant.scopeId === target) return true
+    return scopeType === 'branch' && grant.scopeType === 'platform' && grant.scopeId === 'chapter'
+  })
+}
+
 // JWT 本地解码（仅用于同步校验 exp，不验签；验签由后端做）
 function decodeJwtPayload(token) {
   if (!token || typeof token !== 'string') return null

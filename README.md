@@ -38,6 +38,7 @@ pnpm dev:backend
 
 # 另开一个终端起前端
 pnpm dev:news
+pnpm dev:chapter
 pnpm dev:art
 pnpm dev:exam
 pnpm dev:novel
@@ -59,6 +60,7 @@ APP=novel pnpm dev    # 默认 APP=news
 | app           | 包名                         | 子路径            | dev 端口 | 说明                                             |
 | ------------- | ---------------------------- | ----------------- | -------- | ------------------------------------------------ |
 | news          | `@haruhi/news`               | `/news/`          | 5204     | 团内新闻（春日团报）、活动、积分和后台管理       |
+| chapter       | `@haruhi/chapter`            | 独立子域根路径    | 5208     | 地方支部目录、动态活动聚合和实例级管理           |
 | art           | `@haruhi/art`                | `/art/`           | 5201     | 画廊、投稿、匿名互动、积分和审核后台             |
 | exam          | `@haruhi/exam`               | `/exam/`          | 5202     | 在线试卷、编辑器、分享导出和审核后台，TypeScript |
 | novel         | `@haruhi/novel`              | `/library/`       | 5203     | EPUB 书架、阅读器、上传和编目后台                |

@@ -1,0 +1,24 @@
+{
+  "name": "@haruhi/chapter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@haruhi/api-client": "workspace:*",
+    "@haruhi/auth-ui": "workspace:*",
+    "@haruhi/design-system": "workspace:*",
+    "@haruhi/seo": "workspace:*",
+    "@haruhi/ui": "workspace:*",
+    "vue": "^3.5.22",
+    "vue-router": "^4.6.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "vite": "^7.1.11"
+  }
+}
