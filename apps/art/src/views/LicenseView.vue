@@ -1,8 +1,4 @@
 <template>
-  <!-- 
-    Vue 3 支持多根节点，为了代码清晰，我们将主容器和弹窗分开。
-    主容器保持原样。
-  -->
   <div class="page-container">
     <div class="header">
       <div class="title-group">
@@ -15,6 +11,10 @@
         </svg>
       </div>
     </div>
+
+    <p class="license-note">
+      此处下载依据对应援团／社团特别授权开放，与作品详情页的面向大众授权相互独立。
+    </p>
 
     <div v-if="loading" class="loading-state">
       数据加载中...
@@ -31,6 +31,7 @@
         <div class="col-info">作品信息</div>
         <div class="col-auth">作者</div>
         <div class="col-lic">授权详情</div>
+        <div class="col-download">授权下载</div>
       </div>
 
       <!-- 列表内容 -->
@@ -66,53 +67,100 @@
             </span>
           </div>
         </div>
-        
-        <!-- 悬停时的箭头提示 -->
-        <div class="arrow-hint">➔</div>
+
+        <div class="col-download" aria-label="特别授权下载">
+          <a
+            v-for="(image, index) in getDownloadImages(item)"
+            :key="image.original_url"
+            :href="image.original_url"
+            :download="downloadFilename(item, image.original_url, index)"
+            class="license-download"
+            :aria-label="getDownloadImages(item).length > 1 ? `下载第 ${index + 1} 张原图` : '下载原图'"
+            :title="getDownloadImages(item).length > 1 ? `下载第 ${index + 1} 张原图` : '下载原图'"
+            @click.stop
+            @keydown.stop
+          >
+            <Download :size="15" aria-hidden="true" />
+            <span>{{ getDownloadImages(item).length > 1 ? `原图 ${index + 1}` : '原图' }}</span>
+          </a>
+          <span v-if="getDownloadImages(item).length === 0" class="download-empty">暂无原图</span>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Download } from 'lucide-vue-next'
 import { api } from '../services/api.js'
+import { groupLicenseLabels } from '../utils/artworkLicenses.js'
 
 const router = useRouter()
 const list = ref([])
 const loading = ref(true)
 
-// 获取数据：只拉取 source_type='personal' 的作品，然后在前端筛选有 GROUP 授权的
+const PAGE_SIZE = 60
+
+// 获取全部个人作品，再筛选出带有 GROUP 特别授权的项目。
 async function loadData() {
   loading.value = true
   try {
-    const res = await api.artworksList({ 
-      source_type: 'personal', 
-      status: 'approved',
-      pageSize: 100 
-    })
-    
-    const rawList = res.data || []
-    
-    // 筛选逻辑
-    list.value = rawList.filter(item => {
-      const licenses = Array.isArray(item.licenses) ? item.licenses : []
-      return licenses.some(l => l.startsWith('GROUP:'))
-    })
+    const rawList = []
+    let page = 1
+    let total = Number.POSITIVE_INFINITY
 
+    while (rawList.length < total) {
+      const res = await api.artworksList({
+        source_type: 'personal',
+        status: 'approved',
+        page,
+        pageSize: PAGE_SIZE,
+      })
+      const batch = Array.isArray(res.data) ? res.data : []
+      total = Number.isFinite(Number(res.total)) ? Number(res.total) : rawList.length + batch.length
+      rawList.push(...batch)
+
+      if (batch.length < PAGE_SIZE) break
+      page += 1
+    }
+
+    list.value = [...new Map(rawList.map((item) => [String(item.id), item])).values()]
+      .filter((item) => groupLicenseLabels(item).length > 0)
   } catch (e) {
-    console.error('Load failed', e)
+    console.error('特别授权作品加载失败', e)
   } finally {
     loading.value = false
   }
 }
 
 function getGroupLicenses(item) {
-  const licenses = Array.isArray(item.licenses) ? item.licenses : []
-  return licenses
-    .filter(l => l.startsWith('GROUP:'))
-    .map(l => l.replace('GROUP:', ''))
+  return groupLicenseLabels(item)
+}
+
+function getDownloadImages(item) {
+  const images = Array.isArray(item?.images) ? item.images : []
+  const candidates = images.length
+    ? images
+    : [{ original_url: item?.original_url || '' }]
+
+  return [...new Map(
+    candidates
+      .filter((image) => image?.original_url)
+      .map((image) => [image.original_url, image])
+  ).values()]
+}
+
+function downloadFilename(item, url, index) {
+  const date = item?.created_at ? new Date(item.created_at) : null
+  const dateText = date && !Number.isNaN(date.getTime())
+    ? `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`
+    : '00000000'
+  const safe = (value) => String(value || '').replace(/[\\/:*?"<>|]/g, '_').trim()
+  const sequence = getDownloadImages(item).length > 1 ? `_${index + 1}` : ''
+  const extension = String(url).split(/[?#]/)[0].match(/\.([a-z0-9]+)$/i)?.[1] || 'jpg'
+  return `${dateText}-${safe(item?.uploader_name || item?.uploader_uid || '匿名')}-${safe(item?.title || '作品')}${sequence}.${extension}`
 }
 
 function truncate(str, len) {
@@ -158,6 +206,17 @@ onMounted(() => {
   border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
+.license-note {
+  margin: -14px 0 24px;
+  padding: 11px 14px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 13px;
+  line-height: 1.6;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.24);
+  border-radius: 8px;
+}
+
 .title-group h1 {
   font-size: 32px;
   font-weight: 900;
@@ -180,7 +239,7 @@ onMounted(() => {
 
 .row {
   display: grid;
-  grid-template-columns: 80px 1fr 150px 2fr; 
+  grid-template-columns: 70px minmax(150px, 1fr) 130px minmax(220px, 1.5fr) minmax(120px, auto);
   align-items: center;
   gap: 20px;
   padding: 12px 20px;
@@ -201,8 +260,7 @@ onMounted(() => {
   border: 1px solid rgba(255,255,255,0.05);
   cursor: pointer;
   position: relative;
-  overflow: hidden;
-  height: 84px;
+  min-height: 84px;
 }
 
 .item-row:hover {
@@ -263,6 +321,42 @@ onMounted(() => {
   display: flex;
   align-items: center;
 }
+
+.col-download {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.license-download {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  padding: 0 9px;
+  color: #d1fae5;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(110, 231, 183, 0.38);
+  border-radius: 999px;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.license-download:hover {
+  background: rgba(16, 185, 129, 0.32);
+  border-color: rgba(167, 243, 208, 0.72);
+  transform: translateY(-1px);
+}
+
+.download-empty {
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 12px;
+}
 .lic-tags {
   display: flex;
   flex-wrap: wrap;
@@ -278,19 +372,6 @@ onMounted(() => {
   border-radius: 4px;
   font-size: 12px;
   line-height: 1.2;
-}
-
-.arrow-hint {
-  position: absolute;
-  right: 20px;
-  opacity: 0;
-  color: rgba(255,255,255,0.5);
-  font-size: 20px;
-  transition: all 0.2s;
-}
-.item-row:hover .arrow-hint {
-  opacity: 1;
-  transform: translateX(5px);
 }
 
 .loading-state, .empty-state {
@@ -312,7 +393,8 @@ onMounted(() => {
     grid-template-columns: 60px 1fr;
     grid-template-areas: 
       "img info"
-      "img lic";
+      "img lic"
+      "download download";
     gap: 8px 12px;
     height: auto;
     padding: 16px;
@@ -323,6 +405,7 @@ onMounted(() => {
   .col-img { grid-area: img; }
   .col-info { grid-area: info; }
   .col-lic { grid-area: lic; }
+  .col-download { grid-area: download; margin-top: 4px; }
   
   .col-auth { display: none; }
   
@@ -335,6 +418,5 @@ onMounted(() => {
     white-space: nowrap;
   }
   
-  .arrow-hint { display: none; }
 }
 </style>
