@@ -1139,7 +1139,7 @@ async fn art_popular_list_uses_windowed_views_and_unique_engagement() {
 }
 
 #[tokio::test]
-async fn artwork_views_dedupe_the_same_visitor_within_thirty_minutes() {
+async fn artwork_views_follow_the_ten_minute_cookie_session_window() {
     let app = setup().await;
     seed_artwork(
         &app.state,
@@ -1160,13 +1160,115 @@ async fn artwork_views_dedupe_the_same_visitor_within_thirty_minutes() {
     let (status, _) = send(&app.router, get_with_cookie(&detail_path, &cookie)).await;
     assert_eq!(status, StatusCode::OK);
 
+    let old_seen = (chrono::Utc::now() - chrono::Duration::minutes(11))
+        .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    sqlx::query("UPDATE artwork_view_visitors SET last_seen_at=? WHERE artwork_id=?")
+        .bind(old_seen)
+        .bind(artwork_id)
+        .execute(&app.state.pools.art)
+        .await
+        .unwrap();
+    let (status, _) = send(&app.router, get_with_cookie(&detail_path, &cookie)).await;
+    assert_eq!(status, StatusCode::OK);
+
     let (_, body) = send(
         &app.router,
-        get("/api/art/artworks?sort=popular&range=week&pageSize=6", None),
+        get_with_cookie(
+            "/api/art/artworks?sort=popular&range=week&pageSize=6",
+            &cookie,
+        ),
     )
     .await;
     assert_eq!(body["data"][0]["title"], "deduped-view");
-    assert_eq!(body["data"][0]["popularity"]["views"], 1);
+    assert_eq!(body["data"][0]["popularity"]["views"], 2);
+
+    let stored_count: i64 =
+        sqlx::query_scalar("SELECT visit_count FROM artwork_view_visitors WHERE artwork_id=?")
+            .bind(artwork_id)
+            .fetch_one(&app.state.pools.art)
+            .await
+            .unwrap();
+    assert_eq!(stored_count, 2);
+}
+
+#[tokio::test]
+async fn guest_artwork_likes_persist_by_cookie_and_reset_daily_quota() {
+    let app = setup().await;
+    seed_artwork(&app.state, "cookie-like", "approved", "2026-07-01 00:00:00").await;
+    let artwork_id: i64 = sqlx::query_scalar("SELECT id FROM artworks WHERE title='cookie-like'")
+        .fetch_one(&app.state.pools.art)
+        .await
+        .unwrap();
+
+    let (status, headers, initial) = send_full(
+        &app.router,
+        get("/api/art/artworks?sort=time&pageSize=6", None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(initial["data"][0]["liked"], false);
+    assert_eq!(initial["data"][0]["likes_today"], 0);
+    assert_eq!(initial["data"][0]["likes_remaining_today"], 10);
+    let cookie = cookie_header_from_set_cookie(&headers);
+    let like_path = format!("/api/art/likes/artwork/{artwork_id}");
+
+    for expected in 1..=10_i64 {
+        let (status, body) = send(
+            &app.router,
+            post_json_with_cookie(&like_path, json!({}), &cookie),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "第 {expected} 次点赞应成功: {body:?}"
+        );
+        assert_eq!(body["liked"], true);
+        assert_eq!(body["likesToday"], expected);
+        assert_eq!(body["remainingLikesToday"], 10 - expected);
+        assert_eq!(body["totalLikes"], expected);
+    }
+
+    let (status, limited) = send(
+        &app.router,
+        post_json_with_cookie(&like_path, json!({}), &cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(limited["liked"], true);
+    assert_eq!(limited["likesToday"], 10);
+    assert_eq!(limited["remainingLikesToday"], 0);
+    assert_eq!(limited["totalLikes"], 10);
+
+    let detail_path = format!("/api/art/artworks/{artwork_id}");
+    let (status, detail) = send(&app.router, get_with_cookie(&detail_path, &cookie)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(detail["data"]["liked"], true);
+    assert_eq!(detail["data"]["likes_today"], 10);
+    assert_eq!(detail["data"]["likes_remaining_today"], 0);
+
+    let (_, other_visitor) = send(
+        &app.router,
+        get("/api/art/artworks?sort=time&pageSize=6", None),
+    )
+    .await;
+    assert_eq!(other_visitor["data"][0]["liked"], false);
+
+    sqlx::query("UPDATE likes_daily SET day=date('now', '-1 day') WHERE target_id=?")
+        .bind(artwork_id)
+        .execute(&app.state.pools.art)
+        .await
+        .unwrap();
+    let (status, next_day) = send(
+        &app.router,
+        post_json_with_cookie(&like_path, json!({}), &cookie),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(next_day["liked"], true);
+    assert_eq!(next_day["likesToday"], 1);
+    assert_eq!(next_day["remainingLikesToday"], 9);
+    assert_eq!(next_day["totalLikes"], 11);
 }
 
 #[tokio::test]
