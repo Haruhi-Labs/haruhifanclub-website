@@ -94,6 +94,8 @@ let formationIndex = 0
 let formationCooldownUntil = 0
 let ambientYaw = 0
 let scrollYaw = 0
+const rootStyleCache = new Map()
+const documentStyleCache = new Map()
 
 const fieldWake = {
   x: 0,
@@ -108,6 +110,14 @@ const view = {
   yaw: 0,
   targetYaw: 0,
   velocity: 0,
+}
+
+const projectionCache = {
+  fov: 1,
+  horizon: 0,
+  cosine: 1,
+  sine: 0,
+  maxDimension: 1,
 }
 
 const NEAR = 2.4
@@ -160,6 +170,7 @@ function motionState(order, kind) {
     targetRotationY: 0,
     targetRotationZ: 0,
     morphPhase: range(0, Math.PI * 2),
+    projected: { x: 0, y: 0, z: 0, rawZ: 0, scale: 1, visible: false },
   }
 }
 
@@ -180,6 +191,14 @@ function projectionFov() {
 
 function projectionHorizon() {
   return height * (props.variant === 'upload' ? 0.42 : 0.39)
+}
+
+function refreshProjectionCache() {
+  projectionCache.fov = projectionFov()
+  projectionCache.horizon = projectionHorizon()
+  projectionCache.cosine = Math.cos(view.yaw)
+  projectionCache.sine = Math.sin(view.yaw)
+  projectionCache.maxDimension = Math.max(width, height)
 }
 
 function verticalLane(index, phase = 0) {
@@ -299,7 +318,10 @@ function createElasticMesh(shape = 'box', segments = 4) {
     edges,
     face: definition.face || null,
     accentNode: definition.accentNode || 0,
-    projected: [],
+    awake: false,
+    restFrames: 0,
+    projected: nodes.map(() => ({ x: 0, y: 0, z: 0, rawZ: 0, scale: 1, visible: false })),
+    transform: { time: Number.NaN },
   }
 }
 
@@ -386,6 +408,10 @@ function rebuildScene() {
       y: verticalWorldPosition(placement, index, compact ? 0.18 : 0.1, 0.012),
       phase: range(0, Math.PI * 2),
       hot: index === 2,
+      projected: Array.from(
+        { length: 22 },
+        () => ({ x: 0, y: 0, z: 0, rawZ: 0, scale: 1, visible: false }),
+      ),
     }
   })
 
@@ -406,6 +432,7 @@ function rebuildScene() {
       y: verticalWorldPosition(placement, index, 0.2, 0.012),
       size: range(1.55, 2.05) * (compact ? 1.08 : 1),
       hot: index === 1,
+      projected: { x: 0, y: 0, z: 0, rawZ: 0, scale: 1, visible: false },
     }
   })
 
@@ -428,6 +455,7 @@ function resize() {
   pointer.y ||= height * 0.5
   pointer.targetX ||= width * 0.5
   pointer.targetY ||= height * 0.5
+  refreshProjectionCache()
   rebuildScene()
   if (reducedMotion) render(0, 0)
 }
@@ -439,54 +467,39 @@ function worldDepth(baseZ, speed = 1) {
 
 function turnWorld(point) {
   const relativeZ = point.z - sceneCenterZ
-  const cosine = Math.cos(view.yaw)
-  const sine = Math.sin(view.yaw)
   return {
-    x: point.x * cosine - relativeZ * sine,
+    x: point.x * projectionCache.cosine - relativeZ * projectionCache.sine,
     y: point.y,
-    z: sceneCenterZ + point.x * sine + relativeZ * cosine,
+    z: sceneCenterZ + point.x * projectionCache.sine + relativeZ * projectionCache.cosine,
   }
 }
 
-function project(point) {
-  const fov = projectionFov()
-  const turned = turnWorld(point)
-  const rawZ = turned.z
+function projectCoordinates(pointX, pointY, pointZ, output) {
+  const relativeZ = pointZ - sceneCenterZ
+  const turnedX = pointX * projectionCache.cosine - relativeZ * projectionCache.sine
+  const rawZ = sceneCenterZ + pointX * projectionCache.sine + relativeZ * projectionCache.cosine
   const z = Math.max(0.5, rawZ)
-  const scale = fov / z
-  const horizon = projectionHorizon()
-  let x = width * 0.5 + (turned.x - camera.x) * scale
-  let y = horizon + (turned.y - camera.y) * scale
+  const scale = projectionCache.fov / z
+  let x = width * 0.5 + (turnedX - camera.x) * scale
+  let y = projectionCache.horizon + (pointY - camera.y) * scale
 
   if (shock.power > 0.002) {
     const dx = x - shock.x
     const dy = y - shock.y
     const distance = Math.hypot(dx, dy) || 1
     const wave = Math.sin(distance * 0.032 - shock.age * 10) * shock.power
-    const falloff = Math.max(0, 1 - distance / Math.max(width, height))
+    const falloff = Math.max(0, 1 - distance / projectionCache.maxDimension)
     x += (dx / distance) * wave * 18 * falloff
     y += (dy / distance) * wave * 18 * falloff
   }
 
-  return {
-    x,
-    y,
-    z,
-    rawZ,
-    scale,
-    visible: rawZ > 0.8 && x > -320 && x < width + 320 && y > -320 && y < height + 320,
-  }
-}
-
-function rotate3d(point, rx, ry, rz) {
-  let { x, y, z } = point
-  const cx = Math.cos(rx); const sx = Math.sin(rx)
-  const cy = Math.cos(ry); const sy = Math.sin(ry)
-  const cz = Math.cos(rz); const sz = Math.sin(rz)
-  ;[y, z] = [y * cx - z * sx, y * sx + z * cx]
-  ;[x, z] = [x * cy + z * sy, -x * sy + z * cy]
-  ;[x, y] = [x * cz - y * sz, x * sz + y * cz]
-  return { x, y, z }
+  output.x = x
+  output.y = y
+  output.z = z
+  output.rawZ = rawZ
+  output.scale = scale
+  output.visible = rawZ > 0.8 && x > -320 && x < width + 320 && y > -320 && y < height + 320
+  return output
 }
 
 function withAlpha(rgb, alpha) {
@@ -549,37 +562,40 @@ function advanceFormation() {
 }
 
 function stepObjectPhysics(item, dt, pointerSpeed) {
-  const depth = itemWorldDepth(item)
-  const projected = project({
-    x: item.x + item.offsetX,
-    y: item.y + item.offsetY,
-    z: depth,
-  })
-  const influenceRadius = Math.min(260, Math.max(150, width * 0.2))
-  const dx = projected.x - pointer.x
-  const dy = projected.y - pointer.y
-  const distance = Math.hypot(dx, dy) || 1
   let influence = 0
 
-  if (pointer.active && projected.visible && distance < influenceRadius) {
-    influence = (1 - distance / influenceRadius) ** 2
-    const unitX = dx / distance
-    const unitY = dy / distance
-    const fov = Math.min(width * 0.92, height * 1.2)
-    const worldPerPixel = projected.z / Math.max(1, fov)
-    const push = 58 + Math.min(72, pointerSpeed) * 1.8
-    const cappedVelocityX = Math.max(-72, Math.min(72, pointer.velocityX))
-    const cappedVelocityY = Math.max(-72, Math.min(72, pointer.velocityY))
-    const dragX = cappedVelocityX * 0.72
-    const dragY = cappedVelocityY * 0.72
-    const response = item.kind === 'particle' ? 6.8 : item.kind === 'frame' ? 2.4 : 2.1
+  if (pointer.active) {
+    const depth = itemWorldDepth(item)
+    const projected = projectCoordinates(
+      item.x + item.offsetX,
+      item.y + item.offsetY,
+      depth,
+      item.projected,
+    )
+    const influenceRadius = Math.min(260, Math.max(150, width * 0.2))
+    const dx = projected.x - pointer.x
+    const dy = projected.y - pointer.y
+    const distance = Math.hypot(dx, dy) || 1
 
-    item.velocityX += (unitX * push + dragX) * worldPerPixel * influence * response * dt
-    item.velocityY += (unitY * push + dragY) * worldPerPixel * influence * response * dt
-    item.velocityZ += (0.18 + pointerSpeed * 0.012) * influence * response * dt
-    item.angularVelocityX += (unitY * 0.8 + cappedVelocityY * 0.012) * influence * dt
-    item.angularVelocityY += (-unitX * 0.9 + cappedVelocityX * 0.014) * influence * dt
-    item.angularVelocityZ += (unitX * dragY - unitY * dragX) * influence * 0.006 * dt
+    if (projected.visible && distance < influenceRadius) {
+      influence = (1 - distance / influenceRadius) ** 2
+      const unitX = dx / distance
+      const unitY = dy / distance
+      const worldPerPixel = projected.z / Math.max(1, projectionCache.fov)
+      const push = 58 + Math.min(72, pointerSpeed) * 1.8
+      const cappedVelocityX = Math.max(-72, Math.min(72, pointer.velocityX))
+      const cappedVelocityY = Math.max(-72, Math.min(72, pointer.velocityY))
+      const dragX = cappedVelocityX * 0.72
+      const dragY = cappedVelocityY * 0.72
+      const response = item.kind === 'particle' ? 6.8 : item.kind === 'frame' ? 2.4 : 2.1
+
+      item.velocityX += (unitX * push + dragX) * worldPerPixel * influence * response * dt
+      item.velocityY += (unitY * push + dragY) * worldPerPixel * influence * response * dt
+      item.velocityZ += (0.18 + pointerSpeed * 0.012) * influence * response * dt
+      item.angularVelocityX += (unitY * 0.8 + cappedVelocityY * 0.012) * influence * dt
+      item.angularVelocityY += (-unitX * 0.9 + cappedVelocityX * 0.014) * influence * dt
+      item.angularVelocityZ += (unitX * dragY - unitY * dragX) * influence * 0.006 * dt
+    }
   }
 
   const stiffness = item.kind === 'particle' ? 5.4 : 3.8
@@ -609,47 +625,66 @@ function stepObjectPhysics(item, dt, pointerSpeed) {
   return influence
 }
 
-function elasticNodeWorld(item, node, worldZ, time) {
+function elasticItemTransform(item, time) {
+  const transform = item.mesh.transform
+  if (transform.time === time) return transform
   const framePulse = item.kind === 'frame'
     ? Math.sin(time * 0.00032 + item.phase) * 0.05
     : 0
-  const scaleX = item.kind === 'frame' ? item.width * (0.5 + framePulse) : item.size
-  const scaleY = item.kind === 'frame' ? item.height * (0.5 + framePulse) : item.size
-  const scaleZ = item.kind === 'frame' ? item.depth * 0.5 : item.size
   const spin = item.kind === 'solid' ? time * 0.00012 * item.spin * 8 : 0
   const ambientY = item.kind === 'frame' ? Math.sin(time * 0.00015 + item.phase) * 0.08 : 0
-  const rotated = rotate3d(
-    {
-      x: node.baseX * scaleX + node.offsetX,
-      y: node.baseY * scaleY + node.offsetY,
-      z: node.baseZ * scaleZ + node.offsetZ,
-    },
-    item.rx + item.rotationX + spin,
-    item.ry + item.rotationY + ambientY + spin * 1.3,
-    item.rz + item.rotationZ - spin * 0.7,
-  )
-  return {
-    x: item.x + item.offsetX + rotated.x,
-    y: item.y + item.offsetY + rotated.y,
-    z: worldZ + rotated.z,
-  }
+  const rx = item.rx + item.rotationX + spin
+  const ry = item.ry + item.rotationY + ambientY + spin * 1.3
+  const rz = item.rz + item.rotationZ - spin * 0.7
+  transform.time = time
+  transform.scaleX = item.kind === 'frame' ? item.width * (0.5 + framePulse) : item.size
+  transform.scaleY = item.kind === 'frame' ? item.height * (0.5 + framePulse) : item.size
+  transform.scaleZ = item.kind === 'frame' ? item.depth * 0.5 : item.size
+  transform.cx = Math.cos(rx)
+  transform.sx = Math.sin(rx)
+  transform.cy = Math.cos(ry)
+  transform.sy = Math.sin(ry)
+  transform.cz = Math.cos(rz)
+  transform.sz = Math.sin(rz)
+  return transform
 }
 
 function elasticMeshPoints(item, worldZ, time) {
-  return item.mesh.nodes.map(node => project(elasticNodeWorld(item, node, worldZ, time)))
+  const transform = elasticItemTransform(item, time)
+  item.mesh.nodes.forEach((node, index) => {
+    const x = node.baseX * transform.scaleX + node.offsetX
+    const y = node.baseY * transform.scaleY + node.offsetY
+    const z = node.baseZ * transform.scaleZ + node.offsetZ
+    const rotatedY = y * transform.cx - z * transform.sx
+    const rotatedZ = y * transform.sx + z * transform.cx
+    const rotatedX = x * transform.cy + rotatedZ * transform.sy
+    const turnedZ = -x * transform.sy + rotatedZ * transform.cy
+    const turnedX = rotatedX * transform.cz - rotatedY * transform.sz
+    const turnedY = rotatedX * transform.sz + rotatedY * transform.cz
+    projectCoordinates(
+      item.x + item.offsetX + turnedX,
+      item.y + item.offsetY + turnedY,
+      worldZ + turnedZ,
+      item.mesh.projected[index],
+    )
+  })
+  return item.mesh.projected
 }
 
 function stepElasticMesh(item, dt, time, pointerSpeed) {
   if (!item.mesh) return 0
-  const worldZ = itemWorldDepth(item)
-  const projected = elasticMeshPoints(item, worldZ, time)
-  const radius = Math.min(238, Math.max(135, width * 0.18))
-  const fov = Math.min(width * 0.92, height * 1.2)
-  const cappedVelocityX = Math.max(-82, Math.min(82, pointer.velocityX))
-  const cappedVelocityY = Math.max(-82, Math.min(82, pointer.velocityY))
+  if (!pointer.active && !item.mesh.awake) return 0
   let strongest = 0
 
   if (pointer.active) {
+    item.mesh.awake = true
+    item.mesh.restFrames = 0
+    const worldZ = itemWorldDepth(item)
+    const radius = Math.min(238, Math.max(135, width * 0.18))
+    const fov = Math.min(width * 0.92, height * 1.2)
+    const cappedVelocityX = Math.max(-82, Math.min(82, pointer.velocityX))
+    const cappedVelocityY = Math.max(-82, Math.min(82, pointer.velocityY))
+    const projected = elasticMeshPoints(item, worldZ, time)
     item.mesh.nodes.forEach((node, index) => {
       const point = projected[index]
       if (!point.visible) return
@@ -693,6 +728,7 @@ function stepElasticMesh(item, dt, time, pointerSpeed) {
   const homeStiffness = item.kind === 'frame' ? 10.5 : 12
   const damping = Math.exp(-(item.kind === 'frame' ? 4.7 : 5.2) * dt)
   const maxOffset = item.kind === 'frame' ? 1.45 : 0.82
+  let maxMotion = 0
   item.mesh.nodes.forEach(node => {
     node.velocityX += -node.offsetX * homeStiffness * dt
     node.velocityY += -node.offsetY * homeStiffness * dt
@@ -704,6 +740,13 @@ function stepElasticMesh(item, dt, time, pointerSpeed) {
     node.offsetY += node.velocityY * dt
     node.offsetZ += node.velocityZ * dt
     const magnitude = Math.hypot(node.offsetX, node.offsetY, node.offsetZ)
+    maxMotion = Math.max(
+      maxMotion,
+      magnitude,
+      Math.abs(node.velocityX),
+      Math.abs(node.velocityY),
+      Math.abs(node.velocityZ),
+    )
     if (magnitude > maxOffset) {
       const limit = maxOffset / magnitude
       node.offsetX *= limit
@@ -714,7 +757,21 @@ function stepElasticMesh(item, dt, time, pointerSpeed) {
       node.velocityZ *= 0.72
     }
   })
-  item.mesh.projected = elasticMeshPoints(item, worldZ, time)
+  if (!pointer.active) {
+    item.mesh.restFrames = maxMotion < 0.00015 ? item.mesh.restFrames + 1 : 0
+    if (item.mesh.restFrames >= 6) {
+      item.mesh.nodes.forEach(node => {
+        node.offsetX = 0
+        node.offsetY = 0
+        node.offsetZ = 0
+        node.velocityX = 0
+        node.velocityY = 0
+        node.velocityZ = 0
+      })
+      item.mesh.awake = false
+      item.mesh.restFrames = 0
+    }
+  }
   return strongest
 }
 
@@ -748,8 +805,8 @@ function updateScenePhysics(dt, time, pointerSpeed) {
 function applyElasticImpulse(item, x, y, time) {
   if (!item.mesh) return
   const radius = Math.min(330, width * 0.27)
-  const fov = Math.min(width * 0.92, height * 1.2)
   const points = elasticMeshPoints(item, itemWorldDepth(item), time)
+  let affected = false
   item.mesh.nodes.forEach((node, index) => {
     const point = points[index]
     if (!point.visible) return
@@ -757,12 +814,17 @@ function applyElasticImpulse(item, x, y, time) {
     const dy = point.y - y
     const distance = Math.hypot(dx, dy) || 1
     if (distance >= radius) return
+    affected = true
     const influence = (1 - distance / radius) ** 2
-    const worldPerPixel = point.z / Math.max(1, fov)
+    const worldPerPixel = point.z / Math.max(1, projectionCache.fov)
     node.velocityX += dx / distance * 235 * worldPerPixel * influence
     node.velocityY += dy / distance * 235 * worldPerPixel * influence
     node.velocityZ += (item.order % 2 ? 1 : -1) * influence * 0.9
   })
+  if (affected) {
+    item.mesh.awake = true
+    item.mesh.restFrames = 0
+  }
 }
 
 function applyPointerImpulse(x, y) {
@@ -771,13 +833,18 @@ function applyPointerImpulse(x, y) {
   dynamicItems().forEach(item => {
     applyElasticImpulse(item, x, y, impulseTime)
     const depth = itemWorldDepth(item)
-    const projected = project({ x: item.x + item.offsetX, y: item.y + item.offsetY, z: depth })
+    const projected = projectCoordinates(
+      item.x + item.offsetX,
+      item.y + item.offsetY,
+      depth,
+      item.projected,
+    )
     const dx = projected.x - x
     const dy = projected.y - y
     const distance = Math.hypot(dx, dy) || 1
     if (!projected.visible || distance >= radius) return
     const influence = (1 - distance / radius) ** 2
-    const worldPerPixel = projected.z / Math.max(1, Math.min(width * 0.92, height * 1.2))
+    const worldPerPixel = projected.z / Math.max(1, projectionCache.fov)
     item.velocityX += dx / distance * 190 * worldPerPixel * influence
     item.velocityY += dy / distance * 190 * worldPerPixel * influence
     item.velocityZ += influence * 1.8
@@ -798,11 +865,12 @@ function drawStreams(colors, time) {
       const z = worldDepth(baseZ, 0.72)
       const sway = Math.sin(time * 0.00042 + stream.phase + z * 0.34) * 0.72
       const lift = Math.cos(time * 0.00031 + stream.phase + z * 0.22) * 0.42
-      const point = project({
-        x: stream.side * stream.offset + sway,
-        y: stream.y + lift,
+      const point = projectCoordinates(
+        stream.side * stream.offset + sway,
+        stream.y + lift,
         z,
-      })
+        stream.projected[index],
+      )
       if (!point.visible) continue
       if (!started) {
         context.moveTo(point.x, point.y)
@@ -838,7 +906,7 @@ function drawGlyphs(time) {
   context.textAlign = 'center'
   context.textBaseline = 'middle'
   scene.glyphs.forEach(glyph => {
-    const point = project(glyph)
+    const point = projectCoordinates(glyph.x, glyph.y, glyph.z, glyph.projected)
     if (!point.visible) return
     const angle = glyph.angle - view.yaw
     const facing = Math.max(0.22, Math.abs(Math.cos(angle)))
@@ -874,7 +942,12 @@ function drawFrames(colors, time) {
   const ordered = scene.frames
     .map(item => {
       const depth = itemWorldDepth(item)
-      const screenDepth = project({ x: item.x + item.offsetX, y: item.y + item.offsetY, z: depth }).z
+      const screenDepth = projectCoordinates(
+        item.x + item.offsetX,
+        item.y + item.offsetY,
+        depth,
+        item.projected,
+      ).z
       return { item, depth, screenDepth }
     })
     .sort((a, b) => b.screenDepth - a.screenDepth)
@@ -926,7 +999,12 @@ function drawSolids(colors, time) {
     const depth = itemWorldDepth(item)
     const vertices = elasticMeshPoints(item, depth, time)
     if (!vertices.some(vertex => vertex.visible)) return
-    const screenDepth = project({ x: item.x + item.offsetX, y: item.y + item.offsetY, z: depth }).z
+    const screenDepth = projectCoordinates(
+      item.x + item.offsetX,
+      item.y + item.offsetY,
+      depth,
+      item.projected,
+    ).z
     const proximity = 1 - Math.min(1, Math.max(0, screenDepth / FAR))
     context.beginPath()
     traceElasticEdges(item.mesh, vertices)
@@ -942,15 +1020,17 @@ function drawSolids(colors, time) {
 }
 
 function drawParticles(colors, time) {
-  const projected = []
+  const connectParticles = width >= 700
+  const projected = connectParticles ? [] : null
   scene.particles.forEach(item => {
     const z = itemWorldDepth(item)
     const drift = Math.sin(time * 0.00048 + item.phase) * 0.3
-    const point = project({
-      x: item.x + item.offsetX + drift,
-      y: item.y + item.offsetY + Math.cos(time * 0.00036 + item.phase) * 0.22,
+    const point = projectCoordinates(
+      item.x + item.offsetX + drift,
+      item.y + item.offsetY + Math.cos(time * 0.00036 + item.phase) * 0.22,
       z,
-    })
+      item.projected,
+    )
     if (!point.visible) return
 
     const proximity = 1 - Math.min(1, point.z / FAR)
@@ -960,10 +1040,10 @@ function drawParticles(colors, time) {
     context.arc(point.x, point.y, radius, 0, Math.PI * 2)
     context.fillStyle = withAlpha(rgb, 0.12 + proximity * 0.48)
     context.fill()
-    projected.push({ x: point.x, y: point.y, z: point.z, group: item.group, rgb })
+    if (connectParticles) projected.push({ x: point.x, y: point.y, z: point.z, group: item.group, rgb })
   })
 
-  if (width < 700) return
+  if (!connectParticles) return
   context.lineWidth = 0.65
   for (let index = 0; index < projected.length; index += 1) {
     const a = projected[index]
@@ -993,6 +1073,12 @@ function drawShock(colors) {
   }
 }
 
+function setCachedStyleProperty(element, cache, name, value) {
+  if (!element || cache.get(name) === value) return
+  cache.set(name, value)
+  element.style.setProperty(name, value)
+}
+
 function update(dt, time) {
   const smoothing = 1 - Math.pow(0.0009, dt)
   pointer.x += (pointer.targetX - pointer.x) * smoothing
@@ -1010,6 +1096,7 @@ function update(dt, time) {
   const previousYaw = view.yaw
   view.yaw += (view.targetYaw - view.yaw) * (1 - Math.pow(0.004, dt))
   view.velocity = dt > 0 ? (view.yaw - previousYaw) / dt : 0
+  refreshProjectionCache()
   scrollVelocity *= Math.pow(0.018, dt)
   travel += dt * (props.variant === 'gallery' ? 0.19 : 0.13) + scrollVelocity * dt * 0.0015
   shock.age += dt
@@ -1018,28 +1105,29 @@ function update(dt, time) {
   pointer.velocityX *= Math.pow(0.002, dt)
   pointer.velocityY *= Math.pow(0.002, dt)
 
-  if ((readoutFrame += 1) % 8 === 0) {
+  if (width >= 700 && (readoutFrame += 1) % 8 === 0) {
     depthReadout.value = String(((travel % 100) + 100) % 100).padStart(4, '0').slice(0, 4)
   }
 
   if ((styleWriteFrame += 1) % 2 === 0) {
-    const turnSine = Math.sin(view.yaw)
-    root.value?.style.setProperty('--mx', `${pointer.x}px`)
-    root.value?.style.setProperty('--my', `${pointer.y}px`)
-    root.value?.style.setProperty('--nx', pointer.normalizedX.toFixed(3))
-    root.value?.style.setProperty('--ny', pointer.normalizedY.toFixed(3))
-    root.value?.style.setProperty('--scroll', scrollProgress.toFixed(3))
-    root.value?.style.setProperty('--energy', Math.min(1, pointerSpeed / 35).toFixed(3))
-    root.value?.style.setProperty('--wake-x', `${Math.max(-38, Math.min(38, fieldWake.x)).toFixed(2)}px`)
-    root.value?.style.setProperty('--wake-y', `${Math.max(-30, Math.min(30, fieldWake.y)).toFixed(2)}px`)
-    root.value?.style.setProperty('--wake-rot', `${Math.max(-8, Math.min(8, fieldWake.rotation)).toFixed(3)}deg`)
-    root.value?.style.setProperty('--view-turn', `${(view.yaw * 180 / Math.PI).toFixed(3)}deg`)
-    root.value?.style.setProperty('--turn-x', `${(turnSine * 42).toFixed(2)}px`)
-    root.value?.style.setProperty('--turn-x-neg', `${(turnSine * -52).toFixed(2)}px`)
-    root.value?.style.setProperty('--turn-x-soft', `${(turnSine * 9).toFixed(2)}px`)
-    document.documentElement.style.setProperty('--art-backdrop-x', `${(turnSine * 12).toFixed(2)}px`)
-    document.documentElement.style.setProperty('--art-mask-x', `${(turnSine * -19).toFixed(2)}px`)
-    document.documentElement.style.setProperty('--art-backdrop-tilt', `${(turnSine * 0.22).toFixed(3)}deg`)
+    const turnSine = projectionCache.sine
+    const rootElement = root.value
+    setCachedStyleProperty(rootElement, rootStyleCache, '--mx', `${pointer.x}px`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--my', `${pointer.y}px`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--nx', pointer.normalizedX.toFixed(3))
+    setCachedStyleProperty(rootElement, rootStyleCache, '--ny', pointer.normalizedY.toFixed(3))
+    setCachedStyleProperty(rootElement, rootStyleCache, '--scroll', scrollProgress.toFixed(3))
+    setCachedStyleProperty(rootElement, rootStyleCache, '--energy', Math.min(1, pointerSpeed / 35).toFixed(3))
+    setCachedStyleProperty(rootElement, rootStyleCache, '--wake-x', `${Math.max(-38, Math.min(38, fieldWake.x)).toFixed(2)}px`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--wake-y', `${Math.max(-30, Math.min(30, fieldWake.y)).toFixed(2)}px`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--wake-rot', `${Math.max(-8, Math.min(8, fieldWake.rotation)).toFixed(3)}deg`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--view-turn', `${(view.yaw * 180 / Math.PI).toFixed(3)}deg`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--turn-x', `${(turnSine * 42).toFixed(2)}px`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--turn-x-neg', `${(turnSine * -52).toFixed(2)}px`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--turn-x-soft', `${(turnSine * 9).toFixed(2)}px`)
+    setCachedStyleProperty(document.documentElement, documentStyleCache, '--art-backdrop-x', `${(turnSine * 12).toFixed(2)}px`)
+    setCachedStyleProperty(document.documentElement, documentStyleCache, '--art-mask-x', `${(turnSine * -19).toFixed(2)}px`)
+    setCachedStyleProperty(document.documentElement, documentStyleCache, '--art-backdrop-tilt', `${(turnSine * 0.22).toFixed(3)}deg`)
   }
 }
 
@@ -1131,6 +1219,7 @@ function onScroll() {
   scrollProgress = Math.max(0, Math.min(1, nextY / scrollable))
   if (reducedMotion) {
     view.yaw = view.targetYaw
+    refreshProjectionCache()
     render(0)
   }
 }
@@ -1154,6 +1243,7 @@ function onMotionChange(event) {
 
 watch(() => props.variant, () => {
   travel = 0
+  refreshProjectionCache()
   rebuildScene()
   if (reducedMotion) render(0, 0)
 })
@@ -1187,6 +1277,8 @@ onBeforeUnmount(() => {
   document.documentElement.style.removeProperty('--art-backdrop-x')
   document.documentElement.style.removeProperty('--art-mask-x')
   document.documentElement.style.removeProperty('--art-backdrop-tilt')
+  rootStyleCache.clear()
+  documentStyleCache.clear()
 })
 </script>
 

@@ -31,37 +31,38 @@
         >
           <div v-depth-tilt class="artwork-feed__card">
             <button
+              v-artwork-impression="entry"
               class="artwork-feed__open"
               type="button"
-              :aria-label="`查看作品：${entry.item.title || '未命名作品'}${isLongArtwork(entry.item) ? '，长图' : ''}`"
+              :aria-label="`查看作品：${entry.item.title || '未命名作品'}${entry.isLong ? '，长图' : ''}`"
               :title="entry.item.title || '未命名作品'"
               :data-artwork-id="entry.item.id"
               :data-artwork-position="entry.position"
-              data-feed-artwork
               data-sfx="click"
               @click="openArtwork(entry.item, entry.position)"
             >
               <span class="artwork-feed__surface">
                 <span
                   class="artwork-feed__media"
-                  :class="{ 'is-long': isLongArtwork(entry.item) }"
-                  :style="mediaStyle(entry.item)"
+                  :class="{ 'is-long': entry.isLong }"
+                  :style="entry.mediaStyle"
                 >
                   <img
-                    :src="imageUrl(entry.item, isLongArtwork(entry.item) ? LONG_ARTWORK_THUMB_SIZE : 640)"
-                    :srcset="isLongArtwork(entry.item) ? undefined : imageSrcset(entry.item)"
+                    :src="entry.imageUrl"
+                    :srcset="entry.imageSrcset"
                     :alt="entry.item.title || '画廊作品'"
                     sizes="(max-width: 719px) calc(50vw - 20px), (max-width: 999px) 33vw, (max-width: 1319px) 25vw, 20vw"
-                    loading="lazy"
+                    :loading="entry.position < 4 ? 'eager' : 'lazy'"
+                    :fetchpriority="entry.position < 2 ? 'high' : 'auto'"
                     decoding="async"
                   />
                   <ArtworkPopularityBadge :item="entry.item" />
-                  <span v-if="isLongArtwork(entry.item)" class="artwork-feed__long-badge" aria-hidden="true">
+                  <span v-if="entry.isLong" class="artwork-feed__long-badge" aria-hidden="true">
                     长图
                   </span>
                   <span class="artwork-feed__caption">
                     <strong>{{ entry.item.title || '未命名作品' }}</strong>
-                    <small>{{ creatorName(entry.item) }}</small>
+                    <small>{{ entry.creator }}</small>
                   </span>
                 </span>
               </span>
@@ -99,12 +100,12 @@
 <script setup>
 import {
   computed,
-  nextTick,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
   onMounted,
   ref,
+  shallowRef,
   watch,
 } from 'vue'
 import { Heart } from 'lucide-vue-next'
@@ -112,12 +113,23 @@ import { thumbUrl } from '../services/api.js'
 import { trackArtworkImpression, trackArtworkOpen } from '../services/recommendationTracker.js'
 import { useGalleryStore } from '../stores/galleryStore.js'
 import { artworkDepthDirective } from '../utils/artworkDepth.js'
+import { createMasonryState, syncMasonryLayout } from '../utils/incrementalMasonry.js'
 import ArtworkPopularityBadge from './ArtworkPopularityBadge.vue'
 
 const vDepthTilt = artworkDepthDirective
+const vArtworkImpression = {
+  mounted(element, binding) {
+    updateImpressionElement(element, binding.value)
+  },
+  updated(element, binding) {
+    if (binding.value !== binding.oldValue) updateImpressionElement(element, binding.value)
+  },
+  beforeUnmount(element) {
+    removeImpressionElement(element)
+  },
+}
 const LONG_ARTWORK_RATIO_THRESHOLD = 0.45
 const LONG_ARTWORK_PREVIEW_RATIO = 3 / 4
-const LONG_ARTWORK_THUMB_SIZE = 1920
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -130,12 +142,17 @@ const emit = defineEmits(['open'])
 const galleryStore = useGalleryStore()
 const feedRoot = ref(null)
 const columnCount = ref(2)
+const masonryColumns = shallowRef([[], []])
 const likedArtworkIds = ref(new Set())
 const pendingLikeIds = ref(new Set())
 const impressionKeys = new Set()
 const impressionTimers = new Map()
+const impressionEntries = new WeakMap()
+const impressionElements = new Set()
 let resizeObserver = null
 let impressionObserver = null
+let impressionTrackingActive = true
+const masonryState = createMasonryState(2)
 
 const skeletonCount = computed(() => columnCount.value * 2)
 
@@ -152,31 +169,13 @@ function desiredColumnCount(width) {
   return 2
 }
 
-function isLongArtwork(item) {
-  return numericRatio(item) < LONG_ARTWORK_RATIO_THRESHOLD
-}
-
-function displayRatio(item) {
-  return isLongArtwork(item) ? LONG_ARTWORK_PREVIEW_RATIO : numericRatio(item)
-}
-
-const masonryColumns = computed(() => {
-  const columns = Array.from({ length: columnCount.value }, () => [])
-  const heights = Array(columnCount.value).fill(0)
-  props.items.forEach((item, position) => {
-    let target = 0
-    for (let index = 1; index < heights.length; index += 1) {
-      if (heights[index] < heights[target]) target = index
-    }
-    columns[target].push({ item, position })
-    heights[target] += (1 / displayRatio(item)) + 0.06
-  })
-  return columns
-})
-
-function mediaStyle(item) {
-  const ratio = displayRatio(item)
-  return { aspectRatio: String(ratio) }
+function artworkDisplayMeta(item) {
+  const sourceRatio = numericRatio(item)
+  const isLong = sourceRatio < LONG_ARTWORK_RATIO_THRESHOLD
+  return {
+    isLong,
+    ratio: isLong ? LONG_ARTWORK_PREVIEW_RATIO : sourceRatio,
+  }
 }
 
 function rawImageUrl(item) {
@@ -187,8 +186,12 @@ function imageUrl(item, width) {
   return thumbUrl(rawImageUrl(item), width)
 }
 
-function imageSrcset(item) {
-  return `${imageUrl(item, 320)} 320w, ${imageUrl(item, 640)} 640w`
+function imageSrcset(item, includeLarge = false) {
+  const sources = [`${imageUrl(item, 320)} 320w`, `${imageUrl(item, 640)} 640w`]
+  if (includeLarge) {
+    sources.push(`${imageUrl(item, 960)} 960w`, `${imageUrl(item, 1920)} 1920w`)
+  }
+  return sources.join(', ')
 }
 
 function creatorName(item) {
@@ -196,6 +199,30 @@ function creatorName(item) {
     || item?.uploader_name
     || item?.uploader_uid
     || '画廊收藏'
+}
+
+function createLayoutEntry(item, position) {
+  const { isLong, ratio } = artworkDisplayMeta(item)
+  return {
+    item,
+    position,
+    isLong,
+    ratio,
+    mediaStyle: { aspectRatio: String(ratio) },
+    imageUrl: imageUrl(item, 640),
+    imageSrcset: imageSrcset(item, isLong),
+    creator: creatorName(item),
+  }
+}
+
+function syncLayout(items, columns, previousItems) {
+  masonryColumns.value = syncMasonryLayout(
+    masonryState,
+    items,
+    columns,
+    previousItems,
+    createLayoutEntry,
+  )
 }
 
 function artworkKey(item) {
@@ -254,16 +281,17 @@ function ensureImpressionObserver() {
   impressionObserver = new IntersectionObserver((entries) => {
     for (const entry of entries) {
       const element = entry.target
-      const position = Number(element.dataset.artworkPosition)
-      const item = props.items[position]
-      if (!item) continue
-      const key = impressionKey(item)
+      const tracked = impressionEntries.get(element)
+      if (!tracked) continue
+      const key = impressionKey(tracked.item)
       if (entry.isIntersecting && entry.intersectionRatio >= 0.55 && !impressionKeys.has(key)) {
         if (impressionTimers.has(element)) continue
         const timer = window.setTimeout(() => {
           impressionTimers.delete(element)
+          const current = impressionEntries.get(element)
+          if (!current || impressionKey(current.item) !== key) return
           impressionKeys.add(key)
-          trackArtworkImpression(item, trackingContext(item, position))
+          trackArtworkImpression(current.item, trackingContext(current.item, current.position))
           impressionObserver?.unobserve(element)
         }, 650)
         impressionTimers.set(element, timer)
@@ -274,36 +302,48 @@ function ensureImpressionObserver() {
   }, { threshold: [0, 0.55] })
 }
 
-function observeNewCards({ reset = false } = {}) {
-  if (!feedRoot.value || !props.items.length) return
+function observeImpressionElement(element) {
+  if (!impressionTrackingActive) return
+  const entry = impressionEntries.get(element)
+  if (!entry) return
+  const key = impressionKey(entry.item)
+  if (impressionKeys.has(key)) {
+    impressionObserver?.unobserve(element)
+    return
+  }
   if (typeof IntersectionObserver === 'undefined') {
-    props.items.forEach((item, position) => {
-      const key = impressionKey(item)
-      if (impressionKeys.has(key)) return
-      impressionKeys.add(key)
-      trackArtworkImpression(item, trackingContext(item, position))
-    })
+    impressionKeys.add(key)
+    trackArtworkImpression(entry.item, trackingContext(entry.item, entry.position))
     return
   }
   ensureImpressionObserver()
-  if (reset) {
-    feedRoot.value.querySelectorAll('[data-feed-observed]').forEach((element) => {
-      element.removeAttribute('data-feed-observed')
-    })
-  }
-  feedRoot.value.querySelectorAll('[data-feed-artwork]:not([data-feed-observed])').forEach((element) => {
-    element.dataset.feedObserved = '1'
-    impressionObserver?.observe(element)
-  })
+  impressionObserver?.observe(element)
+}
+
+function updateImpressionElement(element, entry) {
+  clearImpressionTimer(element)
+  impressionEntries.set(element, entry)
+  impressionElements.add(element)
+  observeImpressionElement(element)
+}
+
+function removeImpressionElement(element) {
+  clearImpressionTimer(element)
+  impressionObserver?.unobserve(element)
+  impressionEntries.delete(element)
+  impressionElements.delete(element)
+}
+
+function resumeImpressionTracking() {
+  impressionTrackingActive = true
+  impressionElements.forEach(element => observeImpressionElement(element))
 }
 
 function pauseImpressionTracking() {
+  impressionTrackingActive = false
   impressionObserver?.disconnect()
   impressionObserver = null
   for (const element of impressionTimers.keys()) clearImpressionTimer(element)
-  feedRoot.value?.querySelectorAll('[data-feed-observed]').forEach((element) => {
-    element.removeAttribute('data-feed-observed')
-  })
 }
 
 function openArtwork(item, position) {
@@ -312,9 +352,15 @@ function openArtwork(item, position) {
 }
 
 watch(
-  [() => props.items, () => props.trackingSource],
-  () => nextTick(() => observeNewCards()),
+  [() => props.items, () => columnCount.value],
+  ([items, columns], previous = []) => syncLayout(items, columns, previous[0]),
+  { immediate: true },
 )
+
+watch(() => props.trackingSource, () => {
+  for (const element of impressionTimers.keys()) clearImpressionTimer(element)
+  impressionElements.forEach(element => observeImpressionElement(element))
+})
 
 onMounted(() => {
   resizeObserver = new ResizeObserver((entries) => {
@@ -322,14 +368,14 @@ onMounted(() => {
     columnCount.value = desiredColumnCount(width)
   })
   resizeObserver.observe(feedRoot.value)
-  nextTick(() => observeNewCards())
 })
 
-onActivated(() => nextTick(() => observeNewCards({ reset: true })))
+onActivated(resumeImpressionTracking)
 onDeactivated(pauseImpressionTracking)
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   pauseImpressionTracking()
+  impressionElements.clear()
 })
 </script>
 
@@ -637,9 +683,15 @@ onBeforeUnmount(() => {
 }
 
 @media (hover: none), (pointer: coarse) {
+  .artwork-feed__entry { perspective: none; }
   .artwork-feed__card { transform: none; }
   .artwork-feed__card::before,
   .artwork-feed__card::after { display: none; }
+  .artwork-feed__surface {
+    transform: none;
+    backface-visibility: visible;
+  }
+  .artwork-feed__surface::after { display: none; }
   .artwork-feed__like {
     opacity: 1;
     pointer-events: auto;

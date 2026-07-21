@@ -14,14 +14,13 @@ import {
   useSession
 } from '@haruhi/auth-ui'
 
-import HomeView from '../views/HomeView.vue'
-import GalleryView from '../views/GalleryView.vue'
-import GallerySearchView from '../views/GallerySearchView.vue'
-import UploadView from '../views/UploadView.vue'
-import AnnouncementView from '../views/AnnouncementView.vue'
-import ExchangeView from '../views/ExchangeView.vue'
-import AdventurerProfileView from '../views/AdventurerProfileView.vue'
-
+const HomeView = () => import('../views/HomeView.vue')
+const GalleryView = () => import('../views/GalleryView.vue')
+const GallerySearchView = () => import('../views/GallerySearchView.vue')
+const UploadView = () => import('../views/UploadView.vue')
+const AnnouncementView = () => import('../views/AnnouncementView.vue')
+const ExchangeView = () => import('../views/ExchangeView.vue')
+const AdventurerProfileView = () => import('../views/AdventurerProfileView.vue')
 const AdminView = () => import('../views/AdminView.vue')
 const LicenseView = () => import('../views/LicenseView.vue')
 const ArtworkDetailView = () => import('../views/ArtworkDetailView.vue')
