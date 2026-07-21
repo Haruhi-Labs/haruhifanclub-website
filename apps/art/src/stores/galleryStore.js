@@ -8,6 +8,51 @@ function hasPopularityStats(items) {
   ))
 }
 
+function engagementSnapshot(item) {
+  return {
+    likeTotal: item?.like_total,
+    popularityLikes: item?.popularity?.likes,
+    liked: item?.liked,
+    likesToday: item?.likes_today,
+    likesRemainingToday: item?.likes_remaining_today,
+    dailyLikeLimit: item?.daily_like_limit,
+  }
+}
+
+function restoreEngagement(item, snapshot) {
+  if (!item || !snapshot) return
+  item.like_total = snapshot.likeTotal
+  if (item.popularity) item.popularity.likes = snapshot.popularityLikes
+  item.liked = snapshot.liked
+  item.likes_today = snapshot.likesToday
+  item.likes_remaining_today = snapshot.likesRemainingToday
+  item.daily_like_limit = snapshot.dailyLikeLimit
+}
+
+function applyEngagement(item, payload = {}) {
+  if (!item) return
+  const total = payload.totalLikes ?? payload.total_likes ?? payload.like_total
+  const likesToday = payload.likesToday ?? payload.likes_today
+  const dailyLimit = payload.dailyLikeLimit ?? payload.daily_like_limit
+  const remaining = payload.remainingLikesToday ?? payload.likes_remaining_today
+
+  if (total !== undefined) {
+    item.like_total = Number(total)
+    if (item.popularity) item.popularity.likes = Number(total)
+  }
+  if (payload.liked !== undefined) item.liked = Boolean(payload.liked)
+  if (likesToday !== undefined) item.likes_today = Math.max(0, Number(likesToday))
+  if (dailyLimit !== undefined) item.daily_like_limit = Math.max(1, Number(dailyLimit))
+  if (remaining !== undefined) {
+    item.likes_remaining_today = Math.max(0, Number(remaining))
+  } else if (likesToday !== undefined || dailyLimit !== undefined) {
+    item.likes_remaining_today = Math.max(
+      0,
+      Number(item.daily_like_limit || 10) - Number(item.likes_today || 0),
+    )
+  }
+}
+
 export const useGalleryStore = defineStore('gallery', {
   state: () => ({
     content: 'mix',
@@ -107,29 +152,41 @@ export const useGalleryStore = defineStore('gallery', {
     },
 
     async likeArtwork(item) {
-      if (!item) return false
+      if (!item) return null
       const id = Number(item.id)
-      if (!Number.isFinite(id)) return false
+      if (!Number.isFinite(id)) return null
 
-      const oldTotal = item.like_total
-      const oldPopularityLikes = item.popularity?.likes
-      const nextTotal = Number(oldTotal ?? oldPopularityLikes ?? 0) + 1
-      item.like_total = nextTotal
-      if (item.popularity) item.popularity.likes = nextTotal
+      const key = String(id)
+      const targets = new Set([
+        item,
+        this.artworkCache[key],
+        ...this.list.filter(value => String(value?.id) === key),
+      ].filter(Boolean))
+      const snapshots = new Map([...targets].map(target => [target, engagementSnapshot(target)]))
+      const before = Number(item.like_total ?? item.popularity?.likes ?? 0)
+      const used = Number(item.likes_today || 0) + 1
+      const limit = Number(item.daily_like_limit || 10)
+      const optimistic = {
+        totalLikes: before + 1,
+        liked: true,
+        likesToday: used,
+        remainingLikesToday: Math.max(0, limit - used),
+        dailyLikeLimit: limit,
+      }
+      targets.forEach(target => applyEngagement(target, optimistic))
 
       try {
         const out = await api.likeArtwork(id)
-        const serverTotal = out?.totalLikes ?? out?.total_likes
-        if (serverTotal !== undefined) {
-          item.like_total = Number(serverTotal)
-          if (item.popularity) item.popularity.likes = Number(serverTotal)
-        }
-        return true
+        targets.forEach(target => applyEngagement(target, out))
+        return out
       } catch (error) {
-        item.like_total = oldTotal
-        if (item.popularity) item.popularity.likes = oldPopularityLikes
+        if (error?.data?.dailyLikeLimit !== undefined) {
+          targets.forEach(target => applyEngagement(target, error.data))
+        } else {
+          snapshots.forEach((snapshot, target) => restoreEngagement(target, snapshot))
+        }
         console.error('[Gallery] 点赞失败：', error)
-        return false
+        throw error
       }
     },
 

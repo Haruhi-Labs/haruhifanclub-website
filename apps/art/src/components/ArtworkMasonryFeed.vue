@@ -71,14 +71,17 @@
 
           <button
             class="artwork-feed__like"
-            :class="{ 'is-liked': isLiked(entry.item) }"
+            :class="{
+              'is-liked': isLiked(entry.item),
+              'is-exhausted': likesRemainingToday(entry.item) <= 0,
+            }"
             type="button"
-            :disabled="isLikePending(entry.item)"
+            :disabled="isLikePending(entry.item) || likesRemainingToday(entry.item) <= 0"
             :aria-pressed="isLiked(entry.item)"
-            :aria-label="isLiked(entry.item) ? `已点赞：${entry.item.title || '未命名作品'}` : `点赞：${entry.item.title || '未命名作品'}`"
-            :title="isLiked(entry.item) ? '已点赞' : '点赞'"
+            :aria-label="likeButtonLabel(entry.item)"
+            :title="likeButtonLabel(entry.item)"
             @pointerdown.stop
-            @click.stop="likeArtwork(entry.item)"
+            @click.stop="likeArtwork(entry.item, $event)"
           >
             <Heart
               :size="16"
@@ -114,6 +117,7 @@ import { trackArtworkImpression, trackArtworkOpen } from '../services/recommenda
 import { useGalleryStore } from '../stores/galleryStore.js'
 import { artworkDepthDirective } from '../utils/artworkDepth.js'
 import { createMasonryState, syncMasonryLayout } from '../utils/incrementalMasonry.js'
+import { launchLikeHeart } from '../utils/likeHeartBurst.js'
 import ArtworkPopularityBadge from './ArtworkPopularityBadge.vue'
 
 const vDepthTilt = artworkDepthDirective
@@ -143,7 +147,6 @@ const galleryStore = useGalleryStore()
 const feedRoot = ref(null)
 const columnCount = ref(2)
 const masonryColumns = shallowRef([[], []])
-const likedArtworkIds = ref(new Set())
 const pendingLikeIds = ref(new Set())
 const impressionKeys = new Set()
 const impressionTimers = new Map()
@@ -230,7 +233,19 @@ function artworkKey(item) {
 }
 
 function isLiked(item) {
-  return Boolean(item?.liked) || likedArtworkIds.value.has(artworkKey(item))
+  return Boolean(item?.liked)
+}
+
+function likesRemainingToday(item) {
+  const limit = Math.max(1, Number(item?.daily_like_limit || 10))
+  return Math.max(0, Number(item?.likes_remaining_today ?? (limit - Number(item?.likes_today || 0))))
+}
+
+function likeButtonLabel(item) {
+  const title = item?.title || '未命名作品'
+  if (likesRemainingToday(item) <= 0) return `今天已无法继续点赞《${title}》`
+  if (isLiked(item)) return `再次点赞《${title}》`
+  return `点赞《${title}》`
 }
 
 function isLikePending(item) {
@@ -244,17 +259,19 @@ function updateIdSet(target, key, shouldInclude) {
   target.value = next
 }
 
-async function likeArtwork(item) {
+async function likeArtwork(item, event) {
   const key = artworkKey(item)
-  if (!key || isLiked(item) || isLikePending(item)) return
+  if (!key || isLikePending(item) || likesRemainingToday(item) <= 0) return
 
+  launchLikeHeart(event?.currentTarget)
   updateIdSet(pendingLikeIds, key, true)
-  const succeeded = await galleryStore.likeArtwork(item)
-  if (succeeded) {
-    item.liked = true
-    updateIdSet(likedArtworkIds, key, true)
+  try {
+    await galleryStore.likeArtwork(item)
+  } catch {
+    // store 已回滚乐观状态；列表按钮保持安静，详情页会展示具体错误。
+  } finally {
+    updateIdSet(pendingLikeIds, key, false)
   }
-  updateIdSet(pendingLikeIds, key, false)
 }
 
 function trackingContext(item, position) {
@@ -608,6 +625,8 @@ onBeforeUnmount(() => {
   cursor: wait;
   opacity: 0.68;
 }
+
+.artwork-feed__like.is-exhausted:disabled { cursor: not-allowed; }
 
 .artwork-feed__caption strong,
 .artwork-feed__caption small {

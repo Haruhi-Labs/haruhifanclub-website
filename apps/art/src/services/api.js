@@ -61,7 +61,10 @@ async function request(method, path, { params, body, isForm, headers, keepalive 
   }
 
   if (!res.ok || data?.ok === false) {
-    throw new Error(data?.message || data?.error || `HTTP ${res.status}`)
+    const error = new Error(data?.message || data?.error || `HTTP ${res.status}`)
+    error.status = res.status
+    error.data = data
+    throw error
   }
   return data
 }
@@ -87,6 +90,14 @@ export function thumbUrl(url, w = 640) {
 
 function transformArtwork(a) {
   if (!a) return a
+
+  a.liked = Boolean(a.liked)
+  a.likes_today = Math.max(0, Number(a.likes_today || 0))
+  a.daily_like_limit = Math.max(1, Number(a.daily_like_limit || 10))
+  a.likes_remaining_today = Math.max(
+    0,
+    Number(a.likes_remaining_today ?? (a.daily_like_limit - a.likes_today)),
+  )
 
   // 修复单图路径
   a.image_url = fixPath(a.image_url)

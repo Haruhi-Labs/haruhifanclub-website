@@ -123,6 +123,7 @@ pub fn router() -> Router<AppState> {
 const COOKIE_NAME: &str = "haruhi_anon";
 const COOKIE_SIG: &str = "haruhi_anon_sig";
 const VISITOR_SESSION_WINDOW_MINUTES: i64 = 10;
+const ARTWORK_DAILY_LIKE_LIMIT: i64 = 10;
 const CREATOR_FEED_CACHE_TTL: Duration = Duration::from_secs(2 * 60 * 60);
 const CREATOR_FEED_CACHE_LIMIT: usize = 256;
 const RECOMMENDATION_FEED_CACHE_TTL: Duration = Duration::from_secs(4 * 60 * 60);
@@ -627,27 +628,133 @@ async fn popularity_stats(
     Ok(out)
 }
 
-async fn record_artwork_view(
-    state: &AppState,
-    user_id: Option<i64>,
+#[derive(Clone, Copy, Debug, Default)]
+struct ArtworkLikeState {
+    liked: bool,
+    likes_today: i64,
+}
+
+async fn artwork_like_states(
+    pool: &sqlx::SqlitePool,
     anon_id: &str,
-    artwork_id: i64,
-) {
-    let actor_key = user_id
-        .map(|id| format!("user:{id}"))
-        .unwrap_or_else(|| format!("anon:{anon_id}"));
-    let now = chrono::Utc::now();
-    let bucket = now.timestamp() / (30 * 60);
-    if let Err(error) = sqlx::query(
-        "INSERT OR IGNORE INTO artwork_views(artwork_id, actor_key, view_bucket, viewed_at) VALUES(?,?,?,?)",
-    )
-    .bind(artwork_id)
-    .bind(actor_key)
-    .bind(bucket)
-    .bind(now.to_rfc3339_opts(chrono::SecondsFormat::Millis, true))
-    .execute(&state.pools.art)
-    .await
-    {
+    artwork_ids: &[i64],
+) -> AppResult<std::collections::HashMap<i64, ArtworkLikeState>> {
+    let mut ids = artwork_ids.to_vec();
+    ids.sort_unstable();
+    ids.dedup();
+    if ids.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+
+    let placeholders = vec!["?"; ids.len()].join(",");
+    let sql = format!(
+        "SELECT target_id, COALESCE(SUM(COALESCE(count, 0)), 0), \
+         COALESCE(SUM(CASE WHEN day=? THEN COALESCE(count, 0) ELSE 0 END), 0) \
+         FROM likes_daily \
+         WHERE anon_id=? AND target_type='artwork' AND target_id IN ({placeholders}) \
+         GROUP BY target_id"
+    );
+    let day = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let mut query = sqlx::query_as::<_, (i64, i64, i64)>(&sql)
+        .bind(day)
+        .bind(anon_id);
+    for id in ids {
+        query = query.bind(id);
+    }
+
+    let rows = query.fetch_all(pool).await?;
+    Ok(rows
+        .into_iter()
+        .map(|(artwork_id, total, likes_today)| {
+            (
+                artwork_id,
+                ArtworkLikeState {
+                    liked: total > 0,
+                    likes_today: likes_today.clamp(0, ARTWORK_DAILY_LIKE_LIMIT),
+                },
+            )
+        })
+        .collect())
+}
+
+fn insert_artwork_like_state(value: &mut Value, state: Option<ArtworkLikeState>) {
+    let state = state.unwrap_or_default();
+    if let Some(obj) = value.as_object_mut() {
+        obj.insert("liked".into(), json!(state.liked));
+        obj.insert("likes_today".into(), json!(state.likes_today));
+        obj.insert(
+            "likes_remaining_today".into(),
+            json!((ARTWORK_DAILY_LIKE_LIMIT - state.likes_today).max(0)),
+        );
+        obj.insert("daily_like_limit".into(), json!(ARTWORK_DAILY_LIKE_LIMIT));
+    }
+}
+
+async fn record_artwork_view(state: &AppState, anon_id: &str, artwork_id: i64) {
+    let result = async {
+        let now = chrono::Utc::now();
+        let now_text = now.to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        let mut tx = state.pools.art.begin().await?;
+        let inserted = sqlx::query(
+            "INSERT OR IGNORE INTO artwork_view_visitors(\
+                artwork_id, anon_id, first_seen_at, last_seen_at, visit_count\
+             ) VALUES(?,?,?,?,1)",
+        )
+        .bind(artwork_id)
+        .bind(anon_id)
+        .bind(&now_text)
+        .bind(&now_text)
+        .execute(&mut *tx)
+        .await?;
+        let mut counted = inserted.rows_affected() > 0;
+
+        if !counted {
+            let updated = sqlx::query(
+                "UPDATE artwork_view_visitors \
+                 SET last_seen_at=?, visit_count=visit_count+1 \
+                 WHERE artwork_id=? AND anon_id=? \
+                   AND datetime(last_seen_at, '+' || ? || ' minutes') < datetime(?)",
+            )
+            .bind(&now_text)
+            .bind(artwork_id)
+            .bind(anon_id)
+            .bind(VISITOR_SESSION_WINDOW_MINUTES)
+            .bind(&now_text)
+            .execute(&mut *tx)
+            .await?;
+            counted = updated.rows_affected() > 0;
+
+            if !counted {
+                sqlx::query(
+                    "UPDATE artwork_view_visitors SET last_seen_at=? \
+                     WHERE artwork_id=? AND anon_id=?",
+                )
+                .bind(&now_text)
+                .bind(artwork_id)
+                .bind(anon_id)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+
+        if counted {
+            sqlx::query(
+                "INSERT INTO artwork_views(artwork_id, actor_key, view_bucket, viewed_at) \
+                 VALUES(?,?,?,?)",
+            )
+            .bind(artwork_id)
+            .bind(format!("anon:{anon_id}"))
+            .bind(now.timestamp_millis())
+            .bind(&now_text)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok::<(), sqlx::Error>(())
+    }
+    .await;
+
+    if let Err(error) = result {
         tracing::warn!(?error, artwork_id, "记录画廊有效浏览失败");
     }
 }
@@ -1680,7 +1787,9 @@ async fn creator_exhibits(State(state): State<AppState>) -> AppResult<Json<Value
 async fn list_artworks(
     State(state): State<AppState>,
     Query(q): Query<std::collections::HashMap<String, String>>,
-) -> AppResult<Json<Value>> {
+    headers: HeaderMap,
+) -> AppResult<Response> {
+    let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
     let getq = |k: &str| q.get(k).map(|s| s.as_str());
 
     let status = getq("status").unwrap_or("approved").to_string();
@@ -1858,6 +1967,12 @@ async fn list_artworks(
         member_display_names(&state.pools.core, &uids),
         artwork_dimensions(&state, &rows),
     );
+    let like_states = artwork_like_states(
+        &state.pools.art,
+        &anon_id,
+        &rows.iter().map(|row| row.id).collect::<Vec<_>>(),
+    )
+    .await?;
     let data: Vec<Value> = rows
         .iter()
         .map(|row| {
@@ -1879,15 +1994,19 @@ async fn list_artworks(
                 popularity_by_id.get(&row.id).copied().unwrap_or_default(),
                 display_popularity_range,
             );
+            insert_artwork_like_state(&mut value, like_states.get(&row.id).copied());
             value
         })
         .collect();
 
-    Ok(Json(json!({
-        "ok": true,
-        "data": data,
-        "total": total,
-    })))
+    Ok(json_with_cookie(
+        json!({
+            "ok": true,
+            "data": data,
+            "total": total,
+        }),
+        set,
+    ))
 }
 
 // 5.5 个性化推荐：内容画像 + 质量/新鲜度 + 探索，多路召回后做去重和多样性约束。
@@ -2431,6 +2550,12 @@ async fn recommend_artworks(
         member_display_names(&state.pools.core, &uids),
         artwork_dimensions(&state, &selected_rows),
     );
+    let like_states = artwork_like_states(
+        &state.pools.art,
+        &anon_id,
+        &selected_rows.iter().map(|row| row.id).collect::<Vec<_>>(),
+    )
+    .await?;
     let data: Vec<Value> = selected_rows
         .iter()
         .enumerate()
@@ -2457,6 +2582,7 @@ async fn recommend_artworks(
                 quality_stats.get(&row.id).copied().unwrap_or_default(),
                 PopularityRange::History,
             );
+            insert_artwork_like_state(&mut value, like_states.get(&row.id).copied());
             value
         })
         .collect();
@@ -2651,7 +2777,7 @@ async fn get_artwork(
     }
 
     if status == "approved" {
-        record_artwork_view(&state, user_id, &anon_id, id).await;
+        record_artwork_view(&state, &anon_id, id).await;
     }
     super::art_guild::record_user_event(&state, user, "browse_artwork", Some(id)).await;
 
@@ -2679,6 +2805,10 @@ async fn get_artwork(
             .bind(id)
             .fetch_one(&state.pools.art)
             .await?;
+    let like_state = artwork_like_states(&state.pools.art, &anon_id, &[id])
+        .await?
+        .get(&id)
+        .copied();
     let favorited = match user_id {
         Some(user_id) => {
             sqlx::query_scalar::<_, i64>(
@@ -2696,6 +2826,7 @@ async fn get_artwork(
         obj.insert("favorite_count".into(), json!(favorite_count));
         obj.insert("favorited".into(), json!(favorited));
     }
+    insert_artwork_like_state(&mut value, like_state);
     Ok(json_with_cookie(json!({ "ok": true, "data": value }), set))
 }
 
@@ -3627,29 +3758,49 @@ async fn like_target(
     } else {
         "comments"
     };
+    let target_label = if target_type == "artwork" {
+        "作品"
+    } else {
+        "评论"
+    };
+    let target_phrase = if target_type == "artwork" {
+        "这件作品"
+    } else {
+        "这条评论"
+    };
 
     let mut tx = match state.pools.art.begin().await {
         Ok(t) => t,
         Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, json!({ "ok": false })),
     };
 
-    // 目标是否存在
-    let exists: Result<Option<i64>, _> =
-        sqlx::query_scalar(&format!("SELECT id FROM {table} WHERE id=?"))
-            .bind(target_id)
-            .fetch_optional(&mut *tx)
-            .await;
-    match exists {
-        Ok(Some(_)) => {}
+    // 公开互动只接受已公开作品/评论，同时取当前总数供限额响应同步客户端状态。
+    let visibility = if target_type == "artwork" {
+        "status='approved'"
+    } else {
+        "status='public'"
+    };
+    let current_total: Result<Option<i64>, _> = sqlx::query_scalar(&format!(
+        "SELECT COALESCE(CAST(NULLIF(TRIM(like_total), '') AS INTEGER), 0) \
+         FROM {table} WHERE id=? AND {visibility}"
+    ))
+    .bind(target_id)
+    .fetch_optional(&mut *tx)
+    .await;
+    let current_total = match current_total {
+        Ok(Some(total)) => total,
         Ok(None) => {
             let _ = tx.rollback().await;
-            return (StatusCode::NOT_FOUND, json!({ "ok": false }));
+            return (
+                StatusCode::NOT_FOUND,
+                json!({ "ok": false, "message": format!("{target_label}不存在或暂不可互动") }),
+            );
         }
         Err(_) => {
             let _ = tx.rollback().await;
             return (StatusCode::INTERNAL_SERVER_ERROR, json!({ "ok": false }));
         }
-    }
+    };
 
     // 当日已用次数
     let row: Result<Option<(i64, i64)>, _> = sqlx::query_as(
@@ -3669,11 +3820,19 @@ async fn like_target(
         }
     };
     let used = row.map(|(_, c)| c).unwrap_or(0);
-    if used >= 10 {
+    if used >= ARTWORK_DAILY_LIKE_LIMIT {
         let _ = tx.rollback().await;
         return (
             StatusCode::TOO_MANY_REQUESTS,
-            json!({ "ok": false, "message": "上限" }),
+            json!({
+                "ok": false,
+                "message": format!("今天给{target_phrase}的 10 次点赞已经全部送出"),
+                "totalLikes": current_total,
+                "liked": true,
+                "likesToday": used,
+                "remainingLikesToday": 0,
+                "dailyLikeLimit": ARTWORK_DAILY_LIKE_LIMIT,
+            }),
         );
     }
 
@@ -3720,7 +3879,18 @@ async fn like_target(
             if tx.commit().await.is_err() {
                 return (StatusCode::INTERNAL_SERVER_ERROR, json!({ "ok": false }));
             }
-            (StatusCode::OK, json!({ "ok": true, "totalLikes": updated }))
+            let likes_today = used + 1;
+            (
+                StatusCode::OK,
+                json!({
+                    "ok": true,
+                    "totalLikes": updated,
+                    "liked": true,
+                    "likesToday": likes_today,
+                    "remainingLikesToday": (ARTWORK_DAILY_LIKE_LIMIT - likes_today).max(0),
+                    "dailyLikeLimit": ARTWORK_DAILY_LIKE_LIMIT,
+                }),
+            )
         }
         Err(_) => {
             let _ = tx.rollback().await;
@@ -3731,17 +3901,22 @@ async fn like_target(
 
 async fn like_artwork(
     State(state): State<AppState>,
-    user: AuthUser,
+    user: Option<AuthUser>,
     Path(id): Path<i64>,
+    headers: HeaderMap,
 ) -> AppResult<Response> {
-    // 点赞须登录：每日每目标限额按账号计（anon_id = "u{id}"）
-    let anon_id = crate::auth_routes::member_uid(user.id);
+    // 登录与访客统一按签名匿名 Cookie 记录，每个设备每天可给每件作品点赞十次。
+    let (anon_id, set) = resolve_anon(&state.cfg.art_cookie_secret, &headers);
     let (status, body) = like_target(&state, &anon_id, "artwork", id).await;
     if status.is_success() {
-        super::art_guild::record_user_event(&state, Some(user), "like_artwork", Some(id)).await;
-        record_recommendation_signal(&state, user.id, id, "like").await;
+        if let Some(user) = user {
+            super::art_guild::record_user_event(&state, Some(user), "like_artwork", Some(id)).await;
+            record_recommendation_signal(&state, user.id, id, "like").await;
+        }
     }
-    Ok((status, Json(body)).into_response())
+    let mut response = json_with_cookie(body, set);
+    *response.status_mut() = status;
+    Ok(response)
 }
 
 async fn toggle_artwork_favorite(

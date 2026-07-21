@@ -99,9 +99,10 @@
               <button
                 type="button"
                 class="work-metric"
-                :class="{ 'is-liked': liked }"
-                :disabled="liking"
-                :aria-label="liked ? `已喜欢，${likeCount}` : `喜欢，${likeCount}`"
+                :class="{ 'is-liked': liked, 'is-exhausted': likesRemainingToday <= 0 }"
+                :disabled="liking || likesRemainingToday <= 0"
+                :aria-label="likeActionLabel"
+                :title="likeActionLabel"
                 @click="likeArtwork"
               >
                 <Heart :size="17" :fill="liked ? 'currentColor' : 'none'" aria-hidden="true" />
@@ -416,6 +417,7 @@ import {
   hasPublicDownloadLicense,
   publicLicenseLabels,
 } from '../utils/artworkLicenses.js'
+import { launchLikeHeart } from '../utils/likeHeartBurst.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -435,7 +437,6 @@ const commentBody = ref('')
 const posting = ref(false)
 const commentNotice = ref('')
 const liking = ref(false)
-const liked = ref(false)
 const favorited = ref(Boolean(initialArtwork?.favorited))
 const favoriting = ref(false)
 const favoriteCount = ref(Number(initialArtwork?.favorite_count || 0))
@@ -476,6 +477,18 @@ const safeOriginUrl = computed(() => {
 const viewerImage = computed(() => images.value[viewerIndex.value] || null)
 const tags = computed(() => Array.isArray(art.value?.tags) ? art.value.tags : [])
 const likeCount = computed(() => Number(art.value?.popularity?.likes ?? art.value?.like_total ?? 0))
+const liked = computed(() => Boolean(art.value?.liked))
+const likesToday = computed(() => Math.max(0, Number(art.value?.likes_today || 0)))
+const dailyLikeLimit = computed(() => Math.max(1, Number(art.value?.daily_like_limit || 10)))
+const likesRemainingToday = computed(() => Math.max(
+  0,
+  Number(art.value?.likes_remaining_today ?? (dailyLikeLimit.value - likesToday.value)),
+))
+const likeActionLabel = computed(() => {
+  if (likesRemainingToday.value <= 0) return '今天已无法继续点赞'
+  if (liked.value) return '再次点赞'
+  return '点赞'
+})
 const viewCount = computed(() => Number(art.value?.popularity?.views || 0))
 const commentCount = computed(() => Math.max(Number(art.value?.popularity?.comments || 0), comments.value.length))
 const publishedAt = computed(() => formatDateTime(art.value?.created_at || art.value?.reviewed_at))
@@ -605,7 +618,6 @@ async function loadArtwork() {
   creatorSocial.value = { isFollowing: false, isSelf: false, followerCount: 0 }
   commentBody.value = ''
   commentNotice.value = ''
-  liked.value = false
   favorited.value = Boolean(cached?.favorited)
   favoriteCount.value = Number(cached?.favorite_count || 0)
   licensePopoverOpen.value = false
@@ -633,22 +645,14 @@ async function loadArtwork() {
   void loadDiscovery(item, version)
 }
 
-async function likeArtwork() {
-  if (!art.value || liking.value || liked.value) return
+async function likeArtwork(event) {
+  if (!art.value || liking.value || likesRemainingToday.value <= 0) return
+  launchLikeHeart(event?.currentTarget)
   liking.value = true
-  const before = Number(art.value.popularity?.likes ?? art.value.like_total ?? 0)
-  if (art.value.popularity) art.value.popularity.likes = before + 1
-  art.value.like_total = before + 1
-  liked.value = true
   try {
-    const response = await api.likeArtwork(art.value.id)
-    const total = Number(response?.totalLikes ?? response?.total_likes ?? before + 1)
-    art.value.like_total = total
-    if (art.value.popularity) art.value.popularity.likes = total
+    await galleryStore.likeArtwork(art.value)
+    commentNotice.value = ''
   } catch (cause) {
-    art.value.like_total = before
-    if (art.value.popularity) art.value.popularity.likes = before
-    liked.value = false
     commentNotice.value = cause?.message || '喜欢操作失败，请稍后重试。'
   } finally {
     liking.value = false
@@ -1143,6 +1147,7 @@ button.work-metric { cursor: pointer; }
 .work-metric span { font-variant-numeric: tabular-nums; }
 .work-metric.is-liked { color: #d44957; }
 .work-metric:disabled { cursor: wait; opacity: 0.62; }
+.work-metric.is-exhausted:disabled { cursor: not-allowed; }
 
 .work-meta__tools {
   display: inline-flex;
