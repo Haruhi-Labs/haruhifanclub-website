@@ -19,8 +19,8 @@ use hmac::{Hmac, Mac};
 use rand::seq::SliceRandom;
 use serde_json::{json, Value};
 use sha2::Sha256;
-use std::path::{Path as FsPath, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::path::{Component, Path as FsPath, PathBuf};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 
@@ -127,6 +127,9 @@ const CREATOR_FEED_CACHE_TTL: Duration = Duration::from_secs(2 * 60 * 60);
 const CREATOR_FEED_CACHE_LIMIT: usize = 256;
 const RECOMMENDATION_FEED_CACHE_TTL: Duration = Duration::from_secs(4 * 60 * 60);
 const RECOMMENDATION_FEED_CACHE_LIMIT: usize = 512;
+const ARTWORK_DIMENSION_CACHE_LIMIT: usize = 8_192;
+static ARTWORK_DIMENSION_CACHE: LazyLock<Mutex<std::collections::HashMap<PathBuf, (u32, u32)>>> =
+    LazyLock::new(|| Mutex::new(std::collections::HashMap::new()));
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -454,7 +457,7 @@ fn parse_licenses(raw: Option<&str>) -> Vec<String> {
 
 // ---- artworks 行结构（SELECT a.*, c.avatar_url AS uploader_avatar）----
 // 字段名须与 SELECT_ART 列别名一致（21 列超出 sqlx 元组 16 上限，故用 FromRow 结构体）。
-#[derive(Clone, sqlx::FromRow)]
+#[derive(Clone, Default, sqlx::FromRow)]
 struct ArtRow {
     id: i64,
     title: Option<String>,
@@ -751,6 +754,143 @@ fn map_artwork_row(r: &ArtRow) -> Value {
     })
 }
 
+fn artwork_metadata_dimensions(row: &ArtRow) -> Option<(u32, u32)> {
+    let first = safe_json_arr(row.images_json.as_deref())
+        .into_iter()
+        .next()?;
+    let width = u32::try_from(first.get("width")?.as_u64()?).ok()?;
+    let height = u32::try_from(first.get("height")?.as_u64()?).ok()?;
+    (width > 0 && height > 0).then_some((width, height))
+}
+
+fn artwork_display_path(row: &ArtRow) -> Option<String> {
+    let image_path = safe_json_arr(row.images_json.as_deref())
+        .into_iter()
+        .next()
+        .and_then(|image| image.get("path").and_then(Value::as_str).map(str::to_owned));
+    let relative = image_path.or_else(|| row.file_path.clone())?;
+    let relative = relative.trim();
+    if relative.is_empty()
+        || !FsPath::new(relative)
+            .components()
+            .all(|part| matches!(part, Component::Normal(_)))
+    {
+        return None;
+    }
+    Some(relative.to_string())
+}
+
+async fn artwork_dimensions(
+    state: &AppState,
+    rows: &[ArtRow],
+) -> std::collections::HashMap<i64, (u32, u32)> {
+    let mut dimensions = std::collections::HashMap::new();
+    let mut pending = Vec::new();
+    for row in rows {
+        if let Some(size) = artwork_metadata_dimensions(row) {
+            dimensions.insert(row.id, size);
+        } else if let Some(relative) = artwork_display_path(row) {
+            pending.push((row.id, relative));
+        }
+    }
+    if pending.is_empty() {
+        return dimensions;
+    }
+
+    let uploads_dir = state.cfg.uploads_dir.clone();
+    let measured = tokio::task::spawn_blocking(move || {
+        let mut found = std::collections::HashMap::new();
+        for (id, relative) in pending {
+            let path = uploads_dir.join(relative);
+            let cached = ARTWORK_DIMENSION_CACHE
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .get(&path)
+                .copied();
+            let size = cached.or_else(|| {
+                let measured = haruhi_media::image_dimensions(&path).ok()?;
+                let mut cache = ARTWORK_DIMENSION_CACHE
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                if cache.len() >= ARTWORK_DIMENSION_CACHE_LIMIT {
+                    cache.clear();
+                }
+                cache.insert(path, measured);
+                Some(measured)
+            });
+            if let Some(size) = size {
+                found.insert(id, size);
+            }
+        }
+        found
+    })
+    .await;
+    match measured {
+        Ok(measured) => dimensions.extend(measured),
+        Err(error) => tracing::warn!(?error, "读取作品图片尺寸任务失败"),
+    }
+    dimensions
+}
+
+fn insert_artwork_dimensions(value: &mut Value, dimensions: Option<(u32, u32)>) {
+    let (Some((width, height)), Some(obj)) = (dimensions, value.as_object_mut()) else {
+        return;
+    };
+    obj.insert("image_width".into(), json!(width));
+    obj.insert("image_height".into(), json!(height));
+    if let Some(first) = obj
+        .get_mut("images")
+        .and_then(Value::as_array_mut)
+        .and_then(|images| images.first_mut())
+        .and_then(Value::as_object_mut)
+    {
+        first.insert("width".into(), json!(width));
+        first.insert("height".into(), json!(height));
+    }
+}
+
+#[cfg(test)]
+mod artwork_dimension_tests {
+    use super::{
+        artwork_display_path, artwork_metadata_dimensions, insert_artwork_dimensions, ArtRow,
+    };
+    use serde_json::json;
+
+    #[test]
+    fn reads_dimensions_from_image_metadata() {
+        let row = ArtRow {
+            images_json: Some(
+                r#"[{"path":"art/2026-07/work.webp","width":1200,"height":1800}]"#.into(),
+            ),
+            ..ArtRow::default()
+        };
+        assert_eq!(artwork_metadata_dimensions(&row), Some((1200, 1800)));
+        assert_eq!(
+            artwork_display_path(&row).as_deref(),
+            Some("art/2026-07/work.webp")
+        );
+    }
+
+    #[test]
+    fn rejects_paths_outside_uploads_root() {
+        let row = ArtRow {
+            file_path: Some("art/../../secret.webp".into()),
+            ..ArtRow::default()
+        };
+        assert_eq!(artwork_display_path(&row), None);
+    }
+
+    #[test]
+    fn inserts_dimensions_into_cover_and_first_image() {
+        let mut value = json!({ "images": [{ "image_url": "uploads/art/work.webp" }] });
+        insert_artwork_dimensions(&mut value, Some((960, 1440)));
+        assert_eq!(value["image_width"], 960);
+        assert_eq!(value["image_height"], 1440);
+        assert_eq!(value["images"][0]["width"], 960);
+        assert_eq!(value["images"][0]["height"], 1440);
+    }
+}
+
 fn insert_popularity(value: &mut Value, stats: PopularityStats, range: PopularityRange) {
     let Some(obj) = value.as_object_mut() else {
         return;
@@ -810,10 +950,14 @@ pub(crate) async fn member_display_names(
 /// 历史匿名作品（uploader_uid 非 u{id} 或查不到）不注入，前端回退显示 uploader_name 快照。
 async fn map_artworks_with_names(state: &AppState, rows: &[ArtRow]) -> Vec<Value> {
     let uids: Vec<String> = rows.iter().filter_map(|r| r.uploader_uid.clone()).collect();
-    let names = member_display_names(&state.pools.core, &uids).await;
+    let (names, dimensions) = tokio::join!(
+        member_display_names(&state.pools.core, &uids),
+        artwork_dimensions(state, rows),
+    );
     rows.iter()
         .map(|r| {
             let mut v = map_artwork_row(r);
+            insert_artwork_dimensions(&mut v, dimensions.get(&r.id).copied());
             if let (Some(uid), Some(obj)) = (r.uploader_uid.as_deref(), v.as_object_mut()) {
                 if let Some(n) = names.get(uid) {
                     obj.insert("uploader_display_name".to_string(), json!(n));
@@ -1335,7 +1479,21 @@ async fn creator_feed(
             (score + 1.0).ln()
         })
         .fold(1.0_f64, f64::max);
-    let names = member_display_names(&state.pools.core, &page_uids).await;
+    let page_uid_set: std::collections::HashSet<&str> =
+        page_uids.iter().map(String::as_str).collect();
+    let page_rows: Vec<ArtRow> = rows
+        .iter()
+        .filter(|row| {
+            row.uploader_uid
+                .as_deref()
+                .is_some_and(|uid| page_uid_set.contains(uid))
+        })
+        .cloned()
+        .collect();
+    let (names, dimensions) = tokio::join!(
+        member_display_names(&state.pools.core, &page_uids),
+        artwork_dimensions(&state, &page_rows),
+    );
 
     let mut data = Vec::with_capacity(page_uids.len());
     for (creator_position, uid) in page_uids.iter().enumerate() {
@@ -1371,6 +1529,7 @@ async fn creator_feed(
             .enumerate()
             .map(|(artwork_position, row)| {
                 let mut value = map_artwork_row(row);
+                insert_artwork_dimensions(&mut value, dimensions.get(&row.id).copied());
                 if let Some(obj) = value.as_object_mut() {
                     obj.insert("uploader_display_name".into(), json!(creator_name.clone()));
                     obj.insert(
@@ -1694,12 +1853,16 @@ async fn list_artworks(
     }
     // 批量取作者公会徽章，避免逐行 N+1（一次 IN 查询、不建档）。
     let uids: Vec<String> = rows.iter().filter_map(|r| r.uploader_uid.clone()).collect();
-    let guild_map = super::art_guild::guild_summaries_for_uids(&state, &uids).await;
-    let names = member_display_names(&state.pools.core, &uids).await;
+    let (guild_map, names, dimensions) = tokio::join!(
+        super::art_guild::guild_summaries_for_uids(&state, &uids),
+        member_display_names(&state.pools.core, &uids),
+        artwork_dimensions(&state, &rows),
+    );
     let data: Vec<Value> = rows
         .iter()
         .map(|row| {
             let mut value = map_artwork_row(row);
+            insert_artwork_dimensions(&mut value, dimensions.get(&row.id).copied());
             let uid = row.uploader_uid.as_deref().unwrap_or("").trim();
             if let Some(obj) = value.as_object_mut() {
                 if !uid.is_empty() {
@@ -2263,13 +2426,17 @@ async fn recommend_artworks(
         .iter()
         .filter_map(|row| row.uploader_uid.clone())
         .collect();
-    let guild_map = super::art_guild::guild_summaries_for_uids(&state, &uids).await;
-    let names = member_display_names(&state.pools.core, &uids).await;
+    let (guild_map, names, dimensions) = tokio::join!(
+        super::art_guild::guild_summaries_for_uids(&state, &uids),
+        member_display_names(&state.pools.core, &uids),
+        artwork_dimensions(&state, &selected_rows),
+    );
     let data: Vec<Value> = selected_rows
         .iter()
         .enumerate()
         .map(|(position, row)| {
             let mut value = map_artwork_row(row);
+            insert_artwork_dimensions(&mut value, dimensions.get(&row.id).copied());
             let uid = row.uploader_uid.as_deref().unwrap_or("").trim();
             if let Some(obj) = value.as_object_mut() {
                 if !uid.is_empty() {

@@ -48,11 +48,12 @@
                   :style="mediaStyle(entry.item)"
                 >
                   <img
-                    :src="imageUrl(entry.item, isLongArtwork(entry.item) ? LONG_ARTWORK_THUMB_SIZE : 640)"
-                    :srcset="isLongArtwork(entry.item) ? undefined : imageSrcset(entry.item)"
+                    :src="imageUrl(entry.item, 640)"
+                    :srcset="imageSrcset(entry.item, isLongArtwork(entry.item))"
                     :alt="entry.item.title || '画廊作品'"
                     sizes="(max-width: 719px) calc(50vw - 20px), (max-width: 999px) 33vw, (max-width: 1319px) 25vw, 20vw"
-                    loading="lazy"
+                    :loading="entry.position < 4 ? 'eager' : 'lazy'"
+                    :fetchpriority="entry.position < 2 ? 'high' : 'auto'"
                     decoding="async"
                   />
                   <ArtworkPopularityBadge :item="entry.item" />
@@ -117,7 +118,6 @@ import ArtworkPopularityBadge from './ArtworkPopularityBadge.vue'
 const vDepthTilt = artworkDepthDirective
 const LONG_ARTWORK_RATIO_THRESHOLD = 0.45
 const LONG_ARTWORK_PREVIEW_RATIO = 3 / 4
-const LONG_ARTWORK_THUMB_SIZE = 1920
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -187,8 +187,12 @@ function imageUrl(item, width) {
   return thumbUrl(rawImageUrl(item), width)
 }
 
-function imageSrcset(item) {
-  return `${imageUrl(item, 320)} 320w, ${imageUrl(item, 640)} 640w`
+function imageSrcset(item, includeLarge = false) {
+  const sources = [`${imageUrl(item, 320)} 320w`, `${imageUrl(item, 640)} 640w`]
+  if (includeLarge) {
+    sources.push(`${imageUrl(item, 960)} 960w`, `${imageUrl(item, 1920)} 1920w`)
+  }
+  return sources.join(', ')
 }
 
 function creatorName(item) {

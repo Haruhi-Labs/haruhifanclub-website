@@ -1,4 +1,8 @@
 const instances = new WeakMap()
+const registrations = new Map()
+let reducedMotion = null
+let finePointer = null
+let capabilityListenersAttached = false
 
 const DEFAULTS = {
   maxTilt: 7,
@@ -20,18 +24,24 @@ function optionsFrom(binding) {
   }
 }
 
+function ensureCapabilityQueries() {
+  reducedMotion ||= window.matchMedia('(prefers-reduced-motion: reduce)')
+  finePointer ||= window.matchMedia('(hover: hover) and (pointer: fine)')
+}
+
+function depthEnabled() {
+  ensureCapabilityQueries()
+  return finePointer.matches && !reducedMotion.matches
+}
+
 function createDepthController(element, binding) {
   const options = optionsFrom(binding)
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
   const current = { rx: 0, ry: 0, lift: 0, scale: 1, glareX: 50, glareY: 50, glare: 0 }
   const target = { ...current }
   let frame = 0
   let hovered = false
   let pressed = false
   let rect = null
-
-  const enabled = () => finePointer.matches && !reducedMotion.matches
 
   function write() {
     element.style.setProperty('--depth-rx', `${current.rx.toFixed(3)}deg`)
@@ -77,7 +87,7 @@ function createDepthController(element, binding) {
   }
 
   function updatePointer(event) {
-    if (!enabled()) return
+    if (!depthEnabled()) return
     rect ||= element.getBoundingClientRect()
     const nx = Math.max(-1, Math.min(1, ((event.clientX - rect.left) / rect.width - 0.5) * 2))
     const ny = Math.max(-1, Math.min(1, ((event.clientY - rect.top) / rect.height - 0.5) * 2))
@@ -92,7 +102,7 @@ function createDepthController(element, binding) {
   }
 
   function onEnter(event) {
-    if (!enabled()) return
+    if (!depthEnabled()) return
     hovered = true
     rect = element.getBoundingClientRect()
     element.classList.add('is-depth-active')
@@ -109,7 +119,7 @@ function createDepthController(element, binding) {
   }
 
   function onDown(event) {
-    if (!enabled()) return
+    if (!depthEnabled()) return
     pressed = true
     element.classList.add('is-depth-pressed')
     updatePointer(event)
@@ -121,22 +131,17 @@ function createDepthController(element, binding) {
     if (hovered) updatePointer(event)
   }
 
-  function onCapabilityChange() {
-    if (!enabled()) reset(true)
-  }
-
   element.addEventListener('pointerenter', onEnter, { passive: true })
   element.addEventListener('pointermove', onMove, { passive: true })
   element.addEventListener('pointerleave', onLeave, { passive: true })
   element.addEventListener('pointerdown', onDown, { passive: true })
   element.addEventListener('pointerup', onUp, { passive: true })
   element.addEventListener('pointercancel', onLeave, { passive: true })
-  reducedMotion.addEventListener?.('change', onCapabilityChange)
-  finePointer.addEventListener?.('change', onCapabilityChange)
   write()
 
   return {
     destroy() {
+      reset(true)
       if (frame) cancelAnimationFrame(frame)
       element.removeEventListener('pointerenter', onEnter)
       element.removeEventListener('pointermove', onMove)
@@ -144,18 +149,49 @@ function createDepthController(element, binding) {
       element.removeEventListener('pointerdown', onDown)
       element.removeEventListener('pointerup', onUp)
       element.removeEventListener('pointercancel', onLeave)
-      reducedMotion.removeEventListener?.('change', onCapabilityChange)
-      finePointer.removeEventListener?.('change', onCapabilityChange)
     },
   }
 }
 
+function syncController(element) {
+  const controller = instances.get(element)
+  if (depthEnabled()) {
+    if (!controller) instances.set(element, createDepthController(element, registrations.get(element)))
+  } else if (controller) {
+    controller.destroy()
+    instances.delete(element)
+  }
+}
+
+function syncCapabilities() {
+  registrations.forEach((_binding, element) => syncController(element))
+}
+
+function attachCapabilityListeners() {
+  if (capabilityListenersAttached) return
+  ensureCapabilityQueries()
+  reducedMotion.addEventListener?.('change', syncCapabilities)
+  finePointer.addEventListener?.('change', syncCapabilities)
+  capabilityListenersAttached = true
+}
+
+function detachCapabilityListeners() {
+  if (!capabilityListenersAttached || registrations.size) return
+  reducedMotion.removeEventListener?.('change', syncCapabilities)
+  finePointer.removeEventListener?.('change', syncCapabilities)
+  capabilityListenersAttached = false
+}
+
 export const artworkDepthDirective = {
   mounted(element, binding) {
-    instances.set(element, createDepthController(element, binding))
+    registrations.set(element, binding)
+    attachCapabilityListeners()
+    syncController(element)
   },
   beforeUnmount(element) {
     instances.get(element)?.destroy()
     instances.delete(element)
+    registrations.delete(element)
+    detachCapabilityListeners()
   },
 }

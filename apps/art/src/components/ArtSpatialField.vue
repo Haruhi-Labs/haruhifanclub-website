@@ -94,6 +94,8 @@ let formationIndex = 0
 let formationCooldownUntil = 0
 let ambientYaw = 0
 let scrollYaw = 0
+const rootStyleCache = new Map()
+const documentStyleCache = new Map()
 
 const fieldWake = {
   x: 0,
@@ -299,7 +301,6 @@ function createElasticMesh(shape = 'box', segments = 4) {
     edges,
     face: definition.face || null,
     accentNode: definition.accentNode || 0,
-    projected: [],
   }
 }
 
@@ -641,15 +642,15 @@ function elasticMeshPoints(item, worldZ, time) {
 
 function stepElasticMesh(item, dt, time, pointerSpeed) {
   if (!item.mesh) return 0
-  const worldZ = itemWorldDepth(item)
-  const projected = elasticMeshPoints(item, worldZ, time)
-  const radius = Math.min(238, Math.max(135, width * 0.18))
-  const fov = Math.min(width * 0.92, height * 1.2)
-  const cappedVelocityX = Math.max(-82, Math.min(82, pointer.velocityX))
-  const cappedVelocityY = Math.max(-82, Math.min(82, pointer.velocityY))
   let strongest = 0
 
   if (pointer.active) {
+    const worldZ = itemWorldDepth(item)
+    const radius = Math.min(238, Math.max(135, width * 0.18))
+    const fov = Math.min(width * 0.92, height * 1.2)
+    const cappedVelocityX = Math.max(-82, Math.min(82, pointer.velocityX))
+    const cappedVelocityY = Math.max(-82, Math.min(82, pointer.velocityY))
+    const projected = elasticMeshPoints(item, worldZ, time)
     item.mesh.nodes.forEach((node, index) => {
       const point = projected[index]
       if (!point.visible) return
@@ -714,7 +715,6 @@ function stepElasticMesh(item, dt, time, pointerSpeed) {
       node.velocityZ *= 0.72
     }
   })
-  item.mesh.projected = elasticMeshPoints(item, worldZ, time)
   return strongest
 }
 
@@ -993,6 +993,12 @@ function drawShock(colors) {
   }
 }
 
+function setCachedStyleProperty(element, cache, name, value) {
+  if (!element || cache.get(name) === value) return
+  cache.set(name, value)
+  element.style.setProperty(name, value)
+}
+
 function update(dt, time) {
   const smoothing = 1 - Math.pow(0.0009, dt)
   pointer.x += (pointer.targetX - pointer.x) * smoothing
@@ -1018,28 +1024,29 @@ function update(dt, time) {
   pointer.velocityX *= Math.pow(0.002, dt)
   pointer.velocityY *= Math.pow(0.002, dt)
 
-  if ((readoutFrame += 1) % 8 === 0) {
+  if (width >= 700 && (readoutFrame += 1) % 8 === 0) {
     depthReadout.value = String(((travel % 100) + 100) % 100).padStart(4, '0').slice(0, 4)
   }
 
   if ((styleWriteFrame += 1) % 2 === 0) {
     const turnSine = Math.sin(view.yaw)
-    root.value?.style.setProperty('--mx', `${pointer.x}px`)
-    root.value?.style.setProperty('--my', `${pointer.y}px`)
-    root.value?.style.setProperty('--nx', pointer.normalizedX.toFixed(3))
-    root.value?.style.setProperty('--ny', pointer.normalizedY.toFixed(3))
-    root.value?.style.setProperty('--scroll', scrollProgress.toFixed(3))
-    root.value?.style.setProperty('--energy', Math.min(1, pointerSpeed / 35).toFixed(3))
-    root.value?.style.setProperty('--wake-x', `${Math.max(-38, Math.min(38, fieldWake.x)).toFixed(2)}px`)
-    root.value?.style.setProperty('--wake-y', `${Math.max(-30, Math.min(30, fieldWake.y)).toFixed(2)}px`)
-    root.value?.style.setProperty('--wake-rot', `${Math.max(-8, Math.min(8, fieldWake.rotation)).toFixed(3)}deg`)
-    root.value?.style.setProperty('--view-turn', `${(view.yaw * 180 / Math.PI).toFixed(3)}deg`)
-    root.value?.style.setProperty('--turn-x', `${(turnSine * 42).toFixed(2)}px`)
-    root.value?.style.setProperty('--turn-x-neg', `${(turnSine * -52).toFixed(2)}px`)
-    root.value?.style.setProperty('--turn-x-soft', `${(turnSine * 9).toFixed(2)}px`)
-    document.documentElement.style.setProperty('--art-backdrop-x', `${(turnSine * 12).toFixed(2)}px`)
-    document.documentElement.style.setProperty('--art-mask-x', `${(turnSine * -19).toFixed(2)}px`)
-    document.documentElement.style.setProperty('--art-backdrop-tilt', `${(turnSine * 0.22).toFixed(3)}deg`)
+    const rootElement = root.value
+    setCachedStyleProperty(rootElement, rootStyleCache, '--mx', `${pointer.x}px`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--my', `${pointer.y}px`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--nx', pointer.normalizedX.toFixed(3))
+    setCachedStyleProperty(rootElement, rootStyleCache, '--ny', pointer.normalizedY.toFixed(3))
+    setCachedStyleProperty(rootElement, rootStyleCache, '--scroll', scrollProgress.toFixed(3))
+    setCachedStyleProperty(rootElement, rootStyleCache, '--energy', Math.min(1, pointerSpeed / 35).toFixed(3))
+    setCachedStyleProperty(rootElement, rootStyleCache, '--wake-x', `${Math.max(-38, Math.min(38, fieldWake.x)).toFixed(2)}px`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--wake-y', `${Math.max(-30, Math.min(30, fieldWake.y)).toFixed(2)}px`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--wake-rot', `${Math.max(-8, Math.min(8, fieldWake.rotation)).toFixed(3)}deg`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--view-turn', `${(view.yaw * 180 / Math.PI).toFixed(3)}deg`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--turn-x', `${(turnSine * 42).toFixed(2)}px`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--turn-x-neg', `${(turnSine * -52).toFixed(2)}px`)
+    setCachedStyleProperty(rootElement, rootStyleCache, '--turn-x-soft', `${(turnSine * 9).toFixed(2)}px`)
+    setCachedStyleProperty(document.documentElement, documentStyleCache, '--art-backdrop-x', `${(turnSine * 12).toFixed(2)}px`)
+    setCachedStyleProperty(document.documentElement, documentStyleCache, '--art-mask-x', `${(turnSine * -19).toFixed(2)}px`)
+    setCachedStyleProperty(document.documentElement, documentStyleCache, '--art-backdrop-tilt', `${(turnSine * 0.22).toFixed(3)}deg`)
   }
 }
 
@@ -1187,6 +1194,8 @@ onBeforeUnmount(() => {
   document.documentElement.style.removeProperty('--art-backdrop-x')
   document.documentElement.style.removeProperty('--art-mask-x')
   document.documentElement.style.removeProperty('--art-backdrop-tilt')
+  rootStyleCache.clear()
+  documentStyleCache.clear()
 })
 </script>
 
