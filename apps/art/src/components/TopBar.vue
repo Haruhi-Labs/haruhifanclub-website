@@ -133,7 +133,6 @@ watch([() => route.name, () => route.query.q], () => {
         login-path="/login"
         profile-path="/account"
         settings-path="/account/settings"
-        :public-profile-path="session.state.user?.id ? `/profile/u${session.state.user.id}` : ''"
       />
     </template>
 
