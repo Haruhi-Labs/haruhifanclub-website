@@ -24,56 +24,125 @@
 
     <template v-else>
       <div class="work-layout">
-        <section class="work-canvas" :aria-label="`${art.title || '作品'}图片`">
+        <section
+          class="work-canvas"
+          :class="{ 'is-multiple': images.length > 1 }"
+          :aria-label="`${art.title || '作品'}图片`"
+        >
           <div v-if="images.length > 1" class="work-canvas__summary">
             <span>MULTI IMAGE / {{ String(images.length).padStart(2, '0') }}</span>
             <small>向下连续浏览全部图片</small>
           </div>
-          <template v-for="(image, index) in images" :key="`${art.id}-${index}`">
-            <figure class="work-image">
-              <button
-                type="button"
-                class="work-image__open"
-                :aria-label="`查看第 ${index + 1} 张原图`"
-                @click="openViewer(index)"
+          <div class="work-carousel" :style="mobileCarouselStyle">
+            <div
+              ref="mobileCarouselTrack"
+              class="work-carousel__track"
+              :role="mobileCarouselActive && images.length > 1 ? 'region' : undefined"
+              :aria-roledescription="mobileCarouselActive && images.length > 1 ? '轮播图' : undefined"
+              :aria-label="mobileCarouselActive && images.length > 1
+                ? `${art.title || '作品'}，共 ${images.length} 张；左右滑动或使用左右方向键浏览`
+                : undefined"
+              :tabindex="mobileCarouselActive && images.length > 1 ? 0 : undefined"
+              @scroll.passive="onMobileCarouselScroll"
+              @keydown="onInlineCarouselKeydown"
+            >
+              <figure
+                v-for="(image, index) in images"
+                :key="`${art.id}-${index}`"
+                class="work-image"
+                :role="mobileCarouselActive && images.length > 1 ? 'group' : undefined"
+                :aria-roledescription="mobileCarouselActive && images.length > 1 ? '幻灯片' : undefined"
+                :aria-label="mobileCarouselActive && images.length > 1
+                  ? `第 ${index + 1} 张，共 ${images.length} 张`
+                  : undefined"
               >
-                <img
-                  :src="image.image_url || image.original_url"
-                  :alt="images.length > 1 ? `${art.title || '作品'}，第 ${index + 1} 张` : (art.title || '作品')"
-                  :loading="index === 0 ? 'eager' : 'lazy'"
-                  decoding="async"
-                />
-                <span class="work-image__hint">
-                  <Maximize2 :size="16" aria-hidden="true" />
-                  查看原图
-                </span>
-              </button>
-              <figcaption v-if="images.length > 1">
-                <span>{{ String(index + 1).padStart(2, '0') }}</span>
-                <span>/</span>
-                <span>{{ String(images.length).padStart(2, '0') }}</span>
-                <a
-                  v-if="image.original_url && publicDownloadEnabled"
-                  :href="image.original_url"
-                  :download="downloadFilename(index)"
-                  aria-label="下载这张原图"
-                  title="下载这张原图"
-                >
-                  <Download :size="14" aria-hidden="true" />
-                </a>
                 <button
-                  v-else-if="image.original_url"
                   type="button"
-                  class="work-download-disabled"
-                  disabled
-                  aria-label="作者未开放大众下载授权"
-                  title="作者未开放大众下载授权"
+                  class="work-image__open"
+                  :aria-label="`查看第 ${index + 1} 张原图`"
+                  @click="openViewer(index)"
                 >
-                  <Download :size="14" aria-hidden="true" />
+                  <img
+                    :src="image.image_url || image.original_url"
+                    :alt="images.length > 1 ? `${art.title || '作品'}，第 ${index + 1} 张` : (art.title || '作品')"
+                    :loading="index === 0 ? 'eager' : 'lazy'"
+                    decoding="async"
+                    draggable="false"
+                    @load="rememberInlineImageDimensions(index, $event)"
+                  />
+                  <span class="work-image__hint">
+                    <Maximize2 :size="16" aria-hidden="true" />
+                    查看原图
+                  </span>
                 </button>
-              </figcaption>
-            </figure>
-          </template>
+                <figcaption v-if="images.length > 1">
+                  <span>{{ String(index + 1).padStart(2, '0') }}</span>
+                  <span>/</span>
+                  <span>{{ String(images.length).padStart(2, '0') }}</span>
+                  <a
+                    v-if="image.original_url && publicDownloadEnabled"
+                    :href="image.original_url"
+                    :download="downloadFilename(index)"
+                    aria-label="下载这张原图"
+                    title="下载这张原图"
+                  >
+                    <Download :size="14" aria-hidden="true" />
+                  </a>
+                  <button
+                    v-else-if="image.original_url"
+                    type="button"
+                    class="work-download-disabled"
+                    disabled
+                    aria-label="作者未开放大众下载授权"
+                    title="作者未开放大众下载授权"
+                  >
+                    <Download :size="14" aria-hidden="true" />
+                  </button>
+                </figcaption>
+              </figure>
+            </div>
+
+            <div v-if="images.length > 1" class="work-carousel__controls">
+              <span class="work-carousel__count" aria-live="polite" aria-atomic="true">
+                {{ String(mobileCarouselIndex + 1).padStart(2, '0') }}
+                <i aria-hidden="true">/</i>
+                {{ String(images.length).padStart(2, '0') }}
+              </span>
+
+              <span class="work-carousel__dots" aria-hidden="true">
+                <i
+                  v-for="dot in mobileCarouselDots"
+                  :key="dot.index"
+                  :class="{
+                    'is-current': dot.index === mobileCarouselIndex,
+                    'is-edge': dot.edge,
+                  }"
+                ></i>
+              </span>
+
+              <a
+                v-if="currentInlineImage?.original_url && publicDownloadEnabled"
+                class="work-carousel__download"
+                :href="currentInlineImage.original_url"
+                :download="downloadFilename(mobileCarouselIndex)"
+                aria-label="下载当前原图"
+                title="下载当前原图"
+              >
+                <Download :size="16" aria-hidden="true" />
+              </a>
+              <button
+                v-else-if="currentInlineImage?.original_url"
+                type="button"
+                class="work-carousel__download work-download-disabled"
+                disabled
+                aria-label="作者未开放大众下载授权"
+                title="作者未开放大众下载授权"
+              >
+                <Download :size="16" aria-hidden="true" />
+              </button>
+              <span v-else class="work-carousel__download-spacer" aria-hidden="true"></span>
+            </div>
+          </div>
         </section>
 
         <section class="work-meta" aria-label="作品信息">
@@ -443,6 +512,13 @@ const favoriteCount = ref(Number(initialArtwork?.favorite_count || 0))
 const creatorSocial = ref({ isFollowing: false, isSelf: false, followerCount: 0 })
 const followLoading = ref(false)
 const creatorStrip = ref(null)
+const mobileCarouselTrack = ref(null)
+const mobileCarouselIndex = ref(0)
+const mobileCarouselActive = ref(false)
+const mobileCarouselSlideWidth = ref(
+  typeof window === 'undefined' ? 0 : window.innerWidth,
+)
+const measuredInlineImageDimensions = ref({})
 const activityPanelTarget = ref(null)
 const desktopActivityPanel = ref(false)
 const licensePopover = ref(null)
@@ -452,6 +528,9 @@ const viewerIndex = ref(0)
 const viewerScale = ref(1)
 let loadVersion = 0
 let desktopActivityMedia = null
+let mobileCarouselMedia = null
+let mobileCarouselResizeObserver = null
+let mobileCarouselScrollFrame = 0
 
 const isLoggedIn = computed(() => Boolean(session.state.user))
 const accountNickname = computed(() => session.state.user?.nickname || session.state.user?.username || '')
@@ -462,6 +541,49 @@ const images = computed(() => {
   if (Array.isArray(art.value?.images) && art.value.images.length) return art.value.images
   if (!art.value) return []
   return [{ image_url: art.value.image_url || '', original_url: art.value.original_url || art.value.image_url || '' }]
+})
+const inlineImageSequenceKey = computed(() => [
+  art.value?.id,
+  ...images.value.map((image) => image.image_url || image.original_url || ''),
+].join('|'))
+const currentInlineImage = computed(() => images.value[mobileCarouselIndex.value] || null)
+const mobileCarouselDots = computed(() => {
+  const count = images.value.length
+  const windowSize = Math.min(7, count)
+  const maxStart = Math.max(0, count - windowSize)
+  const start = Math.max(0, Math.min(maxStart, mobileCarouselIndex.value - 3))
+  return Array.from({ length: windowSize }, (_, position) => ({
+    index: start + position,
+    edge: (position === 0 && start > 0)
+      || (position === windowSize - 1 && start + windowSize < count),
+  }))
+})
+const mobileCarouselTallestRatio = computed(() => {
+  let tallestRatio = 0
+  for (const [index, image] of images.value.entries()) {
+    const measured = measuredInlineImageDimensions.value[index]
+    const metadataWidth = Number(image?.width || (index === 0 ? art.value?.image_width : 0))
+    const metadataHeight = Number(image?.height || (index === 0 ? art.value?.image_height : 0))
+    const measuredRatio = measured?.width > 0 && measured?.height > 0
+      ? measured.height / measured.width
+      : 0
+    // 旧作品可能没有尺寸元数据；这时一直保留到限高的保守占位，
+    // 不因惰性加载的后续图片不断收缩或撑高页面。
+    const ratio = metadataWidth > 0 && metadataHeight > 0
+      ? metadataHeight / metadataWidth
+      : Math.max(measuredRatio, 2)
+    tallestRatio = Math.max(tallestRatio, ratio)
+  }
+  return tallestRatio || 4 / 3
+})
+const mobileCarouselStyle = computed(() => {
+  if (images.value.length <= 1) return undefined
+  const slideWidth = mobileCarouselSlideWidth.value || 320
+  return {
+    '--work-mobile-carousel-content-height': `${Math.ceil(
+      slideWidth * mobileCarouselTallestRatio.value,
+    )}px`,
+  }
 })
 const firstOriginalUrl = computed(() => images.value[0]?.original_url || '')
 const safeOriginUrl = computed(() => {
@@ -774,6 +896,101 @@ function goBack() {
   else router.push({ name: 'gallery' })
 }
 
+function syncMobileCarouselMetrics() {
+  const track = mobileCarouselTrack.value
+  const firstSlide = track?.querySelector('.work-image')
+  if (!track || !firstSlide) return
+  mobileCarouselSlideWidth.value = firstSlide.clientWidth
+}
+
+function updateMobileCarouselIndex() {
+  mobileCarouselScrollFrame = 0
+  if (!mobileCarouselActive.value) return
+  const track = mobileCarouselTrack.value
+  const slides = Array.from(track?.querySelectorAll('.work-image') || [])
+  if (!track || !slides.length) return
+  const trackCenter = track.scrollLeft + track.clientWidth / 2
+  let nearestIndex = 0
+  let nearestDistance = Number.POSITIVE_INFINITY
+  for (const [index, slide] of slides.entries()) {
+    const slideCenter = slide.offsetLeft + slide.clientWidth / 2
+    const distance = Math.abs(slideCenter - trackCenter)
+    if (distance < nearestDistance) {
+      nearestIndex = index
+      nearestDistance = distance
+    }
+  }
+  mobileCarouselIndex.value = nearestIndex
+}
+
+function onMobileCarouselScroll() {
+  if (!mobileCarouselActive.value || mobileCarouselScrollFrame) return
+  mobileCarouselScrollFrame = window.requestAnimationFrame(updateMobileCarouselIndex)
+}
+
+function scrollInlineCarouselTo(index, behavior = 'smooth') {
+  if (!mobileCarouselActive.value || images.value.length <= 1) return
+  const track = mobileCarouselTrack.value
+  const slides = Array.from(track?.querySelectorAll('.work-image') || [])
+  const targetIndex = Math.max(0, Math.min(slides.length - 1, index))
+  const target = slides[targetIndex]
+  if (!track || !target) return
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  track.scrollTo({
+    left: target.offsetLeft - (track.clientWidth - target.clientWidth) / 2,
+    behavior: reduceMotion ? 'auto' : behavior,
+  })
+  mobileCarouselIndex.value = targetIndex
+}
+
+function showPreviousInlineImage() {
+  scrollInlineCarouselTo(mobileCarouselIndex.value - 1)
+}
+
+function showNextInlineImage() {
+  scrollInlineCarouselTo(mobileCarouselIndex.value + 1)
+}
+
+function onInlineCarouselKeydown(event) {
+  if (!mobileCarouselActive.value || images.value.length <= 1) return
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    showPreviousInlineImage()
+  }
+  if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    showNextInlineImage()
+  }
+}
+
+function rememberInlineImageDimensions(index, event) {
+  const image = event.currentTarget
+  if (!image?.naturalWidth || !image?.naturalHeight) return
+  const current = measuredInlineImageDimensions.value[index]
+  if (current?.width === image.naturalWidth && current?.height === image.naturalHeight) return
+  measuredInlineImageDimensions.value = {
+    ...measuredInlineImageDimensions.value,
+    [index]: { width: image.naturalWidth, height: image.naturalHeight },
+  }
+}
+
+function resetMobileCarousel() {
+  mobileCarouselIndex.value = 0
+  measuredInlineImageDimensions.value = {}
+  nextTick(() => {
+    const track = mobileCarouselTrack.value
+    track?.scrollTo({ left: 0, behavior: 'auto' })
+    mobileCarouselResizeObserver?.disconnect()
+    if (track) mobileCarouselResizeObserver?.observe(track)
+    syncMobileCarouselMetrics()
+  })
+}
+
+function syncMobileCarouselMode(event) {
+  mobileCarouselActive.value = event.matches
+  if (event.matches) nextTick(syncMobileCarouselMetrics)
+}
+
 function openViewer(index) {
   viewerIndex.value = index
   viewerScale.value = 1
@@ -824,6 +1041,7 @@ function syncDesktopActivityPanel(event) {
 }
 
 watch(() => route.params.id, loadArtwork)
+watch(inlineImageSequenceKey, resetMobileCarousel, { flush: 'post' })
 watch(viewerOpen, (open) => {
   document.documentElement.classList.toggle('art-image-viewer-open', open)
 })
@@ -832,6 +1050,11 @@ onMounted(() => {
   desktopActivityMedia = window.matchMedia('(min-width: 981px)')
   desktopActivityPanel.value = desktopActivityMedia.matches
   desktopActivityMedia.addEventListener('change', syncDesktopActivityPanel)
+  mobileCarouselMedia = window.matchMedia('(max-width: 680px)')
+  mobileCarouselActive.value = mobileCarouselMedia.matches
+  mobileCarouselMedia.addEventListener('change', syncMobileCarouselMode)
+  mobileCarouselResizeObserver = new ResizeObserver(syncMobileCarouselMetrics)
+  if (mobileCarouselTrack.value) mobileCarouselResizeObserver.observe(mobileCarouselTrack.value)
   session.ensureReady?.()
   loadArtwork()
   document.addEventListener('pointerdown', onDocumentPointerDown)
@@ -845,6 +1068,9 @@ onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   window.removeEventListener('keydown', onKeydown)
   desktopActivityMedia?.removeEventListener('change', syncDesktopActivityPanel)
+  mobileCarouselMedia?.removeEventListener('change', syncMobileCarouselMode)
+  mobileCarouselResizeObserver?.disconnect()
+  if (mobileCarouselScrollFrame) window.cancelAnimationFrame(mobileCarouselScrollFrame)
 })
 </script>
 
@@ -976,6 +1202,16 @@ onBeforeUnmount(() => {
   font: inherit;
   letter-spacing: 0;
 }
+
+.work-carousel { min-width: 0; }
+
+.work-carousel__track {
+  display: grid;
+  min-width: 0;
+  gap: 18px;
+}
+
+.work-carousel__controls { display: none; }
 
 .work-image { min-width: 0; margin: 0; }
 .work-image__open {
@@ -1664,6 +1900,113 @@ button.work-metric { cursor: pointer; }
   .work-layout { margin-top: 0; }
   .work-canvas { gap: 11px; padding: 0; border-inline: 0; }
   .work-canvas__summary { padding: 8px 12px; }
+  .work-canvas.is-multiple { gap: 0; }
+  .work-canvas.is-multiple .work-canvas__summary { display: none; }
+  .work-canvas.is-multiple .work-carousel {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .work-canvas.is-multiple .work-carousel__track {
+    display: flex;
+    width: 100%;
+    height: min(var(--work-mobile-carousel-content-height, 58svh), 58svh, 520px);
+    min-height: min(220px, 42svh);
+    box-sizing: border-box;
+    gap: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    touch-action: pan-x pan-y pinch-zoom;
+    -webkit-overflow-scrolling: touch;
+  }
+  .work-canvas.is-multiple .work-carousel__track::-webkit-scrollbar { display: none; }
+  .work-canvas.is-multiple .work-carousel__track:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--sos-accent) 72%, white);
+    outline-offset: -2px;
+  }
+  .work-canvas.is-multiple .work-image {
+    height: 100%;
+    box-sizing: border-box;
+    flex: 0 0 100%;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--sos-bg-surface) 88%, transparent);
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+  }
+  .work-canvas.is-multiple .work-image__open { height: 100%; }
+  .work-canvas.is-multiple .work-image__open img {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+  .work-canvas.is-multiple .work-image figcaption { display: none; }
+  .work-carousel__controls {
+    display: grid;
+    min-height: 44px;
+    grid-template-columns: minmax(44px, 1fr) auto minmax(44px, 1fr);
+    align-items: center;
+    gap: 12px;
+    padding: 2px 16px 0;
+  }
+  .work-carousel__count {
+    justify-self: start;
+    color: var(--sos-text-secondary);
+    font: 850 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.08em;
+  }
+  .work-carousel__count i {
+    margin-inline: 2px;
+    color: var(--sos-text-tertiary);
+    font-style: normal;
+  }
+  .work-carousel__dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+  .work-carousel__dots i {
+    width: 5px;
+    height: 5px;
+    flex: 0 0 auto;
+    background: color-mix(in srgb, var(--sos-text-tertiary) 54%, transparent);
+    border-radius: 999px;
+    transition: width 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+  }
+  .work-carousel__dots i.is-current {
+    width: 15px;
+    background: var(--sos-accent);
+  }
+  .work-carousel__dots i.is-edge { transform: scale(0.68); }
+  .work-carousel__download,
+  .work-carousel__download-spacer {
+    width: 40px;
+    height: 40px;
+    justify-self: end;
+  }
+  .work-carousel__download {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    color: var(--sos-text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+  }
+  .work-carousel__download:active { background: color-mix(in srgb, var(--sos-accent) 10%, transparent); }
+  .work-carousel__download.work-download-disabled {
+    color: var(--sos-text-tertiary);
+    cursor: not-allowed;
+    opacity: 0.48;
+  }
+  .work-canvas.is-multiple + .work-meta { padding-top: 14px; }
   .work-image__hint { display: none; }
   .work-meta { padding: 21px 16px 5px; }
   .work-meta h1 { font-size: clamp(23px, 7vw, 29px); }
@@ -1704,6 +2047,7 @@ button.work-metric { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .work-state__scanner { animation-duration: 1.8s; }
   .work-image__hint,
+  .work-carousel__dots i,
   .image-viewer__stage img { transition: none; }
 }
 </style>
