@@ -6,9 +6,18 @@
         <div class="points-search-group">
           <div class="points-search-input-wrap">
             <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            <input v-model="pointsSearchId" @input="handlePointsInput" @keyup.enter="handlePointsSearch" type="text" class="points-search-input" placeholder="搜索统一账号用户名或昵称...">
+            <input
+              v-model="pointsSearchId"
+              type="text"
+              class="points-search-input"
+              placeholder="搜索统一账号用户名或昵称..."
+              @input="handlePointsInput"
+              @focus="handlePointsFocus"
+              @blur="handlePointsBlur"
+              @keyup.enter="handlePointsSearch"
+            >
           </div>
-          <div v-if="suggestions.length > 0" class="suggestions-dropdown">
+          <div v-if="showSuggestions && suggestions.length > 0" class="suggestions-dropdown">
             <div
               v-for="suggestion in suggestions"
               :key="suggestion.id"
@@ -215,6 +224,7 @@ const fetchSuggestions = async () => {
     } catch (error) {
         console.error(error);
         suggestions.value = [];
+        if (error?.status === 401 || error?.status === 403) handleLogout();
     }
 };
 

@@ -76,7 +76,7 @@
                         @focus="handleFocus"
                         @blur="handleBlur"
                         type="text"
-                        placeholder="输入用户名查询积分吧。"
+                        placeholder="输入昵称或 UID 查询积分吧。"
                         class="search-input"
                         @keyup.enter="handleSearch"
                         autocomplete="off"
@@ -119,7 +119,7 @@
 
                         <!-- 无结果 (仅当有输入内容但无结果时显示) -->
                         <div v-else-if="searchId && searchId.length > 0" class="suggestion-empty">
-                            未找到匹配的用户名
+                            未找到匹配的昵称或 UID
                         </div>
                     </div>
                 </Transition>
@@ -505,7 +505,7 @@ const selectSuggestion = (suggestion) => {
 const handleSearch = async () => {
     showSuggestions.value = false; // 查询时关闭建议
     if (!searchId.value.trim()) {
-        alert("请输入ID");
+        alert("请输入昵称或 UID");
         return;
     }
     isSearching.value = true;

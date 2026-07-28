@@ -1035,12 +1035,27 @@ async fn points_users(
     authorize(&state.pools.core, &user, "news.points", Action::Read).await?;
 
     let term = q.get("q").map(|s| s.trim()).unwrap_or("");
+    let page = q
+        .get("page")
+        .and_then(|value| value.parse::<i64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(1);
+    let default_limit = if term.is_empty() { 100 } else { 20 };
+    let limit = q
+        .get("limit")
+        .and_then(|value| value.parse::<i64>().ok())
+        .unwrap_or(default_limit)
+        .clamp(1, 100);
+    let offset = (page - 1).saturating_mul(limit);
     let account_rows: Vec<(i64, Option<String>, String, String)> = if term.is_empty() {
         sqlx::query_as(
             "SELECT id, nickname, username, status FROM users \
              WHERE deleted_at IS NULL \
-             ORDER BY lower(COALESCE(NULLIF(nickname, ''), username))",
+             ORDER BY lower(COALESCE(NULLIF(nickname, ''), username)) \
+             LIMIT ? OFFSET ?",
         )
+        .bind(limit)
+        .bind(offset)
         .fetch_all(&state.pools.core)
         .await?
     } else {
@@ -1051,21 +1066,43 @@ async fn points_users(
              WHERE deleted_at IS NULL \
                AND (nickname LIKE ? OR username LIKE ? OR id = ?) \
              ORDER BY lower(COALESCE(NULLIF(nickname, ''), username)) \
-             LIMIT 20",
+             LIMIT ? OFFSET ?",
         )
         .bind(&like)
         .bind(&like)
         .bind(numeric_id)
+        .bind(limit)
+        .bind(offset)
         .fetch_all(&state.pools.core)
         .await?
     };
 
-    let balance_rows: Vec<(String, Option<i64>)> = sqlx::query_as(
-        "SELECT id, CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total \
-         FROM users",
-    )
-    .fetch_all(&state.pools.news)
-    .await?;
+    let mut balance_keys = Vec::with_capacity(account_rows.len() * 2);
+    for (id, nickname, username, _) in &account_rows {
+        let uid = format!("u{id}");
+        let display_name = nickname
+            .as_deref()
+            .filter(|name| !name.trim().is_empty())
+            .unwrap_or(username);
+        balance_keys.push(uid.clone());
+        if let Some(legacy) = legacy_points_key(&uid, Some(display_name)) {
+            balance_keys.push(legacy.to_string());
+        }
+    }
+    let balance_rows: Vec<(String, Option<i64>)> = if balance_keys.is_empty() {
+        Vec::new()
+    } else {
+        let mut query = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
+            "SELECT id, CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total \
+             FROM users WHERE id IN (",
+        );
+        let mut separated = query.separated(", ");
+        for key in &balance_keys {
+            separated.push_bind(key);
+        }
+        separated.push_unseparated(")");
+        query.build_query_as().fetch_all(&state.pools.news).await?
+    };
     let balances: HashMap<String, i64> = balance_rows
         .into_iter()
         .map(|(id, total)| (id, total.unwrap_or(0)))
@@ -1106,7 +1143,12 @@ async fn points_users(
                 })
         });
     }
-    Ok(Json(json!({ "message": "success", "data": data })))
+    Ok(Json(json!({
+        "message": "success",
+        "data": data,
+        "page": page,
+        "limit": limit
+    })))
 }
 
 // GET /points/search（公开）
@@ -1122,11 +1164,12 @@ async fn points_search(
     let like = format!("%{term}%");
     let numeric_id = term.strip_prefix('u').unwrap_or(term).parse::<i64>().ok();
     // 公开搜索只返回公开昵称，不暴露统一账号的登录名；UID 与昵称都可检索。
-    let rows: Vec<(i64, Option<String>, String)> = sqlx::query_as(
-        "SELECT id, nickname, username FROM users \
+    let rows: Vec<(i64, String)> = sqlx::query_as(
+        "SELECT id, nickname FROM users \
          WHERE status = 'active' AND deleted_at IS NULL \
+           AND nickname IS NOT NULL AND TRIM(nickname) <> '' \
            AND (nickname LIKE ? OR id = ?) \
-         ORDER BY lower(COALESCE(NULLIF(nickname, ''), username)) LIMIT 10",
+         ORDER BY lower(nickname) LIMIT 10",
     )
     .bind(&like)
     .bind(numeric_id)
@@ -1134,11 +1177,7 @@ async fn points_search(
     .await?;
     let data: Vec<Value> = rows
         .into_iter()
-        .map(|(_, nickname, username)| {
-            json!(nickname
-                .filter(|name| !name.trim().is_empty())
-                .unwrap_or(username))
-        })
+        .map(|(_, nickname)| json!(nickname))
         .collect();
     Ok(Json(json!({ "message": "success", "data": data })))
 }
@@ -1147,7 +1186,7 @@ async fn points_search(
 async fn points_get(State(state): State<AppState>, Path(id): Path<String>) -> AppResult<Response> {
     // 入参可能是 uid 或昵称：解析出统一 uid 后，余额按 uid 取（避免按昵称查命中不到余额显示 0），
     // 历史按 uid/昵称并集取（避免按 uid 查命中不到旧昵称历史）。
-    let (uid, nickname) = resolve_points_identity(&state, &id)
+    let (uid, nickname) = resolve_points_identity(&state, &id, false)
         .await?
         .ok_or_else(|| AppError::not_found("统一账号不存在"))?;
     let total = fetch_points_total(&state, &uid, nickname.as_deref()).await?;
@@ -1207,7 +1246,7 @@ async fn points_update(
 
     // 只允许调整真实统一账号；昵称/登录名输入会先规范化为 "u{id}"。
     // news.users 中缺少余额行时只是在统一账号下初始化余额，不会创建新的积分身份。
-    let (uid, nickname) = resolve_points_identity(&state, id)
+    let (uid, nickname) = resolve_points_identity(&state, id, true)
         .await?
         .ok_or_else(|| AppError::not_found("统一账号不存在"))?;
 
@@ -1338,6 +1377,7 @@ async fn canonicalize_points_account(
 async fn resolve_points_identity(
     state: &AppState,
     key: &str,
+    allow_login_name: bool,
 ) -> AppResult<Option<(String, Option<String>)>> {
     let key = key.trim();
     if key.is_empty() {
@@ -1349,12 +1389,14 @@ async fn resolve_points_identity(
     let row: Option<(i64, Option<String>, String)> = if let Some(id) = numeric_id {
         sqlx::query_as(
             "SELECT id, nickname, username FROM users \
-             WHERE id = ? AND deleted_at IS NULL",
+             WHERE id = ? AND deleted_at IS NULL \
+               AND (? OR status = 'active')",
         )
         .bind(id)
+        .bind(allow_login_name)
         .fetch_optional(&state.pools.core)
         .await?
-    } else {
+    } else if allow_login_name {
         // 昵称与登录名均可用于后台定位，最终始终返回规范 UID。
         sqlx::query_as(
             "SELECT id, nickname, username FROM users \
@@ -1365,12 +1407,24 @@ async fn resolve_points_identity(
         .bind(key)
         .fetch_optional(&state.pools.core)
         .await?
+    } else {
+        sqlx::query_as(
+            "SELECT id, nickname, username FROM users \
+             WHERE nickname = ? COLLATE NOCASE \
+               AND status = 'active' AND deleted_at IS NULL LIMIT 1",
+        )
+        .bind(key)
+        .fetch_optional(&state.pools.core)
+        .await?
     };
     Ok(row.map(|(id, nickname, username)| {
-        let display_name = nickname
-            .filter(|name| !name.trim().is_empty())
-            .unwrap_or(username);
-        (format!("u{id}"), Some(display_name))
+        let nickname = nickname.filter(|name| !name.trim().is_empty());
+        let display_name = if allow_login_name {
+            nickname.or(Some(username))
+        } else {
+            nickname
+        };
+        (format!("u{id}"), display_name)
     }))
 }
 

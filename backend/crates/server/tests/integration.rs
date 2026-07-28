@@ -371,6 +371,18 @@ async fn news_points_are_bound_to_core_accounts_and_adjust_atomically() {
     assert_eq!(users["data"][0]["nickname"], "PointsNickname");
     assert_eq!(users["data"][0]["total"], 4);
 
+    let (s, users_by_login) = send(
+        &app.router,
+        get("/api/news/admin/points/users?q=points-login", Some(&admin)),
+    )
+    .await;
+    assert_eq!(
+        s,
+        StatusCode::OK,
+        "后台应允许按登录名搜索: {users_by_login:?}"
+    );
+    assert_eq!(users_by_login["data"][0]["id"], uid);
+
     let (s, suggestions) = send(
         &app.router,
         get("/api/news/points/search?q=PointsNick", None),
@@ -378,6 +390,20 @@ async fn news_points_are_bound_to_core_accounts_and_adjust_atomically() {
     .await;
     assert_eq!(s, StatusCode::OK);
     assert_eq!(suggestions["data"], json!(["PointsNickname"]));
+
+    let (s, suggestions_by_login) = send(
+        &app.router,
+        get("/api/news/points/search?q=points-login", None),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(
+        suggestions_by_login["data"],
+        json!([]),
+        "公开搜索不能暴露统一账号登录名"
+    );
+    let (s, _) = send(&app.router, get("/api/news/points/points-login", None)).await;
+    assert_eq!(s, StatusCode::NOT_FOUND, "公开积分查询不能用登录名验证账号");
 
     // 用昵称查询时，响应也必须规范化为统一 UID；不能把昵称当成另一套积分账号。
     let (s, initial) = send(&app.router, get("/api/news/points/PointsNickname", None)).await;
@@ -432,6 +458,17 @@ async fn news_points_are_bound_to_core_accounts_and_adjust_atomically() {
         post_json(
             "/api/news/points/update",
             json!({ "id": format!("u{account_id}"), "change": 1.5 }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+
+    let (s, _) = send(
+        &app.router,
+        post_json(
+            "/api/news/points/update",
+            json!({ "id": format!("u{account_id}"), "change": 0 }),
             Some(&admin),
         ),
     )
