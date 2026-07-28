@@ -76,7 +76,7 @@
                         @focus="handleFocus"
                         @blur="handleBlur"
                         type="text"
-                        placeholder="输入自己的ID来查询积分吧。"
+                        placeholder="输入用户名查询积分吧。"
                         class="search-input"
                         @keyup.enter="handleSearch"
                         autocomplete="off"
@@ -119,7 +119,7 @@
 
                         <!-- 无结果 (仅当有输入内容但无结果时显示) -->
                         <div v-else-if="searchId && searchId.length > 0" class="suggestion-empty">
-                            未找到匹配的用户ID
+                            未找到匹配的用户名
                         </div>
                     </div>
                 </Transition>
