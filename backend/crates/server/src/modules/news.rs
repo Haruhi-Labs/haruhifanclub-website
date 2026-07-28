@@ -17,7 +17,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use haruhi_auth::{authorize, Action, AuthUser};
-use haruhi_core::AppResult;
+use haruhi_core::{AppError, AppResult};
 use serde_json::{json, Map, Value};
 
 use crate::state::AppState;
@@ -130,7 +130,7 @@ fn parse_json_arr(s: Option<&str>) -> Value {
 }
 
 /// 取 i64（兼容数字或数字字符串，对齐旧 Number()）。
-use haruhi_core::parse::{num_i64, parse_int_radix10};
+use haruhi_core::parse::num_i64;
 
 /// 把请求体中的字段值绑定到 sqlx query（对象/数组 → JSON 字符串，对齐旧 db.js insert/update）。
 fn bind_value<'q>(
@@ -1026,25 +1026,129 @@ async fn delete_article(
 // ============================================================
 
 // GET /admin/points/users（Read）
-async fn points_users(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+// 积分账户以 core.users 为权威来源；news.users 只保存余额，不再代表一套独立用户体系。
+async fn points_users(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<HashMap<String, String>>,
+) -> AppResult<Json<Value>> {
     authorize(&state.pools.core, &user, "news.points", Action::Read).await?;
-    let rows: Vec<(String, Option<i64>)> = sqlx::query_as(
-        "SELECT id, CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total \
-         FROM users ORDER BY CAST(NULLIF(TRIM(total), '') AS INTEGER) DESC",
-    )
-    .fetch_all(&state.pools.news)
-    .await?;
-    // 账户键是统一 uid，展示用昵称（经 core 解析；缺失则前端回退到 id）
-    let uids: Vec<String> = rows.iter().map(|(id, _)| id.clone()).collect();
-    let names = crate::modules::art::member_display_names(&state.pools.core, &uids).await;
-    let data: Vec<Value> = rows
+
+    let term = q.get("q").map(|s| s.trim()).unwrap_or("");
+    let page = q
+        .get("page")
+        .and_then(|value| value.parse::<i64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(1);
+    let default_limit = if term.is_empty() { 100 } else { 20 };
+    let limit = q
+        .get("limit")
+        .and_then(|value| value.parse::<i64>().ok())
+        .unwrap_or(default_limit)
+        .clamp(1, 100);
+    let offset = (page - 1).saturating_mul(limit);
+    let account_rows: Vec<(i64, Option<String>, String, String)> = if term.is_empty() {
+        sqlx::query_as(
+            "SELECT id, nickname, username, status FROM users \
+             WHERE deleted_at IS NULL \
+             ORDER BY lower(COALESCE(NULLIF(nickname, ''), username)) \
+             LIMIT ? OFFSET ?",
+        )
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&state.pools.core)
+        .await?
+    } else {
+        let like = format!("%{term}%");
+        let numeric_id = term.strip_prefix('u').unwrap_or(term).parse::<i64>().ok();
+        sqlx::query_as(
+            "SELECT id, nickname, username, status FROM users \
+             WHERE deleted_at IS NULL \
+               AND (nickname LIKE ? OR username LIKE ? OR id = ?) \
+             ORDER BY lower(COALESCE(NULLIF(nickname, ''), username)) \
+             LIMIT ? OFFSET ?",
+        )
+        .bind(&like)
+        .bind(&like)
+        .bind(numeric_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&state.pools.core)
+        .await?
+    };
+
+    let mut balance_keys = Vec::with_capacity(account_rows.len() * 2);
+    for (id, nickname, username, _) in &account_rows {
+        let uid = format!("u{id}");
+        let display_name = nickname
+            .as_deref()
+            .filter(|name| !name.trim().is_empty())
+            .unwrap_or(username);
+        balance_keys.push(uid.clone());
+        if let Some(legacy) = legacy_points_key(&uid, Some(display_name)) {
+            balance_keys.push(legacy.to_string());
+        }
+    }
+    let balance_rows: Vec<(String, Option<i64>)> = if balance_keys.is_empty() {
+        Vec::new()
+    } else {
+        let mut query = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
+            "SELECT id, CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total \
+             FROM users WHERE id IN (",
+        );
+        let mut separated = query.separated(", ");
+        for key in &balance_keys {
+            separated.push_bind(key);
+        }
+        separated.push_unseparated(")");
+        query.build_query_as().fetch_all(&state.pools.news).await?
+    };
+    let balances: HashMap<String, i64> = balance_rows
         .into_iter()
-        .map(|(id, total)| {
-            let nickname = names.get(&id).cloned();
-            json!({ "id": id, "nickname": nickname, "total": total })
+        .map(|(id, total)| (id, total.unwrap_or(0)))
+        .collect();
+
+    let mut data: Vec<Value> = account_rows
+        .into_iter()
+        .map(|(id, nickname, username, status)| {
+            let uid = format!("u{id}");
+            let display_name = nickname
+                .filter(|name| !name.trim().is_empty())
+                .unwrap_or_else(|| username.clone());
+            let legacy_total = legacy_points_key(&uid, Some(&display_name))
+                .and_then(|key| balances.get(key))
+                .copied()
+                .unwrap_or(0);
+            let total = balances.get(&uid).copied().unwrap_or(0) + legacy_total;
+            json!({
+                "id": uid,
+                "nickname": display_name,
+                "username": username,
+                "status": status,
+                "total": total
+            })
         })
         .collect();
-    Ok(Json(json!({ "message": "success", "data": data })))
+    if term.is_empty() {
+        data.sort_by(|a, b| {
+            b["total"]
+                .as_i64()
+                .unwrap_or(0)
+                .cmp(&a["total"].as_i64().unwrap_or(0))
+                .then_with(|| {
+                    a["nickname"]
+                        .as_str()
+                        .unwrap_or("")
+                        .cmp(b["nickname"].as_str().unwrap_or(""))
+                })
+        });
+    }
+    Ok(Json(json!({
+        "message": "success",
+        "data": data,
+        "page": page,
+        "limit": limit
+    })))
 }
 
 // GET /points/search（公开）
@@ -1056,35 +1160,42 @@ async fn points_search(
     if query.trim().is_empty() {
         return Ok(Json(json!({ "message": "success", "data": [] })));
     }
-    let like = format!("%{query}%");
-    let rows: Vec<(String,)> = sqlx::query_as("SELECT id FROM users WHERE id LIKE ? LIMIT 10")
-        .bind(&like)
-        .fetch_all(&state.pools.news)
-        .await?;
-    let data: Vec<Value> = rows.into_iter().map(|(id,)| json!(id)).collect();
+    let term = query.trim();
+    let like = format!("%{term}%");
+    let numeric_id = term.strip_prefix('u').unwrap_or(term).parse::<i64>().ok();
+    // 公开搜索只返回公开昵称，不暴露统一账号的登录名；UID 与昵称都可检索。
+    let rows: Vec<(i64, String)> = sqlx::query_as(
+        "SELECT id, nickname FROM users \
+         WHERE status = 'active' AND deleted_at IS NULL \
+           AND nickname IS NOT NULL AND TRIM(nickname) <> '' \
+           AND (nickname LIKE ? OR id = ?) \
+         ORDER BY lower(nickname) LIMIT 10",
+    )
+    .bind(&like)
+    .bind(numeric_id)
+    .fetch_all(&state.pools.core)
+    .await?;
+    let data: Vec<Value> = rows
+        .into_iter()
+        .map(|(_, nickname)| json!(nickname))
+        .collect();
     Ok(Json(json!({ "message": "success", "data": data })))
 }
 
 // GET /points/:id（公开）
-async fn points_get(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> AppResult<Json<Value>> {
+async fn points_get(State(state): State<AppState>, Path(id): Path<String>) -> AppResult<Response> {
     // 入参可能是 uid 或昵称：解析出统一 uid 后，余额按 uid 取（避免按昵称查命中不到余额显示 0），
     // 历史按 uid/昵称并集取（避免按 uid 查命中不到旧昵称历史）。
-    let (uid, nickname) = resolve_points_identity(&state, &id).await;
-    let total_row: Option<(Option<i64>,)> = sqlx::query_as(
-        "SELECT CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total FROM users WHERE id = ?",
-    )
-    .bind(&uid)
-    .fetch_optional(&state.pools.news)
-    .await?;
-    let total = total_row.and_then(|(t,)| t).unwrap_or(0);
+    let (uid, nickname) = resolve_points_identity(&state, &id, false)
+        .await?
+        .ok_or_else(|| AppError::not_found("统一账号不存在"))?;
+    let total = fetch_points_total(&state, &uid, nickname.as_deref()).await?;
     let history = fetch_points_history(&state, &uid, nickname.as_deref()).await?;
     Ok(Json(json!({
         "message": "success",
         "data": { "id": uid, "nickname": nickname, "total": total, "history": history }
-    })))
+    }))
+    .into_response())
 }
 
 // POST /points/update（Manage）
@@ -1103,18 +1214,25 @@ async fn points_update(
         )
             .into_response());
     }
-    // parseInt(change, 10)：取整数；非法 → 400
+    // 积分只接受完整整数；禁止把 1.9 或 "12abc" 静默截断为其它数值。
     let change_num = match body.get("change") {
-        Some(Value::Number(n)) => n.as_i64().or_else(|| n.as_f64().map(|f| f as i64)),
-        Some(Value::String(s)) => parse_int_radix10(s),
+        Some(Value::Number(n)) => n.as_i64(),
+        Some(Value::String(s)) => s.trim().parse::<i64>().ok(),
         _ => None,
     };
     let change_num = match change_num {
-        Some(n) => n,
+        Some(n) if n != 0 => n,
         None => {
             return Ok((
                 StatusCode::BAD_REQUEST,
-                Json(json!({ "error": "Invalid change amount" })),
+                Json(json!({ "error": "积分变动必须是非零整数" })),
+            )
+                .into_response())
+        }
+        Some(_) => {
+            return Ok((
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": "积分变动必须是非零整数" })),
             )
                 .into_response())
         }
@@ -1126,31 +1244,31 @@ async fn points_update(
         .unwrap_or("系统调整")
         .to_string();
 
-    // 取或建用户
-    let existing: Option<(String, Option<i64>)> = sqlx::query_as(
-        "SELECT id, CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total FROM users WHERE id = ?",
-    )
-    .bind(id)
-    .fetch_optional(&state.pools.news)
-    .await?;
-    let old_total = match existing {
-        Some((_, t)) => t.unwrap_or(0),
-        None => {
-            sqlx::query("INSERT INTO users (id, total) VALUES (?, ?)")
-                .bind(id)
-                .bind(0_i64)
-                .execute(&state.pools.news)
-                .await?;
-            0
-        }
-    };
+    // 只允许调整真实统一账号；昵称/登录名输入会先规范化为 "u{id}"。
+    // news.users 中缺少余额行时只是在统一账号下初始化余额，不会创建新的积分身份。
+    let (uid, nickname) = resolve_points_identity(&state, id, true)
+        .await?
+        .ok_or_else(|| AppError::not_found("统一账号不存在"))?;
 
-    let new_total = old_total + change_num;
-    sqlx::query("UPDATE users SET total = ? WHERE id = ?")
-        .bind(new_total)
-        .bind(id)
-        .execute(&state.pools.news)
-        .await?;
+    // 余额和流水在同一事务中提交；余额使用 SQL 原子加法，避免并发读旧值后相互覆盖。
+    let mut tx = state.pools.news.begin().await?;
+    canonicalize_points_account(&mut tx, &uid, nickname.as_deref()).await?;
+    sqlx::query(
+        "UPDATE users \
+         SET total = CAST(COALESCE(NULLIF(TRIM(total), ''), '0') AS INTEGER) + ? \
+         WHERE id = ?",
+    )
+    .bind(change_num)
+    .bind(&uid)
+    .execute(&mut *tx)
+    .await?;
+    let new_total: i64 = sqlx::query_scalar(
+        "SELECT CAST(COALESCE(NULLIF(TRIM(total), ''), '0') AS INTEGER) \
+         FROM users WHERE id = ?",
+    )
+    .bind(&uid)
+    .fetch_one(&mut *tx)
+    .await?;
 
     // 历史记录
     let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
@@ -1163,52 +1281,151 @@ async fn points_update(
     sqlx::query(
         "INSERT INTO points_history (user_id, date, change, reason, timestamp) VALUES (?, ?, ?, ?, ?)",
     )
-    .bind(id)
+    .bind(&uid)
     .bind(&date)
     .bind(&change_str)
     .bind(&reason)
     .bind(timestamp)
-    .execute(&state.pools.news)
+    .execute(&mut *tx)
     .await?;
+    tx.commit().await?;
 
-    let (uid, nickname) = resolve_points_identity(&state, id).await;
     let history = fetch_points_history(&state, &uid, nickname.as_deref()).await?;
     Ok(Json(json!({
         "message": "success",
-        "data": { "id": id, "nickname": nickname, "total": new_total, "history": history }
+        "data": { "id": uid, "nickname": nickname, "total": new_total, "history": history }
     }))
     .into_response())
 }
 
+/// 旧版本可能把同一账号的余额写到公开用户名键下。
+/// 形如 u123 的名称可能恰好是另一个真实 UID，为避免误合并，这类名称不作为旧键处理。
+fn legacy_points_key<'a>(uid: &str, nickname: Option<&'a str>) -> Option<&'a str> {
+    nickname
+        .map(str::trim)
+        .filter(|key| !key.is_empty() && *key != uid)
+        .filter(|key| {
+            key.strip_prefix('u')
+                .and_then(|value| value.parse::<i64>().ok())
+                .is_none()
+        })
+}
+
+/// 读取时合计规范 UID 与可能遗留的公开用户名余额，保证迁移前后的现有积分不会丢失。
+async fn fetch_points_total(state: &AppState, uid: &str, nickname: Option<&str>) -> AppResult<i64> {
+    let legacy = legacy_points_key(uid, nickname).unwrap_or(uid);
+    let total: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(SUM( \
+             CAST(COALESCE(NULLIF(TRIM(total), ''), '0') AS INTEGER) \
+         ), 0) FROM users WHERE id = ? OR id = ?",
+    )
+    .bind(uid)
+    .bind(legacy)
+    .fetch_one(&state.pools.news)
+    .await?;
+    Ok(total)
+}
+
+/// 写入前把旧用户名余额与流水原子归并到统一 UID，并确保规范余额行存在。
+async fn canonicalize_points_account(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    uid: &str,
+    nickname: Option<&str>,
+) -> AppResult<()> {
+    sqlx::query("INSERT OR IGNORE INTO users (id, total) VALUES (?, 0)")
+        .bind(uid)
+        .execute(&mut **tx)
+        .await?;
+
+    let Some(legacy) = legacy_points_key(uid, nickname) else {
+        return Ok(());
+    };
+    let legacy_total: Option<i64> = sqlx::query_scalar(
+        "SELECT CAST(COALESCE(NULLIF(TRIM(total), ''), '0') AS INTEGER) \
+         FROM users WHERE id = ?",
+    )
+    .bind(legacy)
+    .fetch_optional(&mut **tx)
+    .await?;
+    if let Some(total) = legacy_total {
+        sqlx::query(
+            "UPDATE users \
+             SET total = CAST(COALESCE(NULLIF(TRIM(total), ''), '0') AS INTEGER) + ? \
+             WHERE id = ?",
+        )
+        .bind(total)
+        .bind(uid)
+        .execute(&mut **tx)
+        .await?;
+    }
+    // 先迁流水再删旧余额行，兼容启用了外键约束的 SQLite 连接。
+    sqlx::query("UPDATE points_history SET user_id = ? WHERE user_id = ?")
+        .bind(uid)
+        .bind(legacy)
+        .execute(&mut **tx)
+        .await?;
+    sqlx::query("DELETE FROM users WHERE id = ?")
+        .bind(legacy)
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
+}
+
 /// 解析积分账户键 → (uid, nickname)。
-/// 历史包袱：余额表 `users` 按统一 uid（"u{id}"）存，旧 `points_history` 按昵称存。
+/// 历史包袱：余额表 `users` 应按统一 uid（"u{id}"）存，旧余额/流水可能按昵称存。
 /// 入参可能是 uid 或昵称，统一解析出两者，便于余额按 uid 取、历史按昵称/uid 并集取，并展示昵称。
-async fn resolve_points_identity(state: &AppState, key: &str) -> (String, Option<String>) {
+async fn resolve_points_identity(
+    state: &AppState,
+    key: &str,
+    allow_login_name: bool,
+) -> AppResult<Option<(String, Option<String>)>> {
     let key = key.trim();
     if key.is_empty() {
-        return (String::new(), None);
+        return Ok(None);
     }
-    // 情况一：已是 "u{id}" → 经 core 取昵称
-    if key
+    let numeric_id = key
         .strip_prefix('u')
-        .and_then(|s| s.parse::<i64>().ok())
-        .is_some()
-    {
-        let names =
-            crate::modules::art::member_display_names(&state.pools.core, &[key.to_string()]).await;
-        return (key.to_string(), names.get(key).cloned());
-    }
-    // 情况二：当作昵称反查 uid（昵称有唯一索引，至多一条）；查不到则原样回退当昵称用
-    let row: Option<(i64,)> =
-        sqlx::query_as("SELECT id FROM users WHERE nickname = ? AND deleted_at IS NULL")
-            .bind(key)
-            .fetch_optional(&state.pools.core)
-            .await
-            .unwrap_or(None);
-    match row {
-        Some((id,)) => (format!("u{id}"), Some(key.to_string())),
-        None => (key.to_string(), Some(key.to_string())),
-    }
+        .and_then(|value| value.parse::<i64>().ok());
+    let row: Option<(i64, Option<String>, String)> = if let Some(id) = numeric_id {
+        sqlx::query_as(
+            "SELECT id, nickname, username FROM users \
+             WHERE id = ? AND deleted_at IS NULL \
+               AND (? OR status = 'active')",
+        )
+        .bind(id)
+        .bind(allow_login_name)
+        .fetch_optional(&state.pools.core)
+        .await?
+    } else if allow_login_name {
+        // 昵称与登录名均可用于后台定位，最终始终返回规范 UID。
+        sqlx::query_as(
+            "SELECT id, nickname, username FROM users \
+             WHERE (nickname = ? COLLATE NOCASE OR username = ? COLLATE NOCASE) \
+               AND deleted_at IS NULL LIMIT 1",
+        )
+        .bind(key)
+        .bind(key)
+        .fetch_optional(&state.pools.core)
+        .await?
+    } else {
+        sqlx::query_as(
+            "SELECT id, nickname, username FROM users \
+             WHERE nickname = ? COLLATE NOCASE \
+               AND status = 'active' AND deleted_at IS NULL LIMIT 1",
+        )
+        .bind(key)
+        .fetch_optional(&state.pools.core)
+        .await?
+    };
+    Ok(row.map(|(id, nickname, username)| {
+        let nickname = nickname.filter(|name| !name.trim().is_empty());
+        let display_name = if allow_login_name {
+            nickname.or(Some(username))
+        } else {
+            nickname
+        };
+        (format!("u{id}"), display_name)
+    }))
 }
 
 /// 取用户积分历史（最近 50 条，timestamp 降序）。
@@ -1218,7 +1435,7 @@ async fn fetch_points_history(
     uid: &str,
     nickname: Option<&str>,
 ) -> AppResult<Vec<Value>> {
-    let alt = nickname.unwrap_or(uid);
+    let alt = legacy_points_key(uid, nickname).unwrap_or(uid);
     let rows: Vec<(Option<String>, Option<String>, Option<String>, Option<i64>)> = sqlx::query_as(
         "SELECT date, change, reason, CAST(NULLIF(TRIM(timestamp), '') AS INTEGER) AS timestamp FROM points_history \
          WHERE user_id = ? OR user_id = ? ORDER BY timestamp DESC LIMIT 50",
@@ -1258,13 +1475,7 @@ async fn my_points(State(state): State<AppState>, user: AuthUser) -> AppResult<J
         crate::modules::art::member_display_names(&state.pools.core, std::slice::from_ref(&uid))
             .await;
     let nickname = names.get(&uid).cloned();
-    let row: Option<(String, Option<i64>)> = sqlx::query_as(
-        "SELECT id, CAST(NULLIF(TRIM(total), '') AS INTEGER) AS total FROM users WHERE id = ?",
-    )
-    .bind(&uid)
-    .fetch_optional(&state.pools.news)
-    .await?;
-    let total = row.map(|(_, t)| t.unwrap_or(0)).unwrap_or(0);
+    let total = fetch_points_total(&state, &uid, nickname.as_deref()).await?;
     let history = fetch_points_history(&state, &uid, nickname.as_deref()).await?;
     Ok(Json(json!({
         "message": "success",
@@ -1420,6 +1631,8 @@ async fn redeem_prize(
     Path(id): Path<i64>,
 ) -> AppResult<Response> {
     let uid = crate::auth_routes::member_uid(user.id);
+    let names = crate::modules::art::member_display_names(&state.pools.core, &[uid.clone()]).await;
+    let nickname = names.get(&uid).map(String::as_str);
 
     let prize: Option<(Option<String>, i64, i64)> = sqlx::query_as(
         "SELECT name, \
@@ -1457,6 +1670,7 @@ async fn redeem_prize(
     }
 
     let mut tx = state.pools.news.begin().await?;
+    canonicalize_points_account(&mut tx, &uid, nickname).await?;
 
     // 原子扣库存（条件更新防超卖）
     let dec_stock = sqlx::query(

@@ -261,7 +261,7 @@ export const useMainStore = defineStore('main', () => {
     // --- Points Actions ---
     const fetchUserPoints = async (userId) => {
         try {
-            const result = await api.get(`/points/${userId}`);
+            const result = await api.get(`/points/${encodeURIComponent(userId)}`);
             return result.data;
         } catch (error) {
             return null;

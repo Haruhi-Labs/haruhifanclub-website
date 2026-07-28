@@ -234,6 +234,23 @@ async fn insert_active_user(state: &AppState, user: &str, pass: &str) {
     .unwrap();
 }
 
+async fn insert_named_active_user(state: &AppState, user: &str, nickname: &str, pass: &str) -> i64 {
+    let hash = hash_password(pass).unwrap();
+    sqlx::query(
+        "INSERT INTO users \
+         (username, password_hash, display_name, nickname, is_super_admin, status) \
+         VALUES (?, ?, ?, ?, 0, 'active')",
+    )
+    .bind(user)
+    .bind(hash)
+    .bind(nickname)
+    .bind(nickname)
+    .execute(&state.pools.core)
+    .await
+    .unwrap()
+    .last_insert_rowid()
+}
+
 // ---- 测试 ----
 
 #[tokio::test]
@@ -317,6 +334,163 @@ async fn public_news_articles_list_is_accessible() {
         j.is_array() || j.is_object(),
         "应返回 JSON 结构，实际: {j:?}"
     );
+}
+
+#[tokio::test]
+async fn news_points_are_bound_to_core_accounts_and_adjust_atomically() {
+    let app = setup().await;
+    let admin = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let account_id =
+        insert_named_active_user(&app.state, "points-login", "PointsNickname", "points-pass").await;
+    let uid = format!("u{account_id}");
+
+    // 模拟旧前端曾把同一个人的余额和流水写到公开用户名键下。
+    sqlx::query("INSERT INTO users (id, total) VALUES ('PointsNickname', 4)")
+        .execute(&app.state.pools.news)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO points_history (user_id, date, change, reason, timestamp) \
+         VALUES ('PointsNickname', '2026-01-01', '+4', '旧用户名余额', 1)",
+    )
+    .execute(&app.state.pools.news)
+    .await
+    .unwrap();
+
+    // 统一账号即使尚无规范 UID 余额行，也必须能被搜到，且旧用户名余额应正确计入。
+    let (s, users) = send(
+        &app.router,
+        get(
+            "/api/news/admin/points/users?q=PointsNickname",
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK, "统一账号搜索应成功: {users:?}");
+    assert_eq!(users["data"][0]["id"], uid);
+    assert_eq!(users["data"][0]["nickname"], "PointsNickname");
+    assert_eq!(users["data"][0]["total"], 4);
+
+    let (s, users_by_login) = send(
+        &app.router,
+        get("/api/news/admin/points/users?q=points-login", Some(&admin)),
+    )
+    .await;
+    assert_eq!(
+        s,
+        StatusCode::OK,
+        "后台应允许按登录名搜索: {users_by_login:?}"
+    );
+    assert_eq!(users_by_login["data"][0]["id"], uid);
+
+    let (s, suggestions) = send(
+        &app.router,
+        get("/api/news/points/search?q=PointsNick", None),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(suggestions["data"], json!(["PointsNickname"]));
+
+    let (s, suggestions_by_login) = send(
+        &app.router,
+        get("/api/news/points/search?q=points-login", None),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(
+        suggestions_by_login["data"],
+        json!([]),
+        "公开搜索不能暴露统一账号登录名"
+    );
+    let (s, _) = send(&app.router, get("/api/news/points/points-login", None)).await;
+    assert_eq!(s, StatusCode::NOT_FOUND, "公开积分查询不能用登录名验证账号");
+
+    // 用昵称查询时，响应也必须规范化为统一 UID；不能把昵称当成另一套积分账号。
+    let (s, initial) = send(&app.router, get("/api/news/points/PointsNickname", None)).await;
+    assert_eq!(s, StatusCode::OK, "统一账号积分查询应成功: {initial:?}");
+    assert_eq!(initial["data"]["id"], uid);
+    assert_eq!(initial["data"]["total"], 4);
+
+    let (s, added) = send(
+        &app.router,
+        post_json(
+            "/api/news/points/update",
+            json!({ "id": "PointsNickname", "change": 12, "reason": "测试加分" }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK, "加分应成功: {added:?}");
+    assert_eq!(added["data"]["id"], uid);
+    assert_eq!(added["data"]["total"], 16);
+
+    let (s, deducted) = send(
+        &app.router,
+        post_json(
+            "/api/news/points/update",
+            json!({ "id": uid, "change": "-5", "reason": "测试扣分" }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK, "扣分应成功: {deducted:?}");
+    assert_eq!(deducted["data"]["total"], 11);
+
+    let balance_accounts: Vec<String> = sqlx::query_scalar("SELECT id FROM users ORDER BY id")
+        .fetch_all(&app.state.pools.news)
+        .await
+        .unwrap();
+    assert_eq!(
+        balance_accounts,
+        vec![format!("u{account_id}")],
+        "余额表只能保存统一 UID，不能额外创建昵称账号"
+    );
+    let history_accounts: Vec<String> =
+        sqlx::query_scalar("SELECT DISTINCT user_id FROM points_history")
+            .fetch_all(&app.state.pools.news)
+            .await
+            .unwrap();
+    assert_eq!(history_accounts, vec![format!("u{account_id}")]);
+
+    // 非整数不再被静默截断，未知字符串也不能借积分调整接口创建用户。
+    let (s, _) = send(
+        &app.router,
+        post_json(
+            "/api/news/points/update",
+            json!({ "id": format!("u{account_id}"), "change": 1.5 }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+
+    let (s, _) = send(
+        &app.router,
+        post_json(
+            "/api/news/points/update",
+            json!({ "id": format!("u{account_id}"), "change": 0 }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+
+    let (s, _) = send(
+        &app.router,
+        post_json(
+            "/api/news/points/update",
+            json!({ "id": "not-a-core-account", "change": 99 }),
+            Some(&admin),
+        ),
+    )
+    .await;
+    assert_eq!(s, StatusCode::NOT_FOUND);
+    let bogus_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE id = 'not-a-core-account'")
+            .fetch_one(&app.state.pools.news)
+            .await
+            .unwrap();
+    assert_eq!(bogus_count, 0);
 }
 
 #[tokio::test]

@@ -6,10 +6,27 @@
         <div class="points-search-group">
           <div class="points-search-input-wrap">
             <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            <input v-model="pointsSearchId" @input="handlePointsInput" @keyup.enter="handlePointsSearch" type="text" class="points-search-input" placeholder="搜索用户 ID...">
+            <input
+              v-model="pointsSearchId"
+              type="text"
+              class="points-search-input"
+              placeholder="搜索统一账号用户名或昵称..."
+              @input="handlePointsInput"
+              @focus="handlePointsFocus"
+              @blur="handlePointsBlur"
+              @keyup.enter="handlePointsSearch"
+            >
           </div>
-          <div v-if="suggestions.length > 0" class="suggestions-dropdown">
-            <div v-for="(suggestion, index) in suggestions" :key="index" @click="selectSuggestion(suggestion)" class="suggestion-item">{{ suggestion }}</div>
+          <div v-if="showSuggestions && suggestions.length > 0" class="suggestions-dropdown">
+            <div
+              v-for="suggestion in suggestions"
+              :key="suggestion.id"
+              @click="selectSuggestion(suggestion)"
+              class="suggestion-item"
+            >
+              <span>{{ suggestion.nickname }}</span>
+              <span class="suggestion-account">{{ suggestion.username }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -20,8 +37,8 @@
         </div>
         <div v-for="user in pointsUserList" :key="user.id" @click="selectUserFromList(user)" class="user-card" :class="currentPointsUser?.id === user.id ? 'user-card-active' : 'user-card-inactive'">
           <div class="user-card-top">
-            <span class="user-card-id">{{ user.nickname || user.id }}</span>
-            <span class="user-card-label">User</span>
+            <span class="user-card-id">{{ user.nickname || user.username || '未命名用户' }}</span>
+            <span class="user-card-label">{{ user.username || '统一账号' }}</span>
           </div>
           <div class="user-card-bottom">
             <span class="user-card-pts-label">现有积分</span>
@@ -35,7 +52,7 @@
         <div class="points-detail-header">
              <div>
               <h2 class="points-detail-title">用户详情</h2>
-              <p class="points-detail-id">{{ currentPointsUser.nickname || currentPointsUser.id }}</p>
+              <p class="points-detail-id">{{ currentPointsUser.nickname || currentPointsUser.username || '未命名用户' }}</p>
              </div>
              <div class="points-detail-total-wrap">
                  <div class="points-total-label">Total Points</div>
@@ -158,7 +175,8 @@ const fetchAllPointsUsers = async () => {
 const buildPointsUser = (userId, data, fallback = {}) => ({
     ...fallback,
     ...data,
-    id: userId,
+    // 后端返回的 id 是统一账号规范 UID；不能再被搜索框里的昵称覆盖。
+    id: data?.id ?? fallback?.id ?? userId,
     nickname: data?.nickname ?? fallback?.nickname ?? null,
     total: Number(data?.total ?? fallback?.total ?? 0),
     history: Array.isArray(data?.history) ? data.history : (Array.isArray(fallback?.history) ? fallback.history : [])
@@ -198,14 +216,15 @@ const fetchSuggestions = async () => {
         return;
     }
 
-    if (typeof store.searchUsers === 'function') {
-        try {
-            const results = await store.searchUsers(pointsSearchId.value);
-            suggestions.value = Array.isArray(results) ? results : [];
-        } catch (error) {
-            console.error(error);
-            suggestions.value = [];
-        }
+    try {
+        const result = await newsApi.get(
+            `/admin/points/users?q=${encodeURIComponent(pointsSearchId.value.trim())}`
+        );
+        suggestions.value = Array.isArray(result.data) ? result.data : [];
+    } catch (error) {
+        console.error(error);
+        suggestions.value = [];
+        if (error?.status === 401 || error?.status === 403) handleLogout();
     }
 };
 
@@ -230,9 +249,9 @@ const handlePointsBlur = () => {
 };
 
 const selectSuggestion = (suggestion) => {
-    pointsSearchId.value = suggestion;
+    pointsSearchId.value = suggestion.id;
     showSuggestions.value = false;
-    handlePointsSearch();
+    loadUserDetail(suggestion);
 };
 
 const selectUserFromList = (user) => {
@@ -279,8 +298,11 @@ const submitPointsUpdate = async () => {
         );
 
         if (updatedUser) {
-            // Ensure ID persists in the returned object or merge it
-            const userWithId = { ...updatedUser, id: currentPointsUser.value.id };
+            const userWithId = buildPointsUser(
+                currentPointsUser.value.id,
+                updatedUser,
+                currentPointsUser.value
+            );
 
             // Update current view
             currentPointsUser.value = userWithId;
@@ -442,11 +464,19 @@ onMounted(() => {
 }
 
 .suggestion-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
   line-height: 1.25rem;
   cursor: pointer;
   border-bottom: 1px solid var(--sos-bg-subtle);
+}
+
+.suggestion-account {
+  color: var(--sos-text-tertiary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 .suggestion-item:hover {
