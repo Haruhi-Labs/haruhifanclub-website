@@ -104,6 +104,11 @@
 import { ref, onMounted } from 'vue';
 import { useMainStore } from '@/stores/main';
 import { createApiClient } from '@haruhi/api-client';
+import {
+    loadAllPointsUsers,
+    POINTS_USERS_PAGE_SIZE,
+    sortPointsUsers
+} from '@/features/points/pointsUserList';
 
 // 统一后端：积分用户列表也走 /api/news + 自动注入 JWT
 const newsApi = createApiClient('/api/news');
@@ -143,26 +148,23 @@ const handleLogout = () => {
 
 // ================= Points Management Actions =================
 
-// Helper to update local list (History behavior)
+// 更新单个用户后继续保持列表去重和全局积分顺序。
 const updateLocalList = (user) => {
-    const existingIndex = pointsUserList.value.findIndex(u => u.id === user.id);
-    if (existingIndex !== -1) {
-        // Move to top if exists
-        pointsUserList.value.splice(existingIndex, 1);
-        pointsUserList.value.unshift(user);
-    } else {
-        // Add new to top
-        pointsUserList.value.unshift(user);
-    }
+    const remainingUsers = pointsUserList.value.filter(
+        (existingUser) => existingUser.id !== user.id
+    );
+    pointsUserList.value = sortPointsUsers([...remainingUsers, user]);
 };
 
 // Fetch list of all users from API
 const fetchAllPointsUsers = async () => {
     pointsLoading.value = true;
     try {
-        const result = await newsApi.get('/admin/points/users');
-        // Assuming response is { message: "success", data: [...] }
-        pointsUserList.value = result.data || [];
+        pointsUserList.value = await loadAllPointsUsers(
+            (page, limit) =>
+                newsApi.get(`/admin/points/users?page=${page}&limit=${limit}`),
+            POINTS_USERS_PAGE_SIZE
+        );
     } catch (e) {
         console.error("Error fetching user list:", e);
         // 401/403：JWT 失效或无权限，退出管理态
