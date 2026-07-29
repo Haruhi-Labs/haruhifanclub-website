@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test"
   },
   "dependencies": {
     "@haruhi/api-client": "workspace:*",
@@ -14,6 +15,7 @@
     "@haruhi/design-system": "workspace:*",
     "@haruhi/seo": "workspace:*",
     "@haruhi/ui": "workspace:*",
+    "@jsquash/webp": "1.5.0",
     "justified-layout": "^4.1.0",
     "lucide-vue-next": "^1.0.0",
     "pinia": "^3.0.4",

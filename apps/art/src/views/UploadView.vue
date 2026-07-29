@@ -201,7 +201,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../services/api'
-import { compressToWebP } from '../utils/imageCompressor.js'
+import { compressToWebP, disposeEncoderWorker } from '../utils/imageCompressor.js'
 import { useSession } from '@haruhi/auth-ui'
 import { saveUploadDraft, takeUploadDraft, clearUploadDraft } from '../composables/uploadDraft.js'
 
@@ -275,6 +275,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  disposeEncoderWorker()
+
   const hasContent =
     title.value.trim() ||
     description.value.trim() ||
