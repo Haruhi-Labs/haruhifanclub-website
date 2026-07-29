@@ -36,6 +36,7 @@ export async function compressToWebP(file, quality = 0.9, maxWidth = 0) {
 let encoderWorker = null
 let nextJobId = 0
 const pendingJobs = new Map()
+const ENCODE_TIMEOUT_MS = 30_000
 
 function encodeWithSquoosh(imageData, quality) {
   const worker = getEncoderWorker()
@@ -43,27 +44,48 @@ function encodeWithSquoosh(imageData, quality) {
   const pixels = imageData.data.buffer
 
   return new Promise((resolve, reject) => {
-    pendingJobs.set(id, { resolve, reject })
-    worker.postMessage(
-      {
-        id,
-        pixels,
-        width: imageData.width,
-        height: imageData.height,
-        quality,
+    const timer = setTimeout(() => {
+      if (!pendingJobs.has(id)) return
+      stopEncoderWorker(new Error('WebP 编码超时'))
+    }, ENCODE_TIMEOUT_MS)
+    const job = {
+      resolve(value) {
+        clearTimeout(timer)
+        resolve(value)
       },
-      [pixels]
-    )
+      reject(error) {
+        clearTimeout(timer)
+        reject(error)
+      },
+    }
+
+    pendingJobs.set(id, job)
+    try {
+      worker.postMessage(
+        {
+          id,
+          pixels,
+          width: imageData.width,
+          height: imageData.height,
+          quality,
+        },
+        [pixels]
+      )
+    } catch (error) {
+      pendingJobs.delete(id)
+      job.reject(error instanceof Error ? error : new Error(String(error)))
+    }
   })
 }
 
 function getEncoderWorker() {
   if (encoderWorker) return encoderWorker
 
-  encoderWorker = new Worker(new URL('./webpEncoder.worker.js', import.meta.url), {
+  const worker = new Worker(new URL('./webpEncoder.worker.js', import.meta.url), {
     type: 'module',
   })
-  encoderWorker.addEventListener('message', ({ data }) => {
+  encoderWorker = worker
+  worker.addEventListener('message', ({ data }) => {
     const job = pendingJobs.get(data.id)
     if (!job) return
 
@@ -74,15 +96,24 @@ function getEncoderWorker() {
       job.resolve(data.encoded)
     }
   })
-  encoderWorker.addEventListener('error', (event) => {
+  worker.addEventListener('error', (event) => {
+    if (encoderWorker !== worker) return
     const error = new Error(event.message || 'WebP 编码线程异常')
-    for (const job of pendingJobs.values()) job.reject(error)
-    pendingJobs.clear()
-    encoderWorker?.terminate()
-    encoderWorker = null
+    stopEncoderWorker(error)
   })
 
-  return encoderWorker
+  return worker
+}
+
+function stopEncoderWorker(error) {
+  for (const job of pendingJobs.values()) job.reject(error)
+  pendingJobs.clear()
+  encoderWorker?.terminate()
+  encoderWorker = null
+}
+
+export function disposeEncoderWorker() {
+  stopEncoderWorker(new Error('WebP 编码线程已释放'))
 }
 
 function normalizeQuality(quality) {
