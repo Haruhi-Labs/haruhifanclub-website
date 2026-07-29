@@ -15,6 +15,13 @@ export default defineConfig(({ mode }) => {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
+    // jSquash 的编码器按需加载 WebAssembly，避免 Vite 预打包破坏 WASM 相对路径。
+    optimizeDeps: {
+      exclude: ['@jsquash/webp'],
+    },
+    worker: {
+      format: 'es',
+    },
     server: {
       port: 5201,
       proxy: {
