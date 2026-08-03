@@ -3,7 +3,7 @@
 # 分层（PR 求快、合入 main 后求全）：
 #   - PR：后端只跑 fmt + clippy(lib+bins) + 单测(`cargo test --lib`)；前端 lint 一次并构建各 app。快。
 #   - push 到 main：后端跑全量 clippy(--all-targets) + 完整测试(含 tests/ 集成)。
-# 后端不再跑 `cargo build --release`（部署时用 Docker 交叉编译，CI 里冗余且慢）。
+# 后端不再跑 `cargo build --release`（部署时在本机用 Zig 交叉编译，CI 里冗余且慢）。
 #
 # branch protection（务必照做）：dorny/paths-filter 会让无关 job 被 skip，
 # 被 skip 的 job 永不上报状态——**把底部聚合 gate「ci-ok」设为唯一的 required status check**，

@@ -4,6 +4,11 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
+[features]
+# 生产后端从 macOS 用 Zig 交叉编译时启用。WebAuthn 间接依赖 openssl-sys；
+# vendored 后由 cargo-zigbuild 用 Zig 编译 Linux 静态库，不依赖本机或服务器的 OpenSSL 开发包。
+deploy-vendored-openssl = ["dep:openssl-sys"]
+
 [[bin]]
 name = "haruhi-server"
 path = "src/main.rs"
@@ -43,6 +48,8 @@ webauthn-rs = { version = "=0.5.4", features = [
     "danger-allow-state-serialisation",
     "conditional-ui",
 ] }
+# 仅由 deploy-vendored-openssl feature 激活，用于生产 Zig 交叉编译。
+openssl-sys = { version = "0.9", features = ["vendored"], optional = true }
 # 2FA / TOTP：生成密钥与 otpauth URI、校验动态码（不启用 qr feature，二维码交前端渲染）
 totp-rs = { version = "5", features = ["otpauth", "gen_secret"] }
 
