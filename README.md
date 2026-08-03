@@ -148,13 +148,15 @@ pnpm build:apps                   # 构建 apps/*/dist
 cargo build --release -p haruhi-server
 ```
 
-生产部署不要直接拿本机 release 二进制上传到 Linux 服务器。使用脚本交叉编译并推送：
+生产部署不要直接拿 macOS 的 release 二进制上传到 Linux 服务器。部署脚本会使用
+Zig/cargo-zigbuild 在本机生成 Linux x86_64 ELF，再备份并替换服务器二进制：
 
 ```bash
 HARUHI_DEPLOY_HOST=root@<server> bash deploy/deploy.sh
 ```
 
-部署细节见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
+构建机需要 rustup、Zig 和 cargo-zigbuild；完整前置条件、只发后端/前端参数与回滚方式见
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
 
 ## 协作约定
 
@@ -171,5 +173,4 @@ HARUHI_DEPLOY_HOST=root@<server> bash deploy/deploy.sh
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)：部署、环境变量、备份
 - [docs/ADDING_MODULE.md](docs/ADDING_MODULE.md)：新增业务模块
 - [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)：SOS / Parallel Design System 项目设计规范
-- [docs/COLLABORATION.md](docs/COLLABORATION.md)：推到 GitHub 后启用分支保护、CodeRabbit、Dependabot
 - [SECURITY.md](SECURITY.md)：安全披露流程

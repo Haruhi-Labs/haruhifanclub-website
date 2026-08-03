@@ -29,8 +29,21 @@ apt-get install -y nginx sqlite3 ffmpeg libvips-tools rsync certbot
 如果只用 `deploy/deploy.sh` 从本机构建并推送，服务器不需要 Node、pnpm 或 Rust。构建机需要：
 
 - pnpm `10.11.0`
-- Docker
+- rustup（仓库由 `rust-toolchain.toml` 锁定 Rust `1.87.0`）
+- Zig 与 cargo-zigbuild（当前验证组合：Zig `0.14.x`、cargo-zigbuild `0.20.x`）
 - ssh/rsync 能访问服务器
+
+macOS 可用 Homebrew 安装交叉编译工具，并为锁定的 Rust 工具链补齐 Linux 标准库：
+
+```bash
+brew install zig cargo-zigbuild
+rustup target add x86_64-unknown-linux-gnu
+```
+
+部署脚本会显式使用 `rustup which cargo` 对应的工具链，避免 Homebrew `cargo/rustc` 在 PATH
+优先级更高时误用不含 Linux 标准库的 sysroot。WebAuthn 间接依赖的 OpenSSL 通过
+`deploy-vendored-openssl` feature 在 Zig 构建中静态编译，不依赖本机或生产服务器的
+OpenSSL 开发包。
 
 ## 环境变量
 
@@ -94,28 +107,40 @@ bash deploy/deploy.sh
 
 1. `pnpm install --frozen-lockfile`
 2. `pnpm -r --filter "./apps/*" build`
-3. Docker 以 `linux/amd64` 编译 `haruhi-server`
+3. cargo-zigbuild 以 `x86_64-unknown-linux-gnu.2.17` 编译 `haruhi-server`
 4. rsync 前端 `dist/` 到服务器
 5. 上传后端二进制，备份旧二进制为 `haruhi-server.bak`
 6. `systemctl restart <service>` 并执行**健康门禁**：等待服务 active 且 `/api/health/ready` 返回 200（最多约 24 秒），未通过则输出状态与日志、给出回滚命令并以非零码退出——服务起不来时绝不会打印"部署完成"
 
 可选变量：
 
-| 变量                                   | 作用                                                       |
-| -------------------------------------- | ---------------------------------------------------------- |
-| `HARUHI_SKIP_FRONTEND=1`               | 只发后端                                                   |
-| `HARUHI_SKIP_BACKEND=1`                | 只发前端                                                   |
-| `HARUHI_RUST_IMAGE=rust:1.87-bookworm` | 修改交叉编译镜像                                           |
-| `HARUHI_BACKEND_PORT=17778`            | 健康门禁探测端口，默认 17777（生产）；部署测试站时传 17778 |
+| 变量                                               | 作用                                                       |
+| -------------------------------------------------- | ---------------------------------------------------------- |
+| `HARUHI_SKIP_FRONTEND=1`                           | 只发后端                                                   |
+| `HARUHI_SKIP_BACKEND=1`                            | 只发前端                                                   |
+| `HARUHI_RUST_TARGET=x86_64-unknown-linux-gnu.2.17` | 修改 Zig 交叉编译目标                                      |
+| `HARUHI_TARGET_DIR=target-zig`                     | 修改 Rust 交叉编译产物目录                                 |
+| `HARUHI_BACKEND_PORT=17778`                        | 健康门禁探测端口，默认 17777（生产）；部署测试站时传 17778 |
 
 本机手动构建命令：
 
 ```bash
 pnpm build:apps
-cargo build --release -p haruhi-server
+rustup_cargo="$(rustup which cargo)"
+rustup_bin="$(dirname "$rustup_cargo")"
+PATH="$rustup_bin:$PATH" "$rustup_cargo" zigbuild \
+  --locked \
+  --release \
+  -p haruhi-server \
+  --features deploy-vendored-openssl \
+  --target x86_64-unknown-linux-gnu.2.17 \
+  --target-dir target-zig
+file target-zig/x86_64-unknown-linux-gnu/release/haruhi-server
 ```
 
-注意：这会生成构建机平台的二进制。macOS/arm 构建产物不能直接放到 Linux/amd64 服务器上运行。
+产物应显示为 `ELF 64-bit ... x86-64`。普通 `cargo build --release` 在 macOS/arm 上生成的是
+Mach-O，不能放到 Linux/amd64 生产服务器运行。`.2.17` 固定最低 glibc 兼容目标，当前 Ubuntu
+22.04 生产环境（glibc 2.35）可直接运行。
 
 ## systemd
 
