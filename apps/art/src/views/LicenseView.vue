@@ -361,8 +361,6 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  max-height: 60px;
-  overflow: hidden;
 }
 .lic-tag {
   background: rgba(16, 185, 129, 0.2);
