@@ -4771,6 +4771,9 @@ async fn admin_list_creators(
             (SELECT MAX(created_at) FROM artworks a WHERE a.uploader_uid=c.uid) AS latest_upload_at
          FROM creators c
          LEFT JOIN guild_profiles gp ON gp.uid=c.uid
+         WHERE EXISTS (
+             SELECT 1 FROM artworks creator_artwork WHERE creator_artwork.uploader_uid=c.uid
+         )
          ORDER BY datetime(c.created_at) DESC",
     )
     .fetch_all(&state.pools.art)

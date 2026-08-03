@@ -5166,6 +5166,9 @@ async fn admin_creator_production_stats(
                AND datetime(COALESCE(granted_at, created_at)) >= datetime(?)
              GROUP BY uid
          ) p ON p.uid=c.uid
+         WHERE EXISTS (
+             SELECT 1 FROM artworks creator_artwork WHERE creator_artwork.uploader_uid=c.uid
+         )
          ORDER BY artworks_total DESC, coins_total DESC, c.uid ASC",
     )
     .bind(&period_start_iso)

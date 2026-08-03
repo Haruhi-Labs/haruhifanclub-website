@@ -3320,7 +3320,7 @@ async fn admin_creator_production_stats_use_recent_approved_art_and_positive_coi
     let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
     let old = "2000-01-01T00:00:00Z";
 
-    for uid in ["u_stats_a", "u_stats_b"] {
+    for uid in ["u_stats_a", "u_stats_b", "u_stats_without_art"] {
         sqlx::query("INSERT INTO creators(uid, avatar_url, created_at) VALUES(?,'',?)")
             .bind(uid)
             .bind(&now)
@@ -3380,6 +3380,7 @@ async fn admin_creator_production_stats_use_recent_approved_art_and_positive_coi
         ("u_stats_a", -10_i64, "redemption", now.as_str()),
         ("u_stats_b", 45_i64, "upload", now.as_str()),
         ("u_stats_b", 100_i64, "upload", old),
+        ("u_stats_without_art", 999_i64, "quest", now.as_str()),
     ] {
         sqlx::query(
             "INSERT INTO points_ledger(uid, artwork_id, points, note, source_type, created_at, granted_at) \
@@ -3409,6 +3410,11 @@ async fn admin_creator_production_stats_use_recent_approved_art_and_positive_coi
     assert_eq!(body["overall"]["coinsTotal"], 165);
 
     let rows = body["data"].as_array().unwrap();
+    assert!(
+        rows.iter()
+            .all(|row| row["uid"].as_str() != Some("u_stats_without_art")),
+        "没有画廊作品的用户不应进入创作者生产统计"
+    );
     let find = |uid: &str| {
         rows.iter()
             .find(|row| row["uid"].as_str() == Some(uid))
@@ -3460,6 +3466,63 @@ async fn admin_creator_production_stats_use_recent_approved_art_and_positive_coi
     assert_eq!(body["days"], 7);
     assert_eq!(body["overall"]["artworksTotal"], 3);
     assert_eq!(body["overall"]["coinsTotal"], 165);
+}
+
+#[tokio::test]
+async fn admin_creators_only_lists_users_with_gallery_artworks() {
+    let app = setup().await;
+    let art = app.state.pools.art.clone();
+    let token = login(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+
+    for uid in [
+        "u_creator_with_art",
+        "u_creator_without_art",
+        "u_creator_restricted_art",
+    ] {
+        sqlx::query("INSERT INTO creators(uid, avatar_url, created_at) VALUES(?,'',?)")
+            .bind(uid)
+            .bind(&now)
+            .execute(&art)
+            .await
+            .unwrap();
+    }
+
+    for (uid, status) in [
+        ("u_creator_with_art", "approved"),
+        ("u_creator_restricted_art", "rejected"),
+    ] {
+        sqlx::query(
+            "INSERT INTO artworks(title, uploader_uid, source_type, content_type, status, created_at) \
+             VALUES('创作者筛选测试', ?, 'personal', 'haruhi', ?, ?)",
+        )
+        .bind(uid)
+        .bind(status)
+        .bind(&now)
+        .execute(&art)
+        .await
+        .unwrap();
+    }
+
+    let (status, body) = send(&app.router, get("/api/art/admin/creators", Some(&token))).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let rows = body["data"].as_array().unwrap();
+    assert!(
+        rows.iter()
+            .any(|row| row["uid"].as_str() == Some("u_creator_with_art")),
+        "有已通过作品的用户应显示"
+    );
+    assert!(
+        rows.iter()
+            .any(|row| row["uid"].as_str() == Some("u_creator_restricted_art")),
+        "有受限作品的用户仍应显示在后台"
+    );
+    assert!(
+        rows.iter()
+            .all(|row| row["uid"].as_str() != Some("u_creator_without_art")),
+        "没有画廊作品的用户不应显示"
+    );
 }
 
 // 评论署名：登录用户自动用账号昵称署名（忽略前端自报、归属 author_user_id）；
