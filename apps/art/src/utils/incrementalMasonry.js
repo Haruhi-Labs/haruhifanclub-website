@@ -2,14 +2,16 @@ export function createMasonryState(columnCount = 1) {
   const columns = Math.max(1, columnCount)
   return {
     columnCount: columns,
-    items: null,
+    itemCount: 0,
+    firstItem: undefined,
+    lastItem: undefined,
     heights: Array(columns).fill(0),
     columns: Array.from({ length: columns }, () => []),
   }
 }
 
 function appendItems(state, items, startPosition, createEntry) {
-  const columns = state.columns.map(column => column.slice())
+  const columns = state.columns
   for (let position = startPosition; position < items.length; position += 1) {
     let target = 0
     for (let index = 1; index < state.heights.length; index += 1) {
@@ -19,22 +21,25 @@ function appendItems(state, items, startPosition, createEntry) {
     columns[target].push(entry)
     state.heights[target] += (1 / entry.ratio) + 0.06
   }
-  state.columns = columns
-  state.items = items
-  return columns
+  // shallowRef 只需要新的外层数组触发视图更新；列本身就地追加，避免每批续载都
+  // 复制此前全部作品。这样追加 k 项从 O(n + k·c) 降为 O(k·c)。
+  state.columns = columns.slice()
+  state.itemCount = items.length
+  state.firstItem = items[0]
+  state.lastItem = items.at(-1)
+  return state.columns
 }
 
-export function syncMasonryLayout(state, items, columnCount, previousItems, createEntry) {
+export function syncMasonryLayout(state, items, columnCount, createEntry) {
   const columns = Math.max(1, columnCount)
-  const previousLength = previousItems?.length || 0
+  const previousLength = state.itemCount
   const isAppend = state.columnCount === columns
-    && state.items === previousItems
     && items.length > previousLength
     && (
       previousLength === 0
       || (
-        items[0] === previousItems[0]
-        && items[previousLength - 1] === previousItems[previousLength - 1]
+        items[0] === state.firstItem
+        && items[previousLength - 1] === state.lastItem
       )
     )
 
