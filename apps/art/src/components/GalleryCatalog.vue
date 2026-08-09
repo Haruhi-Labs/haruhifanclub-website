@@ -153,6 +153,7 @@ let requestController = null
 let sentinelObserver = null
 let scrollFrame = 0
 const artworkRatioCache = new Map()
+const itemIds = new Set()
 
 const currentCategory = computed(() => {
   const requested = String(route.query.category || 'recommended')
@@ -309,11 +310,12 @@ async function requestHydratedBatch(options) {
 }
 
 function uniqueBatch(data, replace) {
-  const seen = replace ? new Set() : new Set(items.value.map(item => String(item.id)))
+  if (replace) itemIds.clear()
   return (data || []).filter((item) => {
-    const key = String(item?.id)
-    if (!key || seen.has(key)) return false
-    seen.add(key)
+    if (item?.id === undefined || item?.id === null) return false
+    const key = String(item.id)
+    if (itemIds.has(key)) return false
+    itemIds.add(key)
     galleryStore.rememberArtwork(item)
     return true
   })
@@ -325,7 +327,8 @@ function applyResponse(response, { replace, targetPage }) {
     && Boolean(response.cacheReset)
   const shouldReplace = replace || cacheWasReset
   const batch = uniqueBatch(response.data, shouldReplace)
-  items.value = shouldReplace ? batch : [...items.value, ...batch]
+  if (shouldReplace) items.value = batch
+  else items.value.push(...batch)
   total.value = Number(response.total || items.value.length)
   page.value = cacheWasReset ? 1 : targetPage
   if (currentCategory.value === 'recommended') {

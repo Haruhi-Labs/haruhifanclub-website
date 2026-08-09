@@ -2,7 +2,10 @@
   <div
     ref="root"
     class="art-space"
-    :class="`art-space--${variant}`"
+    :class="[
+      `art-space--${variant}`,
+      { 'art-space--reduced-quality': reducedQuality },
+    ]"
     aria-hidden="true"
   >
     <div class="art-space__calm-current">
@@ -53,6 +56,7 @@ const props = defineProps({
 const root = ref(null)
 const canvas = ref(null)
 const depthReadout = ref('00.0')
+const reducedQuality = ref(false)
 
 const pointer = {
   x: 0,
@@ -71,12 +75,43 @@ const pointer = {
 
 const camera = { x: 0, y: 0, roll: 0 }
 const shock = { x: 0, y: 0, power: 0, age: 0 }
-const scene = { particles: [], frames: [], solids: [], streams: [], glyphs: [] }
+const scene = {
+  particles: [],
+  particleGroups: [],
+  frames: [],
+  frameDrawOrder: [],
+  solids: [],
+  streams: [],
+  glyphs: [],
+  dynamic: [],
+}
+
+const PARTICLE_GROUP_COUNT = 7
+const GLYPH_BREATH_PHASES = 8
+const GLYPH_BASE_FONT_SIZE = 176
+const GLYPH_SPRITE_SCALE = 1.5
+const GLYPH_SPRITE_SIZE = 384
+const GLYPH_REFERENCE_ALPHA = 0.12
+const PARTICLE_SPRITE_SIZE = 48
+const PARTICLE_SPRITE_RADIUS = 20
+const FULL_CIRCLE = Math.PI * 2
+
+const PALETTES = {
+  gallery: {
+    light: { cool: '49, 151, 163', soft: '92, 121, 165', hot: '208, 92, 145', ink: '44, 88, 105' },
+    dark: { cool: '103, 220, 226', soft: '149, 174, 234', hot: '242, 126, 190', ink: '194, 235, 240' },
+  },
+  upload: {
+    light: { cool: '35, 151, 151', soft: '86, 132, 158', hot: '218, 124, 92', ink: '45, 90, 105' },
+    dark: { cool: '118, 228, 221', soft: '145, 174, 211', hot: '255, 183, 103', ink: '198, 232, 235' },
+  },
+}
 
 let context = null
 let animationFrame = 0
 let resizeObserver = null
 let mediaQuery = null
+let themeObserver = null
 let width = 0
 let height = 0
 let dpr = 1
@@ -94,8 +129,22 @@ let formationIndex = 0
 let formationCooldownUntil = 0
 let ambientYaw = 0
 let scrollYaw = 0
+let currentPalette = PALETTES.gallery.light
 const rootStyleCache = new Map()
 const documentStyleCache = new Map()
+const rgbaCache = new Map()
+const glyphSprites = new Map()
+const particleSprites = new Map()
+
+const adaptiveQuality = {
+  reduced: false,
+  renderCost: 0,
+  frameInterval: 0,
+  samples: 0,
+  pressureFrames: 0,
+  recoveryFrames: 0,
+  lastChange: 0,
+}
 
 const fieldWake = {
   x: 0,
@@ -325,16 +374,77 @@ function createElasticMesh(shape = 'box', segments = 4) {
   }
 }
 
-function palette() {
-  const dark = document.documentElement.classList.contains('art-lights-out')
-  if (props.variant === 'upload') {
-    return dark
-      ? { cool: '118, 228, 221', soft: '145, 174, 211', hot: '255, 183, 103', ink: '198, 232, 235' }
-      : { cool: '35, 151, 151', soft: '86, 132, 158', hot: '218, 124, 92', ink: '45, 90, 105' }
+function refreshPalette() {
+  const mode = document.documentElement.classList.contains('art-lights-out') ? 'dark' : 'light'
+  const nextPalette = PALETTES[props.variant][mode]
+  if (currentPalette === nextPalette && particleSprites.size > 0) return
+  currentPalette = nextPalette
+  buildParticleSprites()
+}
+
+function buildParticleSprites() {
+  particleSprites.clear()
+  for (const rgb of [currentPalette.cool, currentPalette.soft, currentPalette.hot]) {
+    if (particleSprites.has(rgb)) continue
+    const sprite = document.createElement('canvas')
+    sprite.width = PARTICLE_SPRITE_SIZE
+    sprite.height = PARTICLE_SPRITE_SIZE
+    const spriteContext = sprite.getContext('2d')
+    if (!spriteContext) continue
+    spriteContext.beginPath()
+    spriteContext.arc(
+      PARTICLE_SPRITE_SIZE * 0.5,
+      PARTICLE_SPRITE_SIZE * 0.5,
+      PARTICLE_SPRITE_RADIUS,
+      0,
+      FULL_CIRCLE,
+    )
+    spriteContext.fillStyle = `rgb(${rgb})`
+    spriteContext.fill()
+    particleSprites.set(rgb, sprite)
   }
-  return dark
-    ? { cool: '103, 220, 226', soft: '149, 174, 234', hot: '242, 126, 190', ink: '194, 235, 240' }
-    : { cool: '49, 151, 163', soft: '92, 121, 165', hot: '208, 92, 145', ink: '44, 88, 105' }
+}
+
+function buildGlyphSprites() {
+  glyphSprites.clear()
+  const sourceFontSize = GLYPH_BASE_FONT_SIZE * GLYPH_SPRITE_SCALE
+  const sourceCenter = GLYPH_SPRITE_SIZE * 0.5
+
+  for (const character of ['S', 'O']) {
+    for (let phase = 0; phase < GLYPH_BREATH_PHASES; phase += 1) {
+      const sprite = document.createElement('canvas')
+      sprite.width = GLYPH_SPRITE_SIZE
+      sprite.height = GLYPH_SPRITE_SIZE
+      const spriteContext = sprite.getContext('2d')
+      if (!spriteContext) continue
+
+      const phaseAngle = phase / GLYPH_BREATH_PHASES * FULL_CIRCLE
+      const breath = (Math.sin(phaseAngle) + 1) * 0.5
+      const startHue = 48 - breath * 30
+      const endHue = 38 - breath * 32
+      const glowHue = 44 - breath * 36
+      const gradient = spriteContext.createLinearGradient(
+        sourceCenter - sourceFontSize * 0.48,
+        sourceCenter - sourceFontSize * 0.36,
+        sourceCenter + sourceFontSize * 0.48,
+        sourceCenter + sourceFontSize * 0.36,
+      )
+      gradient.addColorStop(0, `hsla(${startHue}, 94%, 62%, ${Math.min(0.34, 0.045 + GLYPH_REFERENCE_ALPHA * 1.45)})`)
+      gradient.addColorStop(1, `hsla(${endHue}, 92%, 58%, ${Math.min(0.32, 0.04 + GLYPH_REFERENCE_ALPHA * 1.35)})`)
+
+      spriteContext.textAlign = 'center'
+      spriteContext.textBaseline = 'middle'
+      spriteContext.font = `800 ${sourceFontSize}px ui-sans-serif, system-ui, sans-serif`
+      spriteContext.lineWidth = Math.max(0.7, GLYPH_BASE_FONT_SIZE * 0.008) * GLYPH_SPRITE_SCALE
+      spriteContext.shadowColor = `hsla(${glowHue}, 96%, 61%, ${0.075 + breath * 0.075})`
+      spriteContext.shadowBlur = (3.5 + breath * 4.5) * GLYPH_SPRITE_SCALE
+      spriteContext.strokeStyle = gradient
+      spriteContext.fillStyle = `hsla(${endHue}, 92%, 60%, ${0.012 + GLYPH_REFERENCE_ALPHA * 0.28})`
+      spriteContext.strokeText(character, sourceCenter, sourceCenter)
+      spriteContext.fillText(character, sourceCenter, sourceCenter)
+      glyphSprites.set(`${character}-${phase}`, sprite)
+    }
+  }
 }
 
 function rebuildScene() {
@@ -355,7 +465,7 @@ function rebuildScene() {
       size: range(0.55, 1.75) * compactScale,
       phase: range(0, Math.PI * 2),
       speed: range(0.25, 0.8),
-      group: index % 7,
+      group: index % PARTICLE_GROUP_COUNT,
       ...motionState(index, 'particle'),
     }
   })
@@ -436,27 +546,71 @@ function rebuildScene() {
     }
   })
 
+  scene.dynamic = [...scene.particles, ...scene.frames, ...scene.solids]
+  scene.particleGroups = Array.from({ length: PARTICLE_GROUP_COUNT }, () => [])
+  scene.particles.forEach(item => scene.particleGroups[item.group].push(item))
+  scene.frameDrawOrder = scene.frames.map(item => ({ item, depth: 0, screenDepth: 0 }))
+
   formationIndex = 0
   applyFormationTargets()
 }
 
-function resize() {
+function preferredDpr(useReducedQuality = adaptiveQuality.reduced) {
+  const deviceDpr = window.devicePixelRatio || 1
+  const compact = width < 700
+  const cap = useReducedQuality
+    ? compact ? 1.5 : 1.15
+    : compact ? 2 : 1.4
+  return Math.min(deviceDpr, cap)
+}
+
+function applyCanvasResolution(nextDpr) {
   if (!canvas.value) return
-  width = window.innerWidth
-  height = window.innerHeight
-  dpr = Math.min(window.devicePixelRatio || 1, width < 700 ? 2 : 1.4)
+  dpr = nextDpr
   canvas.value.width = Math.max(1, Math.round(width * dpr))
   canvas.value.height = Math.max(1, Math.round(height * dpr))
   canvas.value.style.width = `${width}px`
   canvas.value.style.height = `${height}px`
   context = canvas.value.getContext('2d')
-  context?.setTransform(dpr, 0, 0, dpr, 0, 0)
+  if (context) {
+    context.imageSmoothingEnabled = true
+    context.imageSmoothingQuality = 'high'
+    context.setTransform(dpr, 0, 0, dpr, 0, 0)
+  }
+}
+
+function resetQualitySamples(changeTime = performance.now()) {
+  adaptiveQuality.renderCost = 0
+  adaptiveQuality.frameInterval = 0
+  adaptiveQuality.samples = 0
+  adaptiveQuality.pressureFrames = 0
+  adaptiveQuality.recoveryFrames = 0
+  adaptiveQuality.lastChange = changeTime
+}
+
+function setReducedQuality(reduced, time = performance.now()) {
+  if (adaptiveQuality.reduced === reduced) return
+  adaptiveQuality.reduced = reduced
+  reducedQuality.value = reduced
+  applyCanvasResolution(preferredDpr(reduced))
+  resetQualitySamples(time)
+}
+
+function resize() {
+  if (!canvas.value) return
+  const nextWidth = window.innerWidth
+  const nextHeight = window.innerHeight
+  const dimensionsChanged = nextWidth !== width || nextHeight !== height
+  width = nextWidth
+  height = nextHeight
+  applyCanvasResolution(preferredDpr())
   pointer.x ||= width * 0.5
   pointer.y ||= height * 0.5
   pointer.targetX ||= width * 0.5
   pointer.targetY ||= height * 0.5
   refreshProjectionCache()
-  rebuildScene()
+  if (dimensionsChanged || scene.dynamic.length === 0) rebuildScene()
+  resetQualitySamples()
   if (reducedMotion) render(0, 0)
 }
 
@@ -503,11 +657,18 @@ function projectCoordinates(pointX, pointY, pointZ, output) {
 }
 
 function withAlpha(rgb, alpha) {
-  return `rgba(${rgb}, ${Math.max(0, Math.min(1, alpha))})`
+  const alphaBucket = Math.round(Math.max(0, Math.min(1, alpha)) * 255)
+  const key = `${rgb}/${alphaBucket}`
+  let color = rgbaCache.get(key)
+  if (!color) {
+    color = `rgba(${rgb}, ${(alphaBucket / 255).toFixed(3)})`
+    rgbaCache.set(key, color)
+  }
+  return color
 }
 
 function dynamicItems() {
-  return [...scene.particles, ...scene.frames, ...scene.solids]
+  return scene.dynamic
 }
 
 function motionSpeed(item) {
@@ -902,9 +1063,6 @@ function traceElasticEdges(mesh, points) {
 }
 
 function drawGlyphs(time) {
-  context.save()
-  context.textAlign = 'center'
-  context.textBaseline = 'middle'
   scene.glyphs.forEach(glyph => {
     const point = projectCoordinates(glyph.x, glyph.y, glyph.z, glyph.projected)
     if (!point.visible) return
@@ -913,44 +1071,46 @@ function drawGlyphs(time) {
     const frontness = (1 - Math.cos(angle)) * 0.5
     const fontSize = Math.max(28, Math.min(176, glyph.size * point.scale * 2.45))
     const alpha = (0.024 + frontness * 0.095) * (0.92 + Math.sin(time * 0.00028 + glyph.angle) * 0.08)
-    const breath = (Math.sin(time * 0.00028 + glyph.angle * 0.18) + 1) * 0.5
-    const startHue = 48 - breath * 30
-    const endHue = 38 - breath * 32
-    const glowHue = 44 - breath * 36
+    const breathCycle = time * 0.00028 + glyph.angle * 0.18
+    const normalizedCycle = ((breathCycle % FULL_CIRCLE) + FULL_CIRCLE) % FULL_CIRCLE
+    const phasePosition = normalizedCycle / FULL_CIRCLE * GLYPH_BREATH_PHASES
+    const phaseBase = Math.floor(phasePosition)
+    const phase = phaseBase % GLYPH_BREATH_PHASES
+    const nextPhase = (phase + 1) % GLYPH_BREATH_PHASES
+    const phaseMix = phasePosition - phaseBase
+    const sprite = glyphSprites.get(`${glyph.char}-${phase}`)
+    const nextSprite = glyphSprites.get(`${glyph.char}-${nextPhase}`)
+    if (!sprite || !nextSprite) return
+    const spriteSize = fontSize / GLYPH_BASE_FONT_SIZE * (GLYPH_SPRITE_SIZE / GLYPH_SPRITE_SCALE)
+    const strokeAlpha = Math.min(0.34, 0.045 + alpha * 1.45)
+    const referenceStrokeAlpha = Math.min(0.34, 0.045 + GLYPH_REFERENCE_ALPHA * 1.45)
+    const glyphAlpha = Math.min(1, strokeAlpha / referenceStrokeAlpha)
 
     context.save()
     context.translate(point.x, point.y)
     context.rotate(Math.sin(angle) * 0.055)
     context.scale(facing, 1)
-    context.font = `800 ${fontSize}px ui-sans-serif, system-ui, sans-serif`
-    context.lineWidth = Math.max(0.7, fontSize * 0.008)
-    const gradient = context.createLinearGradient(-fontSize * 0.48, -fontSize * 0.36, fontSize * 0.48, fontSize * 0.36)
-    gradient.addColorStop(0, `hsla(${startHue}, 94%, 62%, ${Math.min(0.34, 0.045 + alpha * 1.45)})`)
-    gradient.addColorStop(1, `hsla(${endHue}, 92%, 58%, ${Math.min(0.32, 0.04 + alpha * 1.35)})`)
-    context.shadowColor = `hsla(${glowHue}, 96%, 61%, ${0.075 + breath * 0.075})`
-    context.shadowBlur = 3.5 + breath * 4.5
-    context.strokeStyle = gradient
-    context.fillStyle = `hsla(${endHue}, 92%, 60%, ${0.012 + alpha * 0.28})`
-    context.strokeText(glyph.char, 0, 0)
-    context.fillText(glyph.char, 0, 0)
+    context.globalAlpha = glyphAlpha * (1 - phaseMix)
+    context.drawImage(sprite, -spriteSize * 0.5, -spriteSize * 0.5, spriteSize, spriteSize)
+    context.globalAlpha = glyphAlpha * phaseMix
+    context.drawImage(nextSprite, -spriteSize * 0.5, -spriteSize * 0.5, spriteSize, spriteSize)
     context.restore()
   })
-  context.restore()
 }
 
 function drawFrames(colors, time) {
-  const ordered = scene.frames
-    .map(item => {
-      const depth = itemWorldDepth(item)
-      const screenDepth = projectCoordinates(
-        item.x + item.offsetX,
-        item.y + item.offsetY,
-        depth,
-        item.projected,
-      ).z
-      return { item, depth, screenDepth }
-    })
-    .sort((a, b) => b.screenDepth - a.screenDepth)
+  const ordered = scene.frameDrawOrder
+  ordered.forEach(entry => {
+    const { item } = entry
+    entry.depth = itemWorldDepth(item)
+    entry.screenDepth = projectCoordinates(
+      item.x + item.offsetX,
+      item.y + item.offsetY,
+      entry.depth,
+      item.projected,
+    ).z
+  })
+  ordered.sort((a, b) => b.screenDepth - a.screenDepth)
 
   ordered.forEach(({ item, depth, screenDepth }) => {
     const vertices = elasticMeshPoints(item, depth, time)
@@ -1021,7 +1181,6 @@ function drawSolids(colors, time) {
 
 function drawParticles(colors, time) {
   const connectParticles = width >= 700
-  const projected = connectParticles ? [] : null
   scene.particles.forEach(item => {
     const z = itemWorldDepth(item)
     const drift = Math.sin(time * 0.00048 + item.phase) * 0.3
@@ -1036,27 +1195,42 @@ function drawParticles(colors, time) {
     const proximity = 1 - Math.min(1, point.z / FAR)
     const radius = Math.min(4.2, item.size * (0.55 + proximity * 2.3))
     const rgb = item.group === 0 ? colors.hot : item.group % 3 === 0 ? colors.soft : colors.cool
-    context.beginPath()
-    context.arc(point.x, point.y, radius, 0, Math.PI * 2)
-    context.fillStyle = withAlpha(rgb, 0.12 + proximity * 0.48)
-    context.fill()
-    if (connectParticles) projected.push({ x: point.x, y: point.y, z: point.z, group: item.group, rgb })
+    const sprite = particleSprites.get(rgb)
+    if (!sprite) return
+    const spriteSize = radius * PARTICLE_SPRITE_SIZE / PARTICLE_SPRITE_RADIUS
+    context.globalAlpha = 0.12 + proximity * 0.48
+    context.drawImage(
+      sprite,
+      point.x - spriteSize * 0.5,
+      point.y - spriteSize * 0.5,
+      spriteSize,
+      spriteSize,
+    )
   })
+  context.globalAlpha = 1
 
   if (!connectParticles) return
   context.lineWidth = 0.65
-  for (let index = 0; index < projected.length; index += 1) {
-    const a = projected[index]
-    for (let otherIndex = index + 1; otherIndex < projected.length; otherIndex += 1) {
-      const b = projected[otherIndex]
-      if (a.group !== b.group || Math.abs(a.z - b.z) > 8) continue
-      const distance = Math.hypot(a.x - b.x, a.y - b.y)
-      if (distance > 118) continue
-      context.beginPath()
-      context.moveTo(a.x, a.y)
-      context.lineTo(b.x, b.y)
-      context.strokeStyle = withAlpha(a.rgb, (1 - distance / 118) * 0.12)
-      context.stroke()
+  for (let groupIndex = 0; groupIndex < scene.particleGroups.length; groupIndex += 1) {
+    const group = scene.particleGroups[groupIndex]
+    const rgb = groupIndex === 0 ? colors.hot : groupIndex % 3 === 0 ? colors.soft : colors.cool
+    for (let index = 0; index < group.length; index += 1) {
+      const a = group[index].projected
+      if (!a.visible) continue
+      for (let otherIndex = index + 1; otherIndex < group.length; otherIndex += 1) {
+        const b = group[otherIndex].projected
+        if (!b.visible || Math.abs(a.z - b.z) > 8) continue
+        const dx = a.x - b.x
+        const dy = a.y - b.y
+        const distanceSquared = dx * dx + dy * dy
+        if (distanceSquared > 118 * 118) continue
+        const distance = Math.sqrt(distanceSquared)
+        context.beginPath()
+        context.moveTo(a.x, a.y)
+        context.lineTo(b.x, b.y)
+        context.strokeStyle = withAlpha(rgb, (1 - distance / 118) * 0.12)
+        context.stroke()
+      }
     }
   }
 }
@@ -1133,7 +1307,7 @@ function update(dt, time) {
 
 function render(time) {
   if (!context || !width || !height) return
-  const colors = palette()
+  const colors = currentPalette
   context.setTransform(dpr, 0, 0, dpr, 0, 0)
   context.clearRect(0, 0, width, height)
   context.save()
@@ -1149,6 +1323,46 @@ function render(time) {
   context.restore()
 }
 
+function updateAdaptiveQuality(renderCost, frameInterval, time) {
+  const weight = adaptiveQuality.samples < 30 ? 0.14 : 0.045
+  if (adaptiveQuality.samples === 0) {
+    adaptiveQuality.renderCost = renderCost
+    adaptiveQuality.frameInterval = frameInterval
+  } else {
+    adaptiveQuality.renderCost += (renderCost - adaptiveQuality.renderCost) * weight
+    adaptiveQuality.frameInterval += (frameInterval - adaptiveQuality.frameInterval) * weight
+  }
+  adaptiveQuality.samples += 1
+  if (adaptiveQuality.samples < 90) return
+
+  const compact = width < 700
+  const underPressure = adaptiveQuality.renderCost > (compact ? 18 : 10)
+    || adaptiveQuality.frameInterval > (compact ? 42 : 22)
+  const comfortablyFast = adaptiveQuality.renderCost < (compact ? 10 : 6.5)
+    && adaptiveQuality.frameInterval < (compact ? 37 : 19)
+
+  if (!adaptiveQuality.reduced) {
+    adaptiveQuality.pressureFrames = underPressure
+      ? adaptiveQuality.pressureFrames + 1
+      : Math.max(0, adaptiveQuality.pressureFrames - 2)
+    if (
+      adaptiveQuality.pressureFrames >= 45
+      && preferredDpr(false) - preferredDpr(true) > 0.05
+      && time - adaptiveQuality.lastChange > 4000
+    ) {
+      setReducedQuality(true, time)
+    }
+    return
+  }
+
+  adaptiveQuality.recoveryFrames = comfortablyFast
+    ? adaptiveQuality.recoveryFrames + 1
+    : Math.max(0, adaptiveQuality.recoveryFrames - 2)
+  if (adaptiveQuality.recoveryFrames >= 360 && time - adaptiveQuality.lastChange > 12000) {
+    setReducedQuality(false, time)
+  }
+}
+
 function animate(time) {
   if (hidden || reducedMotion) return
   const minimumFrameInterval = width < 700 ? 1000 / 30 : 0
@@ -1156,10 +1370,13 @@ function animate(time) {
     animationFrame = window.requestAnimationFrame(animate)
     return
   }
-  const dt = Math.min(0.034, Math.max(0.001, (time - lastTime) / 1000 || 0.016))
+  const frameInterval = time - lastTime || (width < 700 ? 1000 / 30 : 1000 / 60)
+  const dt = Math.min(0.034, Math.max(0.001, frameInterval / 1000))
   lastTime = time
+  const renderStart = performance.now()
   update(dt, time)
   render(time)
+  updateAdaptiveQuality(performance.now() - renderStart, frameInterval, time)
   animationFrame = window.requestAnimationFrame(animate)
 }
 
@@ -1243,6 +1460,7 @@ function onMotionChange(event) {
 
 watch(() => props.variant, () => {
   travel = 0
+  refreshPalette()
   refreshProjectionCache()
   rebuildScene()
   if (reducedMotion) render(0, 0)
@@ -1251,6 +1469,14 @@ watch(() => props.variant, () => {
 onMounted(() => {
   mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
   reducedMotion = mediaQuery.matches
+  refreshPalette()
+  buildGlyphSprites()
+  themeObserver = new MutationObserver(() => {
+    const previousPalette = currentPalette
+    refreshPalette()
+    if (previousPalette !== currentPalette && reducedMotion) render(0)
+  })
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
   lastScrollY = window.scrollY
   onScroll()
   resizeObserver = new ResizeObserver(resize)
@@ -1268,6 +1494,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   stop()
   resizeObserver?.disconnect()
+  themeObserver?.disconnect()
   mediaQuery?.removeEventListener?.('change', onMotionChange)
   window.removeEventListener('pointermove', onPointerMove)
   window.removeEventListener('pointerdown', onPointerDown)
@@ -1279,6 +1506,9 @@ onBeforeUnmount(() => {
   document.documentElement.style.removeProperty('--art-backdrop-tilt')
   rootStyleCache.clear()
   documentStyleCache.clear()
+  rgbaCache.clear()
+  glyphSprites.clear()
+  particleSprites.clear()
 })
 </script>
 
@@ -1300,6 +1530,8 @@ onBeforeUnmount(() => {
   --space-cool: 39, 156, 164;
   --space-soft: 92, 120, 166;
   --space-hot: 214, 94, 149;
+  --calm-blur: 58px;
+  --aurora-blur: 48px;
   position: fixed;
   z-index: 0;
   inset: 0;
@@ -1314,6 +1546,11 @@ onBeforeUnmount(() => {
   --space-cool: 35, 151, 151;
   --space-soft: 86, 132, 158;
   --space-hot: 218, 124, 92;
+}
+
+.art-space--reduced-quality {
+  --calm-blur: 44px;
+  --aurora-blur: 36px;
 }
 
 .art-space__canvas,
@@ -1339,7 +1576,7 @@ onBeforeUnmount(() => {
   width: 70%;
   aspect-ratio: 1.7;
   border-radius: 48% 52% 60% 40% / 55% 42% 58% 45%;
-  filter: blur(58px);
+  filter: blur(var(--calm-blur));
   will-change: transform;
 }
 
@@ -1378,7 +1615,7 @@ onBeforeUnmount(() => {
   width: clamp(340px, 46vw, 780px);
   height: clamp(340px, 46vw, 780px);
   border-radius: 50%;
-  filter: blur(48px);
+  filter: blur(var(--aurora-blur));
   will-change: transform;
 }
 
@@ -1546,12 +1783,13 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 700px) {
+  .art-space { --aurora-blur: 34px; }
+  .art-space--reduced-quality { --aurora-blur: 28px; }
   .art-space__canvas { opacity: 0.92; }
   .art-space__ruler { opacity: 0.22; }
   .art-space__telemetry--top,
   .art-space__telemetry--bottom { display: none; }
   .art-space__orbit { opacity: 0.48; }
-  .art-space__aurora { filter: blur(34px); }
   .art-space__calm-current { opacity: 0.5; }
 }
 

@@ -1263,26 +1263,21 @@ async fn guild_submit_quest_artworks(
     else {
         return Err(AppError::bad_request("请先接取委托"));
     };
-    let artwork_ids = i64_array_field(&body, "artworkIds");
-    if artwork_ids.is_empty() {
+    let valid_ids: Vec<i64> = i64_array_field(&body, "artworkIds")
+        .into_iter()
+        .take(60)
+        .collect();
+    if valid_ids.is_empty() {
         return Err(AppError::bad_request("请选择要提交的作品"));
     }
 
     let eligible_from = quest_submission_start_at(&quest_created_at);
-    let mut valid_ids = Vec::new();
-    for artwork_id in artwork_ids.into_iter().take(60) {
-        if valid_ids.contains(&artwork_id) {
-            continue;
-        }
-        if !eligible_submission_artwork_exists(&state, &uid, artwork_id, &eligible_from).await? {
-            return Err(AppError::bad_request(
-                "只能提交本委托发布当天及之后审核通过的本人作品",
-            ));
-        }
-        valid_ids.push(artwork_id);
-    }
-    if valid_ids.is_empty() {
-        return Err(AppError::bad_request("请选择要提交的作品"));
+    let eligible_ids =
+        eligible_submission_artwork_ids(&state, &uid, &valid_ids, &eligible_from).await?;
+    if valid_ids.iter().any(|id| !eligible_ids.contains(id)) {
+        return Err(AppError::bad_request(
+            "只能提交本委托发布当天及之后审核通过的本人作品",
+        ));
     }
 
     let now = now_iso();
@@ -1291,19 +1286,22 @@ async fn guild_submit_quest_artworks(
         .bind(claim_id)
         .execute(&mut *tx)
         .await?;
+    let value_groups = vec!["(?,?,?,?,?)"; valid_ids.len()].join(",");
+    let insert_sql = format!(
+        "INSERT INTO guild_quest_claim_artworks( \
+             claim_id, quest_id, uid, artwork_id, submitted_at \
+         ) VALUES {value_groups}"
+    );
+    let mut insert_query = sqlx::query(&insert_sql);
     for artwork_id in &valid_ids {
-        sqlx::query(
-            "INSERT INTO guild_quest_claim_artworks(claim_id, quest_id, uid, artwork_id, submitted_at)
-             VALUES(?,?,?,?,?)",
-        )
-        .bind(claim_id)
-        .bind(quest_id)
-        .bind(&uid)
-        .bind(artwork_id)
-        .bind(&now)
-        .execute(&mut *tx)
-        .await?;
+        insert_query = insert_query
+            .bind(claim_id)
+            .bind(quest_id)
+            .bind(&uid)
+            .bind(artwork_id)
+            .bind(&now);
     }
+    insert_query.execute(&mut *tx).await?;
     let progress = (valid_ids.len() as i64).min(target_count);
     sqlx::query("UPDATE guild_quest_claims SET progress=? WHERE id=? AND status='active'")
         .bind(progress)
@@ -1492,24 +1490,18 @@ async fn guild_apply_access(
         return Err(AppError::bad_request("已有待审核访问许可申请"));
     }
 
-    let artwork_ids = i64_array_field(&body, "artworkIds");
-    if artwork_ids.is_empty() {
-        return Err(AppError::bad_request("请选择至少 1 张凉宫个人作品"));
-    }
-    let mut valid_ids = Vec::new();
-    for artwork_id in artwork_ids.into_iter().take(60) {
-        if valid_ids.contains(&artwork_id) {
-            continue;
-        }
-        if !eligible_access_application_artwork_exists(&state, &uid, artwork_id).await? {
-            return Err(AppError::bad_request(
-                "只能提交本人已审核通过的凉宫个人作品",
-            ));
-        }
-        valid_ids.push(artwork_id);
-    }
+    let valid_ids: Vec<i64> = i64_array_field(&body, "artworkIds")
+        .into_iter()
+        .take(60)
+        .collect();
     if valid_ids.is_empty() {
         return Err(AppError::bad_request("请选择至少 1 张凉宫个人作品"));
+    }
+    let eligible_ids = eligible_access_application_artwork_ids(&state, &uid, &valid_ids).await?;
+    if valid_ids.iter().any(|id| !eligible_ids.contains(id)) {
+        return Err(AppError::bad_request(
+            "只能提交本人已审核通过的凉宫个人作品",
+        ));
     }
     let artwork_ids_json = serde_json::to_string(&valid_ids)
         .map_err(|e| AppError::internal(format!("序列化权限申请作品失败: {e}")))?;
@@ -2488,22 +2480,38 @@ async fn admin_access_applications(
     .await?;
     let uids: Vec<String> = rows.iter().map(|r| r.1.clone()).collect();
     let names = super::art::member_display_names(&state.pools.core, &uids).await;
+    let application_artwork_ids: Vec<Vec<i64>> = rows
+        .iter()
+        .map(|row| {
+            parse_artwork_ids_json(&row.4)
+                .into_iter()
+                .take(60)
+                .collect()
+        })
+        .collect();
+    let all_artwork_ids: Vec<i64> = application_artwork_ids
+        .iter()
+        .flat_map(|ids| ids.iter().copied())
+        .collect();
+    let artwork_values = artwork_values_by_ids(&state, &all_artwork_ids).await?;
     let mut data = Vec::with_capacity(rows.len());
     for (
-        id,
-        uid,
-        from_access,
-        target_access,
-        artwork_ids_json,
-        status,
-        user_note,
-        admin_note,
-        created_at,
-        reviewed_at,
-    ) in rows
+        (
+            id,
+            uid,
+            from_access,
+            target_access,
+            _artwork_ids_json,
+            status,
+            user_note,
+            admin_note,
+            created_at,
+            reviewed_at,
+        ),
+        artwork_ids,
+    ) in rows.into_iter().zip(application_artwork_ids)
     {
-        let artwork_ids = parse_artwork_ids_json(&artwork_ids_json);
-        let submitted_artworks = artworks_by_ids(&state, &artwork_ids).await?;
+        let submitted_artworks = ordered_artwork_values(&artwork_ids, &artwork_values);
         let name = names.get(&uid).cloned();
         let from_access_label = from_access.as_deref().map(access_label);
         let from_access_short_label = from_access.as_deref().map(access_short_label);
@@ -4142,42 +4150,57 @@ async fn submitted_count_for_claim(state: &AppState, claim_id: i64) -> AppResult
     )
 }
 
-async fn eligible_submission_artwork_exists(
+async fn eligible_submission_artwork_ids(
     state: &AppState,
     uid: &str,
-    artwork_id: i64,
+    artwork_ids: &[i64],
     eligible_from: &str,
-) -> AppResult<bool> {
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*)
-         FROM artworks
-         WHERE id=? AND uploader_uid=? AND status='approved'
-           AND datetime(COALESCE(reviewed_at, created_at)) >= datetime(?)",
-    )
-    .bind(artwork_id)
-    .bind(uid)
-    .bind(eligible_from)
-    .fetch_one(&state.pools.art)
-    .await?;
-    Ok(count > 0)
+) -> AppResult<std::collections::HashSet<i64>> {
+    if artwork_ids.is_empty() {
+        return Ok(std::collections::HashSet::new());
+    }
+    let placeholders = vec!["?"; artwork_ids.len()].join(",");
+    let sql = format!(
+        "SELECT id FROM artworks \
+         WHERE id IN ({placeholders}) AND uploader_uid=? AND status='approved' \
+           AND datetime(COALESCE(reviewed_at, created_at)) >= datetime(?)"
+    );
+    let mut query = sqlx::query_scalar::<_, i64>(&sql);
+    for artwork_id in artwork_ids {
+        query = query.bind(artwork_id);
+    }
+    query = query.bind(uid).bind(eligible_from);
+    Ok(query
+        .fetch_all(&state.pools.art)
+        .await?
+        .into_iter()
+        .collect())
 }
 
-async fn eligible_access_application_artwork_exists(
+async fn eligible_access_application_artwork_ids(
     state: &AppState,
     uid: &str,
-    artwork_id: i64,
-) -> AppResult<bool> {
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*)
-         FROM artworks
-         WHERE id=? AND uploader_uid=? AND status='approved'
-           AND source_type='personal' AND content_type='haruhi'",
-    )
-    .bind(artwork_id)
-    .bind(uid)
-    .fetch_one(&state.pools.art)
-    .await?;
-    Ok(count > 0)
+    artwork_ids: &[i64],
+) -> AppResult<std::collections::HashSet<i64>> {
+    if artwork_ids.is_empty() {
+        return Ok(std::collections::HashSet::new());
+    }
+    let placeholders = vec!["?"; artwork_ids.len()].join(",");
+    let sql = format!(
+        "SELECT id FROM artworks \
+         WHERE id IN ({placeholders}) AND uploader_uid=? AND status='approved' \
+           AND source_type='personal' AND content_type='haruhi'"
+    );
+    let mut query = sqlx::query_scalar::<_, i64>(&sql);
+    for artwork_id in artwork_ids {
+        query = query.bind(artwork_id);
+    }
+    query = query.bind(uid);
+    Ok(query
+        .fetch_all(&state.pools.art)
+        .await?
+        .into_iter()
+        .collect())
 }
 
 async fn valid_submitted_count_for_claim(
@@ -4201,23 +4224,42 @@ async fn valid_submitted_count_for_claim(
     .await?)
 }
 
-async fn artworks_by_ids(state: &AppState, artwork_ids: &[i64]) -> AppResult<Vec<Value>> {
-    let mut result = Vec::new();
-    for artwork_id in artwork_ids.iter().copied().take(60) {
-        let row: Option<QuestSubmissionArtworkRow> = sqlx::query_as(
-            "SELECT id, title, source_type, content_type, file_path, images_json, status,
-                    created_at, reviewed_at, NULL AS submitted_at
-             FROM artworks
-             WHERE id=?",
-        )
-        .bind(artwork_id)
-        .fetch_optional(&state.pools.art)
-        .await?;
-        if let Some(row) = row {
-            result.push(submission_artwork_value(row));
+async fn artwork_values_by_ids(
+    state: &AppState,
+    artwork_ids: &[i64],
+) -> AppResult<std::collections::HashMap<i64, Value>> {
+    const ID_CHUNK_SIZE: usize = 500;
+    let mut ids: Vec<i64> = artwork_ids.iter().copied().filter(|id| *id > 0).collect();
+    ids.sort_unstable();
+    ids.dedup();
+    let mut values = std::collections::HashMap::with_capacity(ids.len());
+    for chunk in ids.chunks(ID_CHUNK_SIZE) {
+        let placeholders = vec!["?"; chunk.len()].join(",");
+        let sql = format!(
+            "SELECT id, title, source_type, content_type, file_path, images_json, status, \
+                    created_at, reviewed_at, NULL AS submitted_at \
+             FROM artworks WHERE id IN ({placeholders})"
+        );
+        let mut query = sqlx::query_as::<_, QuestSubmissionArtworkRow>(&sql);
+        for artwork_id in chunk {
+            query = query.bind(artwork_id);
+        }
+        for row in query.fetch_all(&state.pools.art).await? {
+            values.insert(row.id, submission_artwork_value(row));
         }
     }
-    Ok(result)
+    Ok(values)
+}
+
+fn ordered_artwork_values(
+    artwork_ids: &[i64],
+    values: &std::collections::HashMap<i64, Value>,
+) -> Vec<Value> {
+    artwork_ids
+        .iter()
+        .take(60)
+        .filter_map(|id| values.get(id).cloned())
+        .collect()
 }
 
 fn submission_artwork_value(row: QuestSubmissionArtworkRow) -> Value {
@@ -5462,16 +5504,12 @@ pub(crate) fn rating_label(rating: &str) -> String {
 }
 
 fn parse_artwork_ids_json(value: &str) -> Vec<i64> {
+    let mut seen = std::collections::HashSet::new();
     serde_json::from_str::<Vec<i64>>(value)
         .unwrap_or_default()
         .into_iter()
-        .filter(|id| *id > 0)
-        .fold(Vec::new(), |mut acc, id| {
-            if !acc.contains(&id) {
-                acc.push(id);
-            }
-            acc
-        })
+        .filter(|id| *id > 0 && seen.insert(*id))
+        .collect()
 }
 
 fn next_rating_rule(current: &str) -> Option<(&'static str, i64, i64)> {
@@ -5727,11 +5765,12 @@ fn i64_array_field(body: &Value, key: &str) -> Vec<i64> {
         return Vec::new();
     };
     let mut result = Vec::new();
+    let mut seen = std::collections::HashSet::new();
     for value in values {
         let Some(id) = json_num_i64(value).filter(|id| *id > 0) else {
             continue;
         };
-        if !result.contains(&id) {
+        if seen.insert(id) {
             result.push(id);
         }
     }
@@ -5769,6 +5808,21 @@ fn clamp_query_i64(value: Option<&String>, min: i64, max: i64, fallback: i64) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn artwork_id_parsers_deduplicate_in_input_order() {
+        assert_eq!(
+            parse_artwork_ids_json("[3, 1, 3, 0, -2, 2, 1]"),
+            vec![3, 1, 2]
+        );
+        assert_eq!(
+            i64_array_field(
+                &json!({ "artworkIds": ["3", 1, 3, 0, -2, 2, "1"] }),
+                "artworkIds"
+            ),
+            vec![3, 1, 2]
+        );
+    }
 
     #[test]
     fn fixed_deadline_ignores_cycle_days() {

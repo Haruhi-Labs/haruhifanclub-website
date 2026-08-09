@@ -628,6 +628,84 @@ async fn popularity_stats(
     Ok(out)
 }
 
+/// 只统计指定作品的人气数据。普通列表、详情与相关推荐只会消费一个有限作品集，
+/// 不应为此扫描全站互动表。分块后也不会触碰 SQLite 的绑定参数上限。
+async fn popularity_stats_for_ids(
+    state: &AppState,
+    range: PopularityRange,
+    artwork_ids: &[i64],
+) -> AppResult<std::collections::HashMap<i64, PopularityStats>> {
+    const ID_CHUNK_SIZE: usize = 500;
+
+    let mut ids = artwork_ids.to_vec();
+    ids.sort_unstable();
+    ids.dedup();
+    if ids.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+
+    let (view_range, like_range, comment_range) = match range {
+        PopularityRange::Week => (
+            " AND datetime(viewed_at) >= datetime('now', '-7 days')",
+            " AND date(day) >= date('now', '-7 days')",
+            " AND datetime(created_at) >= datetime('now', '-7 days')",
+        ),
+        PopularityRange::Year => (
+            " AND datetime(viewed_at) >= datetime('now', '-365 days')",
+            " AND date(day) >= date('now', '-365 days')",
+            " AND datetime(created_at) >= datetime('now', '-365 days')",
+        ),
+        PopularityRange::History => ("", "", ""),
+    };
+
+    let mut out = std::collections::HashMap::<i64, PopularityStats>::new();
+    for chunk in ids.chunks(ID_CHUNK_SIZE) {
+        let placeholders = vec!["?"; chunk.len()].join(",");
+        let view_sql = format!(
+            "SELECT artwork_id, COUNT(1) FROM artwork_views \
+             WHERE artwork_id IN ({placeholders}){view_range} GROUP BY artwork_id"
+        );
+        let like_sql = format!(
+            "SELECT target_id, COUNT(DISTINCT anon_id) FROM likes_daily \
+             WHERE target_type='artwork' AND target_id IN ({placeholders}){like_range} \
+             GROUP BY target_id"
+        );
+        let comment_sql = format!(
+            "SELECT artwork_id, COUNT(DISTINCT CASE \
+                 WHEN TRIM(COALESCE(anon_id, ''))='' THEN 'comment:' || id ELSE anon_id END) \
+             FROM comments WHERE status='public' AND artwork_id IN ({placeholders}){comment_range} \
+             GROUP BY artwork_id"
+        );
+
+        let mut view_query = sqlx::query_as::<_, (i64, i64)>(&view_sql);
+        let mut like_query = sqlx::query_as::<_, (i64, i64)>(&like_sql);
+        let mut comment_query = sqlx::query_as::<_, (i64, i64)>(&comment_sql);
+        for id in chunk {
+            view_query = view_query.bind(id);
+            like_query = like_query.bind(id);
+            comment_query = comment_query.bind(id);
+        }
+        let (view_rows, like_rows, comment_rows) = tokio::try_join!(
+            view_query.fetch_all(&state.pools.art),
+            like_query.fetch_all(&state.pools.art),
+            comment_query.fetch_all(&state.pools.art),
+        )?;
+        for (id, views) in view_rows {
+            out.entry(id).or_default().views = views;
+        }
+        for (id, likes) in like_rows {
+            out.entry(id).or_default().likes = likes;
+        }
+        for (id, comments) in comment_rows {
+            out.entry(id).or_default().comments = comments;
+        }
+    }
+    for stats in out.values_mut() {
+        stats.score = popularity_score(stats.views, stats.likes, stats.comments);
+    }
+    Ok(out)
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 struct ArtworkLikeState {
     liked: bool,
@@ -1026,28 +1104,34 @@ pub(crate) async fn member_display_names(
     core: &sqlx::SqlitePool,
     uids: &[String],
 ) -> std::collections::HashMap<String, String> {
+    const ID_CHUNK_SIZE: usize = 500;
     let mut map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-    let ids: Vec<i64> = uids
+    let mut ids: Vec<i64> = uids
         .iter()
         .filter_map(|u| u.strip_prefix('u').and_then(|s| s.parse::<i64>().ok()))
         .collect();
+    ids.sort_unstable();
+    ids.dedup();
     if ids.is_empty() {
         return map;
     }
-    let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-    let sql = format!(
-        "SELECT id, nickname, username FROM users WHERE id IN ({placeholders}) AND deleted_at IS NULL"
-    );
-    let mut q = sqlx::query_as::<_, (i64, Option<String>, String)>(&sql);
-    for id in &ids {
-        q = q.bind(id);
-    }
-    if let Ok(rows) = q.fetch_all(core).await {
-        for (id, nickname, username) in rows {
-            let name = nickname
-                .filter(|s| !s.trim().is_empty())
-                .unwrap_or(username);
-            map.insert(format!("u{id}"), name);
+    for chunk in ids.chunks(ID_CHUNK_SIZE) {
+        let placeholders = vec!["?"; chunk.len()].join(",");
+        let sql = format!(
+            "SELECT id, nickname, username FROM users \
+             WHERE id IN ({placeholders}) AND deleted_at IS NULL"
+        );
+        let mut query = sqlx::query_as::<_, (i64, Option<String>, String)>(&sql);
+        for id in chunk {
+            query = query.bind(id);
+        }
+        if let Ok(rows) = query.fetch_all(core).await {
+            for (id, nickname, username) in rows {
+                let name = nickname
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or(username);
+                map.insert(format!("u{id}"), name);
+            }
         }
     }
     map
@@ -1953,7 +2037,12 @@ async fn list_artworks(
         PopularityRange::History
     };
     if sort != "popular" && sort != "likes" {
-        popularity_by_id = popularity_stats(&state, PopularityRange::History).await?;
+        popularity_by_id = popularity_stats_for_ids(
+            &state,
+            PopularityRange::History,
+            &rows.iter().map(|row| row.id).collect::<Vec<_>>(),
+        )
+        .await?;
         for row in &rows {
             let stats = popularity_by_id.entry(row.id).or_default();
             stats.likes = stats.likes.max(row.like_total.max(0));
@@ -2795,7 +2884,8 @@ async fn get_artwork(
             }
         }
     }
-    let mut stats_by_id = popularity_stats(&state, PopularityRange::History).await?;
+    let mut stats_by_id =
+        popularity_stats_for_ids(&state, PopularityRange::History, &[row.id]).await?;
     let stats = stats_by_id.entry(row.id).or_default();
     stats.likes = stats.likes.max(row.like_total.max(0));
     stats.score = popularity_score(stats.views, stats.likes, stats.comments);
@@ -2875,7 +2965,12 @@ async fn related_artworks(
         source.title.as_deref().unwrap_or_default()
     );
     let source_uid = source.uploader_uid.as_deref().unwrap_or("").trim();
-    let mut stats_by_id = popularity_stats(&state, PopularityRange::History).await?;
+    let mut stats_by_id = popularity_stats_for_ids(
+        &state,
+        PopularityRange::History,
+        &candidates.iter().map(|row| row.id).collect::<Vec<_>>(),
+    )
+    .await?;
     for row in &candidates {
         let stats = stats_by_id.entry(row.id).or_default();
         stats.likes = stats.likes.max(row.like_total.max(0));
@@ -4049,7 +4144,12 @@ async fn effective_creator_exhibit_ids(
                 && row.source_type.as_deref() == Some("personal")
         })
         .collect();
-    let mut stats_by_id = popularity_stats(state, PopularityRange::History).await?;
+    let mut stats_by_id = popularity_stats_for_ids(
+        state,
+        PopularityRange::History,
+        &eligible.iter().map(|row| row.id).collect::<Vec<_>>(),
+    )
+    .await?;
     for row in &eligible {
         let stats = stats_by_id.entry(row.id).or_default();
         stats.likes = stats.likes.max(row.like_total.max(0));

@@ -218,12 +218,11 @@ function createLayoutEntry(item, position) {
   }
 }
 
-function syncLayout(items, columns, previousItems) {
+function syncLayout(items, columns) {
   masonryColumns.value = syncMasonryLayout(
     masonryState,
     items,
     columns,
-    previousItems,
     createLayoutEntry,
   )
 }
@@ -369,8 +368,8 @@ function openArtwork(item, position) {
 }
 
 watch(
-  [() => props.items, () => columnCount.value],
-  ([items, columns], previous = []) => syncLayout(items, columns, previous[0]),
+  [() => props.items, () => props.items.length, () => columnCount.value],
+  ([items, _length, columns]) => syncLayout(items, columns),
   { immediate: true },
 )
 

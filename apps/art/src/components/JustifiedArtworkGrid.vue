@@ -93,9 +93,9 @@ async function measureItems() {
     if (storedRatio(item)) return
     const ratio = await requestRatio(imageSource(item))
     if (token !== ratioLoadToken || props.items[index] !== item) return
-    const next = [...measuredRatios.value]
-    next[index] = ratio
-    measuredRatios.value = next
+    // ref 内的数组是响应式的，可直接更新单项。避免 n 张图片逐张完成时各复制一次
+    // 长度为 n 的比例数组，将总复制量从 O(n²) 降为 O(n)。
+    measuredRatios.value[index] = ratio
   }))
 }
 
@@ -153,14 +153,14 @@ function randomizedUniformRowsLayout(items, ratios, width, gap, targetHeight, it
 
 function balancedRowsLayout(items, ratios, width, gap, targetHeight, rowCount, minHeight, maxHeight) {
   if (rowCount !== 2 || items.length < 4) return null
+  const prefixRatios = [0]
+  for (const ratio of ratios) prefixRatios.push(prefixRatios.at(-1) + ratio)
+  const ratioSum = (start, end) => prefixRatios[end] - prefixRatios[start]
   let best = null
   for (let split = 2; split <= items.length - 2; split += 1) {
-    const firstRatios = ratios.slice(0, split)
-    const secondRatios = ratios.slice(split)
-    const firstHeight = (width - gap * (firstRatios.length - 1))
-      / firstRatios.reduce((sum, ratio) => sum + ratio, 0)
-    const secondHeight = (width - gap * (secondRatios.length - 1))
-      / secondRatios.reduce((sum, ratio) => sum + ratio, 0)
+    const secondLength = items.length - split
+    const firstHeight = (width - gap * (split - 1)) / ratioSum(0, split)
+    const secondHeight = (width - gap * (secondLength - 1)) / ratioSum(split, items.length)
     const targetCost = Math.abs(Math.log(firstHeight / targetHeight))
       + Math.abs(Math.log(secondHeight / targetHeight))
     const balanceCost = Math.abs(firstHeight - secondHeight) / targetHeight
