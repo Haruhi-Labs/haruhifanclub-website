@@ -5,6 +5,7 @@ use std::sync::Arc;
 use haruhi_core::Config;
 use haruhi_db::Pools;
 use haruhi_mail::Mailer;
+use haruhi_server::game_auth_routes::GameTicketSigner;
 use haruhi_server::ratelimit::RateLimiter;
 use haruhi_server::state::AppState;
 use haruhi_server::{modules, routes, seed};
@@ -15,6 +16,7 @@ async fn main() -> anyhow::Result<()> {
     init_tracing();
 
     let cfg = Arc::new(Config::from_env()?);
+    let game_ticket_signer = Arc::new(GameTicketSigner::from_config(&cfg)?);
     tracing::info!(data_dir = ?cfg.data_dir, uploads_dir = ?cfg.uploads_dir, "配置加载完成");
 
     let pools = Pools::connect(&cfg).await?;
@@ -41,6 +43,7 @@ async fn main() -> anyhow::Result<()> {
         upload_limiter: Arc::new(RateLimiter::new(60, 600)),
         // 注册/找回/重发验证：单 IP 1 小时内最多 5 次，防刷邮件
         account_limiter: Arc::new(RateLimiter::new(5, 3600)),
+        game_ticket_signer,
         // 统一邮件发送器（未配置邮件时为 None）
         mailer: Mailer::from_config(&cfg),
         // 资源站索引缓存（与后台同步任务共享同一 Arc）

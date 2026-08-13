@@ -14,7 +14,9 @@ use tower_http::trace::TraceLayer;
 const MAX_BODY_BYTES: usize = 256 * 1024 * 1024;
 
 use crate::state::AppState;
-use crate::{admin_routes, auth_routes, me_routes, modules, passkey_routes, totp_routes};
+use crate::{
+    admin_routes, auth_routes, game_auth_routes, me_routes, modules, passkey_routes, totp_routes,
+};
 
 pub fn router(state: AppState) -> Router {
     let uploads_dir = state.cfg.uploads_dir.clone();
@@ -25,6 +27,7 @@ pub fn router(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/health/ready", get(ready))
         .merge(auth_routes::router())
+        .merge(game_auth_routes::router())
         .merge(passkey_routes::router())
         .merge(totp_routes::router())
         .merge(admin_routes::router())

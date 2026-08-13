@@ -14,6 +14,10 @@ use axum::response::Response;
 use haruhi_auth::session::{cookie_value, CSRF_COOKIE, CSRF_HEADER, SESSION_COOKIE};
 use haruhi_core::AppError;
 
+use crate::game_auth_routes::{
+    GAME_CSRF_COOKIE, GAME_CSRF_COOKIE_DEV, GAME_SESSION_COOKIE, GAME_SESSION_COOKIE_DEV,
+};
+
 pub async fn csrf_guard(req: Request, next: Next) -> Result<Response, AppError> {
     // 安全方法不改状态，放行
     if matches!(
@@ -23,15 +27,36 @@ pub async fn csrf_guard(req: Request, next: Next) -> Result<Response, AppError> 
         return Ok(next.run(req).await);
     }
 
+    // 授权码交换没有既有游戏会话；其安全性来自一次性授权码、state 与 PKCE。
+    // 即使浏览器残留旧游戏 cookie，也不能让它阻断重新登录。
+    if req.uri().path() == "/api/game/session/exchange" {
+        return Ok(next.run(req).await);
+    }
+
+    let is_game_api = req.uri().path().starts_with("/api/game/");
     let headers = req.headers();
 
+    let (session_names, csrf_names): (&[&str], &[&str]) = if is_game_api {
+        (
+            &[GAME_SESSION_COOKIE, GAME_SESSION_COOKIE_DEV],
+            &[GAME_CSRF_COOKIE, GAME_CSRF_COOKIE_DEV],
+        )
+    } else {
+        (&[SESSION_COOKIE], &[CSRF_COOKIE])
+    };
+
     // 没有会话 cookie → 不是 cookie 鉴权请求，放行（登录/注册/旧 Bearer 等）
-    if cookie_value(headers, SESSION_COOKIE).is_none() {
+    if !session_names
+        .iter()
+        .any(|name| cookie_value(headers, name).is_some())
+    {
         return Ok(next.run(req).await);
     }
 
     // 双提交：请求头必须与 csrf cookie 一致且非空
-    let cookie_csrf = cookie_value(headers, CSRF_COOKIE);
+    let cookie_csrf = csrf_names
+        .iter()
+        .find_map(|name| cookie_value(headers, name));
     let header_csrf = headers
         .get(CSRF_HEADER)
         .and_then(|v| v.to_str().ok())

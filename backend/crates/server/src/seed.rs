@@ -22,11 +22,12 @@ pub async fn seed_superadmin(cfg: &Config, core: &SqlitePool) -> anyhow::Result<
 
     let hash = hash_password(&pass)?;
     sqlx::query(
-        "INSERT INTO users (username, password_hash, display_name, is_super_admin, status) \
-         VALUES (?, ?, ?, 1, 'active')",
+        "INSERT INTO users (username, password_hash, display_name, nickname, is_super_admin, status) \
+         VALUES (?, ?, ?, ?, 1, 'active')",
     )
     .bind(&user)
     .bind(&hash)
+    .bind("超级管理员")
     .bind("超级管理员")
     .execute(core)
     .await?;

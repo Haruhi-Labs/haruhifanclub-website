@@ -11,14 +11,18 @@ use axum::body::Body;
 use axum::http::header::{COOKIE, SET_COOKIE};
 use axum::http::{HeaderMap, Request, StatusCode};
 use axum::Router;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
 use haruhi_auth::hash_password;
 use haruhi_core::{Config, MailConfig};
 use haruhi_db::Pools;
+use haruhi_server::game_auth_routes::GameTicketSigner;
 use haruhi_server::ratelimit::RateLimiter;
 use haruhi_server::state::AppState;
 use haruhi_server::{routes, seed};
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use tower::ServiceExt; // oneshot
 
 const ADMIN_USER: &str = "admin";
@@ -40,6 +44,8 @@ fn test_config(data_dir: PathBuf, uploads_dir: PathBuf) -> Config {
         jwt_ttl_seconds: 3600,
         session_ttl_seconds: 3600,
         cookie_secure: false,
+        game_sso_redirect_uris: vec!["http://localhost:5173/auth/callback".into()],
+        game_ticket_private_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".into(),
         superadmin_user: Some(ADMIN_USER.into()),
         superadmin_password: Some(ADMIN_PASS.into()),
         dashscope_api_key: None,
@@ -93,6 +99,7 @@ async fn setup() -> TestApp {
     seed::seed_superadmin(&cfg, &pools.core).await.unwrap();
 
     let state = AppState {
+        game_ticket_signer: Arc::new(GameTicketSigner::from_config(&cfg).unwrap()),
         cfg,
         pools,
         login_limiter: Arc::new(RateLimiter::new(10, 600)),
@@ -220,6 +227,27 @@ async fn login(router: &Router, user: &str, pass: &str) -> String {
     j["token"].as_str().expect("应返回 token").to_string()
 }
 
+async fn login_cookie(router: &Router, user: &str, pass: &str) -> String {
+    let (status, headers, body) = send_full(
+        router,
+        post_json(
+            "/api/auth/login",
+            json!({ "username": user, "password": pass }),
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "登录应成功，实际: {body:?}");
+    cookie_header_from_set_cookie(&headers)
+}
+
+fn cookie_from_header<'a>(cookies: &'a str, name: &str) -> Option<&'a str> {
+    cookies.split(';').find_map(|part| {
+        let (key, value) = part.trim().split_once('=')?;
+        (key == name).then_some(value)
+    })
+}
+
 async fn insert_active_user(state: &AppState, user: &str, pass: &str) {
     let hash = hash_password(pass).unwrap();
     sqlx::query(
@@ -302,6 +330,135 @@ async fn login_wrong_password_is_unauthorized() {
     )
     .await;
     assert_eq!(s, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn game_sso_uses_pkce_one_time_code_and_isolated_session() {
+    let app = setup().await;
+    let main_cookies = login_cookie(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let verifier = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+    let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+    let redirect_uri = "http://localhost:5173/auth/callback";
+    let query = url::form_urlencoded::Serializer::new(String::new())
+        .append_pair("client_id", "star-game")
+        .append_pair("redirect_uri", redirect_uri)
+        .append_pair("code_challenge", &challenge)
+        .append_pair("code_challenge_method", "S256")
+        .append_pair("state", "test-state-unguessable")
+        .finish();
+    let (status, headers, _) = send_full(
+        &app.router,
+        get_with_cookie(&format!("/api/auth/game/authorize?{query}"), &main_cookies),
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let location = headers
+        .get("location")
+        .and_then(|value| value.to_str().ok())
+        .expect("授权成功应重定向到登记回调");
+    let callback = url::Url::parse(location).unwrap();
+    assert_eq!(callback.as_str().split('?').next(), Some(redirect_uri));
+    let params = callback
+        .query_pairs()
+        .collect::<std::collections::HashMap<_, _>>();
+    assert_eq!(
+        params.get("state").map(|value| value.as_ref()),
+        Some("test-state-unguessable")
+    );
+    assert_eq!(
+        params.get("iss").map(|value| value.as_ref()),
+        Some("http://localhost")
+    );
+    let code = params
+        .get("code")
+        .expect("回调应带一次性授权码")
+        .to_string();
+
+    let exchange = json!({
+        "clientId": "star-game",
+        "redirectUri": redirect_uri,
+        "code": code,
+        "codeVerifier": verifier,
+    });
+    let (status, headers, body) = send_full(
+        &app.router,
+        post_json("/api/game/session/exchange", exchange.clone(), None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "授权码交换应成功: {body:?}");
+    assert_eq!(body["user"]["nickname"], "超级管理员");
+    let game_cookies = cookie_header_from_set_cookie(&headers);
+    assert!(game_cookies.contains("haruhi_game_session="));
+    assert!(game_cookies.contains("haruhi_game_csrf="));
+    assert!(!game_cookies.contains("haruhi_session="));
+
+    let (status, body) = send(
+        &app.router,
+        get_with_cookie("/api/game/session", &game_cookies),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["user"]["id"], "u1");
+    assert!(body["user"].get("email").is_none(), "游戏会话不得泄露邮箱");
+
+    let (status, _) = send(&app.router, get_with_cookie("/api/auth/me", &game_cookies)).await;
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "游戏 Cookie 不能冒充主站会话"
+    );
+
+    let csrf = cookie_from_header(&game_cookies, "haruhi_game_csrf").unwrap();
+    let mut ticket_request = post_json_with_cookie("/api/game/ticket", json!({}), &game_cookies);
+    ticket_request
+        .headers_mut()
+        .insert("x-csrf-token", csrf.parse().unwrap());
+    let (status, ticket_body) = send(&app.router, ticket_request).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "短期游戏票据应可签发: {ticket_body:?}"
+    );
+    assert_eq!(
+        ticket_body["ticket"].as_str().unwrap().split('.').count(),
+        3
+    );
+    assert_eq!(ticket_body["expiresIn"], 60);
+
+    let (status, jwks) = send(&app.router, get("/api/game/jwks", None)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(jwks["keys"][0]["kty"], "OKP");
+    assert_eq!(jwks["keys"][0]["crv"], "Ed25519");
+    assert_eq!(jwks["keys"][0]["x"].as_str().unwrap().len(), 43);
+
+    let (status, _) = send(
+        &app.router,
+        post_json("/api/game/session/exchange", exchange, None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "授权码不能二次消费");
+}
+
+#[tokio::test]
+async fn game_sso_rejects_unregistered_redirect_uri() {
+    let app = setup().await;
+    let main_cookies = login_cookie(&app.router, ADMIN_USER, ADMIN_PASS).await;
+    let query = url::form_urlencoded::Serializer::new(String::new())
+        .append_pair("client_id", "star-game")
+        .append_pair("redirect_uri", "https://evil.example/callback")
+        .append_pair(
+            "code_challenge",
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        )
+        .append_pair("code_challenge_method", "S256")
+        .append_pair("state", "safe-state")
+        .finish();
+    let (status, _) = send(
+        &app.router,
+        get_with_cookie(&format!("/api/auth/game/authorize?{query}"), &main_cookies),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
