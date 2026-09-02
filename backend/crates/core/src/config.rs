@@ -20,6 +20,10 @@ pub struct Config {
     pub session_ttl_seconds: i64,
     /// 会话/CSRF cookie 是否带 Secure 属性；默认按 public_site_url 是否 https 推导，可被 env 覆盖。
     pub cookie_secure: bool,
+    /// 游戏统一身份授权码允许的精确回调地址白名单。
+    pub game_sso_redirect_uris: Vec<String>,
+    /// Ed25519 私钥种子（32 字节 base64url，无 padding），仅统一认证后端持有。
+    pub game_ticket_private_key: String,
     pub superadmin_user: Option<String>,
     pub superadmin_password: Option<String>,
 
@@ -140,6 +144,16 @@ impl Config {
             None if dev => "dev-art-cookie-secret".to_string(),
             None => anyhow::bail!("缺少 ART_COOKIE_SECRET（生产必填）"),
         };
+        let game_ticket_private_key = match env("HARUHI_GAME_TICKET_PRIVATE_KEY") {
+            Some(s) => s,
+            None if dev => {
+                tracing::warn!(
+                    "⚠ 未设置 HARUHI_GAME_TICKET_PRIVATE_KEY，本地调试使用固定不安全 Ed25519 种子"
+                );
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            }
+            None => anyhow::bail!("缺少 HARUHI_GAME_TICKET_PRIVATE_KEY（生产必填）"),
+        };
         // dev 下若未显式配置超管，则默认 seed admin/admin123——提示勿用于公网
         if dev
             && (env("HARUHI_SUPERADMIN_USER").is_none()
@@ -172,6 +186,28 @@ impl Config {
         // 账号邮件链接基址：默认主站 news 子路径
         let account_web_base = env("HARUHI_ACCOUNT_WEB_BASE")
             .unwrap_or_else(|| format!("{}/news", public_site_url.trim_end_matches('/')));
+        let game_sso_redirect_uris = env("HARUHI_GAME_SSO_REDIRECT_URIS")
+            .map(|value| {
+                value
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+            })
+            .filter(|values| !values.is_empty())
+            .unwrap_or_else(|| {
+                if dev {
+                    vec![
+                        "http://localhost:5173/auth/callback".to_string(),
+                        "http://127.0.0.1:5173/auth/callback".to_string(),
+                    ]
+                } else if public_site_url.trim_end_matches('/') == "https://test.haruyuki.cn" {
+                    vec!["https://test.haruyuki.cn/game/auth/callback".to_string()]
+                } else {
+                    vec!["https://star.haruyuki.cn/auth/callback".to_string()]
+                }
+            });
 
         Ok(Config {
             bind,
@@ -183,6 +219,8 @@ impl Config {
             // 会话默认 30 天（cookie 模式，可吊销，故可比 JWT 更长）
             session_ttl_seconds: env_parse("HARUHI_SESSION_TTL_SECONDS", 2_592_000),
             cookie_secure,
+            game_sso_redirect_uris,
+            game_ticket_private_key,
             superadmin_user: env("HARUHI_SUPERADMIN_USER")
                 .or_else(|| dev.then(|| "admin".to_string())),
             superadmin_password: env("HARUHI_SUPERADMIN_PASSWORD")

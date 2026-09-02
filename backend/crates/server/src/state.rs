@@ -8,6 +8,7 @@ use haruhi_core::Config;
 use haruhi_db::Pools;
 use haruhi_mail::Mailer;
 
+use crate::game_auth_routes::GameTicketSigner;
 use crate::ratelimit::RateLimiter;
 
 #[derive(Clone)]
@@ -19,6 +20,8 @@ pub struct AppState {
     pub upload_limiter: Arc<RateLimiter>,
     /// 注册 / 找回密码 / 重发验证邮件按 IP 限流，防刷邮件与账号枚举。
     pub account_limiter: Arc<RateLimiter>,
+    /// 游戏短期身份票据签名器；私钥仅存在于统一认证后端进程。
+    pub game_ticket_signer: Arc<GameTicketSigner>,
     /// 统一邮件发送器；未配置邮件时为 None（业务层据此把链接打日志降级）。
     pub mailer: Option<Mailer>,
     /// 资源站（download）：语雀知识库索引的内存缓存，后台定时同步、请求直接读。

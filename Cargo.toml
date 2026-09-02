@@ -53,6 +53,7 @@ hmac = "0.12"
 sha2 = "0.10"
 md-5 = "0.10"
 rand = "0.8"
+ed25519-dalek = "2"
 
 # --- HTTP 客户端 / 邮件 ---
 # stream：语音工坊（voice）把上游音频 bytes_stream 流式回传，避免整段驻内存
@@ -73,6 +74,7 @@ ammonia = "4"
 # --- 工具 ---
 uuid = { version = "1", features = ["v4"] }
 base64 = "0.22"
+url = "2"
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 anyhow = "1"

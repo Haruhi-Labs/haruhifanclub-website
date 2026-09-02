@@ -40,6 +40,8 @@ sha2.workspace = true
 rand.workspace = true
 uuid = { workspace = true }
 base64.workspace = true
+ed25519-dalek.workspace = true
+url.workspace = true
 # fiction 章节正文清洗：编辑器输出 HTML 落库前按标签/属性白名单过滤
 ammonia.workspace = true
 # Passkey / WebAuthn：高层 API；状态需在 start/finish 间持久化，故开启状态序列化 feature。

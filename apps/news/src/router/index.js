@@ -7,6 +7,7 @@ import { storeRoutes } from '@/features/store/routes'
 import { quizRoutes } from '@/features/quiz/routes'
 import { activityRoutes } from '@/features/activity/routes'
 import { adminRoutes } from '@/features/admin/routes'
+import GameAuthorizeView from '@/views/GameAuthorizeView.vue'
 // 统一账号 UI（news 作主站，承载邮箱验证/找回密码邮件链接落地页）
 import {
   LoginView,
@@ -69,6 +70,12 @@ const accountRoutes = [
         props: { site: 'news', embedded: true },
       },
     ],
+  },
+  {
+    path: '/sso/game',
+    name: 'game-sso-authorize',
+    component: GameAuthorizeView,
+    meta: { requiresAuth: true, title: '连接游戏身份', noindex: true },
   },
   {
     path: '/verify-email',

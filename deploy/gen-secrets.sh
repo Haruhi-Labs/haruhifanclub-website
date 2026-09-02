@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================
 # 据 deploy/env.sample 渲染一份填好强密钥的环境变量文件。
-# 把三处 change-me 占位（HARUHI_JWT_SECRET / ART_COOKIE_SECRET /
-# HARUHI_SUPERADMIN_PASSWORD）替换为 openssl 随机值，其余原样保留。
+# 把四处 change-me 占位（HARUHI_JWT_SECRET / ART_COOKIE_SECRET /
+# HARUHI_GAME_TICKET_PRIVATE_KEY / HARUHI_SUPERADMIN_PASSWORD）替换为随机值，其余原样保留。
 #
 # 用法：
 #   bash deploy/gen-secrets.sh                 # 写到仓库根 .env（已存在则拒绝覆盖）
@@ -50,13 +50,16 @@ fi
 # 密钥：hex32 = 64 位十六进制，纯 [0-9a-f]，对 dotenvy/systemd/awk 均安全。
 jwt="$(openssl rand -hex 32)"
 cookie="$(openssl rand -hex 32)"
+# Ed25519 使用 32 字节种子；转成无 padding 的 base64url，便于 Rust/Node 跨语言配置。
+game_ticket="$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')"
 # 超管口令：base64(24B) 去掉易混/特殊字符，取前 24 位。
 adminpw="$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | cut -c1-24)"
 
 # 据模板渲染（按 key 锚定整行替换；生成值不含 awk 特殊字符，直接字符串拼接安全）。
-awk -v jwt="$jwt" -v cookie="$cookie" -v pw="$adminpw" '
+awk -v jwt="$jwt" -v cookie="$cookie" -v game_ticket="$game_ticket" -v pw="$adminpw" '
   /^HARUHI_JWT_SECRET=/          { print "HARUHI_JWT_SECRET=" jwt; next }
   /^ART_COOKIE_SECRET=/          { print "ART_COOKIE_SECRET=" cookie; next }
+  /^HARUHI_GAME_TICKET_PRIVATE_KEY=/ { print "HARUHI_GAME_TICKET_PRIVATE_KEY=" game_ticket; next }
   /^HARUHI_SUPERADMIN_PASSWORD=/ { print "HARUHI_SUPERADMIN_PASSWORD=" pw; next }
   { print }
 ' "$template" >"$out"
@@ -64,7 +67,7 @@ awk -v jwt="$jwt" -v cookie="$cookie" -v pw="$adminpw" '
 chmod 600 "$out"
 
 echo "✓ 已生成 ${out}（权限 600）"
-echo "  · HARUHI_JWT_SECRET、ART_COOKIE_SECRET 已用 openssl rand -hex 32 填充"
+echo "  · JWT、Cookie 与游戏 Ed25519 私钥种子均已生成"
 echo "  · 超级管理员账号：${HARUHI_SUPERADMIN_USER:-admin}"
 echo "  · 超级管理员口令（请立即妥善保存，仅首次启动 seed 时使用）：$adminpw"
 echo ""
