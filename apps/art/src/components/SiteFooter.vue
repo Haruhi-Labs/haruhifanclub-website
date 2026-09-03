@@ -46,7 +46,7 @@ const groups = [
       { label: '团员手册', href: 'https://haruyuki.cn/news/handbook', brand: '#3b82f6' },
       { label: '超能力者群', href: 'https://qm.qq.com/q/CVssyL3Pj2', brand: '#10b981' },
       { label: '异世界人群', href: 'https://qm.qq.com/q/JcS7yXYoU2', brand: '#a855f7' },
-      { label: '未来人群', href: 'https://qm.qq.com/q/8nYNs7rFwA', brand: '#f97316' },
+      { label: '宇宙人群', href: 'https://qm.qq.com/q/8nYNs7rFwA', brand: '#f97316' },
     ],
   },
 ]
