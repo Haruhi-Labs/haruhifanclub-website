@@ -207,7 +207,7 @@ const footerGroups = [
       { label: '团员手册', brand: '#3b82f6' },
       { label: '超能力者群', brand: '#10b981' },
       { label: '异世界人群', brand: '#a855f7' },
-      { label: '未来人群', brand: '#f97316' },
+      { label: '宇宙人群', brand: '#f97316' },
     ],
   },
 ]
